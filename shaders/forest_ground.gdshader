@@ -1,22 +1,27 @@
 shader_type spatial;
 render_mode specular_schlick_ggx;
 
-// Параметры маршрута выставляются из scripts/rally_stage.gd — те же значения,
+// PS1-ландшафт (Colin McRae Rally): плоское тиснение, вершинные цвета
+// (R — влияние дороги, G — крутизна склона, B — шум), жёсткий дизер-туман.
+// Параметры выставляются из scripts/rally_stage.gd — те же значения,
 // что использует генератор рельефа и коллизий. Всё редактируется ресурсом трассы.
-uniform vec3 route_amp = vec3(11.0, 5.0, 1.0);
-uniform vec3 route_freq = vec3(0.026, 0.061, 0.011);
-uniform vec3 route_phase = vec3(0.0, 0.0, 0.0);
-uniform float road_half_width : hint_range(2.0, 14.0) = 4.3;
-
-uniform vec3 ground_color : source_color = vec3(0.085, 0.165, 0.070);
-uniform vec3 ground_color_2 : source_color = vec3(0.20, 0.255, 0.105);
-uniform vec3 road_color : source_color = vec3(0.34, 0.275, 0.19);
-uniform vec3 road_color_2 : source_color = vec3(0.46, 0.375, 0.265);
+uniform vec3 ground_color : source_color = vec3(0.10, 0.17, 0.07);
+uniform vec3 ground_color_2 : source_color = vec3(0.21, 0.26, 0.11);
+uniform vec3 road_edge_color : source_color = vec3(0.31, 0.25, 0.17);
+uniform vec3 rock_color : source_color = vec3(0.29, 0.31, 0.32);
 uniform float surface_roughness : hint_range(0.0, 1.0) = 0.97;
 uniform float grain_scale : hint_range(0.1, 6.0) = 2.4;
 
+uniform float flat_shading : hint_range(0.0, 1.0) = 1.0;
+uniform float dither_fog : hint_range(0.0, 1.0) = 1.0;
+uniform float banding_levels : hint_range(0.0, 8.0) = 5.0;
+uniform vec3 fog_color : source_color = vec3(0.72, 0.79, 0.88);
+uniform float fog_near : hint_range(10.0, 400.0) = 130.0;
+uniform float fog_far : hint_range(50.0, 800.0) = 320.0;
+
 varying vec3 world_pos;
 varying vec3 world_normal;
+varying vec4 vertex_info;
 
 float hash_2d(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -35,33 +40,54 @@ float value_noise(vec2 p) {
     return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
 }
 
-float route_center(float z) {
-    return route_amp.x * sin(z * route_freq.x + route_phase.x)
-        + route_amp.y * sin(z * route_freq.y + route_phase.y)
-        + route_amp.z * sin(z * route_freq.z + route_phase.z);
-}
-
 void vertex() {
     world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
+    vertex_info = COLOR;
 }
 
 void fragment() {
-    float distance_to_road = abs(world_pos.x - route_center(world_pos.z));
-    float road = 1.0 - smoothstep(road_half_width - 0.35, road_half_width + 1.1, distance_to_road);
-    float broad_noise = value_noise(world_pos.xz * 0.065);
+    vec3 normal = normalize(world_normal);
+    if (flat_shading > 0.5) {
+        // PS1-тиснение: плоская нормаль поверхность-специфичная.
+        vec3 fn = cross(dFdx(world_pos), dFdy(world_pos));
+        if (fn.y < 0.0) {
+            fn = -fn;
+        }
+        normal = normalize(fn);
+    }
+    float slope = clamp(1.0 - normal.y, 0.0, 1.0);
+
+    float broad_noise = value_noise(world_pos.xz * 0.05);
     float fine_noise = value_noise(world_pos.xz * grain_scale);
 
-    vec3 forest_floor = mix(ground_color, ground_color_2, broad_noise);
-    forest_floor *= mix(0.80, 1.14, fine_noise);
-    vec3 gravel = mix(road_color, road_color_2, fine_noise);
+    vec3 ground = mix(ground_color, ground_color_2, broad_noise);
+    ground *= mix(0.80, 1.14, fine_noise);
 
-    float wheel_track = exp(-pow((distance_to_road - road_half_width * 0.28) / 0.48, 2.0));
-    gravel *= 1.0 - wheel_track * 0.12;
-    float slope = 1.0 - clamp(world_normal.y, 0.0, 1.0);
-    forest_floor = mix(forest_floor, road_color * 0.8, slope * 0.55);
+    // Обочина: твёрдый грунт рядом с дорогой (по вершинному цвету R).
+    float road_influence = vertex_info.r;  // 0 = дорога, 1 = вне дороги
+    float shoulder = smoothstep(0.0, 0.3, road_influence);
+    vec3 albedo = mix(road_edge_color, ground, shoulder);
 
-    ALBEDO = mix(forest_floor, gravel, road);
+    // Камни на крутых склонах (по вершинному цвету G).
+    float rock_amt = smoothstep(0.55, 0.85, slope) * vertex_info.g;
+    albedo = mix(albedo, rock_color * mix(0.80, 1.15, vertex_info.b), rock_amt);
+
+    ALBEDO = albedo;
     ROUGHNESS = surface_roughness;
     SPECULAR = 0.16;
+
+    // PS1-дизер-туман: жёсткие прямоугольные полосы вместо плавного затенения.
+	if (dither_fog > 0.5) {
+		vec3 cam = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float dist = length(world_pos - cam);
+        float dith = fract(sin(dot(world_pos.xz * 0.31 + cam.xz * 0.17, vec2(12.9898, 78.233))) * 43758.5453);
+        float band = step(fog_near + dith * (fog_far - fog_near), dist);
+        ALBEDO = mix(ALBEDO, fog_color, band * smoothstep(fog_near, fog_near + 30.0, dist));
+    }
+
+    // Постеризация (PS1-палитра).
+    if (banding_levels >= 2.0) {
+        ALBEDO = floor(ALBEDO * banding_levels + 0.5) / banding_levels;
+    }
 }
