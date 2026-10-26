@@ -8,6 +8,24 @@ enum CameraMode { CHASE_3RD, HOOD, COCKPIT_1ST }
 enum DrivetrainMode { AWD, RWD, FWD }
 
 const COCKPIT_BASE_POSITION: Vector3 = Vector3(0.35, 0.98, -0.15)
+# Геометрия импортированной модели Lancer Evo: центр колеса и клиренс кузова.
+const MODEL_WHEEL_CENTER_Y: float = 1.4588
+const MODEL_BODY_GROUND_CLEARANCE: float = 0.063
+const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const WheelType = preload("res://scripts/gevp/wheel.gd")
+
+# Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
+const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 2.2, "Grass": 1.4}
+const BASE_COF := {"Road": 1.50, "Dirt": 1.00, "Grass": 0.65}
+const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.8, "Grass": 2.8}
+const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.0, "Grass": 0.0}
+const BASE_LONGITUDINAL := {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
+
+@export_group("Конфигурация Lancer Evo")
+## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
+@export var setup_override: CarSetupType = null
+## Радиус импортированной 3D-модели колеса. Визуал масштабируется под физический радиус.
+@export_range(0.10, 1.0, 0.001) var wheel_visual_radius: float = 0.438
 
 @export_group("Rally Drivetrain")
 @export_enum("AWD 38:62", "RWD 0:100", "FWD 100:0") var drivetrain_mode: int = DrivetrainMode.AWD
@@ -61,20 +79,29 @@ var mouse_yaw: float = 0.0
 var mouse_pitch: float = 0.0
 var mouse_idle_timer: float = 10.0
 
+var active_setup: CarSetupType = null
+var track_grip_scale: float = 1.0
+var track_rolling_scale: float = 1.0
+
 
 func _ready() -> void:
 	_configure_gevp()
+	_resolve_setup()
+	if active_setup != null:
+		apply_setup(active_setup)
 	super._ready()
 	_apply_drivetrain()
+	_refresh_grip_tuning()
 	motor_rpm = idle_rpm
 	current_rpm = idle_rpm
 	current_gear = 1
 	requested_gear = 1
 	_setup_gravel_particles()
+	_apply_visual_setup()
 	active_camera.top_level = true
 	active_camera.global_transform = cam_chase.global_transform
 	_reset_action_camera()
-	
+
 	if mouse_look_enabled:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -83,13 +110,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not mouse_look_enabled:
 		return
 
-	# Освобождение курсора по Esc (ui_cancel)
-	if event.is_action_pressed("ui_cancel"):
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
+	# Escape теперь открывает паузу (см. scripts/rally_stage.gd).
 	# Захват курсора по клику ЛКМ и сброс обзора по СКМ (колесику)
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -177,7 +198,7 @@ func _configure_gevp() -> void:
 	# 1230 kg, slightly nose-heavy. CoG is about 0.47 m above the ground at rest.
 	vehicle_mass = 1230.0
 	front_weight_distribution = 0.56
-	center_of_gravity_height_offset = -0.02
+	center_of_gravity_height_offset = -0.10
 	inertia_multiplier = 1.0
 
 	# Long-travel rally suspension: soft enough to articulate, damped enough to land.
@@ -209,8 +230,10 @@ func _configure_gevp() -> void:
 	rolling_resistance = {"Road": 1.0, "Dirt": 1.8, "Grass": 2.8}
 	lateral_grip_assist = {"Road": 0.0, "Dirt": 0.0, "Grass": 0.0}
 	longitudinal_grip_ratio = {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
-	front_tire_radius = 0.35
-	rear_tire_radius = 0.35
+	# Радиус совпадает с 3D-моделью Lancer Evo (0.438 м),
+	# поэтому колёса больше не проваливаются в землю.
+	front_tire_radius = 0.438
+	rear_tire_radius = 0.438
 	front_tire_width = 245.0
 	rear_tire_width = 245.0
 	front_wheel_mass = 15.0
@@ -219,6 +242,158 @@ func _configure_gevp() -> void:
 	coefficient_of_drag = 0.32
 	air_density = 1.225
 	frontal_area = 2.0
+
+
+# ---------------------------------------------------------------- настройки
+
+
+func _resolve_setup() -> void:
+	if setup_override != null:
+		active_setup = setup_override
+		return
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game == null:
+		return
+	var selected: Variant = game.get("current_setup")
+	if selected is CarSetupType:
+		active_setup = selected
+
+
+## Применяет выбранную в меню конфигурацию. Вызывается ДО Vehicle.initialize(),
+## поэтому все параметры подвески/мотора попадают в расчёт GEVP.
+func apply_setup(setup_resource: CarSetupType) -> void:
+	if setup_resource == null:
+		return
+	active_setup = setup_resource
+	drivetrain_mode = clampi(setup_resource.drivetrain, 0, 2)
+	awd_front_torque = setup_resource.awd_front_torque
+	max_torque = setup_resource.max_torque
+	max_rpm = setup_resource.max_rpm
+	final_drive = setup_resource.final_drive
+	if not setup_resource.gear_ratios.is_empty():
+		gear_ratios = setup_resource.gear_ratios.duplicate()
+	traction_control_max_slip = setup_resource.traction_control_max_slip
+	if setup_resource.torque_curve != null:
+		torque_curve = setup_resource.torque_curve.duplicate() as Curve
+	vehicle_mass = setup_resource.vehicle_mass
+	front_weight_distribution = setup_resource.front_weight_distribution
+	center_of_gravity_height_offset = setup_resource.center_of_gravity_height_offset
+	front_spring_length = setup_resource.front_spring_length
+	rear_spring_length = setup_resource.rear_spring_length
+	front_resting_ratio = setup_resource.front_resting_ratio
+	rear_resting_ratio = setup_resource.rear_resting_ratio
+	front_damping_ratio = setup_resource.front_damping_ratio
+	rear_damping_ratio = setup_resource.rear_damping_ratio
+	front_arb_ratio = setup_resource.front_arb_ratio
+	rear_arb_ratio = setup_resource.rear_arb_ratio
+	front_bump_damp_multiplier = setup_resource.bump_damp_multiplier
+	rear_bump_damp_multiplier = setup_resource.bump_damp_multiplier
+	front_rebound_damp_multiplier = setup_resource.rebound_damp_multiplier
+	rear_rebound_damp_multiplier = setup_resource.rebound_damp_multiplier
+	front_tire_radius = setup_resource.tire_radius
+	rear_tire_radius = setup_resource.tire_radius
+	front_tire_width = setup_resource.tire_width
+	rear_tire_width = setup_resource.tire_width
+	max_steering_angle = deg_to_rad(setup_resource.max_steering_angle_deg)
+	chase_distance = setup_resource.chase_distance
+	chase_height = setup_resource.chase_height
+	front_torque_split = awd_front_torque
+	_adjust_wheel_mounts()
+	_refresh_grip_tuning()
+
+
+## Держит колёса ровно в арках при любом радиусе/ходе подвески из ресурса.
+func _adjust_wheel_mounts() -> void:
+	var front_rest: float = front_spring_length * (1.0 - front_resting_ratio)
+	var rear_rest: float = rear_spring_length * (1.0 - rear_resting_ratio)
+	var front_y: float = front_tire_radius + front_rest - MODEL_BODY_GROUND_CLEARANCE
+	var rear_y: float = rear_tire_radius + rear_rest - MODEL_BODY_GROUND_CLEARANCE
+	for node in [front_left_wheel, front_right_wheel]:
+		if node is Node3D:
+			(node as Node3D).position.y = front_y
+	for node in [rear_left_wheel, rear_right_wheel]:
+		if node is Node3D:
+			(node as Node3D).position.y = rear_y
+
+
+## Множитель сцепления конкретной трассы (снег/гравий/асфальт).
+func apply_track_grip(grip_scale: float, rolling_scale: float) -> void:
+	track_grip_scale = maxf(0.05, grip_scale)
+	track_rolling_scale = maxf(0.05, rolling_scale)
+	_refresh_grip_tuning()
+
+
+func _refresh_grip_tuning() -> void:
+	var grip: float = track_grip_scale
+	var stiffness: float = 1.0
+	var rolling: float = track_rolling_scale
+	if active_setup != null:
+		grip *= active_setup.grip_scale
+		stiffness = active_setup.tire_stiffness_scale
+		rolling *= active_setup.rolling_resistance_scale
+	tire_stiffnesses = {}
+	coefficient_of_friction = {}
+	rolling_resistance = {}
+	lateral_grip_assist = {}
+	longitudinal_grip_ratio = {}
+	for key in BASE_COF.keys():
+		tire_stiffnesses[key] = float(BASE_STIFFNESS[key]) * stiffness
+		coefficient_of_friction[key] = float(BASE_COF[key]) * grip
+		rolling_resistance[key] = float(BASE_ROLLING[key]) * rolling
+		lateral_grip_assist[key] = float(BASE_LATERAL[key])
+		longitudinal_grip_ratio[key] = float(BASE_LONGITUDINAL[key])
+	for wheel in wheel_array:
+		wheel.tire_stiffnesses = tire_stiffnesses
+		wheel.coefficient_of_friction = coefficient_of_friction
+		wheel.rolling_resistance = rolling_resistance
+		wheel.lateral_grip_assist = lateral_grip_assist
+		wheel.longitudinal_grip_ratio = longitudinal_grip_ratio
+		var surface: String = str(wheel.surface_type)
+		wheel.current_cof = float(coefficient_of_friction.get(surface, 1.0))
+		wheel.current_rolling_resistance = float(rolling_resistance.get(surface, 1.0))
+		wheel.current_lateral_grip_assist = float(lateral_grip_assist.get(surface, 0.0))
+		wheel.current_longitudinal_grip_ratio = float(longitudinal_grip_ratio.get(surface, 0.5))
+		wheel.current_tire_stiffness = 1000000.0 + 8000000.0 * float(tire_stiffnesses.get(surface, 1.0))
+
+
+## Высота центра масс над землёй в состоянии покоя (для спавна машины).
+func get_spawn_height_offset() -> float:
+	if front_left_wheel == null:
+		return 0.1
+	var rest_length: float = front_spring_length * (1.0 - front_resting_ratio)
+	return rest_length + front_tire_radius - front_left_wheel.position.y
+
+
+func _apply_visual_setup() -> void:
+	var visual_scale: float = front_tire_radius / maxf(0.05, wheel_visual_radius)
+	for wheel_name in ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]:
+		var wheel_node: Node = get_node_or_null(wheel_name)
+		if wheel_node == null:
+			continue
+		var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
+		if visual != null:
+			visual.scale = Vector3.ONE * visual_scale
+	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
+	if model != null:
+		model.position.y = front_tire_radius - MODEL_BODY_GROUND_CLEARANCE - MODEL_WHEEL_CENTER_Y
+	if active_setup == null:
+		return
+	for child in model.get_children():
+		if child is MeshInstance3D and String(child.name).begins_with("Mitsubishi_Body"):
+			_tint_body_mesh(child as MeshInstance3D, active_setup.body_color)
+
+
+func _tint_body_mesh(instance: MeshInstance3D, tint: Color) -> void:
+	var source: Material = instance.material_override
+	if source == null and instance.mesh != null and instance.mesh.get_surface_count() > 0:
+		source = instance.mesh.surface_get_material(0)
+	var material: StandardMaterial3D = null
+	if source is StandardMaterial3D:
+		material = source.duplicate() as StandardMaterial3D
+	if material == null:
+		material = StandardMaterial3D.new()
+	material.albedo_color = tint
+	instance.material_override = material
 
 
 func _physics_process(delta: float) -> void:

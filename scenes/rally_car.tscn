@@ -717,72 +717,72 @@ spot_range = 45.0
 spot_angle = 28.0
 
 [node name="Wheel_FL" type="RayCast3D" parent="." unique_id=1481303125 node_paths=PackedStringArray("wheel_node")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.35, 1.9)
-target_position = Vector3(0, -0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.51, 1.905)
+target_position = Vector3(0, -0.738, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="WheelVisual" type="Node3D" parent="Wheel_FL" unique_id=1697940092"]
+[node name="WheelVisual" type="Node3D" parent="Wheel_FL" unique_id=1697940092]
 
 [node name="Mitsubishi_Wheel_Ft_L" type="MeshInstance3D" parent="Wheel_FL/WheelVisual" unique_id=2095702640]
-transform = Transform3D(1, 0, 0, 0, 0.95957583, -0.28145018, 0, 0.28145018, 0.95957583, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_sjde7")
 
 [node name="Plane_001" type="MeshInstance3D" parent="Wheel_FL/WheelVisual/Mitsubishi_Wheel_Ft_L" unique_id=1164566766]
-transform = Transform3D(-1.4517414e-06, 0.21454948, -0.00059725414, 0.20585954, -0.00016687294, -0.060445543, -0.06044577, -0.00057347014, -0.20585874, 0.03472513, -0.0013382435, 0.015502334)
+transform = Transform3D(-1.4517414e-06, 0.21454948, -0.00059725414, 0.20585954, -0.00016687294, -0.060445543, -0.06044577, -0.00057347014, -0.20585874, 0.152, 0, 0)
 material_override = SubResource("StandardMaterial3D_cavtd")
 mesh = SubResource("ArrayMesh_cy6et")
 
 [node name="Wheel_FR" type="RayCast3D" parent="." unique_id=544484868 node_paths=PackedStringArray("wheel_node")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.35, 1.9)
-target_position = Vector3(0, -0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.99, 0.51, 1.905)
+target_position = Vector3(0, -0.738, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
 [node name="WheelVisual" type="Node3D" parent="Wheel_FR" unique_id=304763899]
 
 [node name="Mitsubishi_Wheel_Ft_R" type="MeshInstance3D" parent="Wheel_FR/WheelVisual" unique_id=1316042388]
-transform = Transform3D(1, 0, 0, 0, 0.95957583, -0.28145018, 0, 0.28145018, 0.95957583, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_ppamr")
 mesh = SubResource("ArrayMesh_f2jas")
 
 [node name="Plane_002" type="MeshInstance3D" parent="Wheel_FR/WheelVisual/Mitsubishi_Wheel_Ft_R" unique_id=628088670]
-transform = Transform3D(-8.233555e-06, -0.21454948, -0.00059777976, -0.20681366, 0.00016701726, -0.057095706, 0.05709595, 0.0005740328, -0.20681287, -0.008070588, 0.002775073, 0.023443818)
+transform = Transform3D(-8.233555e-06, -0.21454948, -0.00059777976, -0.20681366, 0.00016701726, -0.057095706, 0.05709595, 0.0005740328, -0.20681287, -0.152, 0, 0)
 material_override = SubResource("StandardMaterial3D_6rw0i")
 mesh = SubResource("ArrayMesh_vwgei")
 
 [node name="Wheel_RL" type="RayCast3D" parent="." unique_id=1610642693 node_paths=PackedStringArray("wheel_node")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.35, -1.5)
-target_position = Vector3(0, -0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.519, -1.5)
+target_position = Vector3(0, -0.758, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="WheelVisual" type="Node3D" parent="Wheel_RL" unique_id=1797851955"]
+[node name="WheelVisual" type="Node3D" parent="Wheel_RL" unique_id=1797851955]
 
 [node name="Mitsubishi_Wheel_Bk_L" type="MeshInstance3D" parent="Wheel_RL/WheelVisual" unique_id=2115445160]
-transform = Transform3D(1, 0, 0, 0, 0.95957583, -0.28145018, 0, 0.28145018, 0.95957583, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_ngg65")
 
 [node name="Plane" type="MeshInstance3D" parent="Wheel_RL/WheelVisual/Mitsubishi_Wheel_Bk_L" unique_id=1071512913]
-transform = Transform3D(1.6454482e-06, 0.23662932, 6.1111655e-07, -0.22902979, 1.4389323e-06, 0.059487768, 0.059487768, -1.0051397e-06, 0.22902979, 0.04538226, -0.006879896, -0.02747643)
+transform = Transform3D(1.6454482e-06, 0.23662932, 6.1111655e-07, -0.22902979, 1.4389323e-06, 0.059487768, 0.059487768, -1.0051397e-06, 0.22902979, 0.152, 0, 0)
 material_override = SubResource("StandardMaterial3D_nipno")
 mesh = SubResource("ArrayMesh_ykpwh")
 
 [node name="Wheel_RR" type="RayCast3D" parent="." unique_id=1795045355 node_paths=PackedStringArray("wheel_node")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 0.35, -1.5)
-target_position = Vector3(0, -0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.99, 0.519, -1.5)
+target_position = Vector3(0, -0.758, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="WheelVisual" type="Node3D" parent="Wheel_RR" unique_id=1241146367"]
+[node name="WheelVisual" type="Node3D" parent="Wheel_RR" unique_id=1241146367]
 
 [node name="Mitsubishi_Wheel_Bk_R" type="MeshInstance3D" parent="Wheel_RR/WheelVisual" unique_id=623353516]
-transform = Transform3D(1, 0, 0, 0, 0.95957583, -0.2814502, 0, 0.2814502, 0.95957583, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_53hjw")
 mesh = SubResource("ArrayMesh_iviy6")
 
 [node name="Plane_004" type="MeshInstance3D" parent="Wheel_RR/WheelVisual/Mitsubishi_Wheel_Bk_R" unique_id=2074492987]
-transform = Transform3D(-1.5894495e-06, -0.23662932, 4.4737038e-07, 0.2270442, -1.3990494e-06, 0.06666616, -0.06666616, 8.7705473e-07, 0.22704418, -0.05457294, -0.013028085, -0.016251206)
+transform = Transform3D(-1.5894495e-06, -0.23662932, 4.4737038e-07, 0.2270442, -1.3990494e-06, 0.06666616, -0.06666616, 8.7705473e-07, 0.22704418, -0.152, 0, 0)
 material_override = SubResource("StandardMaterial3D_g12nq")
 mesh = SubResource("ArrayMesh_268vy")
 
@@ -814,7 +814,7 @@ current = true
 far = 2500.0
 
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.07203257, -1.0842417, -0.82839704)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0842417, -0.82839704)
 
 [node name="Circle_001" type="MeshInstance3D" parent="low poly lance evo" unique_id=1122162727]
 transform = Transform3D(0.09687788, 0, 0, 0, 0, -0.09687788, 0, 0.09687788, 0, 0.6066237, 1.3198779, -1.8189112)

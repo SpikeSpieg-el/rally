@@ -1,0 +1,238 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/stage_preview.gd" id="2_preview"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.09, 0.125, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.38, 0.46, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.20, 0.26, 0.32, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.62, 0.12, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.92, 0.42, 0.04, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.82, 0.28, 1)
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.018, 0.031, 0.046, 1)
+
+[node name="AccentBar" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 7.0
+grow_vertical = 2
+color = Color(0.98, 0.48, 0.05, 1)
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 36.0
+offset_top = 26.0
+offset_right = -36.0
+offset_bottom = -22.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="Content/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.52, 1)
+theme_override_font_sizes/font_size = 52
+text = "RALLY 4.7"
+
+[node name="Subtitle" type="Label" parent="Content/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.76, 0.86, 1)
+theme_override_font_sizes/font_size = 20
+text = "MITSUBISHI LANCER EVOLUTION"
+
+[node name="Body" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="Left" type="VBoxContainer" parent="Content/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.95
+theme_override_constants/separation = 8
+
+[node name="ModeLabel" type="Label" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
+theme_override_font_sizes/font_size = 18
+text = "РЕЖИМ ЗАЕЗДА"
+
+[node name="ModeRow" type="HBoxContainer" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RandomCheck" type="CheckButton" parent="Content/Body/Left/ModeRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.95, 0.98, 1)
+theme_override_font_sizes/font_size = 17
+text = "ВСЕГДА СЛУЧАЙНАЯ КАРТА"
+
+[node name="TracksLabel" type="Label" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
+theme_override_font_sizes/font_size = 18
+text = "ВЫБОР ТРАССЫ  (F1-F5 В ЗАЕЗДЕ)"
+
+[node name="TrackList" type="VBoxContainer" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="SetupsLabel" type="Label" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
+theme_override_font_sizes/font_size = 18
+text = "КОНФИГУРАЦИЯ LANCER EVO"
+
+[node name="SetupList" type="HBoxContainer" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SeedRow" type="HBoxContainer" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SeedCaption" type="Label" parent="Content/Body/Left/SeedRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.70, 0.80, 0.88, 1)
+text = "SEED:"
+
+[node name="SeedEdit" type="LineEdit" parent="Content/Body/Left/SeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(140, 0)
+text = "1337"
+
+[node name="NewSeedButton" type="Button" parent="Content/Body/Left/SeedRow"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+text = "НОВЫЙ СИД"
+
+[node name="ButtonRow" type="HBoxContainer" parent="Content/Body/Left"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StartButton" type="Button" parent="Content/Body/Left/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.08, 0.08, 0.09, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_start")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+text = "СТАРТ ▶"
+
+[node name="QuitButton" type="Button" parent="Content/Body/Left/ButtonRow"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+text = "ВЫХОД"
+
+[node name="Right" type="VBoxContainer" parent="Content/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.05
+theme_override_constants/separation = 10
+
+[node name="Preview" type="Control" parent="Content/Body/Right"]
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("2_preview")
+
+[node name="InfoLabel" type="Label" parent="Content/Body/Right"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.90, 0.94, 0.98, 1)
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+text = "Информация о трассе"
+
+[node name="Stats" type="VBoxContainer" parent="Content/Body/Right"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PowerBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+layout_mode = 2
+max_value = 1.0
+step = 0.01
+show_percentage = false
+custom_minimum_size = Vector2(0, 12)
+
+[node name="GripBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+layout_mode = 2
+max_value = 1.0
+step = 0.01
+show_percentage = false
+custom_minimum_size = Vector2(0, 12)
+
+[node name="SuspensionBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+layout_mode = 2
+max_value = 1.0
+step = 0.01
+show_percentage = false
+custom_minimum_size = Vector2(0, 12)
+
+[node name="BestLabel" type="Label" parent="Content/Body/Right"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.95, 0.55, 1)
+theme_override_font_sizes/font_size = 17
+text = "ЛУЧШЕЕ ВРЕМЯ: —"
+
+[node name="Footer" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.52, 0.62, 0.70, 1)
+theme_override_font_sizes/font_size = 15
+text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, ESC — пауза, C — камера, V — привод."

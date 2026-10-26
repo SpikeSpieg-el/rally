@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "range"
+display_name = "ПОЛИГОН / СЛАЛОМ"
+description = "Ровный асфальтовый полигон с конусами. Разгон, торможение, сравнение приводов и конфигураций."
+surface_name = "Асфальт"
+difficulty = 1
+target_time = 70.0
+kind = 3
+flat = true
+length = 520.0
+road_half_width = 12.0
+offroad_grip = 0.75
+map_seed = 3333
+random_seed = false
+seed_variation = 0.2
+curve_amplitude = 0.0
+curve_frequency = 0.02
+curve_roughness = 0.0
+secondary_curve_amplitude = 0.0
+hill_amplitude = 0.0
+hill_frequency = 0.02
+bump_amount = 0.0
+whoops_amount = 0.0
+crest_amount = 0.0
+offroad_hills = 0.0
+tree_count = 70
+rock_count = 14
+slalom_cones = 14
+scenery_radius = 220.0
+road_clearance = 26.0
+tree_color = Color(0.07, 0.25, 0.12, 1)
+rock_color = Color(0.32, 0.33, 0.34, 1)
+ground_color = Color(0.16, 0.235, 0.105, 1)
+ground_color_2 = Color(0.2, 0.27, 0.13, 1)
+road_color = Color(0.3, 0.3, 0.31, 1)
+road_color_2 = Color(0.38, 0.38, 0.39, 1)
+sky_top_color = Color(0.14, 0.34, 0.58, 1)
+sky_horizon_color = Color(0.72, 0.82, 0.9, 1)
+fog_color = Color(0.8, 0.86, 0.94, 1)
+fog_density = 0.0006
+sun_energy = 1.7
+sun_pitch = -42.0
+sun_yaw = 10.0
+grip_scale = 1.35
+rolling_resistance_scale = 0.7
+terrain_grid_size = 81
+road_step = 2.0
+enable_speed_fx = true

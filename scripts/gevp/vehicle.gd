@@ -397,6 +397,7 @@ var rear_axle_position := Vector3.ZERO
 var delta_time := 0.0
 
 var vehicle_inertia : Vector3
+var inertia_initialized := false
 var current_gravity : Vector3
 
 class Axle:
@@ -621,12 +622,16 @@ func _physics_process(delta : float) -> void:
 		return
 	
 	## For stability calculations, we need the vehicle body inertia which isn't
-	## available immediately
-	if not vehicle_inertia:
-		var rigidbody_inertia := PhysicsServer3D.body_get_direct_state(get_rid()).inverse_inertia.inverse()
-		if rigidbody_inertia.is_finite():
-			vehicle_inertia = rigidbody_inertia * inertia_multiplier
-			inertia = vehicle_inertia
+	## available immediately. Godot 4.7 no longer implicitly converts a Vector3
+	## to bool, so an explicit flag is used instead of `if not vehicle_inertia`.
+	if enable_stability and not inertia_initialized:
+		var body_state := PhysicsServer3D.body_get_direct_state(get_rid())
+		if body_state != null:
+			var rigidbody_inertia := body_state.inverse_inertia.inverse()
+			if rigidbody_inertia.is_finite():
+				vehicle_inertia = rigidbody_inertia * inertia_multiplier
+				inertia = vehicle_inertia
+				inertia_initialized = true
 	
 	delta_time += delta
 	local_velocity = lerp(((global_transform.origin - previous_global_position) / delta) * global_transform.basis, local_velocity, 0.5)

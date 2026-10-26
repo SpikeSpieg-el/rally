@@ -1,9 +1,7 @@
-[gd_scene format=3 uid="uid://df20axxo5yova"]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="PackedScene" uid="uid://bochyex7xobk8" path="res://scenes/rally_stage.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/rally_stage.tscn" id="1_base"]
+[ext_resource type="Resource" path="res://data/tracks/track_01_forest.tres" id="2_track"]
 
-[node name="ForestRally" unique_id=1999895294 instance=ExtResource("1_base")]
-stage_profile = 1
-
-[node name="RallyCar" parent="." index="5" unique_id=1100997811]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31041646, 0)
+[node name="ForestRally" instance=ExtResource("1_base")]
+track_override = ExtResource("2_track")

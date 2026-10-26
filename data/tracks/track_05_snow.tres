@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "snow"
+display_name = "СНЕЖНАЯ ТРАССА"
+description = "Скользкая зимняя дорога, низкое сцепление и густой туман. Тонкая работа газом и рулём."
+surface_name = "Снег / лёд"
+difficulty = 4
+target_time = 95.0
+kind = 4
+flat = false
+length = 660.0
+road_half_width = 4.8
+offroad_grip = 0.40
+map_seed = 5511
+random_seed = false
+seed_variation = 0.6
+curve_amplitude = 13.0
+curve_frequency = 0.028
+curve_roughness = 0.50
+secondary_curve_amplitude = 6.0
+hill_amplitude = 1.8
+hill_frequency = 0.022
+bump_amount = 0.22
+whoops_amount = 0.08
+crest_amount = 0.7
+offroad_hills = 1.1
+tree_count = 95
+rock_count = 18
+slalom_cones = 0
+scenery_radius = 155.0
+road_clearance = 12.0
+tree_color = Color(0.1, 0.19, 0.16, 1)
+rock_color = Color(0.48, 0.52, 0.56, 1)
+ground_color = Color(0.62, 0.68, 0.74, 1)
+ground_color_2 = Color(0.82, 0.86, 0.92, 1)
+road_color = Color(0.52, 0.58, 0.64, 1)
+road_color_2 = Color(0.66, 0.71, 0.77, 1)
+sky_top_color = Color(0.3, 0.37, 0.46, 1)
+sky_horizon_color = Color(0.74, 0.79, 0.85, 1)
+fog_color = Color(0.86, 0.9, 0.95, 1)
+fog_density = 0.0038
+sun_energy = 0.95
+sun_pitch = -18.0
+sun_yaw = 75.0
+grip_scale = 0.58
+rolling_resistance_scale = 1.35
+terrain_grid_size = 141
+road_step = 1.5
+enable_speed_fx = false
