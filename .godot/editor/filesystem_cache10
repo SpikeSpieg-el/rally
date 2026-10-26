@@ -1,0 +1,35 @@
+78098b89c88a74ebe8c20117b8754620
+::res://::1793024105
+low poly lance evo.glb::PackedScene::7761202121882610479::1792945000::1792945003::1::::<><><>0<>0<>5730f076f739de5ba5a6fce43c74973d<>res://.godot/imported/low poly lance evo.glb-cdbdb097b85e03a412e6603d28abff50.scn::uid://ba4nyqwkvfk2e::::res://low poly lance evo_wheelbump.png
+low poly lance evo_wheelbump.png::CompressedTexture2D::2447120693362441850::1792945002::1792945004::1::::<><><>0<>0<>ec4b88e95c29bce202ef1315238b6319<>res://.godot/imported/low poly lance evo_wheelbump.png-f13198d104d4ec36d9ab6110af1dd8e3.s3tc.ctex::
+low_poly_lance_evo.tscn::PackedScene::3328488237773161467::1792945305::0::1::::<><><>0<>0<><>::uid://bkkv8xfjypj5w::::res://textures/mitsubishi.png<>uid://djleooflwneab::::res://textures/brakes.png<>uid://lv0o6m35yuf3::::res://textures/wheelbump.png<>uid://ba4nyqwkvfk2e::::res://low poly lance evo_wheelbump.png
+RALLY_SETUP_RU.md::TextFile::-1::1792943246::0::1::::<><><>0<>0<><>::
+::res://scenes/::1792947913
+forest_rally.tscn::PackedScene::7567463637692941730::1792947601::0::1::::<><><>0<>0<><>::uid://bochyex7xobk8::::res://scenes/rally_stage.tscn
+forest_suspension.tscn::PackedScene::-1::1792943246::0::1::::<><><>0<>0<><>::res://scenes/rally_stage.tscn
+rally_car.tscn::PackedScene::1570508439101442651::1792948431::0::1::::<><><>0<>0<><>::uid://bd80nxls366kq::::res://scripts/rally_car.gd<>uid://cpjpw2srbbum2::::res://scripts/engine_sound.gd<>uid://ba4nyqwkvfk2e::::res://low poly lance evo_wheelbump.png<>uid://hiopxvk8fkh3::::res://scripts/gevp/wheel.gd<>uid://djleooflwneab::::res://textures/brakes.png<>uid://lv0o6m35yuf3::::res://textures/wheelbump.png<>uid://bkkv8xfjypj5w::::res://textures/mitsubishi.png
+rally_stage.tscn::PackedScene::3373661375245879961::1792944754::0::1::::<><><>0<>0<><>::uid://bxev3gfr3ewld::::res://scripts/rally_stage.gd<>uid://wm1brqrr6p8v::::res://scenes/rally_car.tscn<>uid://xsomsumi3bfh::::res://shaders/mountain_track.gdshader<>uid://cjk0afgvjqwx0::::res://shaders/speed_fx.gdshader
+::res://scripts/::1792944101
+engine_sound.gd::GDScript::5845204910811365307::1792943588::0::1::::RallyEngineSound<>AudioStreamPlayer3D<><>0<>0<><>::
+rally_car.gd::GDScript::2666654046517507608::1792948703::0::1::::RallyCar<>RigidBody3D<><>0<>0<><>::
+rally_stage.gd::GDScript::4010346981135643409::1792949272::0::1::::RallyStage<>Node3D<><>0<>0<><>::
+::res://scripts/gevp/::1792943247
+vehicle.gd::GDScript::7832717341603737936::1792943247::0::1::::Vehicle<>RigidBody3D<><>0<>0<><>::
+wheel.gd::GDScript::508714993282616554::1792943247::0::1::::Wheel<>RayCast3D<><>0<>0<><>::
+::res://shaders/::1792943259
+forest_ground.gdshader::Shader::563436922494916928::1792943246::0::1::::<><><>0<>0<><>::
+mountain_track.gdshader::Shader::1652374647546818581::1792943247::0::1::::<><><>0<>0<><>::
+speed_fx.gdshader::Shader::5426702935340656175::1792943247::0::1::::<><><>0<>0<><>::
+::res://source/::1792944543
+low poly lance evo.blend::PackedScene::6265856392172113284::1792944503::1792944543::1::::<><><>0<>0<>f9a5207955e8935d25e383e5c284e495<>res://.godot/imported/low poly lance evo.blend-ac5ac51ced8cd8d485bde991d181ee02.scn::uid://lv0o6m35yuf3::::res://textures/wheelbump.png
+::res://textures/::1792946878
+brakes.png::CompressedTexture2D::7813938411782615289::1792944503::1792945167::1::::<><><>0<>0<>9b9a37779a02024ca52367938ecb1148<>res://.godot/imported/brakes.png-63c6be1d34f39b0ad73e4dd3b3fe21d1.s3tc.ctex::
+fire.png::CompressedTexture2D::8502367390432276572::1792944503::1792944504::1::::<><><>0<>0<>b9697585caac20674d063eb4de6657ac<>res://.godot/imported/fire.png-d0c954ec6517150e53ba1194e6c56a80.ctex::
+light.png::CompressedTexture2D::6254086423943300460::1792944503::1792944503::1::::<><><>0<>0<>f3eeb31ae523081e6a5064759636073b<>res://.godot/imported/light.png-6eaf8f508bbd1adf2c3cf7dcbf008f14.ctex::
+light_emmision.png::CompressedTexture2D::3679401804938306972::1792944503::1792946870::1::::<><><>0<>0<>ee5f51c5792b6b23ecf35ac753578401<>res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.s3tc.ctex::
+mitsubishi.png::CompressedTexture2D::3110288101863647246::1792944503::1792945047::1::::<><><>0<>0<>d807c2332cd16d84fdbb57caf4eb2792<>res://.godot/imported/mitsubishi.png-cb2970013bf5e8ef9cf953e90e221e4e.s3tc.ctex::
+mitsubishi_emmision.png::CompressedTexture2D::3440461900365739493::1792944503::1792946878::1::::<><><>0<>0<>81d95200136b4794c4c9359cdad5d067<>res://.godot/imported/mitsubishi_emmision.png-c03daee248c17765797eec157ab70a82.s3tc.ctex::
+mitsubishi_glossy.png::CompressedTexture2D::5109716587590351203::1792944503::1792945058::1::::<><><>0<>0<>48310b4089c9869c4f83eb80c746dc29<>res://.godot/imported/mitsubishi_glossy.png-c6df6d2ce9f83099dcd8a6e778a8d7a3.s3tc.ctex::
+wheel.png::CompressedTexture2D::2679878424049210216::1792944503::1792945030::1::::<><><>0<>0<>a1db549df98a0266fc4088d0a18fe5f9<>res://.godot/imported/wheel.png-9c52f7df70a9929f5cd929078e15296b.s3tc.ctex::
+wheelbump.png::CompressedTexture2D::816973786862197686::1792944503::1792944507::1::::<><><>0<>0<>07911fd6638fbe72b71943833f85d233<>res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.s3tc.ctex::
+wheelright.png::CompressedTexture2D::1670005634539836373::1792944503::1792945062::1::::<><><>0<>0<>6d7d2db01a6c93d235f8f8ad1d2cb44e<>res://.godot/imported/wheelright.png-e6ae009ff181c92cf4876a82772e96f1.s3tc.ctex::
