@@ -71,6 +71,20 @@ func submit_time(key: String, time: float) -> bool:
 	return true
 
 
+## Рекорд на контрольной точке (split). Ключ: "<track_id>_<seed>_cp<i>".
+func submit_split(key: String, time: float) -> bool:
+	var best: float = get_best_split(key)
+	if time <= 0.0 or (best > 0.0 and time >= best):
+		return false
+	_records.set_value("splits", key, time)
+	save_records()
+	return true
+
+
+func get_best_split(key: String) -> float:
+	return float(_records.get_value("splits", key, 0.0))
+
+
 func make_random_seed() -> int:
 	randomize()
 	return int(abs(randi() % 9999999)) + 1
