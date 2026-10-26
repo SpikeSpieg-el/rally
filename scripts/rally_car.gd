@@ -32,14 +32,16 @@ const BASE_LONGITUDINAL := {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
 @export_range(0.0, 1.0, 0.01) var awd_front_torque: float = 0.38
 
 @export_group("Action Camera")
+## Если включено — позиция и ракурс камеры берутся напрямую из узла CamChase на сцене!
+@export var use_cam_chase_from_scene: bool = true
 @export var chase_distance: float = 5.8
 @export var chase_height: float = 1.55
-@export var chase_target_height: float = 0.75
+@export var chase_target_height: float = 0.0
 @export var chase_lookahead: float = 2.2
-@export_range(0.0, 1.0, 0.01) var chase_velocity_follow: float = 0.28
-@export var chase_position_response: float = 7.5
-@export var chase_yaw_response: float = 5.0
-@export var chase_corner_offset: float = 0.38
+@export_range(0.0, 1.0, 0.01) var chase_velocity_follow: float = 0.15
+@export var chase_yaw_response: float = 8.0
+## Боковое смещение камеры при повороте руля (0.0 = отключено, чтобы не было рывков).
+@export var chase_corner_offset: float = 0.0
 @export var chase_collision_radius: float = 0.28
 @export var chase_min_fov: float = 72.0
 @export var chase_max_fov: float = 91.0
@@ -72,8 +74,14 @@ var previous_velocity: Vector3 = Vector3.ZERO
 var g_force_offset: Vector3 = Vector3.ZERO
 var camera_yaw: float = 0.0
 var camera_position: Vector3 = Vector3.ZERO
-var camera_target_smoothed: Vector3 = Vector3.ZERO
 var camera_initialized: bool = false
+
+# Переменные для сохранения точного ракурса CamChase со сцены
+var _scene_chase_local_pos: Vector3 = Vector3(0.0, 1.55, -5.8)
+var _scene_chase_look_dir_local: Vector3 = Vector3(0.0, -0.12, 1.0).normalized()
+var _scene_pivot_height: float = 0.0
+var _smoothed_cam_dist: float = 5.8
+var _smoothed_slope_y: float = 0.0
 
 # Переменные для обзора мышью
 var mouse_yaw: float = 0.0
@@ -101,20 +109,49 @@ func _ready() -> void:
 	requested_gear = 1
 	_setup_gravel_particles()
 	_apply_visual_setup()
+
+	# Считываем положение и угол наклона узла CamChase со сцены
+	_capture_scene_camera_setup()
+
 	active_camera.top_level = true
-	active_camera.global_transform = cam_chase.global_transform
+	active_camera.make_current()
 	_reset_action_camera()
 
 	if mouse_look_enabled:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## Запоминает, где стоит CamChase (и куда он смотрит) в редакторе Godot
+func _capture_scene_camera_setup() -> void:
+	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
+	if model != null:
+		_scene_pivot_height = model.position.y + MODEL_WHEEL_CENTER_Y + 0.35
+	else:
+		_scene_pivot_height = chase_target_height
+
+	if not use_cam_chase_from_scene or cam_chase == null:
+		_scene_chase_local_pos = Vector3(0.0, chase_height, -chase_distance)
+		return
+
+	_scene_chase_local_pos = to_local(cam_chase.global_position)
+	chase_min_fov = active_camera.fov
+
+	var chase_fwd_local: Vector3 = (global_transform.basis.inverse() * (-cam_chase.global_transform.basis.z)).normalized()
+	var active_fwd_local: Vector3 = (global_transform.basis.inverse() * (-active_camera.global_transform.basis.z)).normalized()
+
+	if chase_fwd_local.z > 0.2:
+		_scene_chase_look_dir_local = chase_fwd_local
+	elif active_fwd_local.z > 0.2:
+		_scene_chase_look_dir_local = active_fwd_local
+	else:
+		var target_ahead_local := Vector3(0.0, _scene_pivot_height + 0.15, chase_lookahead)
+		_scene_chase_look_dir_local = (target_ahead_local - _scene_chase_local_pos).normalized()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not mouse_look_enabled:
 		return
 
-	# Escape теперь открывает паузу (см. scripts/rally_stage.gd).
-	# Захват курсора по клику ЛКМ и сброс обзора по СКМ (колесику)
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -124,13 +161,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			smoothed_mouse_yaw = 0.0
 			smoothed_mouse_pitch = 0.0
 
-	# Обработка движения мыши
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		mouse_yaw -= event.relative.x * mouse_sensitivity
 		mouse_idle_timer = 0.0
 
 		if camera_mode == CameraMode.CHASE_3RD:
-			# В режиме 3-го лица: движение мыши вниз/вверх меняет высоту орбиты
 			mouse_pitch += event.relative.y * mouse_sensitivity
 			mouse_yaw = wrapf(mouse_yaw, -PI, PI)
 			mouse_pitch = clampf(mouse_pitch, deg_to_rad(chase_min_pitch_deg), deg_to_rad(chase_max_pitch_deg))
@@ -141,15 +176,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			mouse_pitch = clampf(mouse_pitch, deg_to_rad(inside_min_pitch_deg), deg_to_rad(inside_max_pitch_deg))
 
 
-# Central Honda-inspired rally hatch setup. Edit these values to tune the car;
-# the accompanying RALLY_SETUP_RU.md explains each group and safe ranges.
 func _configure_gevp() -> void:
 	front_left_wheel = $Wheel_FL
 	front_right_wheel = $Wheel_FR
 	rear_left_wheel = $Wheel_RL
 	rear_right_wheel = $Wheel_RR
 
-	# Steering: mechanical Ackermann remains in GEVP; assists are deliberately mild.
 	steering_speed = 4.2
 	countersteer_speed = 9.0
 	steering_speed_decay = 0.24
@@ -165,7 +197,6 @@ func _configure_gevp() -> void:
 	front_brake_bias = 0.60
 	traction_control_max_slip = 0.80
 
-	# No artificial yaw/upright torque on a grounded car: suspension and tires do the work.
 	enable_stability = false
 	stability_yaw_engage_angle = 0.10
 	stability_yaw_strength = 0.0
@@ -173,7 +204,6 @@ func _configure_gevp() -> void:
 	stability_upright_spring = 0.0
 	stability_upright_damping = 0.0
 
-	# Approximate 1.6T rally hatch, not a particular licensed Honda model.
 	max_torque = 390.0
 	max_rpm = 7600.0
 	idle_rpm = 900.0
@@ -202,13 +232,11 @@ func _configure_gevp() -> void:
 	front_torque_vectoring = 0.0
 	rear_torque_vectoring = 0.0
 
-	# 1230 kg, slightly nose-heavy. CoG is about 0.47 m above the ground at rest.
 	vehicle_mass = 1230.0
 	front_weight_distribution = 0.56
 	center_of_gravity_height_offset = -0.10
 	inertia_multiplier = 1.0
 
-	# Long-travel rally suspension: soft enough to articulate, damped enough to land.
 	front_spring_length = 0.30
 	rear_spring_length = 0.32
 	front_resting_ratio = 0.55
@@ -228,7 +256,6 @@ func _configure_gevp() -> void:
 	front_bump_stop_multiplier = 1.2
 	rear_bump_stop_multiplier = 1.2
 
-	# Separate gravel/grass grip instead of using race-tarmac grip everywhere.
 	contact_patch = 0.22
 	braking_grip_multiplier = 1.25
 	wheel_to_body_torque_multiplier = 0.5
@@ -237,8 +264,6 @@ func _configure_gevp() -> void:
 	rolling_resistance = {"Road": 1.0, "Dirt": 1.8, "Grass": 2.8}
 	lateral_grip_assist = {"Road": 0.0, "Dirt": 0.0, "Grass": 0.0}
 	longitudinal_grip_ratio = {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
-	# Радиус совпадает с 3D-моделью Lancer Evo (0.438 м),
-	# поэтому колёса больше не проваливаются в землю.
 	front_tire_radius = 0.438
 	rear_tire_radius = 0.438
 	front_tire_width = 245.0
@@ -249,9 +274,6 @@ func _configure_gevp() -> void:
 	coefficient_of_drag = 0.32
 	air_density = 1.225
 	frontal_area = 2.0
-
-
-# ---------------------------------------------------------------- настройки
 
 
 func _resolve_setup() -> void:
@@ -266,8 +288,6 @@ func _resolve_setup() -> void:
 		active_setup = selected
 
 
-## Применяет выбранную в меню конфигурацию. Вызывается ДО Vehicle.initialize(),
-## поэтому все параметры подвески/мотора попадают в расчёт GEVP.
 func apply_setup(setup_resource: CarSetupType) -> void:
 	if setup_resource == null:
 		return
@@ -302,14 +322,14 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	front_tire_width = setup_resource.tire_width
 	rear_tire_width = setup_resource.tire_width
 	max_steering_angle = deg_to_rad(setup_resource.max_steering_angle_deg)
-	chase_distance = setup_resource.chase_distance
-	chase_height = setup_resource.chase_height
+	if not use_cam_chase_from_scene:
+		chase_distance = setup_resource.chase_distance
+		chase_height = setup_resource.chase_height
 	front_torque_split = awd_front_torque
 	_adjust_wheel_mounts()
 	_refresh_grip_tuning()
 
 
-## Держит колёса ровно в арках при любом радиусе/ходе подвески из ресурса.
 func _adjust_wheel_mounts() -> void:
 	var front_rest: float = front_spring_length * (1.0 - front_resting_ratio)
 	var rear_rest: float = rear_spring_length * (1.0 - rear_resting_ratio)
@@ -323,7 +343,6 @@ func _adjust_wheel_mounts() -> void:
 			(node as Node3D).position.y = rear_y
 
 
-## Множитель сцепления конкретной трассы (снег/гравий/асфальт).
 func apply_track_grip(grip_scale: float, rolling_scale: float) -> void:
 	track_grip_scale = maxf(0.05, grip_scale)
 	track_rolling_scale = maxf(0.05, rolling_scale)
@@ -363,7 +382,6 @@ func _refresh_grip_tuning() -> void:
 		wheel.current_tire_stiffness = 1000000.0 + 8000000.0 * float(tire_stiffnesses.get(surface, 1.0))
 
 
-## Высота центра масс над землёй в состоянии покоя (для спавна машины).
 func get_spawn_height_offset() -> float:
 	if front_left_wheel == null:
 		return 0.1
@@ -383,7 +401,7 @@ func _apply_visual_setup() -> void:
 	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
 	if model != null:
 		model.position.y = front_tire_radius - MODEL_BODY_GROUND_CLEARANCE - MODEL_WHEEL_CENTER_Y
-	if active_setup == null:
+	if active_setup == null or model == null:
 		return
 	for child in model.get_children():
 		if child is MeshInstance3D and String(child.name).begins_with("Mitsubishi_Body"):
@@ -433,7 +451,6 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	_update_handbrake_grip(delta)
 
-	# Плавно сглаживаем speed_kmh, чтобы шейдер и FOV не дергались на кочках!
 	var raw_speed_mps: float = Vector2(linear_velocity.x, linear_velocity.z).length()
 	speed_mps = lerpf(speed_mps, raw_speed_mps, _response_weight(10.0, delta))
 	speed_kmh = speed_mps * 3.6
@@ -442,8 +459,6 @@ func _physics_process(delta: float) -> void:
 	manual_mode = not automatic_transmission
 	_update_gravel_particles()
 
-	# ВАЖНО: Обновляем камеру здесь же, в _physics_process, сразу после шага физики!
-	# Это полностью убирает рассинхрон и "телепортацию" машины относительно камеры.
 	_update_cameras(delta)
 
 	if global_position.y < -20.0:
@@ -451,7 +466,6 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Оставляем пустым, так как камера теперь синхронизирована с физикой
 	pass
 
 
@@ -542,14 +556,12 @@ func _update_gravel_particles() -> void:
 
 
 func _update_cameras(delta: float) -> void:
-	# Автоматический возврат камеры при бездействии мыши
 	mouse_idle_timer += delta
 	if mouse_auto_return_delay > 0.0 and mouse_idle_timer >= mouse_auto_return_delay:
 		var return_weight: float = _response_weight(mouse_return_speed, delta)
 		mouse_yaw = lerp_angle(mouse_yaw, 0.0, return_weight)
 		mouse_pitch = lerpf(mouse_pitch, 0.0, return_weight)
 
-	# Плавное сглаживание углов мыши (чтобы камера двигалась по дуге, а не срезала путь сквозь машину)
 	var look_smooth: float = _response_weight(18.0, delta)
 	smoothed_mouse_yaw = lerp_angle(smoothed_mouse_yaw, mouse_yaw, look_smooth)
 	smoothed_mouse_pitch = lerpf(smoothed_mouse_pitch, mouse_pitch, look_smooth)
@@ -584,16 +596,15 @@ func _update_action_camera(delta: float) -> void:
 		var follow_amount: float = chase_velocity_follow * clampf((speed_kmh - 15.0) / 60.0, 0.0, 1.0)
 		desired_yaw = lerp_angle(car_yaw, velocity_yaw, follow_amount)
 
-	camera_yaw = lerp_angle(camera_yaw, desired_yaw, _response_weight(chase_yaw_response, delta))
-
-	# Сглаживаем только опорную точку машины, а саму орбиту считаем вокруг неё напрямую.
-	# Благодаря этому при вращении мыши камера идёт строго по окружности и не ныряет под днище.
-	var raw_target: Vector3 = global_position + Vector3(0.0, chase_target_height, 0.0)
 	if not camera_initialized:
-		camera_target_smoothed = raw_target
+		camera_yaw = desired_yaw
 		camera_initialized = true
 	else:
-		camera_target_smoothed = camera_target_smoothed.lerp(raw_target, _response_weight(chase_position_response, delta))
+		camera_yaw = lerp_angle(camera_yaw, desired_yaw, _response_weight(chase_yaw_response, delta))
+
+	# Опорная точка привязана напрямую к кузову без отставания по координатам,
+	# чтобы машина НИКОГДА не дёргалась и не "телепортировалась" в кадре при поворотах!
+	var pivot: Vector3 = global_position + Vector3(0.0, _scene_pivot_height, 0.0)
 
 	var effective_yaw: float = camera_yaw + smoothed_mouse_yaw
 	var is_freelooking: float = clampf(absf(smoothed_mouse_yaw) * 1.5 + absf(smoothed_mouse_pitch) * 1.5, 0.0, 1.0)
@@ -602,43 +613,65 @@ func _update_action_camera(delta: float) -> void:
 	var camera_right: Vector3 = camera_forward.cross(Vector3.UP).normalized()
 	var speed_factor: float = clampf(speed_kmh / 160.0, 0.0, 1.0)
 
-	# Расчёт сферической орбиты относительно базового угла высоты камеры
-	var base_elevation: float = atan2(chase_height - chase_target_height, chase_distance)
-	var base_radius: float = Vector2(chase_distance, chase_height - chase_target_height).length()
-	var dist: float = base_radius * lerpf(1.0, 1.08, speed_factor)
+	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
+	var base_height_diff: float = (_scene_chase_local_pos.y - _scene_pivot_height) if use_cam_chase_from_scene else (chase_height - _scene_pivot_height)
+	var base_side_offset: float = _scene_chase_local_pos.x if use_cam_chase_from_scene else 0.0
+
+	var base_elevation: float = atan2(base_height_diff, base_back_dist)
+	var base_radius: float = Vector2(base_back_dist, base_height_diff).length()
+	var desired_dist: float = base_radius * lerpf(1.0, 1.06, speed_factor)
 	var total_pitch: float = clampf(
 		base_elevation + smoothed_mouse_pitch,
-		deg_to_rad(2.0),
+		deg_to_rad(-10.0),
 		deg_to_rad(75.0)
 	)
 
-	var horiz_dist: float = dist * cos(total_pitch)
-	var vert_offset: float = dist * sin(total_pitch)
+	var orbit_dir: Vector3 = (-camera_forward * cos(total_pitch) + Vector3.UP * sin(total_pitch)).normalized()
+	var side_vec: Vector3 = (
+		camera_right * base_side_offset * (1.0 - is_freelooking)
+		+ camera_right * true_steering_amount * chase_corner_offset * speed_factor * (1.0 - is_freelooking)
+	)
 
-	camera_position = camera_target_smoothed - camera_forward * horiz_dist + Vector3(0.0, vert_offset, 0.0)
-	camera_position += camera_right * steer_input * chase_corner_offset * speed_factor * (1.0 - is_freelooking)
+	var ideal_cam_pos: Vector3 = pivot + orbit_dir * desired_dist + side_vec
 
-	# Гарантируем, что камера никогда не опустится ниже уровня осей машины
-	var min_cam_y: float = global_position.y + 0.35
+	# Проверка стен: отключаем попадание луча в Area3D (триггеры/чекпоинты) и саму машину,
+	# а дистанцию сглаживаем, чтобы камера не прыгала мгновенно!
+	var query := PhysicsRayQueryParameters3D.create(pivot, ideal_cam_pos, 1, [get_rid()])
+	query.collide_with_areas = false
+	query.hit_from_inside = false
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	var target_dist: float = desired_dist
+	if not hit.is_empty():
+		var hit_dist: float = pivot.distance_to(hit["position"]) - chase_collision_radius
+		target_dist = clampf(hit_dist, 1.2, desired_dist)
+
+	var dist_speed: float = 25.0 if target_dist < _smoothed_cam_dist else 8.0
+	_smoothed_cam_dist = lerpf(_smoothed_cam_dist, target_dist, _response_weight(dist_speed, delta))
+
+	camera_position = pivot + orbit_dir * _smoothed_cam_dist + side_vec
+
+	var min_cam_y: float = pivot.y - 0.35
 	if camera_position.y < min_cam_y:
 		camera_position.y = min_cam_y
 
-	# Защита от прохождения сквозь рельеф и деревья
-	var query := PhysicsRayQueryParameters3D.create(camera_target_smoothed, camera_position, 1, [get_rid()])
-	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-	if not hit.is_empty():
-		var hit_position: Vector3 = hit["position"]
-		var hit_normal: Vector3 = hit["normal"]
-		camera_position = hit_position + hit_normal * chase_collision_radius
+	# Плавный учёт наклона машины на горках
+	_smoothed_slope_y = lerpf(_smoothed_slope_y, car_forward.y * 0.65, _response_weight(6.0, delta))
 
-	# Когда смотрим по сторонам мышью, фокусируемся на центре машины
-	var look_ahead_mult: float = 1.0 - is_freelooking
-	var look_target: Vector3 = camera_target_smoothed + (camera_forward * chase_lookahead + planar_velocity * 0.06) * look_ahead_mult
+	# Точка взгляда всегда отсчитывается от стабильного центра (pivot),
+	# чтобы не возникало обратной петли с позицией камеры
+	var look_dist: float = base_back_dist + chase_lookahead
+	var default_look_dir_world: Vector3 = (
+		camera_forward * _scene_chase_look_dir_local.z
+		+ Vector3.UP * (_scene_chase_look_dir_local.y + _smoothed_slope_y)
+		+ camera_right * _scene_chase_look_dir_local.x
+	).normalized()
+	var ideal_unblocked_pos: Vector3 = pivot + (-camera_forward * base_back_dist + Vector3.UP * base_height_diff)
+	var default_look_target: Vector3 = ideal_unblocked_pos + default_look_dir_world * look_dist
+	var look_target: Vector3 = default_look_target.lerp(pivot, is_freelooking)
 
 	active_camera.global_position = camera_position
 	if active_camera.global_position.distance_squared_to(look_target) > 0.001:
 		active_camera.look_at(look_target, Vector3.UP)
-		active_camera.rotate_object_local(Vector3(0.0, 0.0, 1.0), deg_to_rad(steer_input * 0.65) * speed_factor * look_ahead_mult)
 
 	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, speed_factor)
 	active_camera.fov = lerpf(active_camera.fov, target_fov, _response_weight(5.0, delta))
@@ -657,7 +690,6 @@ func _update_cockpit_camera(delta: float) -> void:
 	cam_cockpit.position = COCKPIT_BASE_POSITION + g_force_offset
 	active_camera.global_transform = cam_cockpit.global_transform
 
-	# Поворот головы мышью внутри салона + наклон от руля
 	active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
 	active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
 	active_camera.rotate_object_local(Vector3(0.0, 0.0, 1.0), -true_steering_amount * 0.15)
@@ -668,16 +700,34 @@ func _reset_action_camera() -> void:
 	mouse_pitch = 0.0
 	smoothed_mouse_yaw = 0.0
 	smoothed_mouse_pitch = 0.0
-	var forward: Vector3 = spawn_transform.basis.z.normalized()
+	_smoothed_slope_y = 0.0
+	var basis_to_use: Basis = global_transform.basis if is_inside_tree() else spawn_transform.basis
+	var forward: Vector3 = basis_to_use.z.normalized()
 	camera_yaw = atan2(forward.x, forward.z)
-	var target: Vector3 = global_position + Vector3(0.0, chase_target_height, 0.0)
-	camera_target_smoothed = target
-	camera_position = target - forward * chase_distance + Vector3(0.0, chase_height - chase_target_height, 0.0)
+	var pivot: Vector3 = global_position + Vector3(0.0, _scene_pivot_height, 0.0)
+
+	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
+	var base_height_diff: float = (_scene_chase_local_pos.y - _scene_pivot_height) if use_cam_chase_from_scene else (chase_height - _scene_pivot_height)
+	_smoothed_cam_dist = Vector2(base_back_dist, base_height_diff).length()
+
+	if use_cam_chase_from_scene and cam_chase != null and is_inside_tree():
+		camera_position = cam_chase.global_position
+	else:
+		camera_position = pivot - forward * chase_distance + Vector3(0.0, chase_height - _scene_pivot_height, 0.0)
+
 	camera_initialized = true
 	active_camera.top_level = true
 	active_camera.global_position = camera_position
-	if camera_position.distance_squared_to(target) > 0.001:
-		active_camera.look_at(target + forward * chase_lookahead, Vector3.UP)
+
+	var right: Vector3 = forward.cross(Vector3.UP).normalized()
+	var look_dir: Vector3 = (
+		forward * _scene_chase_look_dir_local.z
+		+ Vector3.UP * _scene_chase_look_dir_local.y
+		+ right * _scene_chase_look_dir_local.x
+	).normalized()
+	var look_target: Vector3 = camera_position + look_dir * 10.0
+	if camera_position.distance_squared_to(look_target) > 0.001:
+		active_camera.look_at(look_target, Vector3.UP)
 
 
 func _response_weight(response: float, delta: float) -> float:

@@ -7,6 +7,6 @@ script = ExtResource("1_script")
 id = "gravel"
 display_name = "ГРАВИЙ"
 description = "Базовая настройка: длинноходная подвеска, мягкие стабилизаторы, AWD 38:62. Универсальна на лесных трассах."
-body_color = Color(0.7411765, 1, 1, 0.7058824)
+body_color = Color(1, 1, 1, 0.15686275)
 max_torque = 642.0
 max_rpm = 8980.0

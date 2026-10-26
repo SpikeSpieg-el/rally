@@ -6,11 +6,13 @@
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="3_wheel"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_finkb"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="5_rv3qr"]
+[ext_resource type="Texture2D" uid="uid://bkkv8xfjypj5w" path="res://textures/mitsubishi.png" id="7_02ico"]
 [ext_resource type="Texture2D" uid="uid://bsolhe7em3asy" path="res://textures/light_emmision.png" id="7_finkb"]
 [ext_resource type="Texture2D" uid="uid://ch66w628acnj1" path="res://textures/иташа2.jpg" id="8_finkb"]
+[ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="9_02ico"]
 
 [sub_resource type="BoxShape3D" id="BoxShape_body"]
-size = Vector3(2.2958312, 1.5000732, 5.5912232)
+size = Vector3(2.3857255, 1.6899598, 5.838968)
 
 [sub_resource type="StandardMaterial3D" id="Material_body"]
 albedo_color = Color(0.72, 0.055, 0.035, 1)
@@ -467,6 +469,11 @@ shadow_mesh = SubResource("ArrayMesh_1n0cv")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_finkb"]
 albedo_texture = ExtResource("8_finkb")
+emission_enabled = true
+emission_texture = ExtResource("9_02ico")
+normal_enabled = true
+normal_scale = -0.23
+normal_texture = ExtResource("7_02ico")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_es165"]
 resource_name = "low poly lance evo_Cube_001"
@@ -632,7 +639,7 @@ rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
 [node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=544108270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.99555063, 0.054400682)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.027054, 0.18618608)
 shape = SubResource("BoxShape_body")
 
 [node name="ChassisMesh" type="MeshInstance3D" parent="." unique_id=676427284]
@@ -747,16 +754,19 @@ script = ExtResource("2_audio")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.35, 0.98, -0.15)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 2.291966, 0.2543872)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
-transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 0.92, 0.95)
+transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.3660817, 1.7676451)
 
 [node name="CamChase" type="Marker3D" parent="Cameras" unique_id=1159103674]
-transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 2.15, -4.8)
+transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 3.3938675, -6.0426235)
+gizmo_extents = 1.94
 
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
+transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.3596334, 0.21571684)
 current = true
+fov = 95.2
 far = 2500.0
 
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
