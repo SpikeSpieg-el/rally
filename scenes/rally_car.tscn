@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="9_02ico"]
 
 [sub_resource type="BoxShape3D" id="BoxShape_body"]
-size = Vector3(2.3857255, 1.6899598, 5.838968)
+size = Vector3(2.3857255, 1.4377533, 5.738942)
 
 [sub_resource type="StandardMaterial3D" id="Material_body"]
 albedo_color = Color(0.72, 0.055, 0.035, 1)
@@ -639,7 +639,7 @@ rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
 [node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=544108270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.027054, 0.18618608)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.1531572, 0.13617325)
 shape = SubResource("BoxShape_body")
 
 [node name="ChassisMesh" type="MeshInstance3D" parent="." unique_id=676427284]
