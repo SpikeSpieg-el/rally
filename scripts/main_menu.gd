@@ -1,6 +1,6 @@
 ## Главное меню в духе классических Colin McRae Rally.
 ## Списки трасс и конфигураций берутся из res://data/rally_game_config.tres —
-## чтобы добавить шестую трассу, достаточно добавить ресурс в инспекторе.
+## чтобы добавить трассу, достаточно добавить ресурс в инспекторе.
 extends Control
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
@@ -12,11 +12,8 @@ const StagePreviewType = preload("res://scripts/stage_preview.gd")
 
 @onready var title_label: Label = get_node_or_null("Content/Header/Title") as Label
 @onready var subtitle_label: Label = get_node_or_null("Content/Header/Subtitle") as Label
-@onready var random_check: CheckButton = get_node_or_null("Content/Body/Left/ModeRow/RandomCheck") as CheckButton
 @onready var track_list: BoxContainer = get_node_or_null("Content/Body/Left/TrackList") as BoxContainer
 @onready var setup_list: BoxContainer = get_node_or_null("Content/Body/Left/SetupList") as BoxContainer
-@onready var seed_edit: LineEdit = get_node_or_null("Content/Body/Left/SeedRow/SeedEdit") as LineEdit
-@onready var new_seed_button: Button = get_node_or_null("Content/Body/Left/SeedRow/NewSeedButton") as Button
 @onready var start_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/StartButton") as Button
 @onready var quit_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/QuitButton") as Button
 @onready var preview: Control = get_node_or_null("Content/Body/Right/Preview") as Control
@@ -30,8 +27,6 @@ var track_buttons: Array[Button] = []
 var setup_buttons: Array[Button] = []
 var selected_track: int = 0
 var selected_setup: int = 0
-var random_mode: bool = false
-var seed_value: int = 1337
 
 
 func _ready() -> void:
@@ -70,22 +65,9 @@ func _restore_selection() -> void:
 	var game: Node = _get_game()
 	selected_track = clampi(config.default_track_index, 0, maxi(0, config.track_count() - 1))
 	selected_setup = clampi(config.default_setup_index, 0, maxi(0, config.setup_count() - 1))
-	seed_value = _track_seed(selected_track)
-	random_mode = config.start_random_mode
 	if game != null:
 		selected_track = clampi(int(game.get("track_index")), 0, maxi(0, config.track_count() - 1))
 		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, config.setup_count() - 1))
-		random_mode = bool(game.get("random_mode"))
-		seed_value = maxi(1, int(game.get("map_seed")))
-
-
-func _track_seed(index: int) -> int:
-	var track: Resource = config.get_track(index)
-	if track != null:
-		var value: Variant = track.get("map_seed")
-		if value != null:
-			return maxi(1, absi(int(value)))
-	return 1337
 
 
 func _build_buttons() -> void:
@@ -129,12 +111,6 @@ func _build_buttons() -> void:
 
 
 func _connect_signals() -> void:
-	if random_check != null and not random_check.toggled.is_connected(_on_random_toggled):
-		random_check.toggled.connect(_on_random_toggled)
-	if seed_edit != null and not seed_edit.text_submitted.is_connected(_on_seed_submitted):
-		seed_edit.text_submitted.connect(_on_seed_submitted)
-	if new_seed_button != null and not new_seed_button.pressed.is_connected(_on_new_seed_pressed):
-		new_seed_button.pressed.connect(_on_new_seed_pressed)
 	if start_button != null and not start_button.pressed.is_connected(_on_start_pressed):
 		start_button.pressed.connect(_on_start_pressed)
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_pressed):
@@ -146,13 +122,6 @@ func _refresh() -> void:
 		title_label.text = config.title
 	if subtitle_label != null:
 		subtitle_label.text = config.subtitle
-	if random_check != null:
-		random_check.set_pressed_no_signal(random_mode)
-	if seed_edit != null:
-		seed_edit.text = str(seed_value)
-		seed_edit.editable = not random_mode
-	if new_seed_button != null:
-		new_seed_button.disabled = random_mode
 
 	for i in range(track_buttons.size()):
 		var button: Button = track_buttons[i]
@@ -166,20 +135,16 @@ func _refresh() -> void:
 	if track == null:
 		return
 	if preview != null and preview is StagePreviewType:
-		preview.call("set_track", track, seed_value, random_mode)
-	var stage_name: String = track.display_name
-	var description: String = track.description
-	if random_mode:
-		stage_name = config.random_track_name
-		description = config.random_track_description
+		preview.call("set_track", track)
 	if info_label != null:
-		info_label.text = "%s\n\n%s\n\nДЛИНА: %.0f м\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s" % [
-			stage_name,
-			description,
-			track.length,
+		info_label.text = "%s\n\n%s\n\nДЛИНА: %.0f м\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s\nАССЕТОВ: %d" % [
+			track.display_name,
+			track.description,
+			track.get_route_length(),
 			track.surface_name,
 			track.difficulty,
-			_format_time(track.target_time)
+			_format_time(track.target_time),
+			track.props.size()
 		]
 	if setup != null:
 		if power_bar != null:
@@ -189,11 +154,10 @@ func _refresh() -> void:
 		if suspension_bar != null:
 			suspension_bar.value = setup.get_suspension_rating()
 	if best_label != null:
-		var key: String = track.get_record_key(seed_value)
 		var best: float = 0.0
 		var game: Node = _get_game()
 		if game != null:
-			best = float(game.call("get_best_time", key))
+			best = float(game.call("get_best_time", track.get_record_key()))
 		best_label.text = "ЛУЧШЕЕ ВРЕМЯ:  %s" % (_format_time(best) if best > 0.0 else "—")
 
 
@@ -207,42 +171,18 @@ func _sync_game() -> void:
 		return
 	game.set("track_index", selected_track)
 	game.set("setup_index", selected_setup)
-	game.set("random_mode", random_mode)
-	game.set("map_seed", seed_value)
 	game.call("select_setup", selected_setup)
 	game.call("select_track", selected_track)
-	game.set("map_seed", seed_value)
 
 
 func _on_track_pressed(index: int) -> void:
 	selected_track = index
-	if not random_mode:
-		seed_value = _track_seed(index)
 	_sync_game()
 	_refresh()
 
 
 func _on_setup_pressed(index: int) -> void:
 	selected_setup = index
-	_sync_game()
-	_refresh()
-
-
-func _on_random_toggled(enabled: bool) -> void:
-	random_mode = enabled
-	_sync_game()
-	_refresh()
-
-
-func _on_seed_submitted(text: String) -> void:
-	seed_value = maxi(1, absi(int(text)))
-	_sync_game()
-	_refresh()
-
-
-func _on_new_seed_pressed() -> void:
-	randomize()
-	seed_value = randi() % 9999999 + 1
 	_sync_game()
 	_refresh()
 

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="RallyProp" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_prop.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+display_name = "Ель у дороги"
+scene = ExtResource("2_scene")
+mode = 0
+count = 90
+spacing = 22.0
+lateral_min = 7.0
+lateral_max = 20.0
+side = 0
+along_jitter = 7.0
+road_clearance = 10.0
+scale_min = 0.85
+scale_max = 1.35
+scale_y = 1.1
+random_yaw = true
+align_to_slope = true
+align_to_slope_amount = 0.2
+y_offset = -0.1
+collision = true
+collision_radius = 0.4
+collision_height = 2.6

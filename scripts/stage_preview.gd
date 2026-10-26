@@ -1,10 +1,8 @@
-## Мини-карта трассы в меню. Рисует тот же маршрут, который создаст
-## scripts/rally_stage.gd: шпильки, дуги, шифты, КПП — один источник истины
-## (scripts/data/rally_route.gd).
+## Мини-карта трассы в меню. Рисует ту же осевую линию (Curve3D), из которой
+## строится заезд, — никакой отдельной «генерации для превью» больше нет.
 extends Control
 
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
-const RouteType = preload("res://scripts/data/rally_route.gd")
 
 @export var background_color: Color = Color(0.025, 0.045, 0.065, 1.0)
 @export var grid_color: Color = Color(0.10, 0.16, 0.19, 1.0)
@@ -13,96 +11,79 @@ const RouteType = preload("res://scripts/data/rally_route.gd")
 @export_range(2.0, 12.0, 0.5) var road_line_width: float = 5.0
 
 var track: TrackConfigType = null
-var seed_value: int = 1337
-var random_stage: bool = false
-var _route: Dictionary = {}
+var _points: PackedVector2Array = PackedVector2Array()
+var _checkpoints: PackedVector2Array = PackedVector2Array()
+var _length: float = 0.0
 
 
-func set_track(new_track: TrackConfigType, new_seed: int, is_random: bool) -> void:
+func set_track(new_track: TrackConfigType) -> void:
 	track = new_track
-	seed_value = maxi(1, absi(new_seed))
-	random_stage = is_random
-	if track != null:
-		_route = RouteType.generate(track, seed_value, random_stage)
-		queue_redraw()
+	_rebuild()
+	queue_redraw()
+
+
+func _rebuild() -> void:
+	_points = PackedVector2Array()
+	_checkpoints = PackedVector2Array()
+	_length = 0.0
+	if track == null or track.road_curve == null:
+		return
+	var baked: PackedVector3Array = track.road_curve.get_baked_points()
+	for p in baked:
+		_points.append(Vector2(p.x, p.z))
+	_length = track.road_curve.get_baked_length()
+	if track.checkpoint_interval > 0.0 and _length > 0.0:
+		var d: float = track.checkpoint_interval
+		while d < _length - 40.0:
+			var p: Vector3 = track.road_curve.sample_baked(d)
+			_checkpoints.append(Vector2(p.x, p.z))
+			d += track.checkpoint_interval
 
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
 	draw_rect(rect, background_color)
 	_draw_grid(rect)
-	if track == null or not _route.has("points"):
-		_draw_text(rect.get_center() - Vector2(80, 0), "НЕТ ДАННЫХ")
+	if _points.size() < 2:
+		_draw_text(Vector2(16.0, 16.0), "НЕТ ОСЕВОЙ ЛИНИИ")
 		return
 
-	var points: PackedVector2Array = _route["points"]
-	var bounds: Rect2 = _route["bounds"]
-	var margin: float = 22.0
-	var usable: Rect2 = Rect2(margin, margin, maxf(10.0, size.x - margin * 2.0), maxf(10.0, size.y - margin * 2.0))
-	var pad: float = 16.0
-	var bx: float = bounds.position.x - pad
-	var by: float = bounds.position.y - pad
-	var bw: float = bounds.size.x + pad * 2.0
-	var bh: float = bounds.size.y + pad * 2.0
-	var scale: float = minf(usable.size.x / maxf(bw, 1.0), usable.size.y / maxf(bh, 1.0))
+	var min_x: float = INF
+	var min_z: float = INF
+	var max_x: float = -INF
+	var max_z: float = -INF
+	for p in _points:
+		min_x = minf(min_x, p.x)
+		max_x = maxf(max_x, p.x)
+		min_z = minf(min_z, p.y)
+		max_z = maxf(max_z, p.y)
+	var margin: float = 26.0
+	var usable := Rect2(margin, margin, maxf(10.0, size.x - margin * 2.0), maxf(10.0, size.y - margin * 2.0))
+	var pad: float = 14.0
+	var span_x: float = maxf(1.0, max_x - min_x + pad * 2.0)
+	var span_z: float = maxf(1.0, max_z - min_z + pad * 2.0)
+	var scale: float = minf(usable.size.x / span_x, usable.size.y / span_z)
 	var offset := Vector2(
-		usable.position.x + usable.size.x * 0.5 - (bx + bw * 0.5) * scale,
-		usable.position.y + usable.size.y - (by + bh * 0.5) * scale
+		usable.position.x + usable.size.x * 0.5 - (min_x - pad + span_x * 0.5) * scale,
+		usable.position.y + usable.size.y * 0.5 - (min_z - pad + span_z * 0.5) * scale
 	)
+	var screen := PackedVector2Array()
+	for p in _points:
+		screen.append(Vector2(p.x * scale + offset.x, p.y * scale + offset.y))
 
-	var screen_points := PackedVector2Array()
-	for i in range(points.size()):
-		screen_points.append(Vector2(points[i].x * scale + offset.x, points[i].y * scale + offset.y))
+	draw_polyline(screen, road_color.darkened(0.55), road_line_width + 5.0, true)
+	draw_polyline(screen, road_color, road_line_width, true)
 
-	draw_polyline(screen_points, road_color.darkened(0.55), road_line_width + 5.0, true)
-	draw_polyline(screen_points, road_color, road_line_width, true)
+	for cp in _checkpoints:
+		var point := Vector2(cp.x * scale + offset.x, cp.y * scale + offset.y)
+		draw_rect(Rect2(point.x - 3.0, point.y - 3.0, 6.0, 6.0), Color(0.95, 0.85, 0.20), true)
 
-	# Контрольные точки.
-	var checkpoint_color := Color(0.95, 0.85, 0.20)
-	for cp in _route["checkpoints"]:
-		var p := Vector2(cp["pos"].x * scale + offset.x, cp["pos"].y * scale + offset.y)
-		draw_rect(Rect2(p.x - 3.0, p.y - 3.0, 6.0, 6.0), checkpoint_color, true)
-
-	# Деревья и камни — та же функция сида, что и у генератора сцены.
-	for i in range(90):
-		var u: float = _hash_unit(seed_value, 20.0 + float(i) * 1.7)
-		var v: float = _hash_unit(seed_value, 90.0 + float(i) * 2.3)
-		var x: float = bounds.position.x + u * bounds.size.x
-		var z: float = bounds.position.y + v * bounds.size.y
-		if _distance_to_route(x, z, bounds) < track.road_half_width * 1.4 + 3.0:
-			continue
-		var point := Vector2(x * scale + offset.x, z * scale + offset.y)
-		draw_circle(point, 1.6, track.tree_color.lightened(0.35))
-
-	var finish: Vector2 = screen_points[screen_points.size() - 1]
-	var start: Vector2 = screen_points[0]
-	draw_circle(start, 5.0, Color(0.2, 0.8, 1.0))
-	draw_circle(finish, 5.0, accent_color)
-	_draw_text(Vector2(margin, margin), "СТАРТ / ФИНИШ")
-	_draw_text(Vector2(margin, size.y - 10.0), "SEED %d  •  %.0f м  •  %s" % [seed_value, track.length, track.surface_name])
-
-
-## Приблизительное расстояние от точки до маршрута (по отрезкам сплайна,
-## каждый 4-й отрезок — быстрая оценка для размещения деревьев).
-func _distance_to_route(x: float, z: float, bounds: Rect2) -> float:
-	var best: float = 9999.0
-	var pts: PackedVector2Array = _route["points"]
-	if pts.size() < 2:
-		return best
-	for i in range(0, pts.size() - 1, 4):
-		var a: Vector2 = pts[i]
-		var b: Vector2 = pts[i + 1]
-		var ab: Vector2 = b - a
-		if ab.length_squared() < 1.0e-6:
-			continue
-		var t: float = clampf(Vector2(x, z).dot(ab) / ab.length_squared(), 0.0, 1.0)
-		best = mini(best, Vector2(x, z).distance_to(a + ab * t))
-	return best
-
-
-func _hash_unit(value: int, salt: float) -> float:
-	var x: float = sin(float(absi(value) % 100000) * 0.01723 + salt * 12.9898) * 43758.5453
-	return x - floor(x)
+	var start: Vector2 = screen[0]
+	var finish: Vector2 = screen[screen.size() - 1]
+	draw_circle(start, 5.5, Color(0.2, 0.8, 1.0))
+	draw_circle(finish, 5.5, accent_color)
+	_draw_text(Vector2(margin, margin - 12.0), "СТАРТ / ФИНИШ")
+	_draw_text(Vector2(margin, size.y - 24.0), "%.0f м  •  %s" % [_length, track.surface_name])
 
 
 func _draw_grid(rect: Rect2) -> void:

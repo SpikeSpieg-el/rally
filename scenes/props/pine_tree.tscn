@@ -1,0 +1,49 @@
+[gd_scene load_steps=6 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Material_trunk"]
+albedo_color = Color(0.23, 0.13, 0.07, 1)
+roughness = 1.0
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Material_needles"]
+albedo_color = Color(0.09, 0.28, 0.13, 1)
+roughness = 0.95
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_trunk"]
+material = SubResource("Material_trunk")
+top_radius = 0.18
+bottom_radius = 0.28
+height = 2.6
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_lower"]
+material = SubResource("Material_needles")
+top_radius = 0.0
+bottom_radius = 1.9
+height = 4.2
+radial_segments = 7
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_upper"]
+material = SubResource("Material_needles")
+top_radius = 0.0
+bottom_radius = 1.25
+height = 3.2
+radial_segments = 7
+rings = 1
+
+[node name="PineTree" type="Node3D"]
+
+[node name="Trunk" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+mesh = SubResource("Mesh_trunk")
+
+[node name="Lower" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.1, 0)
+mesh = SubResource("Mesh_lower")
+
+[node name="Upper" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.3, 0)
+mesh = SubResource("Mesh_upper")

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="RallyProp" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_prop.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/props/road_sign.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+display_name = "Щит"
+scene = ExtResource("2_scene")
+mode = 0
+count = 16
+spacing = 110.0
+lateral_min = 1.8
+lateral_max = 3.0
+side = 0
+along_jitter = 12.0
+road_clearance = 8.0
+scale_min = 1.0
+scale_max = 1.0
+scale_y = 1.0
+random_yaw = false
+face_road = true
+face_road_offset_deg = 90.0
+align_to_slope = false
+y_offset = 0.0
+collision = false

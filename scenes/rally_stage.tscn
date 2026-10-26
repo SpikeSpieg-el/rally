@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/rally_stage.gd" id="1_stage"]
 [ext_resource type="PackedScene" path="res://scenes/rally_car.tscn" id="2_car"]
 [ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="3_speed"]
+[ext_resource type="Curve3D" path="res://data/tracks/stage_forest_route.tres" id="4_route"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_base"]
 sky_top_color = Color(0.12, 0.27, 0.48, 1)
@@ -70,6 +71,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 shape = SubResource("BoxShape_terrain")
 
 [node name="Generated" type="Node3D" parent="."]
+
+[node name="Route" type="Path3D" parent="."]
+curve = ExtResource("4_route")
+
+[node name="ManualProps" type="Node3D" parent="."]
 
 [node name="RallyCar" parent="." instance=ExtResource("2_car")]
 
