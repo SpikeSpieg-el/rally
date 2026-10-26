@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://dp7rbcjrdctyg"]
 
 [ext_resource type="PackedScene" path="res://scenes/rally_stage.tscn" id="1_base"]
-[ext_resource type="Resource" path="res://data/tracks/track_01_forest.tres" id="2_track"]
+[ext_resource type="Resource" uid="uid://nx2n3mxxuciv" path="res://data/tracks/track_01_forest.tres" id="2_track"]
 
-[node name="ForestRally" instance=ExtResource("1_base")]
+[node name="ForestRally" unique_id=121021303 instance=ExtResource("1_base")]
 track_override = ExtResource("2_track")

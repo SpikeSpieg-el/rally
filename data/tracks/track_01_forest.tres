@@ -1,53 +1,27 @@
-[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://nx2n3mxxuciv"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
 id = "forest"
 display_name = "ЛЕСНОЕ РАЛЛИ"
 description = "Быстрый гравийный лес: длинные дуги, холмы и слепые гребни. Классический спецучасток."
-surface_name = "Гравий"
-difficulty = 3
 target_time = 82.0
-kind = 0
-flat = false
 length = 740.0
 road_half_width = 4.3
 offroad_grip = 0.62
 map_seed = 4707
-random_seed = false
-seed_variation = 0.55
-curve_amplitude = 11.0
-curve_frequency = 0.026
-curve_roughness = 0.45
-secondary_curve_amplitude = 5.0
 hill_amplitude = 1.45
-hill_frequency = 0.025
-bump_amount = 0.30
-whoops_amount = 0.10
+bump_amount = 0.3
+whoops_amount = 0.1
 crest_amount = 0.85
 offroad_hills = 0.95
 tree_count = 150
 rock_count = 24
-slalom_cones = 0
 scenery_radius = 165.0
-road_clearance = 12.0
 tree_color = Color(0.065, 0.245, 0.115, 1)
-rock_color = Color(0.29, 0.31, 0.32, 1)
 ground_color = Color(0.085, 0.165, 0.07, 1)
 ground_color_2 = Color(0.2, 0.255, 0.105, 1)
 road_color = Color(0.34, 0.275, 0.19, 1)
 road_color_2 = Color(0.46, 0.375, 0.265, 1)
-sky_top_color = Color(0.12, 0.27, 0.48, 1)
-sky_horizon_color = Color(0.65, 0.76, 0.86, 1)
-fog_color = Color(0.72, 0.79, 0.88, 1)
-fog_density = 0.0012
-sun_energy = 1.4
-sun_pitch = -32.0
-sun_yaw = 35.0
-grip_scale = 1.0
-rolling_resistance_scale = 1.0
-terrain_grid_size = 141
-road_step = 1.5
-enable_speed_fx = true
