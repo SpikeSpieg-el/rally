@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="RallyGameConfig" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_game_config.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/tracks/track_01_forest.tres" id="2_t"]
+[ext_resource type="Resource" path="res://data/tracks/track_02_mountain.tres" id="3_t"]
+[ext_resource type="Resource" path="res://data/tracks/track_03_suspension.tres" id="4_t"]
+[ext_resource type="Resource" path="res://data/tracks/track_04_range.tres" id="5_t"]
+[ext_resource type="Resource" path="res://data/tracks/track_05_snow.tres" id="6_t"]
+[ext_resource type="Resource" path="res://data/setups/setup_01_gravel.tres" id="7_s"]
+[ext_resource type="Resource" path="res://data/setups/setup_02_tarmac.tres" id="8_s"]
+[ext_resource type="Resource" path="res://data/setups/setup_03_snow.tres" id="9_s"]
+[ext_resource type="Resource" path="res://data/setups/setup_04_group_a.tres" id="10_s"]
+
+[resource]
+script = ExtResource("1_script")
+title = "RALLY 4.7"
+subtitle = "MITSUBISHI LANCER EVOLUTION"
+accent_color = Color(1.0, 0.58, 0.08, 1)
+tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("6_t")])
+car_setups = Array[Resource]([ExtResource("7_s"), ExtResource("8_s"), ExtResource("9_s"), ExtResource("10_s")])
+default_track_index = 0
+default_setup_index = 0
+start_random_mode = false
+menu_scene = "res://scenes/main_menu.tscn"
+stage_scene = "res://scenes/rally_stage.tscn"
+records_path = "user://rally_records.cfg"
+random_track_name = "СЛУЧАЙНАЯ ТРАССА"
+random_track_description = "Каждый заезд — новая дорога, новый рельеф и новая расстановка деревьев."

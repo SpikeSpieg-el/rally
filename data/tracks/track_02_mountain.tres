@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "mountain"
+display_name = "ГОРНЫЙ СЕРПАНТИН"
+description = "Узкий горный серпантин: крутые подъёмы, резкие смены направления и высокие гребни."
+surface_name = "Укатанный грунт"
+difficulty = 5
+target_time = 105.0
+kind = 1
+flat = false
+length = 860.0
+road_half_width = 3.7
+offroad_grip = 0.52
+map_seed = 9102
+random_seed = false
+seed_variation = 0.7
+curve_amplitude = 22.0
+curve_frequency = 0.038
+curve_roughness = 0.72
+secondary_curve_amplitude = 10.0
+hill_amplitude = 4.2
+hill_frequency = 0.032
+bump_amount = 0.45
+whoops_amount = 0.06
+crest_amount = 2.1
+offroad_hills = 1.4
+tree_count = 105
+rock_count = 55
+slalom_cones = 0
+scenery_radius = 185.0
+road_clearance = 9.0
+tree_color = Color(0.045, 0.19, 0.1, 1)
+rock_color = Color(0.36, 0.35, 0.33, 1)
+ground_color = Color(0.14, 0.16, 0.11, 1)
+ground_color_2 = Color(0.27, 0.26, 0.19, 1)
+road_color = Color(0.3, 0.27, 0.23, 1)
+road_color_2 = Color(0.42, 0.39, 0.33, 1)
+sky_top_color = Color(0.09, 0.16, 0.32, 1)
+sky_horizon_color = Color(0.48, 0.56, 0.66, 1)
+fog_color = Color(0.62, 0.68, 0.76, 1)
+fog_density = 0.0022
+sun_energy = 1.15
+sun_pitch = -24.0
+sun_yaw = -50.0
+grip_scale = 1.12
+rolling_resistance_scale = 0.9
+terrain_grid_size = 161
+road_step = 1.25
+enable_speed_fx = true

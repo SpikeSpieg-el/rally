@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "suspension"
+display_name = "ЛЕС: ПОДВЕСКА"
+description = "Тестовый участок: диагональные кочки, волны, crest и провал. Идеально для настройки подвески."
+surface_name = "Разбитый гравий"
+difficulty = 2
+target_time = 58.0
+kind = 2
+flat = false
+length = 420.0
+road_half_width = 4.6
+offroad_grip = 0.60
+map_seed = 2266
+random_seed = false
+seed_variation = 0.35
+curve_amplitude = 8.0
+curve_frequency = 0.032
+curve_roughness = 0.30
+secondary_curve_amplitude = 4.0
+hill_amplitude = 0.9
+hill_frequency = 0.025
+bump_amount = 0.85
+whoops_amount = 0.28
+crest_amount = 1.25
+offroad_hills = 0.6
+tree_count = 115
+rock_count = 30
+slalom_cones = 0
+scenery_radius = 120.0
+road_clearance = 11.0
+tree_color = Color(0.06, 0.23, 0.11, 1)
+rock_color = Color(0.3, 0.31, 0.3, 1)
+ground_color = Color(0.09, 0.16, 0.075, 1)
+ground_color_2 = Color(0.21, 0.25, 0.11, 1)
+road_color = Color(0.35, 0.28, 0.19, 1)
+road_color_2 = Color(0.47, 0.38, 0.27, 1)
+sky_top_color = Color(0.14, 0.3, 0.46, 1)
+sky_horizon_color = Color(0.68, 0.76, 0.82, 1)
+fog_color = Color(0.74, 0.79, 0.84, 1)
+fog_density = 0.0010
+sun_energy = 1.5
+sun_pitch = -38.0
+sun_yaw = 20.0
+grip_scale = 0.95
+rolling_resistance_scale = 1.15
+terrain_grid_size = 141
+road_step = 0.9
+enable_speed_fx = true

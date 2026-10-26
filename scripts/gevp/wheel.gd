@@ -85,10 +85,13 @@ func _process(delta : float) -> void:
 		if not is_zero_approx(beam_axle):
 			var wheel_lookat_vector: Vector3 = (opposite_wheel.transform * opposite_wheel.wheel_node.position) - (transform * wheel_node.position)
 			wheel_node.rotation.z = wheel_lookat_vector.angle_to(Vector3.RIGHT * beam_axle) * signf(wheel_lookat_vector.y * beam_axle)
-		wheel_node.rotation.x += wrapf(spin * delta, 0.0, TAU) * forward_sign
+		# Прямой знак вращения: wrapf(..., 0, TAU) ломал реверс.
+		# Ограничиваем накопленный угол, чтобы не терять точность float.
+		wheel_node.rotation.x = wrapf(wheel_node.rotation.x + spin * delta * forward_sign, -PI, PI)
 		
 func initialize() -> void:
-	wheel_node.rotation_order = EULER_ORDER_ZXY
+	if wheel_node != null:
+		wheel_node.rotation_order = EULER_ORDER_ZXY
 	wheel_moment = 0.5 * wheel_mass * pow(tire_radius, 2)
 	set_target_position(Vector3.DOWN * (spring_length + tire_radius))
 	vehicle = get_parent()
