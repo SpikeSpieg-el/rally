@@ -137,14 +137,13 @@ func _refresh() -> void:
 	if preview != null and preview is StagePreviewType:
 		preview.call("set_track", track)
 	if info_label != null:
-		info_label.text = "%s\n\n%s\n\nДЛИНА: %.0f м\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s\nАССЕТОВ: %d" % [
+		info_label.text = "%s\n\n%s\n\nДЛИНА: %.0f м\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s" % [
 			track.display_name,
 			track.description,
 			track.get_route_length(),
 			track.surface_name,
 			track.difficulty,
-			_format_time(track.target_time),
-			track.props.size()
+			_format_time(track.target_time)
 		]
 	if setup != null:
 		if power_bar != null:

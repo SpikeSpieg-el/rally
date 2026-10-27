@@ -734,8 +734,19 @@ func _response_weight(response: float, delta: float) -> float:
 	return 1.0 - exp(-maxf(response, 0.0) * maxf(delta, 0.0))
 
 
+## Необязательный «провайдер» точки сброса: сцена заезда подставляет сюда
+## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
+## а не на старт.
+var reset_provider: Callable = Callable()
+
+
 func reset_to_spawn() -> void:
-	global_transform = spawn_transform
+	var target: Transform3D = spawn_transform
+	if reset_provider.is_valid():
+		var provided: Variant = reset_provider.call()
+		if provided is Transform3D:
+			target = provided
+	global_transform = target
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	sleeping = false

@@ -2,6 +2,7 @@
 ## осевую линию дороги (Curve3D), рельеф вокруг неё, ассеты, погоду и сцепление.
 ## Откройте data/tracks/stage_forest.tres в инспекторе Godot — всё ниже
 ## редактируется без единой строчки кода.
+@tool
 class_name RallyTrackConfig
 extends Resource
 
@@ -73,7 +74,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var bumps_cross: float = 0.35
 
 @export_group("Ассеты")
-## Ресурсы RallyProp: деревья, камни, столбики, щиты, свои .tscn.
+## Устарело: ассеты теперь живут узлами в сцене (узел Props).
 @export var props: Array[Resource] = []
 ## Автоматические ворота старт/финиш и маркеры обочины.
 @export var spawn_route_markers: bool = true
@@ -81,6 +82,8 @@ extends Resource
 @export var spawn_edge_posts: bool = true
 ## Расстояние между контрольными арками (м), 0 — отключить.
 @export_range(0.0, 900.0, 10.0) var checkpoint_interval: float = 400.0
+## Ставить ворота КП (жёлтые). Сами ворота — часть сгенерированной геометрии.
+@export var spawn_checkpoints: bool = true
 
 @export_group("Трава, земля, полотно — цвета")
 @export var ground_color: Color = Color(0.10, 0.17, 0.07)

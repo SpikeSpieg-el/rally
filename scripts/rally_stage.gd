@@ -1,8 +1,9 @@
 ## Одна универсальная сцена заезда.
 ##
-## Карта не генерируется «случайно»: она целиком задана ресурсом
-## data/tracks/*.tres (осевая линия Curve3D + параметры рельефа + список
-## ассетов RallyProp). Скрипт лишь «запекает» из неё меши, коллизию и объекты.
+## Трасса задана кривой в узле Route (Path3D) и параметрами ресурса
+## data/tracks/*.tres. Меши земли и полотна собираются из них, а ассеты
+## лежат обычными узлами в Props и ManualProps — их видно и можно двигать
+## прямо в 3D-вьюпорте.
 ##
 ## Инвариант, из-за которого дорога больше не может пробить рельеф:
 ## высота ЛЮБОЙ точки мира считается одной функцией _height_at():
@@ -10,9 +11,10 @@
 ## Внутри полотна переход = 0, поэтому земля ровно равна дороге, а за обочиной
 ## плавно (не круче embankment_slope_deg) уходит в холмы.
 ##
-## Редактор: скрипт помечен @tool, в инспекторе есть кнопка «Пересобрать
-## трассу». Ассеты из списка props расставляются автоматически; свои объекты
-## можно класть руками в узел ManualProps — генератор его не трогает.
+## Редактор: скрипт помечен @tool. В инспекторе есть две кнопки —
+## «Пересобрать трассу» (пересчитать меши по текущей кривой) и «Посадить
+## ассеты на землю» (поставить ассеты из Props/ManualProps на меш земли).
+## Свои объекты кладутся руками в ManualProps — генератор их не трогает.
 @tool
 class_name RallyStage
 extends Node3D
@@ -21,7 +23,6 @@ const CarType = preload("res://scripts/rally_car.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
-const PropType = preload("res://scripts/data/rally_prop.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 
@@ -34,6 +35,9 @@ const GroundShader = preload("res://shaders/forest_ground.gdshader")
 ## Собирать трассу сразу при открытии сцены в редакторе.
 @export var preview_in_editor: bool = true
 @export_tool_button("Пересобрать трассу") var rebuild_button = rebuild_preview
+@export_tool_button("Посадить ассеты на землю") var snap_button = snap_props_to_ground
+## Автоматически ставить ассеты из Props/ManualProps на землю при сборке.
+@export var snap_props_on_build: bool = true
 
 @export_group("Отладка")
 @export var show_debug_info: bool = false
@@ -133,6 +137,35 @@ func rebuild_preview() -> void:
 	_build_world()
 
 
+## Ставит все ассеты из узлов Props и ManualProps ровно на землю (по мешу)
+## и разворачивает их по склону. Работает в редакторе: результат сохраняется
+## в сцене, поэтому расставленные руками объекты остаются на месте.
+func snap_props_to_ground() -> void:
+	var placed: int = _snap_prop_nodes(true)
+	print("Ассеты посажены на землю: %d шт." % placed)
+
+
+## Ставит каждый ассет ровно на нарисованный меш земли (по XZ-координате).
+## Работает и в редакторе, и в игре; результат в редакторе сохраняется в сцене.
+func _snap_prop_nodes(include_manual: bool) -> int:
+	var total: int = 0
+	var roots: Array[String] = ["Props"]
+	if include_manual:
+		roots.append("ManualProps")
+	for node_name in roots:
+		var root := get_node_or_null(node_name) as Node3D
+		if root == null:
+			continue
+		for child in root.get_children():
+			var node3d := child as Node3D
+			if node3d == null:
+				continue
+			var p: Vector3 = node3d.position
+			node3d.position.y = ground_height(p.x, p.z)
+			total += 1
+	return total
+
+
 func _resolve_track() -> void:
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	if game_config == null and game != null:
@@ -149,8 +182,8 @@ func _resolve_track() -> void:
 		var current: Variant = game.get("current_track")
 		if current is TrackConfigType:
 			track = current
-	if track == null and game_config != null:
-		var first: Resource = game_config.get_track(0)
+	if track == null and game_config != null and game_config.get_script() != null:
+		var first: Variant = game_config.call("get_track", 0)
 		if first is TrackConfigType:
 			track = first
 	if track == null:
@@ -161,8 +194,8 @@ func _resolve_track() -> void:
 		var current_setup: Variant = game.get("current_setup")
 		if current_setup is CarSetupType:
 			setup = current_setup
-	if setup == null and game_config != null:
-		var first_setup: Resource = game_config.get_setup(0)
+	if setup == null and game_config != null and game_config.get_script() != null:
+		var first_setup: Variant = game_config.call("get_setup", 0)
 		if first_setup is CarSetupType:
 			setup = first_setup
 
@@ -170,15 +203,37 @@ func _resolve_track() -> void:
 # ---------------------------------------------------------------- сборка мира
 
 
-## Осевая линия: сначала ресурс трассы (road_curve), иначе узел Route (Path3D)
-## в самой сцене — так кривую удобно тянуть точками прямо в 3D-вьюпорте.
+## Осевая линия. ПЕРВЫЙ источник — узел Route (Path3D) прямо в сцене: его
+## кривую видно и можно тянуть точками в 3D-вьюпорте. Ресурс road_curve —
+## только запасной вариант для сцен без Path3D.
 func _effective_curve() -> Curve3D:
+	var path := get_node_or_null("Route") as Path3D
+	if path != null and path.curve != null and path.curve.point_count >= 2:
+		return path.curve
 	if track != null and track.road_curve != null:
 		return track.road_curve
-	var path := get_node_or_null("Route") as Path3D
-	if path != null and path.curve != null:
-		return path.curve
 	return null
+
+
+## Прямоугольник карты вокруг кривой + отступ terrain_margin.
+func _curve_terrain_rect(curve: Curve3D) -> Rect2:
+	var points: PackedVector3Array = curve.get_baked_points()
+	if points.is_empty():
+		return Rect2(Vector2(-64, -64), Vector2(128, 128))
+	var min_x: float = INF
+	var min_z: float = INF
+	var max_x: float = -INF
+	var max_z: float = -INF
+	for p in points:
+		min_x = minf(min_x, p.x)
+		max_x = maxf(max_x, p.x)
+		min_z = minf(min_z, p.z)
+		max_z = maxf(max_z, p.z)
+	var margin: float = maxf(40.0, track.terrain_margin)
+	return Rect2(
+		Vector2(min_x - margin, min_z - margin),
+		Vector2(max_x - min_x + margin * 2.0, max_z - min_z + margin * 2.0)
+	)
 
 
 func _build_world() -> void:
@@ -188,7 +243,9 @@ func _build_world() -> void:
 		return
 	_clear_generated()
 	_setup_noise()
-	terrain_rect = track.get_terrain_rect()
+	# Границы карты считаем по ТОЙ кривой, что реально используется
+	# (узел Route в сцене), иначе правка кривой в 3D не меняла бы размер поля.
+	terrain_rect = _curve_terrain_rect(curve)
 	network = RoadNetworkType.build(curve, terrain_rect, maxf(1.5, track.terrain_cell))
 	var length: float = network.total_length
 	start_pos = network.point_at(0.0)
@@ -201,12 +258,16 @@ func _build_world() -> void:
 		_configure_world()
 	_build_terrain()
 	_build_road()
+	if snap_props_on_build:
+		# Только «лес» из Props: ручные объекты в ManualProps не двигаем,
+		# их можно поставить руками на нужную высоту.
+		_snap_prop_nodes(false)
 	if track.spawn_route_markers:
 		_spawn_route_markers()
 	if track.spawn_edge_posts:
 		_spawn_edge_posts()
-	_spawn_props()
-	_spawn_checkpoints()
+	if track.spawn_checkpoints:
+		_spawn_checkpoints()
 	cp_triggered.resize(checkpoints.size())
 	cp_times.clear()
 	for i in range(checkpoints.size()):
@@ -473,7 +534,9 @@ func _limit_terrain_slopes(
 ) -> PackedFloat32Array:
 	var max_slope: float = tan(deg_to_rad(clampf(track.max_terrain_slope_deg, 20.0, 75.0)))
 	var max_delta: float = cell * max_slope
-	var anchor_distance: float = track.road_half_width + track.road_shoulder + 2.0
+	# Якоря — только сама дорога и обочина (полотно + 0.5 м), иначе у тесной
+	# шпильки между двумя «жёсткими» ячейками остаётся стенка.
+	var anchor_distance: float = track.road_half_width + track.road_shoulder + 0.5
 	var anchored := PackedByteArray()
 	anchored.resize(cols * rows)
 	var dirty := PackedInt32Array()
@@ -499,7 +562,7 @@ func _limit_terrain_slopes(
 	for i in range(dirty.size()):
 		marks[dirty[i]] = 1
 	var passes: int = 0
-	while not dirty.is_empty() and passes < 60:
+	while not dirty.is_empty() and passes < 80:
 		passes += 1
 		var next := PackedInt32Array()
 		for index in dirty:
@@ -696,163 +759,6 @@ func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -
 # ---------------------------------------------------------------- ассеты
 
 
-func _spawn_props() -> void:
-	if generated == null or network == null:
-		return
-	var container := Node3D.new()
-	container.name = "Props"
-	generated.add_child(container)
-	for resource in track.props:
-		if resource == null or not (resource is PropType):
-			continue
-		var prop := resource as RallyProp
-		if prop == null or not prop.is_valid():
-			continue
-		if prop.mode == RallyProp.Mode.SCATTER:
-			_scatter_prop(container, prop)
-		else:
-			_place_prop_along_road(container, prop)
-
-
-func _prop_transforms_along_road(prop: RallyProp) -> Array[Transform3D]:
-	var transforms: Array[Transform3D] = []
-	var length: float = network.total_length
-	if length <= 1.0:
-		return transforms
-	var corridor: float = track.road_half_width + track.road_shoulder
-	var count: int = prop.count
-	if count <= 0:
-		count = maxi(1, int(length / maxf(prop.spacing, 1.0)))
-	var start_pad: float = 8.0
-	var usable: float = maxf(1.0, length - start_pad * 2.0)
-	for i in range(count):
-		var distance: float = start_pad + usable * (float(i) + 0.5) / float(count)
-		distance += _rng.randf_range(-prop.along_jitter, prop.along_jitter)
-		distance = clampf(distance, 2.0, length - 2.0)
-		var center: Vector3 = network.point_at(distance)
-		var dir: Vector3 = network.direction_at(distance)
-		var side := Vector3(dir.z, 0.0, -dir.x)
-		var signs: Array[float] = []
-		match prop.side:
-			RallyProp.Side.LEFT:
-				signs.append(-1.0)
-			RallyProp.Side.RIGHT:
-				signs.append(1.0)
-			_:
-				signs.append(-1.0)
-				signs.append(1.0)
-		for side_sign in signs:
-			var lateral: float = corridor + _rng.randf_range(prop.lateral_min, prop.lateral_max)
-			var point: Vector3 = center + side * (lateral * side_sign)
-			transforms.append(_make_prop_transform(prop, point.x, point.z, atan2(dir.x, dir.z)))
-	return transforms
-
-
-func _prop_transforms_scatter(prop: RallyProp) -> Array[Transform3D]:
-	var transforms: Array[Transform3D] = []
-	var count: int = maxi(1, prop.count)
-	var center: Vector2 = terrain_rect.get_center()
-	var radius: float = minf(terrain_rect.size.x, terrain_rect.size.y) * 0.5 - 4.0
-	if prop.scatter_radius > 0.0:
-		radius = minf(radius, prop.scatter_radius)
-	radius = maxf(radius, 4.0)
-	var attempts: int = 0
-	while transforms.size() < count and attempts < count * 40:
-		attempts += 1
-		var angle: float = _rng.randf_range(0.0, TAU)
-		var r: float = sqrt(_rng.randf()) * radius
-		var x: float = center.x + cos(angle) * r
-		var z: float = center.y + sin(angle) * r
-		if network.distance_to_road(x, z) < prop.road_clearance:
-			continue
-		transforms.append(_make_prop_transform(prop, x, z, _rng.randf_range(0.0, TAU)))
-	return transforms
-
-
-func _make_prop_transform(prop: RallyProp, x: float, z: float, road_yaw: float = 0.0) -> Transform3D:
-	var y: float = ground_height(x, z) + prop.y_offset
-	var scale_value: float = _rng.randf_range(prop.scale_min, prop.scale_max)
-	var yaw: float = 0.0
-	if prop.face_road:
-		yaw = road_yaw + deg_to_rad(prop.face_road_offset_deg)
-	elif prop.random_yaw:
-		yaw = _rng.randf_range(0.0, TAU)
-	var basis := Basis(Vector3.UP, yaw)
-	if prop.align_to_slope:
-		# Наклоняем по нормали склона, сохраняя поворот вокруг вертикали.
-		var normal: Vector3 = normal_at(x, z, 1.4)
-		var up: Vector3 = Vector3.UP.lerp(normal, prop.align_to_slope_amount).normalized()
-		var forward: Vector3 = basis.z
-		var right: Vector3 = up.cross(forward)
-		if right.length() > 0.001:
-			right = right.normalized()
-			basis = Basis(right, up, right.cross(up).normalized())
-	basis = basis.scaled(Vector3(scale_value, scale_value * prop.scale_y, scale_value))
-	return Transform3D(basis, Vector3(x, y, z))
-
-
-func _place_prop_along_road(container: Node3D, prop: RallyProp) -> void:
-	var transforms: Array[Transform3D] = _prop_transforms_along_road(prop)
-	_instantiate_props(container, prop, transforms)
-
-
-func _scatter_prop(container: Node3D, prop: RallyProp) -> void:
-	var transforms: Array[Transform3D] = _prop_transforms_scatter(prop)
-	_instantiate_props(container, prop, transforms)
-
-
-func _instantiate_props(container: Node3D, prop: RallyProp, transforms: Array[Transform3D]) -> void:
-	if transforms.is_empty():
-		return
-	if prop.scene != null or prop.collision:
-		# Готовые сцены и объекты с коллизией — обычными узлами.
-		var holder := Node3D.new()
-		holder.name = "Prop_%s" % prop.display_name.to_snake_case()
-		container.add_child(holder)
-		for i in range(transforms.size()):
-			var node: Node3D = null
-			if prop.scene != null:
-				var instance: Node = prop.scene.instantiate()
-				if instance is Node3D:
-					node = instance
-				else:
-					instance.free()
-			elif prop.mesh != null:
-				var mesh_instance := MeshInstance3D.new()
-				mesh_instance.mesh = prop.mesh
-				if prop.material != null:
-					mesh_instance.material_override = prop.material
-				node = mesh_instance
-			if node == null:
-				continue
-			node.transform = transforms[i]
-			if prop.collision and prop.collision_radius > 0.0:
-				var body := StaticBody3D.new()
-				var shape := CollisionShape3D.new()
-				var cylinder := CylinderShape3D.new()
-				cylinder.radius = prop.collision_radius
-				cylinder.height = prop.collision_height
-				shape.shape = cylinder
-				shape.position = Vector3(0.0, prop.collision_height * 0.5, 0.0)
-				body.add_child(shape)
-				node.add_child(body)
-			holder.add_child(node)
-		return
-	# Быстрый путь: MultiMesh — один draw call на тип объекта.
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = prop.mesh
-	multimesh.instance_count = transforms.size()
-	for i in range(transforms.size()):
-		multimesh.set_instance_transform(i, transforms[i])
-	var multimesh_instance := MultiMeshInstance3D.new()
-	multimesh_instance.name = "Prop_%s" % prop.display_name.to_snake_case()
-	multimesh_instance.multimesh = multimesh
-	if prop.material != null:
-		multimesh_instance.material_override = prop.material
-	container.add_child(multimesh_instance)
-
-
 # ---------------------------------------------------------------- разметка
 
 
@@ -1039,6 +945,22 @@ func _configure_car() -> void:
 	car.apply_track_grip(track.grip_scale, track.rolling_resistance_scale)
 	car.spawn_transform = _make_spawn_transform()
 	car.reset_to_spawn()
+	# Провайдер сброса появляется только после стартовой расстановки: иначе
+	# первая же установка машины уехала бы в «ближайшую точку трассы».
+	car.reset_provider = Callable(self, "_rescue_transform")
+
+
+## Точка сброса по клавише R: ближайшая точка дороги впереди/рядом, чтобы
+## машина, застрявшая на обочине или в кювете, вернулась на трассу.
+func _rescue_transform() -> Transform3D:
+	if network == null:
+		return _make_spawn_transform()
+	var here: Vector2 = Vector2(car.global_position.x, car.global_position.z)
+	var along: float = clampf(network.along_road(here.x, here.y), 8.0, network.total_length - 8.0)
+	var point: Vector3 = network.point_at(along)
+	var dir: Vector3 = network.direction_at(along)
+	var y: float = height_at(point.x, point.z) + (car.get_spawn_height_offset() + 0.12)
+	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
 
 
 func _make_spawn_transform() -> Transform3D:

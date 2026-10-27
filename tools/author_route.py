@@ -150,7 +150,12 @@ def stats(pts, step):
 
 
 def write_curve(ctrl, path):
-    """Catmull-Rom style handles, stored as Godot's packed curve data"""
+    """Catmull-Rom handles as Godot's packed curve data.
+
+    ВАЖНО: Godot хранит point_in / point_out ОТНОСИТЕЛЬНО самой точки
+    (Curve3D.set_point_in принимает смещение, а не мировую позицию).
+    Абсолютные позиции здесь дают «спагетти» и длину в 10 раз больше.
+    """
     n = len(ctrl)
     values = []
     for i in range(n):
@@ -167,8 +172,10 @@ def write_curve(ctrl, path):
         pos = (px, py, pz)                   # Godot: x, y(height), z
         hin_v = (px - hx * hin, py - hy * hin, pz - hz * hin)
         hout_v = (px + hx * hout, py + hy * hout, pz + hz * hout)
-        values.append("%.4f, %.4f, %.4f" % hin_v)
-        values.append("%.4f, %.4f, %.4f" % hout_v)
+        hin_rel = (hin_v[0] - px, hin_v[1] - py, hin_v[2] - pz)
+        hout_rel = (hout_v[0] - px, hout_v[1] - py, hout_v[2] - pz)
+        values.append("%.4f, %.4f, %.4f" % hin_rel)
+        values.append("%.4f, %.4f, %.4f" % hout_rel)
         values.append("%.4f, %.4f, %.4f" % pos)
     text = (
         '[gd_resource type="Curve3D" format=3]\n\n'
