@@ -25,6 +25,8 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
+const MiniMapType = preload("res://scripts/ui/mini_map.gd")
+const GaugeBarType = preload("res://scripts/ui/gauge_bar.gd")
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -72,6 +74,9 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
+var _hud_ready := false
+var _prev_lin_vel: Vector3 = Vector3.ZERO
+var _frame_delta: float = 0.016
 
 # Автопересборка в редакторе: как только правка кривой/настроек затихла,
 # трасса пересобирается сама (кнопка остаётся для ручного пересчёта).
@@ -94,12 +99,24 @@ var _noise_detail: FastNoiseLite = null
 var _noise_bumps: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
 
-# HUD-узлы ищутся по имени, чтобы сцену можно было перестроить в редакторе.
+# HUD-узлы строятся кодом в _setup_hud(): гоночная панель, телеметрия и
+# мини-карта. Ссылки держим, чтобы обновлять их в _update_hud.
 var timer_label: Label = null
 var split_label: Label = null
 var stage_label: Label = null
-var telemetry_label: Label = null
+var best_label: Label = null
+var speed_label: Label = null
+var gear_label: Label = null
+var drivetrain_label: Label = null
 var rpm_bar: ProgressBar = null
+var telemetry_label: Label = null
+var throttle_bar: GaugeBar = null
+var brake_bar: GaugeBar = null
+var steer_bar: GaugeBar = null
+var slip_bar: GaugeBar = null
+var suspension_bar: GaugeBar = null
+var gforce_bar: GaugeBar = null
+var mini_map: MiniMap = null
 var pause_panel: Control = null
 var results_panel: Control = null
 var results_label: Label = null
@@ -510,11 +527,33 @@ func _build_terrain() -> void:
 			heights[index] = height_at(x, z)
 			distances[index] = network.distance_to_road(x, z)
 
+	# «Крышки» дыры на старте и финише. Поле расстояний считает дыру
+	# вокруг ЛИНИИ дороги, поэтому у оконечностей получается полукруг —
+	# а лента полотна начинается прямо на оси и этого полукруга не закрывает.
+	# Без обработки на старте/финише оставалась бы дырка в земле. Ячейки,
+	# где ближайшая точка дороги — сам начальный/конечный отрезок, оставляем
+	# как цельную землю (рельефом), и они перекрывают эти крышки.
+	var cap := PackedByteArray()
+	cap.resize(cols * rows)
+	var start_xz: Vector2 = Vector2(start_pos.x, start_pos.z)
+	var finish_xz: Vector2 = Vector2(finish_pos.x, finish_pos.z)
+	for gz in range(rows):
+		var z: float = origin.y + float(gz) * cell
+		for gx in range(cols):
+			var x: float = origin.x + float(gx) * cell
+			var index: int = gz * cols + gx
+			var nearest_end: float = minf(
+				Vector2(x, z).distance_to(start_xz),
+				Vector2(x, z).distance_to(finish_xz)
+			)
+			cap[index] = 1 if distances[index] >= nearest_end - 1.0 else 0
+
 	# 2) Кювет: земля у кромки опускается. Полотно всегда выше земли, поэтому
 	#    «протыкания» дороги рельефом не бывает даже на косогорах.
+	#    На «крышках» кювета не нужны — там дороги спереди нет.
 	var ditch_reach: float = corridor_half() + 5.0
 	for index in range(cols * rows):
-		if distances[index] < ditch_reach:
+		if distances[index] < ditch_reach and cap[index] == 0:
 			heights[index] -= _road_ditch(distances[index])
 
 	# 3) Лимит склонов: страховка от «стенок» (тесные шпильки, косогоры).
@@ -556,7 +595,8 @@ func _build_terrain() -> void:
 
 	# 5) Индексы: строго под полотном треугольники не нужны — там лежит лента
 	#    дороги (она закрывает дыру и держит коллизию). Считается по сетке
-	#    расстояний, без повторных запросов к дороге.
+	#    расстояний, без повторных запросов к дороге. На «крышках» старта/
+	#    финиша дыру не делаем — там ленты спереди нет, оставляем рельеф.
 	var indices := PackedInt32Array()
 	var hole_distance: float = corridor * 0.92
 	for gz in range(rows - 1):
@@ -565,9 +605,12 @@ func _build_terrain() -> void:
 			var i10: int = i00 + 1
 			var i01: int = i00 + cols
 			var i11: int = i01 + 1
-			if distances[i00] < hole_distance and distances[i10] < hole_distance and distances[i01] < hole_distance:
-				if distances[i10] < hole_distance and distances[i11] < hole_distance and distances[i01] < hole_distance:
-					continue
+			var hole_00: bool = distances[i00] < hole_distance and cap[i00] == 0
+			var hole_10: bool = distances[i10] < hole_distance and cap[i10] == 0
+			var hole_01: bool = distances[i01] < hole_distance and cap[i01] == 0
+			var hole_11: bool = distances[i11] < hole_distance and cap[i11] == 0
+			if hole_00 and hole_10 and hole_01 and hole_11:
+				continue
 			indices.append(i00)
 			indices.append(i10)
 			indices.append(i01)
@@ -1045,46 +1088,222 @@ func _make_spawn_transform() -> Transform3D:
 # ---------------------------------------------------------------- HUD
 
 
+func _hud_stylebox() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.content_margin_left = 16.0
+	box.content_margin_top = 10.0
+	box.content_margin_right = 16.0
+	box.content_margin_bottom = 10.0
+	box.bg_color = Color(0.03, 0.05, 0.07, 0.82)
+	box.border_width_left = 2
+	box.border_width_top = 2
+	box.border_width_right = 2
+	box.border_width_bottom = 2
+	box.border_color = Color(0.95, 0.62, 0.12, 0.85)
+	box.corner_radius_top_left = 6
+	box.corner_radius_top_right = 6
+	box.corner_radius_bottom_right = 6
+	box.corner_radius_bottom_left = 6
+	return box
+
+
+func _styled_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _hud_stylebox())
+	return panel
+
+
+func _make_label(text: String, size: int, color: Color, outline: bool = false) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	if outline:
+		label.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.05, 0.95))
+		label.add_theme_constant_override("outline_size", maxi(3, int(size / 8)))
+	return label
+
+
+func _add_gauge_row(parent: VBoxContainer, title: String, color: Color, centered: bool) -> GaugeBar:
+	parent.add_child(_make_label(title, 11, Color(0.62, 0.72, 0.82, 1.0)))
+	var gauge := GaugeBarType.new()
+	gauge.custom_minimum_size = Vector2(230.0, 10.0)
+	gauge.bar_color = color
+	gauge.centered = centered
+	parent.add_child(gauge)
+	return gauge
+
+
+func _add_button(parent: Control, text: String, method: String) -> void:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(250, 40)
+	button.add_theme_font_size_override("font_size", 16)
+	parent.add_child(button)
+	if not button.pressed.is_connected(Callable(self, method)):
+		button.pressed.connect(Callable(self, method))
+
+
+func _make_modal(title: String) -> PanelContainer:
+	var panel := _styled_panel()
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -240.0
+	panel.offset_top = -190.0
+	panel.offset_right = 240.0
+	panel.offset_bottom = 190.0
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	var heading := _make_label(title, 30, Color(1.0, 0.72, 0.25, 1.0))
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(heading)
+	panel.add_child(box)
+	return panel
+
+
 func _setup_hud() -> void:
 	if hud == null:
 		return
+	if _hud_ready:
+		return
+	_hud_ready = true
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
-	timer_label = hud.get_node_or_null("TopPanel/TimerLabel") as Label
-	split_label = hud.get_node_or_null("TopPanel/SplitLabel") as Label
-	stage_label = hud.get_node_or_null("TopPanel/StageLabel") as Label
-	telemetry_label = hud.get_node_or_null("BottomPanel/TelemetryBox/TelemetryLabel") as Label
-	rpm_bar = hud.get_node_or_null("BottomPanel/TelemetryBox/RPMBar") as ProgressBar
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
-	pause_panel = hud.get_node_or_null("PausePanel") as Control
-	results_panel = hud.get_node_or_null("ResultsPanel") as Control
-	results_label = hud.get_node_or_null("ResultsPanel/Box/ResultsLabel") as Label
 	if speed_rect != null:
 		speed_fx_material = speed_rect.material as ShaderMaterial
 		speed_rect.visible = track.enable_speed_fx
-	if pause_panel != null:
-		pause_panel.visible = false
-	if results_panel != null:
-		results_panel.visible = false
-	_connect_button("PausePanel/Box/ResumeButton", "_on_resume_pressed")
-	_connect_button("PausePanel/Box/RestartButton", "_on_restart_pressed")
-	_connect_button("PausePanel/Box/MenuButton", "_on_menu_pressed")
-	_connect_button("PausePanel/Box/QuitButton", "_on_quit_pressed")
-	_connect_button("ResultsPanel/Box/AgainButton", "_on_restart_pressed")
-	_connect_button("ResultsPanel/Box/MenuButton", "_on_menu_pressed")
-	var hint := hud.get_node_or_null("ControlsHint") as Label
-	if hint != null:
-		hint.text = "[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК\n[C] КАМЕРА  [V] ПРИВОД  [R] СБРОС  [Q/E] КПП\n[ESC] ПАУЗА"
-	var title := hud.get_node_or_null("TopPanel/TitleLabel") as Label
-	if title != null:
-		title.text = track.display_name
 
+	# ---- панель этапа (верхний левый угол) ----
+	var stage_panel := _styled_panel()
+	stage_panel.anchor_left = 0.0
+	stage_panel.anchor_top = 0.0
+	stage_panel.offset_left = 14.0
+	stage_panel.offset_top = 14.0
+	stage_panel.offset_right = 334.0
+	stage_panel.offset_bottom = 118.0
+	var stage_box := VBoxContainer.new()
+	stage_box.add_theme_constant_override("separation", 3)
+	stage_panel.add_child(stage_box)
+	var stage_title := _make_label(track.display_name, 20, Color(1.0, 0.72, 0.25, 1.0))
+	stage_label = _make_label("", 14, Color(0.72, 0.83, 0.92, 1.0))
+	stage_box.add_child(stage_title)
+	stage_box.add_child(stage_label)
+	hud.add_child(stage_panel)
 
-func _connect_button(path: String, method: String) -> void:
-	if hud == null:
-		return
-	var button := hud.get_node_or_null(path) as Button
-	if button != null and not button.pressed.is_connected(Callable(self, method)):
-		button.pressed.connect(Callable(self, method))
+	# ---- таймер (верхний центр) ----
+	var timer_panel := _styled_panel()
+	timer_panel.anchor_left = 0.5
+	timer_panel.anchor_right = 0.5
+	timer_panel.anchor_top = 0.0
+	timer_panel.offset_left = -250.0
+	timer_panel.offset_right = 250.0
+	timer_panel.offset_top = 14.0
+	timer_panel.offset_bottom = 146.0
+	var timer_box := VBoxContainer.new()
+	timer_box.add_theme_constant_override("separation", 2)
+	timer_panel.add_child(timer_box)
+	timer_label = _make_label("00:00.000", 58, Color(1.0, 0.97, 0.88, 1.0), true)
+	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	split_label = _make_label("ЦЕЛЬ 00:00.000", 18, Color(0.30, 0.95, 0.55, 1.0), true)
+	split_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	timer_box.add_child(timer_label)
+	timer_box.add_child(split_label)
+	hud.add_child(timer_panel)
+
+	# ---- мини-карта (верхний правый угол) ----
+	mini_map = MiniMapType.new()
+	mini_map.name = "MiniMap"
+	mini_map.anchor_right = 1.0
+	mini_map.anchor_top = 0.0
+	mini_map.offset_right = -14.0
+	mini_map.offset_top = 14.0
+	mini_map.offset_left = -244.0
+	mini_map.offset_bottom = 164.0
+	hud.add_child(mini_map)
+	_populate_mini_map()
+
+	# ---- спидометр (нижний левый угол) ----
+	var speed_panel := _styled_panel()
+	speed_panel.anchor_left = 0.0
+	speed_panel.anchor_bottom = 1.0
+	speed_panel.offset_left = 14.0
+	speed_panel.offset_bottom = -14.0
+	speed_panel.offset_right = 334.0
+	speed_panel.offset_top = -190.0
+	var speed_box := VBoxContainer.new()
+	speed_box.add_theme_constant_override("separation", 3)
+	speed_panel.add_child(speed_box)
+	speed_label = _make_label("000", 66, Color(1.0, 0.97, 0.88, 1.0), true)
+	gear_label = _make_label("КПП 1  A", 20, Color(1.0, 0.72, 0.25, 1.0))
+	drivetrain_label = _make_label("AWD 38:62", 14, Color(0.72, 0.83, 0.92, 1.0))
+	rpm_bar = ProgressBar.new()
+	rpm_bar.name = "RPMBar"
+	rpm_bar.custom_minimum_size = Vector2(270.0, 12)
+	rpm_bar.max_value = car.max_rpm if car != null else 7600.0
+	rpm_bar.value = 900.0
+	rpm_bar.show_percentage = false
+	var rpm_caption := _make_label("РУГ 7600", 11, Color(0.60, 0.70, 0.80, 1.0))
+	speed_box.add_child(speed_label)
+	speed_box.add_child(gear_label)
+	speed_box.add_child(drivetrain_label)
+	speed_box.add_child(rpm_caption)
+	speed_box.add_child(rpm_bar)
+	hud.add_child(speed_panel)
+
+	# ---- телеметрия (нижний правый угол) ----
+	var tele_panel := _styled_panel()
+	tele_panel.anchor_right = 1.0
+	tele_panel.anchor_bottom = 1.0
+	tele_panel.offset_right = -14.0
+	tele_panel.offset_bottom = -14.0
+	tele_panel.offset_left = -304.0
+	tele_panel.offset_top = -244.0
+	var tele_box := VBoxContainer.new()
+	tele_box.add_theme_constant_override("separation", 6)
+	telemetry_label = _make_label("ТЕЛЕМЕТРИЯ", 14, Color(1.0, 0.72, 0.25, 1.0))
+	tele_box.add_child(telemetry_label)
+	throttle_bar = _add_gauge_row(tele_box, "ГАЗ", Color(0.30, 0.90, 0.42, 1.0), false)
+	brake_bar = _add_gauge_row(tele_box, "ТОРМОЗ", Color(0.95, 0.30, 0.30, 1.0), false)
+	steer_bar = _add_gauge_row(tele_box, "РУЛЬ", Color(0.98, 0.78, 0.20, 1.0), true)
+	slip_bar = _add_gauge_row(tele_box, "СКОЛЬЗ.", Color(0.98, 0.55, 0.15, 1.0), false)
+	suspension_bar = _add_gauge_row(tele_box, "ХОД", Color(0.35, 0.65, 0.98, 1.0), false)
+	gforce_bar = _add_gauge_row(tele_box, "G", Color(0.75, 0.45, 0.98, 1.0), false)
+	tele_panel.add_child(tele_box)
+	hud.add_child(tele_panel)
+
+	# ---- пауза / финиш ----
+	pause_panel = _make_modal("ПАУЗА")
+	var pause_box := pause_panel.get_child(0) as VBoxContainer
+	_add_button(pause_box, "ПРОДОЛЖИТЬ", "_on_resume_pressed")
+	_add_button(pause_box, "ЗАЕЗД ЗАНОВО", "_on_restart_pressed")
+	_add_button(pause_box, "ГЛАВНОЕ МЕНЮ", "_on_menu_pressed")
+	_add_button(pause_box, "ВЫХОД ИЗ ИГРЫ", "_on_quit_pressed")
+	pause_panel.visible = false
+	hud.add_child(pause_panel)
+
+	results_panel = _make_modal("ФИНИШ")
+	var results_box := results_panel.get_child(0) as VBoxContainer
+	results_label = _make_label("", 22, Color(1.0, 0.95, 0.85, 1.0))
+	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_box.add_child(results_label)
+	_add_button(results_box, "ЕЩЁ ЗАЕЗД", "_on_restart_pressed")
+	_add_button(results_box, "ГЛАВНОЕ МЕНЮ", "_on_menu_pressed")
+	results_panel.visible = false
+	hud.add_child(results_panel)
+
+	# ---- подсказка управления ----
+	var hint := _make_label("[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК   [C] КАМЕРА   [V] ПРИВОД   [R] СБРОС   [ESC] ПАУЗА", 13, Color(0.60, 0.70, 0.80, 0.75), true)
+	hint.anchor_left = 0.5
+	hint.anchor_right = 0.5
+	hint.anchor_bottom = 1.0
+	hint.offset_left = -340.0
+	hint.offset_right = 340.0
+	hint.offset_bottom = -14.0
+	hint.offset_top = -46.0
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hud.add_child(hint)
 
 
 func _update_hud() -> void:
@@ -1096,18 +1315,11 @@ func _update_hud() -> void:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
 	if stage_label != null:
-		stage_label.text = "%s  |  %.0f м  |  %s" % [track.display_name, network.total_length if network != null else 0.0, track.surface_name]
-	if telemetry_label != null:
-		var gearbox_mode: String = "M" if car.manual_mode else "A"
-		telemetry_label.text = "%03d КМ/Ч  |  %s\nКПП %s [%s]  |  %d RPM\nКАМЕРА: %s\nХОД ПОДВЕСКИ: %d%%  |  КОНТАКТ %d/4" % [
-			int(car.speed_kmh),
-			car.get_drivetrain_label(),
-			car.get_gear_label(),
-			gearbox_mode,
-			int(car.current_rpm),
-			car.get_camera_label(),
-			roundi(car.get_max_suspension_compression() * 100.0),
-			car.get_wheel_contact_count()
+		stage_label.text = "%s  |  %.0f м  |  %s  |  УРОВЕНЬ %d/5" % [
+			track.display_name,
+			network.total_length if network != null else 0.0,
+			track.surface_name,
+			track.difficulty
 		]
 	if split_label != null:
 		if stage_finished:
@@ -1123,8 +1335,54 @@ func _update_hud() -> void:
 			split_label.text = line
 		else:
 			split_label.text = "ЦЕЛЬ %s" % _format_time(track.target_time)
-	if show_debug_info and split_label != null:
-		split_label.text += "  | cell %.1f" % track.terrain_cell
+		if show_debug_info:
+			split_label.text += "  | cell %.1f" % track.terrain_cell
+	# Спидометр.
+	if speed_label != null:
+		speed_label.text = str(int(round(car.speed_kmh))).rpad("0", 3)
+	if gear_label != null:
+		gear_label.text = "%s  |  %s" % [car.get_gear_label(), car.get_drivetrain_label()]
+	if drivetrain_label != null:
+		drivetrain_label.text = car.get_drivetrain_label()
+	# Телеметрия.
+	if throttle_bar != null:
+		throttle_bar.set_value(car.throttle_amount)
+	if brake_bar != null:
+		brake_bar.set_value(car.brake_amount)
+	if steer_bar != null:
+		steer_bar.set_value(car.steering_amount)
+	if slip_bar != null:
+		slip_bar.set_value(clampf(car.get_average_tire_slip(), 0.0, 1.0))
+	if suspension_bar != null:
+		suspension_bar.set_value(car.get_max_suspension_compression())
+	if gforce_bar != null:
+		var accel: Vector3 = (car.linear_velocity - _prev_lin_vel) / maxf(_frame_delta, 0.0001)
+		_prev_lin_vel = car.linear_velocity
+		gforce_bar.set_value(clampf(Vector2(accel.x, accel.z).length() / 9.81, 0.0, 1.0))
+	# Мини-карта.
+	if mini_map != null:
+		var forward: Vector3 = car.global_transform.basis.z
+		var heading: float = atan2(-forward.x, -forward.z)
+		mini_map.set_car(Vector2(car.global_position.x, car.global_position.z), heading)
+		mini_map.set_progress(car_race_progress)
+
+
+func _populate_mini_map() -> void:
+	if mini_map == null or network == null:
+		return
+	var route := PackedVector2Array()
+	for p in network.samples:
+		route.append(Vector2(p.x, p.z))
+	var cps := PackedVector2Array()
+	for cp in checkpoints:
+		var pos: Vector3 = cp["pos"]
+		cps.append(Vector2(pos.x, pos.z))
+	mini_map.set_route(
+		route,
+		cps,
+		Vector2(start_pos.x, start_pos.z),
+		Vector2(finish_pos.x, finish_pos.z)
+	)
 
 
 func _split_key(cp_index: int) -> String:
@@ -1165,6 +1423,7 @@ func _process(delta: float) -> void:
 	if speed_fx_material != null:
 		var intensity: float = clampf(((car.speed_kmh if car != null else 0.0) - 70.0) / 130.0, 0.0, 1.0)
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
+	_frame_delta = delta
 	_update_hud()
 
 

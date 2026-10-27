@@ -10,3 +10,7 @@ description = "Базовая настройка: длинноходная по�
 body_color = Color(1, 1, 1, 0.15686275)
 max_torque = 642.0
 max_rpm = 8980.0
+traction_control_max_slip = 1.15
+front_weight_distribution = 0.53
+front_arb_ratio = 0.13
+rear_arb_ratio = 0.10
