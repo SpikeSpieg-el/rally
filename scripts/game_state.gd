@@ -1,5 +1,6 @@
 ## Автозагрузка RallyGame. Держит выбор меню между сценами и рекорды.
-## Настраивается в project.godot -> Autoload; путь к конфигу можно заменить ниже.
+## Карты больше не генерируются случайно: у каждой трассы свой ресурс
+## (data/tracks/*.tres) и свой рекорд по id трассы.
 extends Node
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
@@ -13,8 +14,6 @@ signal race_started
 var config: GameConfigType = null
 var track_index: int = 0
 var setup_index: int = 0
-var random_mode: bool = false
-var map_seed: int = 1337
 var current_track: Resource = null
 var current_setup: Resource = null
 var last_time: float = 0.0
@@ -28,11 +27,8 @@ func _ready() -> void:
 	load_records()
 	track_index = clampi(config.default_track_index, 0, maxi(0, config.track_count() - 1)) if config != null else 0
 	setup_index = clampi(config.default_setup_index, 0, maxi(0, config.setup_count() - 1)) if config != null else 0
-	random_mode = config.start_random_mode if config != null else false
 	current_track = config.get_track(track_index) if config != null else null
 	current_setup = config.get_setup(setup_index) if config != null else null
-	var start_seed: Variant = current_track.get("map_seed") if current_track != null else null
-	map_seed = int(start_seed) if start_seed != null else 1337
 
 
 func load_config() -> void:
@@ -71,7 +67,7 @@ func submit_time(key: String, time: float) -> bool:
 	return true
 
 
-## Рекорд на контрольной точке (split). Ключ: "<track_id>_<seed>_cp<i>".
+## Рекорд на контрольной точке (split). Ключ: "<track_id>_cp<i>".
 func submit_split(key: String, time: float) -> bool:
 	var best: float = get_best_split(key)
 	if time <= 0.0 or (best > 0.0 and time >= best):
@@ -83,11 +79,6 @@ func submit_split(key: String, time: float) -> bool:
 
 func get_best_split(key: String) -> float:
 	return float(_records.get_value("splits", key, 0.0))
-
-
-func make_random_seed() -> int:
-	randomize()
-	return int(abs(randi() % 9999999)) + 1
 
 
 func get_track(index: int) -> Resource:
@@ -109,9 +100,6 @@ func setup_count() -> int:
 func select_track(index: int) -> void:
 	track_index = clampi(index, 0, maxi(0, track_count() - 1))
 	current_track = get_track(track_index)
-	var track_seed: Variant = current_track.get("map_seed") if current_track != null else null
-	if track_seed != null:
-		map_seed = int(track_seed)
 	selection_changed.emit()
 
 
@@ -121,24 +109,7 @@ func select_setup(index: int) -> void:
 	selection_changed.emit()
 
 
-func set_seed(value: int) -> void:
-	map_seed = absi(value) + 1
-	selection_changed.emit()
-
-
-func set_random_mode(enabled: bool) -> void:
-	random_mode = enabled
-	selection_changed.emit()
-
-
-## Новый сид перед каждым заездом в случайном режиме.
-func prepare_race_seed() -> void:
-	if random_mode or (current_track != null and bool(current_track.get("random_seed"))):
-		map_seed = make_random_seed()
-
-
 func start_race() -> void:
-	prepare_race_seed()
 	last_time = 0.0
 	is_new_record = false
 	get_tree().paused = false

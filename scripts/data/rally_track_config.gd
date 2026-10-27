@@ -1,146 +1,165 @@
-## Описание одной трассы. Всё настраивается в инспекторе Godot:
-## откройте любой файл из res://data/tracks/ и меняйте параметры.
-## Никаких констант в коде генератора: он читает только этот ресурс.
+## Описание спецучастка. Это ЕДИНСТВЕННЫЙ ресурс, который задаёт карту:
+## осевую линию дороги (Curve3D), рельеф вокруг неё, ассеты, погоду и сцепление.
+## Откройте data/tracks/stage_forest.tres в инспекторе Godot — всё ниже
+## редактируется без единой строчки кода.
 class_name RallyTrackConfig
 extends Resource
 
-enum StageKind { FOREST, MOUNTAIN, SUSPENSION, RANGE, SNOW, COAST, DESERT }
-
 @export_group("Описание")
-@export var id: String = "track"
-@export var display_name: String = "Трасса"
+@export var id: String = "stage"
+@export var display_name: String = "Спецучасток"
 @export_multiline var description: String = "Описание трассы."
 @export var surface_name: String = "Гравий"
 @export_range(1, 5, 1) var difficulty: int = 3
-## Эталонное время прохождения — для таблицы рекордов и HUD.
-@export_range(20.0, 300.0, 1.0) var target_time: float = 90.0
+## Эталонное время прохождения — для HUD и таблицы рекордов.
+@export_range(20.0, 900.0, 1.0) var target_time: float = 150.0
 
-@export_group("Тип трассы")
-## Лес / Горы / Подвеска / Полигон / Снег / Побережье / Пустыня.
-## Влияет только на набор параметров по умолчанию.
-@export_enum("Лес", "Горы", "Подвеска", "Полигон", "Снег", "Побережье", "Пустыня") var kind: int = StageKind.FOREST
-## Плоская трасса-полигон (ровная плоскость вместо высотного поля).
-@export var flat: bool = false
-## Длина маршрута в метрах. 1200–1600 — классическая длина спецучастка.
-@export_range(200.0, 2400.0, 10.0) var length: float = 1400.0
-@export_range(3.0, 12.0, 0.1) var road_half_width: float = 4.2
-@export_range(0.0, 1.0, 0.01) var offroad_grip: float = 0.65
-
-@export_group("Сид и случайность")
-@export var map_seed: int = 1337
-## Если включено — каждый заезд генерирует новый сид (режим «всегда случайно»).
-@export var random_seed: bool = false
-@export_range(0.0, 1.0, 0.01) var seed_variation: float = 0.55
-
-@export_group("Маршрут — раллийные углы")
-## Вероятность, что участок — поворот (0 = прямая, 1 = сплошные углы).
-@export_range(0.0, 1.0, 0.01) var corner_density: float = 0.6
-## Длина участков в метрах (каждый участок — один поворот или прямая).
-@export_range(30.0, 220.0, 5.0) var segment_min: float = 60.0
-@export_range(30.0, 220.0, 5.0) var segment_max: float = 140.0
-## Размерность типов углов (доля среди всех поворотных участков).
-@export_range(0.0, 1.0, 0.01) var hairpin_share: float = 0.28
-@export_range(0.0, 1.0, 0.01) var sweeper_share: float = 0.34
-@export_range(0.0, 1.0, 0.01) var chicane_share: float = 0.18
-## Остальное — прямые и трамплины (полезно на равнинных трассах).
-@export_range(0.0, 1.0, 0.01) var jump_share: float = 0.12
-## Радиус и угол поворотов.
-@export_range(8.0, 30.0, 1.0) var hairpin_radius_min: float = 11.0
-@export_range(8.0, 30.0, 1.0) var hairpin_radius_max: float = 20.0
-@export_range(120.0, 420.0, 10.0) var hairpin_angle_min: float = 150.0
-@export_range(120.0, 180.0, 1.0) var hairpin_angle_max: float = 176.0
-@export_range(40.0, 220.0, 5.0) var sweeper_radius_min: float = 55.0
-@export_range(40.0, 220.0, 5.0) var sweeper_radius_max: float = 130.0
-@export_range(15.0, 90.0, 1.0) var sweeper_angle_min: float = 25.0
-@export_range(15.0, 90.0, 1.0) var sweeper_angle_max: float = 70.0
-@export_range(8.0, 36.0, 1.0) var chicane_radius_min: float = 13.0
-@export_range(8.0, 36.0, 1.0) var chicane_radius_max: float = 24.0
-## Демо-режим «всегда одинаково»: углы не зависят от seed (для предпросмотра).
-@export var corner_pattern_fixed: bool = false
+@export_group("Дорога")
+## Осевая линия трассы. Точки: X/Z — план, Y — высота.
+## Редактируется прямо в инспекторе: Curve3D → Points, или горями/ручками
+## в окне 3D. Формула высоты дороги и земли общая, поэтому полотно никогда
+## не «клипает» сквозь рельеф.
+@export var road_curve: Curve3D = null
+## Половина ширины полотна (м). 4.0–4.6 — узкий раллийный спецучасток.
+@export_range(2.0, 10.0, 0.1) var road_half_width: float = 4.2
+## Грунтовая обочина, которая считается частью полотна (м).
+@export_range(0.0, 5.0, 0.1) var road_shoulder: float = 1.3
+## Шаг триангуляции полотна вдоль трассы (м).
+@export_range(0.5, 4.0, 0.1) var road_step: float = 1.5
+## Поперечный уклон полотна (крен к обочинам), м.
+@export_range(0.0, 0.4, 0.01) var road_camber: float = 0.07
+## Сцепление вне дороги: 0.6 — гравий, 0.35 — снег.
+@export_range(0.05, 1.0, 0.01) var offroad_grip: float = 0.6
 
 @export_group("Рельеф")
-@export_range(0.0, 8.0, 0.05) var hill_amplitude: float = 1.6
-@export_range(0.005, 0.08, 0.001) var hill_frequency: float = 0.025
-@export_range(0.0, 1.5, 0.01) var bump_amount: float = 0.4
-@export_range(0.0, 1.0, 0.01) var whoops_amount: float = 0.12
-@export_range(0.0, 3.0, 0.05) var crest_amount: float = 0.9
-@export_range(0.0, 2.0, 0.05) var offroad_hills: float = 0.9
+## Сколько метров земли генерировать вокруг трассы с каждой стороны.
+@export_range(40.0, 400.0, 5.0) var terrain_margin: float = 120.0
+## Шаг сетки рельефа (м). 1.5 — красиво, 3.0 — быстро.
+@export_range(1.0, 6.0, 0.25) var terrain_cell: float = 2.0
+## Сид шума рельефа (меняется — меняется только рисунок холмов).
+@export var terrain_seed: int = 2024
+## Высота «фоновых» холмов вокруг дороги, м.
+@export_range(0.0, 80.0, 0.5) var hills_height: float = 14.0
+@export_range(0.0005, 0.05, 0.0005) var hills_frequency: float = 0.0045
+## Горные гребни поверх холмов (0 = равнина).
+@export_range(0.0, 80.0, 0.5) var ridge_height: float = 10.0
+@export_range(0.0005, 0.05, 0.0005) var ridge_frequency: float = 0.0018
+## С какого расстояния от дороги начинают расти холмы и насколько плавно.
+@export_range(0.0, 100.0, 1.0) var hills_fade_start: float = 14.0
+@export_range(10.0, 300.0, 1.0) var hills_fade_length: float = 70.0
+## Максимальный склон земли (градусы). Страховка от «стенок» у шпилек.
+@export_range(20.0, 75.0, 1.0) var max_terrain_slope_deg: float = 45.0
+## Глубина кювета вдоль кромки дороги, м. Земля под полотном и у обочины
+## опускается на эту величину, поэтому дорога физически не может «проткнуть»
+## рельеф. 0 — выключить (тогда возможны стыки на крутых косогорах).
+@export_range(0.0, 2.0, 0.05) var road_ditch_depth: float = 0.6
+## Мелкая «шершавость» земли, м (вне дороги).
+@export_range(0.0, 3.0, 0.01) var detail_height: float = 0.35
+@export_range(0.01, 1.0, 0.001) var detail_frequency: float = 0.09
+## Какие склоны может иметь насыпь/выемка у дороги (градусы).
+@export_range(10.0, 55.0, 1.0) var embankment_slope_deg: float = 30.0
+## Минимальная и максимальная ширина перехода от полотна к рельефу (м).
+@export_range(1.0, 40.0, 0.5) var embankment_min_width: float = 4.0
+@export_range(4.0, 120.0, 1.0) var embankment_max_width: float = 34.0
 
-@export_group("Окружение")
-@export_range(0, 400, 1) var tree_count: int = 140
-@export_range(0, 120, 1) var rock_count: int = 22
-@export_range(0, 160, 1) var bush_count: int = 60
-## Указательные щиты у ключевых поворотов (стиль раллийных спецучастков).
-@export_range(0, 40, 1) var sign_count: int = 10
-@export_range(0, 40, 1) var slalom_cones: int = 0
-@export_range(60.0, 250.0, 5.0) var scenery_radius: float = 150.0
-@export_range(8.0, 40.0, 1.0) var road_clearance: float = 12.0
-@export var tree_color: Color = Color(0.07, 0.25, 0.12)
-@export var bush_color: Color = Color(0.12, 0.32, 0.14)
-@export var rock_color: Color = Color(0.29, 0.31, 0.32)
+@export_group("Неровности полотна (кочки/стиральная доска)")
+## Амплитуда продольных неровностей полотна, м. 0 — идеально ровный асфальт.
+@export_range(0.0, 0.6, 0.01) var bumps_amplitude: float = 0.14
+## Длина волны неровностей (м). 3–6 — «стиральная доска», 10+ — волны.
+@export_range(1.5, 30.0, 0.1) var bumps_wavelength: float = 5.5
+## Глубина «ямочной» тряски поверх волн, м.
+@export_range(0.0, 0.4, 0.01) var bumps_roughness: float = 0.07
+## Масштаб поперечных кочек (0 — неровности идут полосами по всей ширине).
+@export_range(0.0, 1.0, 0.01) var bumps_cross: float = 0.35
+
+@export_group("Ассеты")
+## Ресурсы RallyProp: деревья, камни, столбики, щиты, свои .tscn.
+@export var props: Array[Resource] = []
+## Автоматические ворота старт/финиш и маркеры обочины.
+@export var spawn_route_markers: bool = true
+## Красно-белые столбики по обочинам (классика ралли).
+@export var spawn_edge_posts: bool = true
+## Расстояние между контрольными арками (м), 0 — отключить.
+@export_range(0.0, 900.0, 10.0) var checkpoint_interval: float = 400.0
+
+@export_group("Трава, земля, полотно — цвета")
 @export var ground_color: Color = Color(0.10, 0.17, 0.07)
 @export var ground_color_2: Color = Color(0.21, 0.26, 0.11)
-@export var road_color: Color = Color(0.36, 0.29, 0.20)
-@export var road_color_2: Color = Color(0.46, 0.38, 0.27)
+@export var rock_color: Color = Color(0.29, 0.31, 0.32)
+@export var road_color: Color = Color(0.34, 0.28, 0.19)
+@export var road_color_2: Color = Color(0.45, 0.37, 0.26)
+@export var shoulder_color: Color = Color(0.31, 0.25, 0.17)
+@export var edge_post_color: Color = Color(0.88, 0.14, 0.10)
 
-@export_group("Погода и свет")
+@export_group("Небо, свет, туман")
 @export var sky_top_color: Color = Color(0.12, 0.27, 0.48)
 @export var sky_horizon_color: Color = Color(0.65, 0.76, 0.86)
 @export var fog_color: Color = Color(0.72, 0.79, 0.88)
-## PS1-туман: жёсткие директричные границы (Colin McRae Rally 1/2).
-@export_range(40.0, 300.0, 10.0) var fog_near: float = 130.0
-@export_range(80.0, 600.0, 10.0) var fog_far: float = 320.0
+@export_range(40.0, 600.0, 10.0) var fog_near: float = 140.0
+@export_range(80.0, 900.0, 10.0) var fog_far: float = 360.0
 @export_range(0.0, 4.0, 0.05) var sun_energy: float = 1.4
 @export_range(-80.0, 80.0, 1.0) var sun_pitch: float = -32.0
 @export_range(-180.0, 180.0, 1.0) var sun_yaw: float = 35.0
 
-@export_group("Сцепление")
-## Общий множитель сцепления. 1.0 — гравий, 0.55 — снег, 1.3 — асфальт.
+@export_group("Сцепление покрытия")
+## 1.0 — гравий, 0.55 — снег, 1.3 — асфальт.
 @export_range(0.2, 2.0, 0.01) var grip_scale: float = 1.0
 @export_range(0.2, 4.0, 0.01) var rolling_resistance_scale: float = 1.0
 
-@export_group("Генерация сетки")
-@export_range(65, 241, 2) var terrain_grid_size: int = 161
-@export_range(0.4, 4.0, 0.1) var road_step: float = 1.0
+@export_group("PS1-оформление (стиль Colin McRae Rally PS1)")
+@export var ps1_style: bool = true
+## Плоские (фасетные) полигоны земли.
+@export var flat_shading: bool = true
+## Жёсткий дизер-туман.
+@export var dither_fog: bool = true
+## Постеризация палитры (0 — выкл).
+@export_range(0, 8, 1) var color_banding: int = 5
+## Плоское небо-градиент.
+@export var sky_flat: bool = true
 @export var enable_speed_fx: bool = true
 
-@export_group("Контрольные точки")
-## Расстояние между контрольными КПП в метрах (0 = отключить).
-@export_range(0.0, 600.0, 10.0) var checkpoint_interval: float = 350.0
 
-@export_group("PS1-оформление (стиль Colin McRae Rally PS1)")
-##master switch for the low-poly PS1 look.
-@export var ps1_style: bool = true
-## Faceted (flat-shaded) terrain — like PS1 polygons.
-@export var flat_shading: bool = true
-## Dithered distance fog — hard PS1 fog bands instead of smooth.
-@export var dither_fog: bool = true
-## Posterization: number of color levels per channel (0 = off).
-@export_range(0, 8, 1) var color_banding: int = 5
-## Red/white curbs on road edges (rally rumble strips).
-@export var road_rumble: bool = true
-## Flat gradient sky instead of curved dome.
-@export var sky_flat: bool = true
-
-
-func is_flat() -> bool:
-	return flat or kind == StageKind.RANGE
+## Габарит трассы в плане (x, z) с учётом поля вокруг.
+func get_route_bounds() -> Rect2:
+	if road_curve == null:
+		return Rect2(Vector2.ZERO, Vector2(64, 64))
+	var points: PackedVector3Array = road_curve.get_baked_points()
+	if points.is_empty():
+		return Rect2(Vector2.ZERO, Vector2(64, 64))
+	var min_x: float = INF
+	var min_z: float = INF
+	var max_x: float = -INF
+	var max_z: float = -INF
+	for p in points:
+		min_x = minf(min_x, p.x)
+		max_x = maxf(max_x, p.x)
+		min_z = minf(min_z, p.z)
+		max_z = maxf(max_z, p.z)
+	return Rect2(Vector2(min_x, min_z), Vector2(max_x - min_x, max_z - min_z))
 
 
-func get_record_key(seed_value: int) -> String:
-	if random_seed:
-		return "%s_random" % id
-	return "%s_%d" % [id, seed_value]
+## Прямоугольник, который покрывает вся карта (трасса + поле).
+func get_terrain_rect() -> Rect2:
+	var route: Rect2 = get_route_bounds()
+	var margin: float = terrain_margin
+	return Rect2(
+		route.position - Vector2(margin, margin),
+		route.size + Vector2(margin * 2.0, margin * 2.0)
+	)
 
 
-## Детерминированное число [0,1) из сида. Не зависит от RandomNumberGenerator,
-## поэтому превью в меню рисует ровно ту же трассу, что и гоночная сцена.
-static func hash_unit(seed_value: int, salt: float) -> float:
-	var x: float = sin(float(absi(seed_value) % 100000) * 0.01723 + salt * 12.9898) * 43758.5453
-	return x - floor(x)
+## Длина осевой линии (м).
+func get_route_length() -> float:
+	if road_curve == null:
+		return 0.0
+	return road_curve.get_baked_length()
 
 
-## Детерминированный псевдошум [0,1) от координат — для gravel-ямочек вне дороги.
+func get_record_key() -> String:
+	return id
+
+
+## Детерминированный псевдошум [0,1) от координат — земля, обочины.
 static func hash_noise(x: float, z: float) -> float:
 	var s := sin(x * 12.9898 + z * 78.233) * 43758.5453
 	return s - floor(s)

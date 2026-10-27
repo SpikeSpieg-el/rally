@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+[ext_resource type="Curve3D" path="res://data/tracks/stage_forest_route.tres" id="2_curve"]
+[ext_resource type="Resource" path="res://data/props/prop_pine_near.tres" id="3_pine"]
+[ext_resource type="Resource" path="res://data/props/prop_fir_forest.tres" id="4_fir"]
+[ext_resource type="Resource" path="res://data/props/prop_boulder.tres" id="5_rock"]
+[ext_resource type="Resource" path="res://data/props/prop_bush.tres" id="6_bush"]
+[ext_resource type="Resource" path="res://data/props/prop_warning_sign.tres" id="7_sign"]
+
+[resource]
+script = ExtResource("1_script")
+id = "forest_stage"
+display_name = "ЛЕСНОЙ СПЕЦУЧАСТОК"
+description = "Готовая ручная трасса: быстрые дуги, два шпилька, шифт на спуске, гребни и трамплин на подъёме. Дорога вписана в рельеф насыпью и выемкой — резких бугров и «стеклянных» стыков нет."
+surface_name = "Гравий"
+difficulty = 3
+target_time = 175.0
+road_curve = ExtResource("2_curve")
+road_half_width = 4.2
+road_shoulder = 1.4
+road_step = 1.5
+road_camber = 0.08
+offroad_grip = 0.6
+terrain_margin = 130.0
+terrain_cell = 2.0
+terrain_seed = 4711
+hills_height = 16.0
+hills_frequency = 0.0042
+ridge_height = 12.0
+ridge_frequency = 0.0019
+hills_fade_start = 14.0
+hills_fade_length = 70.0
+max_terrain_slope_deg = 45.0
+road_ditch_depth = 0.6
+detail_height = 0.3
+detail_frequency = 0.09
+embankment_slope_deg = 28.0
+embankment_min_width = 5.0
+embankment_max_width = 40.0
+bumps_amplitude = 0.13
+bumps_wavelength = 5.5
+bumps_roughness = 0.06
+bumps_cross = 0.35
+props = Array[Resource]([ExtResource("3_pine"), ExtResource("4_fir"), ExtResource("5_rock"), ExtResource("6_bush"), ExtResource("7_sign")])
+spawn_route_markers = true
+spawn_edge_posts = true
+checkpoint_interval = 420.0
+ground_color = Color(0.09, 0.17, 0.07, 1)
+ground_color_2 = Color(0.21, 0.27, 0.11, 1)
+rock_color = Color(0.3, 0.31, 0.32, 1)
+road_color = Color(0.35, 0.28, 0.19, 1)
+road_color_2 = Color(0.46, 0.38, 0.27, 1)
+shoulder_color = Color(0.3, 0.24, 0.16, 1)
+edge_post_color = Color(0.88, 0.14, 0.1, 1)
+sky_top_color = Color(0.13, 0.28, 0.49, 1)
+sky_horizon_color = Color(0.68, 0.78, 0.87, 1)
+fog_color = Color(0.72, 0.79, 0.88, 1)
+fog_near = 150.0
+fog_far = 380.0
+sun_energy = 1.45
+sun_pitch = -34.0
+sun_yaw = 38.0
+grip_scale = 1.0
+rolling_resistance_scale = 1.0
+ps1_style = true
+flat_shading = true
+dither_fog = true
+color_banding = 5
+sky_flat = true
+enable_speed_fx = true

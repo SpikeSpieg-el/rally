@@ -1,9 +1,19 @@
-## Одна универсальная сцена гонки. Трасса, конфигурация машины и сид берутся
-## из ресурсов (res://data/) или из автозагрузки RallyGame. Всё, что видно
-## в этой сцене, можно редактировать в инспекторе Godot.
+## Одна универсальная сцена заезда.
 ##
-## Маршрут трассы создаётся scripts/data/rally_route.gd: шпильки, дуги,
-## шифты, трамплины, гребни — в стиле Colin McRae Rally.
+## Карта не генерируется «случайно»: она целиком задана ресурсом
+## data/tracks/*.tres (осевая линия Curve3D + параметры рельефа + список
+## ассетов RallyProp). Скрипт лишь «запекает» из неё меши, коллизию и объекты.
+##
+## Инвариант, из-за которого дорога больше не может пробить рельеф:
+## высота ЛЮБОЙ точки мира считается одной функцией _height_at():
+##     высота = высота_оси_дороги + рельеф * плавный_переход(расстояние_до_дороги)
+## Внутри полотна переход = 0, поэтому земля ровно равна дороге, а за обочиной
+## плавно (не круче embankment_slope_deg) уходит в холмы.
+##
+## Редактор: скрипт помечен @tool, в инспекторе есть кнопка «Пересобрать
+## трассу». Ассеты из списка props расставляются автоматически; свои объекты
+## можно класть руками в узел ManualProps — генератор его не трогает.
+@tool
 class_name RallyStage
 extends Node3D
 
@@ -11,21 +21,21 @@ const CarType = preload("res://scripts/rally_car.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
-const RouteType = preload("res://scripts/data/rally_route.gd")
+const PropType = preload("res://scripts/data/rally_prop.gd")
+const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
-const RangeShader = preload("res://shaders/mountain_track.gdshader")
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
 @export var track_override: TrackConfigType = null
 @export var car_setup_override: CarSetupType = null
 
-@export_group("Генерация")
-## Если включено, карта всегда создаётся с новым сидом, независимо от меню.
-@export var force_random_seed: bool = false
-@export var editor_seed: int = 1337
-## 0 — использовать размер сетки из ресурса трассы.
-@export_range(0, 241, 2) var terrain_grid_size_override: int = 0
+@export_group("Редактор")
+## Собирать трассу сразу при открытии сцены в редакторе.
+@export var preview_in_editor: bool = true
+@export_tool_button("Пересобрать трассу") var rebuild_button = rebuild_preview
+
+@export_group("Отладка")
 @export var show_debug_info: bool = false
 
 @onready var world_environment: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -39,35 +49,37 @@ const RangeShader = preload("res://shaders/mountain_track.gdshader")
 var track: TrackConfigType = null
 var setup: CarSetupType = null
 var car: CarType = null
-var seed_value: int = 1337
-var random_stage: bool = false
-var rng := RandomNumberGenerator.new()
-var scenery_rng := RandomNumberGenerator.new()
+var network: RoadNetworkType = null
+var terrain_rect: Rect2 = Rect2()
+var start_pos: Vector3 = Vector3.ZERO
+var finish_pos: Vector3 = Vector3.ZERO
+var start_dir: Vector3 = Vector3.FORWARD
+var finish_dir: Vector3 = Vector3.FORWARD
 
-# Маршрут (scripts/data/rally_route.gd).
-var route_points: PackedVector2Array = PackedVector2Array()
-var route_tangents: PackedVector2Array = PackedVector2Array()
-var route_features: Array = []
-var route_profile: PackedFloat32Array = PackedFloat32Array()
-var route_grid: Dictionary = {}
-var route_cell_size: float = 2.5
-var route_bounds: Rect2 = Rect2(0.0, 0.0, 0.0, 0.0)
-var start_pos: Vector2 = Vector2.ZERO
-var finish_pos: Vector2 = Vector2.ZERO
-var finish_tangent: Vector2 = Vector2(0.0, 1.0)
 var checkpoints: Array = []
 var cp_triggered: Array[bool] = []
 var cp_times: Array[float] = []
 var last_cp_index: int = -1
-var hill_phase: Vector2 = Vector2.ZERO
 
 var stage_time: float = 0.0
 var timer_running: bool = false
 var stage_finished: bool = false
 var is_paused: bool = false
-var speed_fx_material: ShaderMaterial = null
 var best_time: float = 0.0
 var is_new_record: bool = false
+var speed_fx_material: ShaderMaterial = null
+
+var _ground_grid := PackedFloat32Array()
+var _ground_origin := Vector2.ZERO
+var _ground_cell: float = 2.0
+var _ground_cols: int = 0
+var _ground_rows: int = 0
+
+var _noise_hills: FastNoiseLite = null
+var _noise_ridge: FastNoiseLite = null
+var _noise_detail: FastNoiseLite = null
+var _noise_bumps: FastNoiseLite = null
+var _rng := RandomNumberGenerator.new()
 
 # HUD-узлы ищутся по имени, чтобы сцену можно было перестроить в редакторе.
 var timer_label: Label = null
@@ -84,6 +96,8 @@ var speed_rect: ColorRect = null
 func _enter_tree() -> void:
 	# Родительский _enter_tree выполняется раньше _ready дочерней машины:
 	# успеваем передать конфигурацию, назначенную в инспекторе сцены.
+	if Engine.is_editor_hint():
+		return
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game == null:
 		return
@@ -94,46 +108,51 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		if preview_in_editor:
+			rebuild_preview()
+		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_resolve_selection()
-	_prepare_seed()
-	_generate_road_parameters()
-	_configure_world()
-	_configure_terrain()
-	_spawn_scenery()
-	_spawn_route_markers()
-	_spawn_checkpoints()
+	_resolve_track()
+	_build_world()
 	_configure_car()
 	_setup_hud()
 	_update_hud()
 
 
 func _exit_tree() -> void:
-	if get_tree() != null:
+	if get_tree() != null and not Engine.is_editor_hint():
 		get_tree().paused = false
 
 
-func _get_game() -> Node:
-	return get_node_or_null("/root/RallyGame")
+## Кнопка «Пересобрать трассу» в инспекторе (и предпросмотр в редакторе).
+func rebuild_preview() -> void:
+	if not is_inside_tree():
+		return
+	_resolve_track()
+	_build_world()
 
 
-func _resolve_selection() -> void:
-	var game: Node = _get_game()
+func _resolve_track() -> void:
+	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	if game_config == null and game != null:
 		var loaded: Variant = game.get("config")
 		if loaded is GameConfigType:
 			game_config = loaded
+	if game_config == null and ResourceLoader.exists("res://data/rally_game_config.tres"):
+		var loaded_config: Resource = ResourceLoader.load("res://data/rally_game_config.tres")
+		if loaded_config is GameConfigType:
+			game_config = loaded_config
 	if track_override != null:
 		track = track_override
 	elif game != null:
 		var current: Variant = game.get("current_track")
 		if current is TrackConfigType:
 			track = current
-	if track == null:
-		if game != null:
-			var first: Variant = game.call("get_track", 0)
-			if first is TrackConfigType:
-				track = first
+	if track == null and game_config != null:
+		var first: Resource = game_config.get_track(0)
+		if first is TrackConfigType:
+			track = first
 	if track == null:
 		track = TrackConfigType.new()
 	if car_setup_override != null:
@@ -142,318 +161,290 @@ func _resolve_selection() -> void:
 		var current_setup: Variant = game.get("current_setup")
 		if current_setup is CarSetupType:
 			setup = current_setup
-	if setup == null and game != null:
-		var first_setup: Variant = game.call("get_setup", 0)
+	if setup == null and game_config != null:
+		var first_setup: Resource = game_config.get_setup(0)
 		if first_setup is CarSetupType:
 			setup = first_setup
-	random_stage = false
-	if game != null:
-		random_stage = bool(game.get("random_mode"))
-	random_stage = random_stage or force_random_seed or track.random_seed
 
 
-func _prepare_seed() -> void:
-	var game: Node = _get_game()
-	seed_value = int(track.map_seed)
-	if game != null:
-		seed_value = int(game.get("map_seed"))
-	if editor_seed > 0 and game == null:
-		seed_value = editor_seed
-	if random_stage and force_random_seed:
-		seed_value = int(Time.get_unix_time_from_system()) + randi() % 100000
-	seed_value = maxi(1, absi(seed_value))
-	stage_time = 0.0
-	timer_running = false
-	stage_finished = false
-	last_cp_index = -1
-	cp_triggered.clear()
-	cp_times.clear()
-	if game != null:
-		best_time = float(game.call("get_best_time", track.get_record_key(seed_value)))
+# ---------------------------------------------------------------- сборка мира
 
 
-# ---------------------------------------------------------------- маршрут
+## Осевая линия: сначала ресурс трассы (road_curve), иначе узел Route (Path3D)
+## в самой сцене — так кривую удобно тянуть точками прямо в 3D-вьюпорте.
+func _effective_curve() -> Curve3D:
+	if track != null and track.road_curve != null:
+		return track.road_curve
+	var path := get_node_or_null("Route") as Path3D
+	if path != null and path.curve != null:
+		return path.curve
+	return null
 
 
-func _generate_road_parameters() -> void:
-	rng.seed = seed_value
-	scenery_rng.seed = seed_value ^ 0x5F3A71
-	var route: Dictionary = RouteType.generate(track, seed_value, random_stage)
-	route_points = route["points"]
-	route_tangents = route["tangents"]
-	route_features = route["features"]
-	checkpoints = route["checkpoints"]
-	route_bounds = route["bounds"]
-	hill_phase = RouteType.route_phases(track, seed_value)
-	route_profile = RouteType.build_profile(track, route_points, route_features, hill_phase)
-	_build_route_lookup()
-	start_pos = route_points[0]
-	finish_pos = route_points[route_points.size() - 1]
-	finish_tangent = route_tangents[route_points.size() - 1]
+func _build_world() -> void:
+	var curve: Curve3D = _effective_curve()
+	if track == null or curve == null:
+		push_warning("RallyStage: нет осевой линии (road_curve в трассе или узел Route/Path3D).")
+		return
+	_clear_generated()
+	_setup_noise()
+	terrain_rect = track.get_terrain_rect()
+	network = RoadNetworkType.build(curve, terrain_rect, maxf(1.5, track.terrain_cell))
+	var length: float = network.total_length
+	start_pos = network.point_at(0.0)
+	finish_pos = network.point_at(length)
+	start_dir = network.direction_at(0.0)
+	finish_dir = network.direction_at(length)
+	if not Engine.is_editor_hint():
+		# Свет и небо применяем только в игре: иначе редактор помечает сцену
+		# изменённой при каждом предпросмотре.
+		_configure_world()
+	_build_terrain()
+	_build_road()
+	if track.spawn_route_markers:
+		_spawn_route_markers()
+	if track.spawn_edge_posts:
+		_spawn_edge_posts()
+	_spawn_props()
+	_spawn_checkpoints()
 	cp_triggered.resize(checkpoints.size())
+	cp_times.clear()
 	for i in range(checkpoints.size()):
 		cp_triggered[i] = false
 		cp_times.append(0.0)
-	# Запоминаем сид итогового маршрута (best из нескольких попыток).
-	if route.has("seed_used"):
-		seed_value = int(route["seed_used"])
 
 
-## Сетка ближайших точек маршрута: Vector2i(ячейка) -> индекс точки.
-func _build_route_lookup() -> void:
-	route_grid.clear()
-	route_cell_size = 2.5
-	var size: int = route_points.size()
-	for i in range(size):
-		var p: Vector2 = route_points[i]
-		var cx: float = p.x / route_cell_size
-		var cz: float = p.y / route_cell_size
-		for gx in range(floori(cx) - 1, floori(cx) + 2):
-			for gz in range(floori(cz) - 1, floori(cz) + 2):
-				var key := Vector2i(gx, gz)
-				var cell_center := Vector2(float(key.x) * route_cell_size, float(key.y) * route_cell_size)
-				var dist2: float = p.distance_squared_to(cell_center)
-				var best_i: Variant = route_grid.get(key, -1)
-				if best_i == -1 or dist2 < route_points[int(best_i)].distance_squared_to(cell_center):
-					route_grid[key] = i
+func _setup_noise() -> void:
+	_noise_hills = _make_noise(track.terrain_seed, track.hills_frequency, 3)
+	_noise_ridge = _make_noise(track.terrain_seed + 91, track.ridge_frequency, 4)
+	_noise_detail = _make_noise(track.terrain_seed + 173, track.detail_frequency, 2)
+	_noise_bumps = _make_noise(track.terrain_seed + 257, 0.35, 2)
+	_rng.seed = track.terrain_seed
 
 
-## Возвращает [знаковое латеральное расстояние, расстояние по маршруту].
-## Для плоской трассы (Range) — просто x и z.
-func _route_lookup(x: float, z: float) -> Vector2:
-	if track.is_flat():
-		return Vector2(x, z + track.length * 0.5)
-	var cx: int = int(floor(x / route_cell_size))
-	var cz: int = int(floor(z / route_cell_size))
-	var best_i := -1
-	# Расширение по кругу — клетка точно есть (территория покрыта маршрутом).
-	for ring in range(6):
-		for gx in range(cx - ring, cx + ring + 1):
-			for gz in range(cz - ring, cz + ring + 1):
-				if absf(gx - cx) != ring and absf(gz - cz) != ring:
-					continue
-				var key := Vector2i(gx, gz)
-				if route_grid.has(key):
-					best_i = int(route_grid[key])
-					break
-			if best_i >= 0:
-				break
-		if best_i >= 0:
-			break
-	if best_i < 0:
-		return Vector2(9999.0, 0.0)
-	var p := Vector2(x, z)
-	var best_lateral: float = 1.0e30
-	var best_rd: float = 0.0
-	# Уточнение: соседние точки маршрута (плотная разбивка 0.5 м).
-	for i in range(maxi(0, best_i - 3), mini(route_points.size() - 1, best_i + 3)):
-		var lateral: float = _lateral_signed(p, i)
-		if absf(lateral) < absf(best_lateral):
-			best_lateral = lateral
-			best_rd = float(i) * RouteType.SAMPLE_STEP
-	return Vector2(best_lateral, best_rd)
-
-
-## Знаковое расстояние от точки до отрезка маршрута (i → i+1).
-func _lateral_signed(p: Vector2, i: int) -> float:
-	if route_points.size() < 2:
-		return p.distance_to(route_points[i])
-	var a: Vector2 = route_points[i]
-	var b: Vector2 = route_points[i + 1]
-	var ab: Vector2 = b - a
-	var ab_len2: float = ab.length_squared()
-	if ab_len2 < 1.0e-6:
-		return p.distance_to(a)
-	var t: float = clampf(p.dot(ab) / ab_len2, 0.0, 1.0)
-	var proj: Vector2 = a + ab * t
-	# Крестное произведение: знак «слева/справа» от направления движения.
-	var cross: float = ab.x * (p.y - a.y) - ab.y * (p.x - a.x)
-	return (p - proj).length() * (1.0 if cross >= 0.0 else -1.0)
-
-
-func _terrain_height(x: float, z: float) -> float:
-	if track.is_flat():
-		return 0.0
-	var lookup: Vector2 = _route_lookup(x, z)
-	var lateral: float = lookup.x
-	var route_dist: float = lookup.y
-	var index: int = clampi(int(route_dist / RouteType.SAMPLE_STEP), 0, route_profile.size() - 1)
-	var base: float = route_profile[index]
-	# Кочки со смещением в сторону дороги.
-	for feature in route_features:
-		if feature.get("kind_tag", "") == "bump":
-			var fdist: float = float(feature["route_dist"])
-			var width: float = float(feature["width"])
-			var side_blend: float = smoothstep(-1.5, 1.5, lateral * float(feature["side"]))
-			base += float(feature["strength"]) * exp(-pow((route_dist - fdist) / width, 2.0)) * side_blend
-	# Боковые склоны вне дороги.
-	var offroad: float = base
-	offroad += track.offroad_hills * sin(x * 0.045 + hill_phase.y) * sin(z * 0.026 + hill_phase.x)
-	offroad += track.offroad_hills * 0.42 * sin(x * 0.105 + z * 0.04)
-	var half: float = track.road_half_width
-	var blend: float = smoothstep(half + 3.0, half + 18.0, absf(lateral))
-	var height: float = lerpf(base, offroad, blend)
-	if blend > 0.15:
-		height += track.offroad_hills * 0.3 * TrackConfigType.hash_noise(x * 3.1 + 11.0, z * 2.7 + 3.0)
-	return height
-
-
-# ---------------------------------------------------------------- мир
-
-
-func _configure_world() -> void:
-	if world_environment != null:
-		var env: Environment = null
-		if world_environment.environment != null:
-			env = world_environment.environment.duplicate() as Environment
-		if env == null:
-			env = Environment.new()
-		var sky := Sky.new()
-		var sky_material := ProceduralSkyMaterial.new()
-		sky_material.sky_top_color = track.sky_top_color
-		sky_material.sky_horizon_color = track.sky_horizon_color
-		sky_material.ground_bottom_color = track.ground_color * 0.4
-		sky_material.ground_horizon_color = track.sky_horizon_color
-		# PS1: плоское небо-градиент вместо купола.
-		sky_material.sky_curve = 0.55 if track.sky_flat else 0.18
-		sky.sky_material = sky_material
-		env.background_mode = Environment.BG_SKY
-		env.sky = sky
-		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = 1.05
-		env.glow_enabled = true
-		# PS1-туман: жёсткие границы; объёмный туман только если не стиль PS1.
-		env.volumetric_fog_enabled = not track.ps1_style
-		env.volumetric_fog_density = 0.02
-		env.volumetric_fog_albedo = track.fog_color
-		# Расстояний туман для объектов (деревья, КПП, ворота).
-		env.fog_enabled = true
-		env.fog_light_color = track.fog_color
-		env.fog_density = 0.0032
-		world_environment.environment = env
-	if sun_light != null:
-		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
-		sun_light.light_energy = track.sun_energy
+func _make_noise(seed_value: int, frequency: float, octaves: int) -> FastNoiseLite:
+	var noise := FastNoiseLite.new()
+	noise.seed = seed_value
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = frequency
+	noise.fractal_octaves = octaves
+	noise.fractal_lacunarity = 2.0
+	noise.fractal_gain = 0.5
+	return noise
 
 
 func _clear_generated() -> void:
 	if generated == null:
 		return
 	for child in generated.get_children():
+		generated.remove_child(child)
 		child.queue_free()
 
 
-func _configure_terrain() -> void:
-	_clear_generated()
+# ---------------------------------------------------------------- высота
+
+
+## ЕДИНСТВЕННЫЙ источник высоты в мире. Дорога, земля и ассеты — все здесь.
+##
+##   base = региональный уровень дороги + холмы (холмы включаются с расстоянием)
+##   + выемка/насыпь: дорога «врезана» в рельеф и плавно с ним сливается.
+##
+## Получается height = base + (road_y - base) * (1 - t), где t — плавный
+## переход по расстоянию до оси (0 на полотне, 1 вдали). На полотне высота
+## ровно равна дороге, вдали — ровно рельефу, а между ними склон не круче
+## embankment_slope_deg. Никаких «бугров под большим углом» и клиппинга.
+func height_at(x: float, z: float) -> float:
+	if network == null:
+		return 0.0
+	var corridor: float = track.road_half_width + track.road_shoulder
+	var distance: float = network.distance_to_road(x, z)
+	var along: float = network.along_road(x, z)
+	var road_y: float = network.height_at_along(along)
+	var fade: float = smoothstep(
+		track.hills_fade_start,
+		track.hills_fade_start + track.hills_fade_length,
+		distance
+	)
+	var base: float = network.regional_height(x, z) + _hills_at(x, z) * fade
+	var max_slope: float = tan(deg_to_rad(maxf(6.0, track.embankment_slope_deg)))
+	var blend_width: float = clampf(
+		absf(road_y - base) / maxf(max_slope, 0.05),
+		track.embankment_min_width,
+		track.embankment_max_width
+	)
+	var t: float = smoothstep(corridor, corridor + blend_width, distance)
+	var height: float = base + (road_y - base) * (1.0 - t)
+	var near: float = 1.0 - t
+	if near > 0.001:
+		# Поперечный уклон полотна (крен к обочинам).
+		var lateral_norm: float = clampf(distance / maxf(corridor, 0.01), 0.0, 1.0)
+		height -= track.road_camber * lateral_norm * lateral_norm * near
+		# Кочки/волны полотна — те же, что в меше дороги.
+		height += _surface_bumps_along(along) * near
+	return height
+
+
+## Высота земли «как она нарисована» — с точностью до треугольника меша
+## (сетка разбита по диагонали i00-i11). По ней садятся ассеты, разметка и
+## внешняя кромка полотна, поэтому ничего не висит в воздухе и не тонет.
+func ground_height(x: float, z: float) -> float:
+	if _ground_grid.is_empty() or _ground_cols < 2 or _ground_rows < 2:
+		return height_at(x, z)
+	var fx: float = (x - _ground_origin.x) / _ground_cell
+	var fz: float = (z - _ground_origin.y) / _ground_cell
+	if fx < 0.0 or fz < 0.0 or fx > float(_ground_cols - 1) or fz > float(_ground_rows - 1):
+		return height_at(x, z)
+	var gx: int = clampi(int(floor(fx)), 0, _ground_cols - 2)
+	var gz: int = clampi(int(floor(fz)), 0, _ground_rows - 2)
+	var u: float = clampf(fx - float(gx), 0.0, 1.0)
+	var v: float = clampf(fz - float(gz), 0.0, 1.0)
+	var i00: int = gz * _ground_cols + gx
+	var h00: float = _ground_grid[i00]
+	var h10: float = _ground_grid[i00 + 1]
+	var h01: float = _ground_grid[i00 + _ground_cols]
+	var h11: float = _ground_grid[i00 + _ground_cols + 1]
+	if u + v <= 1.0:
+		return h00 + u * (h10 - h00) + v * (h01 - h00)
+	return h11 * (u + v - 1.0) + h10 * (1.0 - v) + h01 * (1.0 - u)
+
+
+## Полуширина коридора «дорога + обочина», м.
+func corridor_half() -> float:
+	return track.road_half_width + track.road_shoulder
+
+
+## Кювет вдоль кромки: насколько опустить землю в этой точке.
+func _road_ditch(distance: float) -> float:
+	if track.road_ditch_depth <= 0.0:
+		return 0.0
+	var corridor: float = track.road_half_width + track.road_shoulder
+	var t: float = smoothstep(corridor + 0.5, corridor + 4.0, distance)
+	return track.road_ditch_depth * (1.0 - t)
+
+
+## Базовый рельеф: крупные холмы, хребты и мелкая шершавость.
+func _hills_at(x: float, z: float) -> float:
+	if _noise_hills == null:
+		return 0.0
+	var value: float = _noise_hills.get_noise_2d(x, z) * track.hills_height
+	if track.ridge_height > 0.0:
+		var ridge: float = 1.0 - absf(_noise_ridge.get_noise_2d(x, z))
+		value += (ridge - 0.5) * 2.0 * track.ridge_height
+	value += _noise_detail.get_noise_2d(x, z) * track.detail_height
+	return value
+
+
+func _surface_bumps_along(along: float) -> float:
+	if track.bumps_amplitude <= 0.0 and track.bumps_roughness <= 0.0:
+		return 0.0
+	var wave: float = sin(along * TAU / maxf(track.bumps_wavelength, 0.5))
+	var roughness: float = _noise_bumps.get_noise_1d(along * 5.0)
+	var cross: float = 1.0 - track.bumps_cross * 0.5 * (roughness * 0.5 + 0.5)
+	return (track.bumps_amplitude * wave + track.bumps_roughness * roughness) * cross
+
+
+## Нормаль поверхности по нарисованному мешу (для наклона ассетов).
+func normal_at(x: float, z: float, eps: float = 1.0) -> Vector3:
+	var left: float = ground_height(x - eps, z)
+	var right: float = ground_height(x + eps, z)
+	var back: float = ground_height(x, z - eps)
+	var front: float = ground_height(x, z + eps)
+	return Vector3(left - right, 2.0 * eps, back - front).normalized()
+
+
+# ---------------------------------------------------------------- рельеф
+
+
+func _build_terrain() -> void:
 	if terrain == null or terrain_mesh == null or terrain_collider == null:
-		push_warning("RallyStage: узлы Terrain не найдены, генерация пропущена.")
+		push_warning("RallyStage: узлы Terrain не найдены.")
 		return
 	terrain.remove_from_group("Road")
-	terrain.remove_from_group("Grass")
-	terrain.remove_from_group("Dirt")
-	if track.is_flat():
-		terrain.add_to_group("Road")
-		var plane := PlaneMesh.new()
-		var extent: float = maxf(track.length + 200.0, 600.0)
-		plane.size = Vector2(extent, extent)
-		terrain_mesh.mesh = plane
-		var material := ShaderMaterial.new()
-		material.shader = RangeShader
-		material.set_shader_parameter("grass_color", track.ground_color)
-		material.set_shader_parameter("dirt_color", track.road_color)
-		material.set_shader_parameter("strip_half_width", track.road_half_width * 2.0)
-		terrain_mesh.material_override = material
-		var box := BoxShape3D.new()
-		box.size = Vector3(extent, 1.0, extent)
-		terrain_collider.shape = box
-		terrain_collider.position = Vector3(0.0, -0.5, 0.0)
-		return
-
 	terrain.add_to_group("Grass")
 	terrain_collider.position = Vector3.ZERO
-	var mesh: ArrayMesh = _build_heightfield_mesh()
-	terrain_mesh.mesh = mesh
-	var ground_material := ShaderMaterial.new()
-	ground_material.shader = GroundShader
-	ground_material.set_shader_parameter("ground_color", track.ground_color)
-	ground_material.set_shader_parameter("ground_color_2", track.ground_color_2)
-	ground_material.set_shader_parameter("road_edge_color", track.road_color * 0.85)
-	ground_material.set_shader_parameter("rock_color", track.rock_color)
-	ground_material.set_shader_parameter("surface_roughness", 0.97)
-	ground_material.set_shader_parameter("grain_scale", 2.4)
-	ground_material.set_shader_parameter("flat_shading", 1.0 if track.flat_shading else 0.0)
-	ground_material.set_shader_parameter("dither_fog", 1.0 if track.dither_fog else 0.0)
-	ground_material.set_shader_parameter("banding_levels", float(track.color_banding))
-	ground_material.set_shader_parameter("fog_color", track.fog_color)
-	ground_material.set_shader_parameter("fog_near", track.fog_near)
-	ground_material.set_shader_parameter("fog_far", track.fog_far)
-	terrain_mesh.material_override = ground_material
-	var collision: ConcavePolygonShape3D = mesh.create_trimesh_shape()
-	collision.backface_collision = true
-	terrain_collider.shape = collision
-	_build_road()
+	terrain_collider.rotation = Vector3.ZERO
+	var cell: float = maxf(1.0, track.terrain_cell)
+	var cols: int = maxi(2, ceili(terrain_rect.size.x / cell) + 1)
+	var rows: int = maxi(2, ceili(terrain_rect.size.y / cell) + 1)
+	var origin: Vector2 = terrain_rect.position
 
+	# 1) Сетка высот и расстояний до дороги (одна выборка на ячейку).
+	var heights := PackedFloat32Array()
+	var distances := PackedFloat32Array()
+	heights.resize(cols * rows)
+	distances.resize(cols * rows)
+	for gz in range(rows):
+		var z: float = origin.y + float(gz) * cell
+		for gx in range(cols):
+			var x: float = origin.x + float(gx) * cell
+			var index: int = gz * cols + gx
+			heights[index] = height_at(x, z)
+			distances[index] = network.distance_to_road(x, z)
 
-func _terrain_extent() -> Vector2:
-	var margin: float = track.scenery_radius + 20.0
-	var extent: float = maxf(route_bounds.size.x, route_bounds.size.y) + margin * 2.0
-	return Vector2(extent, extent)
+	# 2) Кювет: земля у кромки опускается. Полотно всегда выше земли, поэтому
+	#    «протыкания» дороги рельефом не бывает даже на косогорах.
+	var ditch_reach: float = corridor_half() + 5.0
+	for index in range(cols * rows):
+		if distances[index] < ditch_reach:
+			heights[index] -= _road_ditch(distances[index])
 
+	# 3) Лимит склонов: страховка от «стенок» (тесные шпильки, косогоры).
+	#    Ячейки у самой дороги не двигаются — там всё уже сходится с полотном.
+	heights = _limit_terrain_slopes(heights, distances, cols, rows, cell)
+	_ground_grid = heights.duplicate()
+	_ground_origin = origin
+	_ground_cell = cell
+	_ground_cols = cols
+	_ground_rows = rows
 
-func _build_heightfield_mesh() -> ArrayMesh:
-	var grid_size: int = track.terrain_grid_size
-	if terrain_grid_size_override > 0:
-		grid_size = terrain_grid_size_override
-	grid_size = clampi(grid_size, 65, 241)
-	var extent: Vector2 = _terrain_extent()
-	var center: Vector2 = Vector2(
-		route_bounds.position.x + route_bounds.size.x * 0.5,
-		route_bounds.position.y + route_bounds.size.y * 0.5
-	)
-	var grid_step: float = extent.x / float(grid_size - 1)
-	var half_extent: float = extent.x * 0.5
-	var vertex_count: int = grid_size * grid_size
+	# 4) Вершины, нормали, вершинные цвета.
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
-	var indices := PackedInt32Array()
-	vertices.resize(vertex_count)
-	normals.resize(vertex_count)
-	colors.resize(vertex_count)
-	indices.resize((grid_size - 1) * (grid_size - 1) * 6)
-	var epsilon: float = maxf(grid_step * 0.4, 0.35)
-	var half: float = track.road_half_width
-
-	for z_index in range(grid_size):
-		var z: float = center.y - half_extent + float(z_index) * grid_step
-		for x_index in range(grid_size):
-			var x: float = center.x - half_extent + float(x_index) * grid_step
-			var index: int = z_index * grid_size + x_index
-			vertices[index] = Vector3(x, _terrain_height(x, z), z)
-			normals[index] = Vector3(
-				_terrain_height(x - epsilon, z) - _terrain_height(x + epsilon, z),
-				2.0 * epsilon,
-				_terrain_height(x, z - epsilon) - _terrain_height(x, z + epsilon)
-			).normalized()
-			# Вершинный цвет: R — влияние дороги (0 = дорога), G — крутизна
-			# склона (камни), B — шум для зёрнышка грунта.
-			var lookup: Vector2 = _route_lookup(x, z)
-			var road_influence: float = 1.0 - smoothstep(half + 0.8, half + 8.0, absf(lookup.x))
-			var slope: float = 1.0 - clamp(normals[index].y, 0.0, 1.0)
+	vertices.resize(cols * rows)
+	normals.resize(cols * rows)
+	colors.resize(cols * rows)
+	var corridor: float = track.road_half_width + track.road_shoulder
+	for gz in range(rows):
+		var z: float = origin.y + float(gz) * cell
+		for gx in range(cols):
+			var x: float = origin.x + float(gx) * cell
+			var index: int = gz * cols + gx
+			var h: float = heights[index]
+			var h_left: float = heights[gz * cols + maxi(0, gx - 1)]
+			var h_right: float = heights[gz * cols + mini(cols - 1, gx + 1)]
+			var h_back: float = heights[maxi(0, gz - 1) * cols + gx]
+			var h_front: float = heights[mini(rows - 1, gz + 1) * cols + gx]
+			var normal := Vector3(h_left - h_right, 2.0 * cell, h_back - h_front).normalized()
+			vertices[index] = Vector3(x, h, z)
+			normals[index] = normal
+			# Контракт шейдера: R — «не дорога» (0 = обочина), G — разрешение
+			# рисовать камни на склоне, B — разброс оттенка камня.
+			var road_influence: float = smoothstep(corridor * 0.85, corridor + 14.0, distances[index])
+			var rock: float = smoothstep(corridor + 2.0, corridor + 10.0, distances[index])
 			var grain: float = TrackConfigType.hash_noise(x * 7.3 + 11.0, z * 5.1 + 3.0)
-			colors[index] = Color(road_influence, slope, grain, 1.0)
+			colors[index] = Color(road_influence, rock, grain, 1.0)
 
-	var cursor: int = 0
-	for z_index in range(grid_size - 1):
-		for x_index in range(grid_size - 1):
-			var i: int = z_index * grid_size + x_index
-			indices[cursor] = i
-			indices[cursor + 1] = i + 1
-			indices[cursor + 2] = i + grid_size
-			indices[cursor + 3] = i + 1
-			indices[cursor + 4] = i + grid_size + 1
-			indices[cursor + 5] = i + grid_size
-			cursor += 6
+	# 5) Индексы: строго под полотном треугольники не нужны — там лежит лента
+	#    дороги (она закрывает дыру и держит коллизию). Считается по сетке
+	#    расстояний, без повторных запросов к дороге.
+	var indices := PackedInt32Array()
+	var hole_distance: float = corridor * 0.92
+	for gz in range(rows - 1):
+		for gx in range(cols - 1):
+			var i00: int = gz * cols + gx
+			var i10: int = i00 + 1
+			var i01: int = i00 + cols
+			var i11: int = i01 + 1
+			if distances[i00] < hole_distance and distances[i10] < hole_distance and distances[i01] < hole_distance:
+				if distances[i10] < hole_distance and distances[i11] < hole_distance and distances[i01] < hole_distance:
+					continue
+			indices.append(i00)
+			indices.append(i10)
+			indices.append(i01)
+			indices.append(i10)
+			indices.append(i11)
+			indices.append(i01)
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -463,65 +454,188 @@ func _build_heightfield_mesh() -> ArrayMesh:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	terrain_mesh.mesh = mesh
+	terrain_mesh.material_override = _make_ground_material()
+	var shape := mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	terrain_collider.shape = shape
 
 
+## Ограничитель склонов: если где-то получилась «стенка» круче
+## max_terrain_slope_deg, она размазывается на несколько ячеек.
+## Работает по списку «грязных» ячеек, поэтому стоит копейки.
+func _limit_terrain_slopes(
+	heights: PackedFloat32Array,
+	distances: PackedFloat32Array,
+	cols: int,
+	rows: int,
+	cell: float
+) -> PackedFloat32Array:
+	var max_slope: float = tan(deg_to_rad(clampf(track.max_terrain_slope_deg, 20.0, 75.0)))
+	var max_delta: float = cell * max_slope
+	var anchor_distance: float = track.road_half_width + track.road_shoulder + 2.0
+	var anchored := PackedByteArray()
+	anchored.resize(cols * rows)
+	var dirty := PackedInt32Array()
+	for gz in range(rows):
+		for gx in range(cols):
+			var index: int = gz * cols + gx
+			if distances[index] < anchor_distance:
+				anchored[index] = 1
+				continue
+			if gz == 0 or gx == 0 or gz == rows - 1 or gx == cols - 1:
+				anchored[index] = 1
+				continue
+			var h: float = heights[index]
+			if (
+				absf(h - heights[index + 1]) > max_delta
+				or absf(h - heights[index - 1]) > max_delta
+				or absf(h - heights[index + cols]) > max_delta
+				or absf(h - heights[index - cols]) > max_delta
+			):
+				dirty.append(index)
+	var marks := PackedByteArray()
+	marks.resize(cols * rows)
+	for i in range(dirty.size()):
+		marks[dirty[i]] = 1
+	var passes: int = 0
+	while not dirty.is_empty() and passes < 60:
+		passes += 1
+		var next := PackedInt32Array()
+		for index in dirty:
+			marks[index] = 0
+			var gx: int = index % cols
+			var gz: int = floori(float(index) / float(cols))
+			if anchored[index]:
+				continue
+			for dz in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					if dx == 0 and dz == 0:
+						continue
+					var nz: int = gz + dz
+					var nx: int = gx + dx
+					if nx < 0 or nz < 0 or nx >= cols or nz >= rows:
+						continue
+					var n_index: int = nz * cols + nx
+					var delta: float = heights[index] - heights[n_index]
+					var allowed: float = max_delta * (1.4142135 if (dx != 0 and dz != 0) else 1.0)
+					if absf(delta) <= allowed:
+						continue
+					var excess: float = (absf(delta) - allowed) * 0.5
+					var sign_value: float = 1.0 if delta > 0.0 else -1.0
+					heights[index] -= excess * sign_value
+					if not anchored[n_index]:
+						heights[n_index] += excess * sign_value
+					if marks[n_index] == 0:
+						marks[n_index] = 1
+						next.append(n_index)
+					if marks[index] == 0:
+						marks[index] = 1
+						next.append(index)
+		dirty = next
+	return heights
+
+
+func _make_ground_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = GroundShader
+	material.set_shader_parameter("ground_color", track.ground_color)
+	material.set_shader_parameter("ground_color_2", track.ground_color_2)
+	material.set_shader_parameter("road_edge_color", track.shoulder_color)
+	material.set_shader_parameter("rock_color", track.rock_color)
+	material.set_shader_parameter("surface_roughness", 0.97)
+	material.set_shader_parameter("grain_scale", 2.4)
+	material.set_shader_parameter("flat_shading", 1.0 if track.flat_shading else 0.0)
+	material.set_shader_parameter("dither_fog", 1.0 if track.dither_fog else 0.0)
+	material.set_shader_parameter("banding_levels", float(track.color_banding))
+	material.set_shader_parameter("fog_color", track.fog_color)
+	material.set_shader_parameter("fog_near", track.fog_near)
+	material.set_shader_parameter("fog_far", track.fog_far)
+	return material
+
+
+# ---------------------------------------------------------------- полотно
+
+
+## Лента дороги: меш + коллизия. Высота краёв совпадает с землёй (та же
+## функция height_at), поэтому стык не просвечивает.
 func _build_road() -> void:
-	# Одна и та же лента используется для визуала и для коллизии «Dirt».
-	# Поэтому машина едет ровно по той дороге, которую видит игрок.
-	var step: float = maxf(0.4, track.road_step)
-	var count: int = maxi(2, ceili(track.length / step))
+	var step: float = maxf(0.5, track.road_step)
+	var length: float = network.total_length
+	var rows: int = maxi(2, ceili(length / step) + 1)
+	var half: float = track.road_half_width
+	var corridor: float = half + track.road_shoulder
+	var outer: float = corridor + 1.5
+	# Поперечные «полосы»: край -> обочина -> кромка -> центр -> …
+	var lateral: Array[float] = [-outer, -corridor, -half, -half * 0.5, 0.0, half * 0.5, half, corridor, outer]
+	var lanes: int = lateral.size()
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
-	var indices := PackedInt32Array()
-	vertices.resize(count * 2)
-	normals.resize(count * 2)
-	colors.resize(count * 2)
-	indices.resize((count - 1) * 6)
-	var half: float = track.road_half_width
+	vertices.resize(rows * lanes)
+	normals.resize(rows * lanes)
+	colors.resize(rows * lanes)
 	var color_rng := RandomNumberGenerator.new()
-	color_rng.seed = seed_value ^ 0x1234
+	color_rng.seed = track.terrain_seed ^ 0x5A17
 
-	for row in range(count):
-		var i: int = clampi(int(float(row) * step / RouteType.SAMPLE_STEP), 0, route_points.size() - 1)
-		var point: Vector2 = route_points[i]
-		var tangent := Vector2(route_tangents[i].x, route_tangents[i].y)
-		var dir3 := Vector3(tangent.x, 0.0, tangent.y)
-		var side: Vector3 = Vector3(dir3.z, 0.0, -dir3.x)
-		var shade: float = color_rng.randf_range(0.88, 1.12)
-		var rumble_dash: bool = (i % 10) < 5
-		for edge in range(2):
-			var edge_sign: float = -1.0 if edge == 0 else 1.0
-			var p3 := Vector3(point.x, 0.0, point.y) + side * (edge_sign * half)
-			var height: float = _terrain_height(p3.x, p3.z)
-			var offset: Vector3 = Vector3(p3.x, height + 0.022, p3.z)
-			var index: int = row * 2 + edge
-			vertices[index] = offset
-			var eps: float = 0.4
-			normals[index] = Vector3(
-				_terrain_height(p3.x - eps, p3.z) - _terrain_height(p3.x + eps, p3.z),
-				2.0 * eps,
-				_terrain_height(p3.x, p3.z - eps) - _terrain_height(p3.x, p3.z + eps)
-			).normalized()
-			# PS1-ралли: красно-белые «барьходы» на обочинах + зёрнышко дороги.
-			var base_color := track.road_color * shade
-			base_color = base_color.lerp(track.road_color_2, color_rng.randf_range(0.0, 0.4))
-			var curb: float = smoothstep(0.78, 1.0, absf(edge_sign))
-			if curb > 0.3 and track.road_rumble:
-				base_color = base_color.lerp(Color(0.75, 0.14, 0.10), curb * (0.55 if rumble_dash else 0.0))
-			colors[index] = base_color
+	for row in range(rows):
+		var distance: float = minf(length, float(row) * step)
+		var center: Vector3 = network.point_at(distance)
+		var dir: Vector3 = network.direction_at(distance)
+		var side := Vector3(dir.z, 0.0, -dir.x)
+		var shade: float = color_rng.randf_range(0.9, 1.1)
+		for lane in range(lanes):
+			var lat: float = lateral[lane]
+			var point: Vector3 = center + side * lat
+			var y: float = 0.0
+			if absf(lat) <= half:
+				# Полотно: высота осевой линии + крен + кочки (та же формула,
+				# что и у земли, поэтому стык не просвечивает).
+				var crown: float = track.road_camber * pow(absf(lat) / maxf(corridor, 0.01), 2.0)
+				y = center.y + _surface_bumps_along(distance) - crown
+			elif absf(lat) <= corridor:
+				# Обочина: ровно та же функция, что и у земли в коридоре.
+				y = height_at(point.x, point.z)
+			else:
+				# Внешняя кромка ложится на нарисованный меш земли (кювет),
+				# поэтому между дорогой и рельефом нет ни щели, ни стыка.
+				y = ground_height(point.x, point.z)
+			y += 0.035
+			vertices[row * lanes + lane] = Vector3(point.x, y, point.z)
 
-	var cursor: int = 0
-	for row in range(count - 1):
-		var i: int = row * 2
-		indices[cursor] = i
-		indices[cursor + 1] = i + 1
-		indices[cursor + 2] = i + 2
-		indices[cursor + 3] = i + 1
-		indices[cursor + 4] = i + 3
-		indices[cursor + 5] = i + 2
-		cursor += 6
+			var base_color: Color = track.road_color * shade
+			base_color = base_color.lerp(track.road_color_2, color_rng.randf() * 0.45)
+			var edge_factor: float = clampf((absf(lat) - half * 0.75) / maxf(half * 0.5, 0.01), 0.0, 1.0)
+			if absf(lat) > half:
+				base_color = base_color.lerp(track.shoulder_color, edge_factor)
+			elif absf(lat) > half * 0.62:
+				# Светлая кромка — «накатанная» полоса, по ней видно траекторию.
+				base_color = base_color.lightened(0.08 * edge_factor)
+			colors[row * lanes + lane] = base_color
+
+	for row in range(rows):
+		for lane in range(lanes):
+			var here: int = row * lanes + lane
+			var across: Vector3 = vertices[row * lanes + mini(lanes - 1, lane + 1)] - vertices[row * lanes + maxi(0, lane - 1)]
+			var along: Vector3 = vertices[mini(rows - 1, row + 1) * lanes + lane] - vertices[maxi(0, row - 1) * lanes + lane]
+			var normal: Vector3 = along.cross(across)
+			if normal.y < 0.0:
+				normal = -normal
+			normals[here] = normal.normalized() if normal.length() > 0.0001 else Vector3.UP
+
+	var indices := PackedInt32Array()
+	for row in range(rows - 1):
+		for lane in range(lanes - 1):
+			var i0: int = row * lanes + lane
+			var i1: int = i0 + 1
+			var i2: int = i0 + lanes
+			var i3: int = i2 + 1
+			indices.append(i0)
+			indices.append(i1)
+			indices.append(i2)
+			indices.append(i1)
+			indices.append(i3)
+			indices.append(i2)
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -533,9 +647,11 @@ func _build_road() -> void:
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
 	var road_material := StandardMaterial3D.new()
-	road_material.albedo_color = Color(1.0, 1.0, 1.0)
+	road_material.albedo_color = Color.WHITE
 	road_material.vertex_color_use_as_albedo = true
 	road_material.roughness = 1.0
+	road_material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+
 	var road_visual := MeshInstance3D.new()
 	road_visual.name = "RoadMesh"
 	road_visual.mesh = road_mesh
@@ -543,11 +659,20 @@ func _build_road() -> void:
 	if generated != null:
 		generated.add_child(road_visual)
 
+	# Коллизия только по проезжей части (полотно + обочина).
 	var faces := PackedVector3Array()
-	for i in range(0, indices.size(), 3):
-		faces.append(vertices[indices[i]])
-		faces.append(vertices[indices[i + 1]])
-		faces.append(vertices[indices[i + 2]])
+	for row in range(rows - 1):
+		for lane in range(1, lanes - 2):
+			var i0: int = row * lanes + lane
+			var i1: int = i0 + 1
+			var i2: int = i0 + lanes
+			var i3: int = i2 + 1
+			faces.append(vertices[i0])
+			faces.append(vertices[i1])
+			faces.append(vertices[i2])
+			faces.append(vertices[i1])
+			faces.append(vertices[i3])
+			faces.append(vertices[i2])
 	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
 	_set_shape_faces(shape, faces)
@@ -561,8 +686,6 @@ func _build_road() -> void:
 		generated.add_child(road_body)
 
 
-## Godot 4.7 переименовал свойство faces -> data; set_faces сохранён, но
-## оставляем запасной путь на будущие патчи движка.
 func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -> void:
 	if shape.has_method("set_faces"):
 		shape.call("set_faces", faces)
@@ -570,223 +693,167 @@ func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -
 		shape.set("data", faces)
 
 
-# ---------------------------------------------------------------- окружение
+# ---------------------------------------------------------------- ассеты
 
 
-func _spawn_scenery() -> void:
-	if generated == null:
+func _spawn_props() -> void:
+	if generated == null or network == null:
 		return
 	var container := Node3D.new()
-	container.name = "Scenery"
+	container.name = "Props"
 	generated.add_child(container)
-
-	var trunk_material := StandardMaterial3D.new()
-	trunk_material.albedo_color = Color(0.23, 0.125, 0.065)
-	trunk_material.roughness = 1.0
-	var foliage_material := StandardMaterial3D.new()
-	foliage_material.albedo_color = track.tree_color
-	foliage_material.roughness = 0.95
-	var bush_material := StandardMaterial3D.new()
-	bush_material.albedo_color = track.bush_color
-	bush_material.roughness = 1.0
-	var rock_material := StandardMaterial3D.new()
-	rock_material.albedo_color = track.rock_color
-	rock_material.roughness = 0.98
-
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.16
-	trunk_mesh.bottom_radius = 0.23
-	trunk_mesh.height = 1.5
-	trunk_mesh.radial_segments = 7
-	trunk_mesh.surface_set_material(0, trunk_material)
-	var foliage_mesh := CylinderMesh.new()
-	foliage_mesh.top_radius = 0.0
-	foliage_mesh.bottom_radius = 1.45
-	foliage_mesh.height = 3.8
-	foliage_mesh.radial_segments = 8
-	foliage_mesh.surface_set_material(0, foliage_material)
-	var rock_mesh := SphereMesh.new()
-	rock_mesh.radius = 1.0
-	rock_mesh.height = 2.0
-	rock_mesh.radial_segments = 7
-	rock_mesh.rings = 3
-	rock_mesh.surface_set_material(0, rock_material)
-	var bush_mesh := SphereMesh.new()
-	bush_mesh.radius = 0.9
-	bush_mesh.height = 1.4
-	bush_mesh.radial_segments = 6
-	bush_mesh.rings = 3
-	bush_mesh.surface_set_material(0, bush_material)
-	var trunk_shape := CylinderShape3D.new()
-	trunk_shape.radius = 0.24
-	trunk_shape.height = 1.8
-
-	var radius: float = maxf(track.scenery_radius, track.length * 0.35)
-	var total: int = track.tree_count + track.rock_count + track.bush_count
-	var place_attempts := 12
-	for i in range(total):
-		var is_rock: bool = i >= track.tree_count + track.bush_count
-		var is_bush: bool = i >= track.tree_count and not is_rock
-		var item: Node3D = null
-		for attempt in range(place_attempts):
-			var x: float = scenery_rng.randf_range(-radius, radius)
-			var z: float = scenery_rng.randf_range(route_bounds.position.y - radius, route_bounds.position.y + route_bounds.size.y + radius)
-			var clearance: float = track.road_clearance
-			if track.is_flat():
-				clearance = maxf(clearance, track.road_half_width * 2.0 + 12.0)
-			var lookup: Vector2 = _route_lookup(x, z)
-			var distance_to_road: float = absf(lookup.x)
-			if distance_to_road < clearance or absf(lookup.y) < 12.0:
-				continue
-			var y: float = _terrain_height(x, z)
-			if is_rock:
-				var rock := MeshInstance3D.new()
-				rock.name = "Boulder"
-				rock.mesh = rock_mesh
-				rock.scale = Vector3(
-					scenery_rng.randf_range(0.65, 1.5),
-					scenery_rng.randf_range(0.45, 1.0),
-					scenery_rng.randf_range(0.65, 1.4)
-				)
-				rock.position = Vector3(x, y + 0.22, z)
-				container.add_child(rock)
-				item = rock
-			elif is_bush:
-				var bush := MeshInstance3D.new()
-				bush.name = "Bush"
-				bush.mesh = bush_mesh
-				bush.scale = Vector3.ONE * scenery_rng.randf_range(0.7, 1.4)
-				bush.position = Vector3(x, y + 0.35, z)
-				container.add_child(bush)
-				item = bush
-			else:
-				var pine := _create_pine(trunk_mesh, foliage_mesh)
-				pine.scale = Vector3.ONE * scenery_rng.randf_range(0.8, 1.5)
-				pine.position = Vector3(x, y, z)
-				if distance_to_road < clearance + 45.0:
-					var body := StaticBody3D.new()
-					body.position = Vector3(0.0, 0.9, 0.0)
-					var collider := CollisionShape3D.new()
-					collider.shape = trunk_shape
-					body.add_child(collider)
-					pine.add_child(body)
-				container.add_child(pine)
-				item = pine
-			item.rotation = Vector3(0.0, scenery_rng.randf_range(0.0, TAU), 0.0)
-			break
-		if item == null:
+	for resource in track.props:
+		if resource == null or not (resource is PropType):
 			continue
-
-	if track.sign_count > 0:
-		_spawn_signs(container)
-	if track.slalom_cones > 0:
-		_spawn_slalom(container)
-
-
-## Указательные щиты у ключевых участков (стиль раллийных спецучастков).
-func _spawn_signs(container: Node3D) -> void:
-	var board_material := StandardMaterial3D.new()
-	board_material.albedo_color = Color(0.92, 0.92, 0.88)
-	board_material.roughness = 0.9
-	var post_material := StandardMaterial3D.new()
-	post_material.albedo_color = Color(0.25, 0.18, 0.10)
-	post_material.roughness = 1.0
-	var board_mesh := BoxMesh.new()
-	board_mesh.size = Vector3(2.2, 0.16, 1.4)
-	board_mesh.surface_set_material(0, board_material)
-	var stripe_material := StandardMaterial3D.new()
-	stripe_material.albedo_color = Color(0.9, 0.12, 0.1)
-	stripe_material.roughness = 0.9
-	var stripe_mesh := BoxMesh.new()
-	stripe_mesh.size = Vector3(2.2, 0.06, 0.35)
-	stripe_mesh.surface_set_material(0, stripe_material)
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.12, 2.0, 0.12)
-	post_mesh.surface_set_material(0, post_material)
-
-	# Щиты в随机ных точках маршрута на обочине.
-	var indices := PackedInt32Array()
-	var step_count: int = maxi(8, int(track.length / 90.0))
-	for i in range(step_count):
-		indices.append(int(scenery_rng.randi_range(10, route_points.size() - 10)))
-	var placed: int = 0
-	for i in range(indices.size()):
-		if placed >= track.sign_count:
-			break
-		var idx: int = indices[i]
-		var point: Vector2 = route_points[idx]
-		var tangent := route_tangents[idx]
-		var side_sign: float = 1.0 if scenery_rng.randf() > 0.5 else -1.0
-		var normal := Vector2(-tangent.y, tangent.x) * side_sign
-		var offset: float = track.road_half_width + 1.5 + scenery_rng.randf_range(0.0, 4.0)
-		var x: float = point.x + normal.x * offset
-		var z: float = point.y + normal.y * offset
-		var y: float = _terrain_height(x, z)
-		var sign := Node3D.new()
-		sign.name = "Sign_%02d" % placed
-		var post := MeshInstance3D.new()
-		post.mesh = post_mesh
-		post.position = Vector3(0.0, 1.0, 0.0)
-		sign.add_child(post)
-		var board := MeshInstance3D.new()
-		board.mesh = board_mesh
-		board.position = Vector3(0.0, 1.9, 0.0)
-		sign.add_child(board)
-		var stripe := MeshInstance3D.new()
-		stripe.mesh = stripe_mesh
-		stripe.position = Vector3(0.0, 1.9, 0.55)
-		sign.add_child(stripe)
-		sign.position = Vector3(x, y, z)
-		sign.rotation.y = atan2(tangent.x, tangent.y) + side_sign * PI * 0.5
-		container.add_child(sign)
-		placed += 1
+		var prop := resource as RallyProp
+		if prop == null or not prop.is_valid():
+			continue
+		if prop.mode == RallyProp.Mode.SCATTER:
+			_scatter_prop(container, prop)
+		else:
+			_place_prop_along_road(container, prop)
 
 
-func _create_pine(trunk_mesh: CylinderMesh, foliage_mesh: CylinderMesh) -> Node3D:
-	var pine := Node3D.new()
-	pine.name = "Pine"
-	var trunk := MeshInstance3D.new()
-	trunk.mesh = trunk_mesh
-	trunk.position = Vector3(0.0, 0.75, 0.0)
-	pine.add_child(trunk)
-	var foliage := MeshInstance3D.new()
-	foliage.mesh = foliage_mesh
-	foliage.position = Vector3(0.0, 2.6, 0.0)
-	pine.add_child(foliage)
-	var upper := MeshInstance3D.new()
-	upper.mesh = foliage_mesh
-	upper.position = Vector3(0.0, 3.75, 0.0)
-	upper.scale = Vector3.ONE * 0.65
-	pine.add_child(upper)
-	return pine
+func _prop_transforms_along_road(prop: RallyProp) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var length: float = network.total_length
+	if length <= 1.0:
+		return transforms
+	var corridor: float = track.road_half_width + track.road_shoulder
+	var count: int = prop.count
+	if count <= 0:
+		count = maxi(1, int(length / maxf(prop.spacing, 1.0)))
+	var start_pad: float = 8.0
+	var usable: float = maxf(1.0, length - start_pad * 2.0)
+	for i in range(count):
+		var distance: float = start_pad + usable * (float(i) + 0.5) / float(count)
+		distance += _rng.randf_range(-prop.along_jitter, prop.along_jitter)
+		distance = clampf(distance, 2.0, length - 2.0)
+		var center: Vector3 = network.point_at(distance)
+		var dir: Vector3 = network.direction_at(distance)
+		var side := Vector3(dir.z, 0.0, -dir.x)
+		var signs: Array[float] = []
+		match prop.side:
+			RallyProp.Side.LEFT:
+				signs.append(-1.0)
+			RallyProp.Side.RIGHT:
+				signs.append(1.0)
+			_:
+				signs.append(-1.0)
+				signs.append(1.0)
+		for side_sign in signs:
+			var lateral: float = corridor + _rng.randf_range(prop.lateral_min, prop.lateral_max)
+			var point: Vector3 = center + side * (lateral * side_sign)
+			transforms.append(_make_prop_transform(prop, point.x, point.z, atan2(dir.x, dir.z)))
+	return transforms
 
 
-func _spawn_slalom(container: Node3D) -> void:
-	var cone_material := StandardMaterial3D.new()
-	cone_material.albedo_color = Color(1.0, 0.32, 0.03)
-	cone_material.emission_enabled = true
-	cone_material.emission = Color(0.4, 0.06, 0.0)
-	cone_material.emission_energy_multiplier = 0.6
-	var cone_mesh := CylinderMesh.new()
-	cone_mesh.top_radius = 0.035
-	cone_mesh.bottom_radius = 0.25
-	cone_mesh.height = 0.7
-	cone_mesh.radial_segments = 12
-	cone_mesh.surface_set_material(0, cone_material)
-	var spacing: float = track.length / float(maxi(1, track.slalom_cones))
-	for i in range(track.slalom_cones):
-		var side: float = 1.0 if i % 2 == 0 else -1.0
-		var idx: int = clampi(int(float(i) * spacing / RouteType.SAMPLE_STEP), 0, route_points.size() - 1)
-		var point: Vector2 = route_points[idx]
-		var tangent := route_tangents[idx]
-		var normal := Vector2(-tangent.y, tangent.x) * side
-		var cone := MeshInstance3D.new()
-		cone.name = "Cone_%02d" % i
-		cone.mesh = cone_mesh
-		var x: float = point.x + normal.x * 5.0
-		var z: float = point.y + normal.y * 5.0
-		cone.position = Vector3(x, _terrain_height(x, z) + 0.35, z)
-		container.add_child(cone)
+func _prop_transforms_scatter(prop: RallyProp) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	var count: int = maxi(1, prop.count)
+	var center: Vector2 = terrain_rect.get_center()
+	var radius: float = minf(terrain_rect.size.x, terrain_rect.size.y) * 0.5 - 4.0
+	if prop.scatter_radius > 0.0:
+		radius = minf(radius, prop.scatter_radius)
+	radius = maxf(radius, 4.0)
+	var attempts: int = 0
+	while transforms.size() < count and attempts < count * 40:
+		attempts += 1
+		var angle: float = _rng.randf_range(0.0, TAU)
+		var r: float = sqrt(_rng.randf()) * radius
+		var x: float = center.x + cos(angle) * r
+		var z: float = center.y + sin(angle) * r
+		if network.distance_to_road(x, z) < prop.road_clearance:
+			continue
+		transforms.append(_make_prop_transform(prop, x, z, _rng.randf_range(0.0, TAU)))
+	return transforms
+
+
+func _make_prop_transform(prop: RallyProp, x: float, z: float, road_yaw: float = 0.0) -> Transform3D:
+	var y: float = ground_height(x, z) + prop.y_offset
+	var scale_value: float = _rng.randf_range(prop.scale_min, prop.scale_max)
+	var yaw: float = 0.0
+	if prop.face_road:
+		yaw = road_yaw + deg_to_rad(prop.face_road_offset_deg)
+	elif prop.random_yaw:
+		yaw = _rng.randf_range(0.0, TAU)
+	var basis := Basis(Vector3.UP, yaw)
+	if prop.align_to_slope:
+		# Наклоняем по нормали склона, сохраняя поворот вокруг вертикали.
+		var normal: Vector3 = normal_at(x, z, 1.4)
+		var up: Vector3 = Vector3.UP.lerp(normal, prop.align_to_slope_amount).normalized()
+		var forward: Vector3 = basis.z
+		var right: Vector3 = up.cross(forward)
+		if right.length() > 0.001:
+			right = right.normalized()
+			basis = Basis(right, up, right.cross(up).normalized())
+	basis = basis.scaled(Vector3(scale_value, scale_value * prop.scale_y, scale_value))
+	return Transform3D(basis, Vector3(x, y, z))
+
+
+func _place_prop_along_road(container: Node3D, prop: RallyProp) -> void:
+	var transforms: Array[Transform3D] = _prop_transforms_along_road(prop)
+	_instantiate_props(container, prop, transforms)
+
+
+func _scatter_prop(container: Node3D, prop: RallyProp) -> void:
+	var transforms: Array[Transform3D] = _prop_transforms_scatter(prop)
+	_instantiate_props(container, prop, transforms)
+
+
+func _instantiate_props(container: Node3D, prop: RallyProp, transforms: Array[Transform3D]) -> void:
+	if transforms.is_empty():
+		return
+	if prop.scene != null or prop.collision:
+		# Готовые сцены и объекты с коллизией — обычными узлами.
+		var holder := Node3D.new()
+		holder.name = "Prop_%s" % prop.display_name.to_snake_case()
+		container.add_child(holder)
+		for i in range(transforms.size()):
+			var node: Node3D = null
+			if prop.scene != null:
+				var instance: Node = prop.scene.instantiate()
+				if instance is Node3D:
+					node = instance
+				else:
+					instance.free()
+			elif prop.mesh != null:
+				var mesh_instance := MeshInstance3D.new()
+				mesh_instance.mesh = prop.mesh
+				if prop.material != null:
+					mesh_instance.material_override = prop.material
+				node = mesh_instance
+			if node == null:
+				continue
+			node.transform = transforms[i]
+			if prop.collision and prop.collision_radius > 0.0:
+				var body := StaticBody3D.new()
+				var shape := CollisionShape3D.new()
+				var cylinder := CylinderShape3D.new()
+				cylinder.radius = prop.collision_radius
+				cylinder.height = prop.collision_height
+				shape.shape = cylinder
+				shape.position = Vector3(0.0, prop.collision_height * 0.5, 0.0)
+				body.add_child(shape)
+				node.add_child(body)
+			holder.add_child(node)
+		return
+	# Быстрый путь: MultiMesh — один draw call на тип объекта.
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = prop.mesh
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+	var multimesh_instance := MultiMeshInstance3D.new()
+	multimesh_instance.name = "Prop_%s" % prop.display_name.to_snake_case()
+	multimesh_instance.multimesh = multimesh
+	if prop.material != null:
+		multimesh_instance.material_override = prop.material
+	container.add_child(multimesh_instance)
+
+
+# ---------------------------------------------------------------- разметка
 
 
 func _spawn_route_markers() -> void:
@@ -795,36 +862,95 @@ func _spawn_route_markers() -> void:
 	var container := Node3D.new()
 	container.name = "RouteMarkers"
 	generated.add_child(container)
-	_create_gate(container, start_pos, route_tangents[0], Color(0.20, 0.80, 1.0))
-	_create_gate(container, finish_pos, finish_tangent, Color(1.0, 0.48, 0.08))
+	_create_gate(container, start_pos, start_dir, Color(0.20, 0.80, 1.0))
+	_create_gate(container, finish_pos, finish_dir, Color(1.0, 0.48, 0.08))
 
-	var left_material := StandardMaterial3D.new()
-	left_material.albedo_color = Color(0.95, 0.95, 0.88)
-	var right_material := StandardMaterial3D.new()
-	right_material.albedo_color = Color(0.95, 0.16, 0.08)
+
+func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -> void:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color * 0.35
+	material.emission_energy_multiplier = 0.5
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.12, 0.85, 0.12)
-	var spacing: float = 28.0
-	var dist: float = 12.0
-	while dist < track.length - 8.0:
-		var idx: int = clampi(int(dist / RouteType.SAMPLE_STEP), 0, route_points.size() - 1)
-		var point: Vector2 = route_points[idx]
-		var tangent := route_tangents[idx]
-		var dir3 := Vector3(tangent.x, 0.0, tangent.y)
-		var side: Vector3 = Vector3(dir3.z, 0.0, -dir3.x)
+	post_mesh.size = Vector3(0.18, 3.2, 0.18)
+	post_mesh.surface_set_material(0, material)
+	var bar_mesh := BoxMesh.new()
+	bar_mesh.size = Vector3(track.road_half_width * 2.0 + 1.0, 0.18, 0.18)
+	bar_mesh.surface_set_material(0, material)
+	var gate := Node3D.new()
+	gate.position = Vector3(pos.x, height_at(pos.x, pos.z), pos.z)
+	gate.rotation.y = atan2(dir.x, dir.z)
+	for side_sign in [-1.0, 1.0]:
+		var post := MeshInstance3D.new()
+		post.mesh = post_mesh
+		post.position = Vector3(float(side_sign) * (track.road_half_width + 0.35), 1.6, 0.0)
+		gate.add_child(post)
+	var bar := MeshInstance3D.new()
+	bar.mesh = bar_mesh
+	bar.position = Vector3(0.0, 3.2, 0.0)
+	gate.add_child(bar)
+	container.add_child(gate)
+
+
+## Красно-белые столбики по обочинам.
+func _spawn_edge_posts() -> void:
+	if generated == null or network == null:
+		return
+	var container := Node3D.new()
+	container.name = "EdgePosts"
+	generated.add_child(container)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = track.edge_post_color
+	material.roughness = 0.85
+	var post_mesh := BoxMesh.new()
+	post_mesh.size = Vector3(0.12, 1.0, 0.12)
+	post_mesh.surface_set_material(0, material)
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.92, 0.92, 0.88)
+	var cap_mesh := BoxMesh.new()
+	cap_mesh.size = Vector3(0.13, 0.16, 0.13)
+	cap_mesh.surface_set_material(0, white)
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = post_mesh
+	var transforms: Array[Transform3D] = []
+	var spacing: float = 26.0
+	var distance: float = 14.0
+	var lateral: float = corridor_half() + 1.8
+	while distance < network.total_length - 8.0:
+		var center: Vector3 = network.point_at(distance)
+		var dir: Vector3 = network.direction_at(distance)
+		var side := Vector3(dir.z, 0.0, -dir.x)
 		for side_sign in [-1.0, 1.0]:
-			var p3 := Vector3(point.x, 0.0, point.y) + side * (float(side_sign) * (track.road_half_width + 1.0))
-			var post := MeshInstance3D.new()
-			post.mesh = post_mesh
-			post.material_override = left_material if side_sign < 0.0 else right_material
-			post.position = Vector3(p3.x, _terrain_height(p3.x, p3.z) + 0.43, p3.z)
-			container.add_child(post)
-		dist += spacing
+			var point: Vector3 = center + side * (lateral * float(side_sign))
+			var y: float = ground_height(point.x, point.z)
+			transforms.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z)))
+		distance += spacing
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+	var multimesh_instance := MultiMeshInstance3D.new()
+	multimesh_instance.name = "EdgePostMesh"
+	multimesh_instance.multimesh = multimesh
+	container.add_child(multimesh_instance)
+	# Белые «шапки» — второй MultiMesh со сдвигом по высоте.
+	var cap_multimesh := MultiMesh.new()
+	cap_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	cap_multimesh.mesh = cap_mesh
+	cap_multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		var t: Transform3D = transforms[i]
+		cap_multimesh.set_instance_transform(i, Transform3D(t.basis, t.origin + Vector3(0.0, 0.85, 0.0)))
+	var cap_instance := MultiMeshInstance3D.new()
+	cap_instance.name = "EdgePostCaps"
+	cap_instance.multimesh = cap_multimesh
+	container.add_child(cap_instance)
 
 
-## КПП (control points): арки через track.checkpoint_interval метров.
 func _spawn_checkpoints() -> void:
-	if generated == null or checkpoints.is_empty():
+	checkpoints.clear()
+	if generated == null or network == null or track.checkpoint_interval <= 0.0:
 		return
 	var container := Node3D.new()
 	container.name = "Checkpoints"
@@ -840,14 +966,14 @@ func _spawn_checkpoints() -> void:
 	var banner_mesh := BoxMesh.new()
 	banner_mesh.size = Vector3(track.road_half_width * 2.0 + 1.0, 0.22, 0.3)
 	banner_mesh.surface_set_material(0, material)
-	for i in range(checkpoints.size()):
-		var cp: Dictionary = checkpoints[i]
-		var point: Vector2 = cp["pos"]
-		var tangent: Vector2 = cp["tangent"]
+	var distance: float = track.checkpoint_interval
+	while distance < network.total_length - 40.0:
+		var point: Vector3 = network.point_at(distance)
+		var dir: Vector3 = network.direction_at(distance)
 		var gate := Node3D.new()
-		gate.name = "Checkpoint_%02d" % i
-		gate.position = Vector3(point.x, _terrain_height(point.x, point.y), point.y)
-		gate.rotation.y = atan2(tangent.x, tangent.y)
+		gate.name = "Checkpoint_%02d" % checkpoints.size()
+		gate.position = Vector3(point.x, height_at(point.x, point.z), point.z)
+		gate.rotation.y = atan2(dir.x, dir.z)
 		for side_sign in [-1.0, 1.0]:
 			var post := MeshInstance3D.new()
 			post.mesh = post_mesh
@@ -858,34 +984,47 @@ func _spawn_checkpoints() -> void:
 		banner.position = Vector3(0.0, 3.0, 0.0)
 		gate.add_child(banner)
 		container.add_child(gate)
+		checkpoints.append({
+			"pos": Vector2(point.x, point.z),
+			"tangent": Vector2(dir.x, dir.z),
+			"distance": distance,
+		})
+		distance += track.checkpoint_interval
 
 
-func _create_gate(container: Node3D, pos: Vector2, tangent: Vector2, color: Color) -> void:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.emission_enabled = true
-	material.emission = color * 0.35
-	material.emission_energy_multiplier = 0.5
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.18, 3.0, 0.18)
-	post_mesh.surface_set_material(0, material)
-	var bar_mesh := BoxMesh.new()
-	bar_mesh.size = Vector3(track.road_half_width * 2.0 + 1.0, 0.18, 0.18)
-	bar_mesh.surface_set_material(0, material)
+# ---------------------------------------------------------------- окружение
 
-	var gate := Node3D.new()
-	gate.position = Vector3(pos.x, _terrain_height(pos.x, pos.y), pos.y)
-	gate.rotation.y = atan2(tangent.x, tangent.y)
-	for side_sign in [-1.0, 1.0]:
-		var post := MeshInstance3D.new()
-		post.mesh = post_mesh
-		post.position = Vector3(float(side_sign) * (track.road_half_width + 0.35), 1.5, 0.0)
-		gate.add_child(post)
-	var bar := MeshInstance3D.new()
-	bar.mesh = bar_mesh
-	bar.position = Vector3(0.0, 3.0, 0.0)
-	gate.add_child(bar)
-	container.add_child(gate)
+
+func _configure_world() -> void:
+	if world_environment != null:
+		var env: Environment = null
+		if world_environment.environment != null:
+			env = world_environment.environment.duplicate() as Environment
+		if env == null:
+			env = Environment.new()
+		var sky := Sky.new()
+		var sky_material := ProceduralSkyMaterial.new()
+		sky_material.sky_top_color = track.sky_top_color
+		sky_material.sky_horizon_color = track.sky_horizon_color
+		sky_material.ground_bottom_color = track.ground_color * 0.4
+		sky_material.ground_horizon_color = track.sky_horizon_color
+		sky_material.sky_curve = 0.55 if track.sky_flat else 0.18
+		sky.sky_material = sky_material
+		env.background_mode = Environment.BG_SKY
+		env.sky = sky
+		env.tonemap_mode = Environment.TONE_MAPPER_ACES
+		env.tonemap_exposure = 1.05
+		env.glow_enabled = true
+		env.volumetric_fog_enabled = not track.ps1_style
+		env.volumetric_fog_density = 0.02
+		env.volumetric_fog_albedo = track.fog_color
+		env.fog_enabled = true
+		env.fog_light_color = track.fog_color
+		env.fog_density = 0.0032
+		world_environment.environment = env
+	if sun_light != null:
+		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
+		sun_light.light_energy = track.sun_energy
 
 
 # ---------------------------------------------------------------- машина
@@ -903,16 +1042,14 @@ func _configure_car() -> void:
 
 
 func _make_spawn_transform() -> Transform3D:
-	var idx: int = clampi(int(14.0 / RouteType.SAMPLE_STEP), 0, route_points.size() - 1)
-	var point: Vector2 = route_points[idx]
-	var tangent := route_tangents[idx]
+	var point: Vector3 = network.point_at(14.0)
+	var dir: Vector3 = network.direction_at(14.0)
 	var height_offset: float = 0.15
 	if car != null:
 		height_offset = car.get_spawn_height_offset() + 0.12
-	var y: float = _terrain_height(point.x, point.y) + height_offset
+	var y: float = height_at(point.x, point.z) + height_offset
 	# В проекте forward машины — basis.z (модель смотрит в +Z).
-	var yaw: float = atan2(tangent.x, tangent.y)
-	return Transform3D(Basis(Vector3.UP, yaw), Vector3(point.x, y, point.y))
+	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
 
 
 # ---------------------------------------------------------------- HUD
@@ -930,6 +1067,7 @@ func _setup_hud() -> void:
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
 	pause_panel = hud.get_node_or_null("PausePanel") as Control
 	results_panel = hud.get_node_or_null("ResultsPanel") as Control
+	results_label = hud.get_node_or_null("ResultsPanel/Box/ResultsLabel") as Label
 	if speed_rect != null:
 		speed_fx_material = speed_rect.material as ShaderMaterial
 		speed_rect.visible = track.enable_speed_fx
@@ -945,7 +1083,7 @@ func _setup_hud() -> void:
 	_connect_button("ResultsPanel/Box/MenuButton", "_on_menu_pressed")
 	var hint := hud.get_node_or_null("ControlsHint") as Label
 	if hint != null:
-		hint.text = "[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК\n[C] КАМЕРА  [V] ПРИВОД  [R] СБРОС  [Q/E] КПП\n[ESC] ПАУЗА   [F1–F7] ТРАССЫ"
+		hint.text = "[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК\n[C] КАМЕРА  [V] ПРИВОД  [R] СБРОС  [Q/E] КПП\n[ESC] ПАУЗА"
 	var title := hud.get_node_or_null("TopPanel/TitleLabel") as Label
 	if title != null:
 		title.text = track.display_name
@@ -968,8 +1106,7 @@ func _update_hud() -> void:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
 	if stage_label != null:
-		var mode_tag: String = "RANDOM" if random_stage else "SEED"
-		stage_label.text = "%s  |  %s %d  |  %s" % [track.display_name, mode_tag, seed_value, track.surface_name]
+		stage_label.text = "%s  |  %.0f м  |  %s" % [track.display_name, network.total_length if network != null else 0.0, track.surface_name]
 	if telemetry_label != null:
 		var gearbox_mode: String = "M" if car.manual_mode else "A"
 		telemetry_label.text = "%03d КМ/Ч  |  %s\nКПП %s [%s]  |  %d RPM\nКАМЕРА: %s\nХОД ПОДВЕСКИ: %d%%  |  КОНТАКТ %d/4" % [
@@ -987,7 +1124,7 @@ func _update_hud() -> void:
 			split_label.text = "ФИНИШ!  %s" % _format_time(stage_time)
 		elif last_cp_index >= 0 and cp_times[last_cp_index] > 0.0:
 			var best_split: float = 0.0
-			var game: Node = _get_game()
+			var game: Node = get_node_or_null("/root/RallyGame")
 			if game != null:
 				best_split = float(game.call("get_best_split", _split_key(last_cp_index)))
 			var line: String = "КПП%d %s" % [last_cp_index + 1, _format_time(cp_times[last_cp_index])]
@@ -997,11 +1134,11 @@ func _update_hud() -> void:
 		else:
 			split_label.text = "ЦЕЛЬ %s" % _format_time(track.target_time)
 	if show_debug_info and split_label != null:
-		split_label.text += "  | grid %d" % track.terrain_grid_size
+		split_label.text += "  | cell %.1f" % track.terrain_cell
 
 
 func _split_key(cp_index: int) -> String:
-	return "%s_%d_cp%d" % [track.id, seed_value, cp_index]
+	return "%s_cp%d" % [track.id, cp_index]
 
 
 func _format_time(seconds: float) -> String:
@@ -1014,11 +1151,11 @@ func _format_time(seconds: float) -> String:
 
 
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
 	if is_paused:
-		return
-	if _handle_track_switch():
 		return
 	if Input.is_action_just_pressed("reset_car"):
 		stage_time = 0.0
@@ -1040,7 +1177,6 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
-## Проверка контрольных точек: реакция на проезд арки КПП.
 func _check_checkpoints() -> void:
 	if car == null or not timer_running:
 		return
@@ -1057,63 +1193,38 @@ func _check_checkpoints() -> void:
 				cp_triggered[i] = true
 				cp_times[i] = stage_time
 				last_cp_index = i
-				var game: Node = _get_game()
+				var game: Node = get_node_or_null("/root/RallyGame")
 				if game != null:
-					game.submit_split(_split_key(i), stage_time)
+					game.call("submit_split", _split_key(i), stage_time)
 
 
 func _check_finish() -> void:
 	if car == null or not timer_running:
 		return
 	var dx: float = car.global_position.x - finish_pos.x
-	var dz: float = car.global_position.z - finish_pos.y
+	var dz: float = car.global_position.z - finish_pos.z
 	var tolerance: float = track.road_half_width + 4.0
 	if dx * dx + dz * dz > tolerance * tolerance:
 		return
 	var forward := car.global_transform.basis.z
-	var tangent := Vector3(finish_tangent.x, 0.0, finish_tangent.y)
-	if forward.dot(tangent) > 0.35:
+	if forward.dot(finish_dir) > 0.35:
 		_finish_stage()
 
 
 func _finish_stage() -> void:
 	stage_finished = true
 	timer_running = false
-	var game: Node = _get_game()
+	var game: Node = get_node_or_null("/root/RallyGame")
 	is_new_record = false
 	if game != null:
-		is_new_record = bool(game.call("submit_time", track.get_record_key(seed_value), stage_time))
-		best_time = float(game.call("get_best_time", track.get_record_key(seed_value)))
+		is_new_record = bool(game.call("submit_time", track.get_record_key(), stage_time))
+		best_time = float(game.call("get_best_time", track.get_record_key()))
 	if results_panel != null:
 		results_panel.visible = true
 		if results_label != null:
 			var record_line: String = "НОВЫЙ РЕКОРД!" if is_new_record else "ЛУЧШЕЕ: %s" % _format_time(best_time)
 			results_label.text = "%s\n\nВРЕМЯ  %s\n%s" % [track.display_name, _format_time(stage_time), record_line]
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-
-
-func _handle_track_switch() -> bool:
-	var actions: Array[String] = ["track_1", "track_2", "track_3", "track_4", "track_5", "track_6", "track_7"]
-	for i in range(actions.size()):
-		if InputMap.has_action(actions[i]) and Input.is_action_just_pressed(actions[i]):
-			_switch_track(i)
-			return true
-	return false
-
-
-func _switch_track(index: int) -> void:
-	var game: Node = _get_game()
-	if game != null:
-		game.call("select_track", index)
-		game.call("prepare_race_seed")
-	_set_paused(false)
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	call_deferred("_reload_scene")
-
-
-func _reload_scene() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
 
 
 func _set_paused(value: bool) -> void:
@@ -1132,16 +1243,15 @@ func _on_resume_pressed() -> void:
 
 
 func _on_restart_pressed() -> void:
-	var game: Node = _get_game()
+	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
-		game.call("prepare_race_seed")
 		game.call("restart_race")
 	else:
 		_reload_scene()
 
 
 func _on_menu_pressed() -> void:
-	var game: Node = _get_game()
+	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
 		game.call("goto_menu")
 	else:
@@ -1149,8 +1259,13 @@ func _on_menu_pressed() -> void:
 
 
 func _on_quit_pressed() -> void:
-	var game: Node = _get_game()
+	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
 		game.call("quit_game")
 	else:
 		get_tree().quit()
+
+
+func _reload_scene() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()

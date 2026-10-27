@@ -105,27 +105,11 @@ size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.95
 theme_override_constants/separation = 8
 
-[node name="ModeLabel" type="Label" parent="Content/Body/Left"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
-theme_override_font_sizes/font_size = 18
-text = "РЕЖИМ ЗАЕЗДА"
-
-[node name="ModeRow" type="HBoxContainer" parent="Content/Body/Left"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="RandomCheck" type="CheckButton" parent="Content/Body/Left/ModeRow"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.92, 0.95, 0.98, 1)
-theme_override_font_sizes/font_size = 17
-text = "ВСЕГДА СЛУЧАЙНАЯ КАРТА"
-
 [node name="TracksLabel" type="Label" parent="Content/Body/Left"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
 theme_override_font_sizes/font_size = 18
-text = "ВЫБОР ТРАССЫ  (F1-F5 В ЗАЕЗДЕ)"
+text = "ВЫБОР ТРАССЫ"
 
 [node name="TrackList" type="VBoxContainer" parent="Content/Body/Left"]
 layout_mode = 2
@@ -140,27 +124,6 @@ text = "КОНФИГУРАЦИЯ LANCER EVO"
 [node name="SetupList" type="HBoxContainer" parent="Content/Body/Left"]
 layout_mode = 2
 theme_override_constants/separation = 6
-
-[node name="SeedRow" type="HBoxContainer" parent="Content/Body/Left"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="SeedCaption" type="Label" parent="Content/Body/Left/SeedRow"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.70, 0.80, 0.88, 1)
-text = "SEED:"
-
-[node name="SeedEdit" type="LineEdit" parent="Content/Body/Left/SeedRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(140, 0)
-text = "1337"
-
-[node name="NewSeedButton" type="Button" parent="Content/Body/Left/SeedRow"]
-layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-text = "НОВЫЙ СИД"
 
 [node name="ButtonRow" type="HBoxContainer" parent="Content/Body/Left"]
 layout_mode = 2

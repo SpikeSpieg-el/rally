@@ -18,16 +18,11 @@ extends Resource
 @export_group("Значения по умолчанию")
 @export var default_track_index: int = 0
 @export var default_setup_index: int = 0
-@export var start_random_mode: bool = false
 
 @export_group("Сцены")
 @export_file("*.tscn") var menu_scene: String = "res://scenes/main_menu.tscn"
 @export_file("*.tscn") var stage_scene: String = "res://scenes/rally_stage.tscn"
 @export var records_path: String = "user://rally_records.cfg"
-
-@export_group("Случайная трасса")
-@export var random_track_name: String = "СЛУЧАЙНАЯ ТРАССА"
-@export_multiline var random_track_description: String = "Каждый заезд — новая дорога, новый рельеф и новая расстановка деревьев."
 
 
 func track_count() -> int:
