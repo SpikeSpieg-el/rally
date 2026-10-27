@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="9_02ico"]
 
 [sub_resource type="BoxShape3D" id="BoxShape_body"]
-size = Vector3(2.3857255, 1.4377533, 5.738942)
+size = Vector3(2.3857255, 1.3673141, 5.3418074)
 
 [sub_resource type="StandardMaterial3D" id="Material_body"]
 albedo_color = Color(0.72, 0.055, 0.035, 1)
@@ -639,8 +639,22 @@ rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
 [node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=544108270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.1531572, 0.13617325)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.1883769, 0.1742754)
 shape = SubResource("BoxShape_body")
+
+[node name="HeadlightL" type="SpotLight3D" parent="BodyCollider" unique_id=539570592]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.9990877, -0.29121137, 2.8060355)
+light_color = Color(1, 0.91, 0.72, 1)
+light_energy = 3.0
+spot_range = 45.0
+spot_angle = 28.0
+
+[node name="HeadlightR" type="SpotLight3D" parent="BodyCollider" unique_id=1823748999]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.87637186, -0.26425076, 2.7791517)
+light_color = Color(1, 0.91, 0.72, 1)
+light_energy = 3.0
+spot_range = 45.0
+spot_angle = 28.0
 
 [node name="ChassisMesh" type="MeshInstance3D" parent="." unique_id=676427284]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.048368096, 1.0557705, 0)
@@ -656,22 +670,6 @@ mesh = SubResource("BoxMesh_cabin")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 1.35)
 visible = false
 mesh = SubResource("BoxMesh_hood")
-
-[node name="HeadlightL" type="SpotLight3D" parent="ChassisMesh" unique_id=539570592]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.6, 0.1, 2.1)
-visible = false
-light_color = Color(1, 0.91, 0.72, 1)
-light_energy = 3.0
-spot_range = 45.0
-spot_angle = 28.0
-
-[node name="HeadlightR" type="SpotLight3D" parent="ChassisMesh" unique_id=1823748999]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.6, 0.1, 2.1)
-visible = false
-light_color = Color(1, 0.91, 0.72, 1)
-light_energy = 3.0
-spot_range = 45.0
-spot_angle = 28.0
 
 [node name="Wheel_FL" type="RayCast3D" parent="." unique_id=1481303125 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.51, 1.905)
@@ -754,7 +752,7 @@ script = ExtResource("2_audio")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 2.291966, 0.2543872)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 2.9031463, 0.2543872)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
 transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.3660817, 1.7676451)
@@ -764,7 +762,7 @@ transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.11971
 gizmo_extents = 1.94
 
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
-transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.3596334, 0.21571684)
+transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.5397794, 0.21571684)
 current = true
 fov = 95.2
 far = 2500.0

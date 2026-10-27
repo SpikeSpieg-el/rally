@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://csy3ssx2uxglk"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "gravel"
+display_name = "ГРАВИЙ1"
+description = "Базовая настройка: длинноходная подвеска, мягкие стабилизаторы, AWD 38:62. Универсальна на лесных трассах."
+body_color = Color(1, 1, 1, 0.15686275)
+max_torque = 843.0
+max_rpm = 9520.0
+vehicle_mass = 963.0
+rolling_resistance_scale = 1.33
+max_steering_angle_deg = 50.0

@@ -1,31 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://csln8tj0hdrlm"]
 
-[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Script" path="res://scripts/stage_preview.gd" id="2_preview"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.09, 0.125, 0.16, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.28, 0.38, 0.46, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-content_margin_left = 12.0
-content_margin_top = 6.0
-content_margin_right = 12.0
-content_margin_bottom = 6.0
-bg_color = Color(0.20, 0.26, 0.32, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.62, 0.12, 1)
+[ext_resource type="Script" uid="uid://b8wa4bs684dnw" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" uid="uid://cri301mtntwul" path="res://scripts/stage_preview.gd" id="2_preview"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start"]
 content_margin_left = 16.0
@@ -39,7 +15,31 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 0.82, 0.28, 1)
 
-[node name="MainMenu" type="Control"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.2, 0.26, 0.32, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.62, 0.12, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.09, 0.125, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.38, 0.46, 1)
+
+[node name="MainMenu" type="Control" unique_id=21627990]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -48,7 +48,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=760380308]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -57,15 +57,16 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.018, 0.031, 0.046, 1)
 
-[node name="AccentBar" type="ColorRect" parent="."]
+[node name="AccentBar" type="ColorRect" parent="." unique_id=1756298333]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 7.0
+grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.98, 0.48, 0.05, 1)
 
-[node name="Content" type="VBoxContainer" parent="."]
+[node name="Content" type="VBoxContainer" parent="." unique_id=292167661]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -78,58 +79,58 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="Header" type="VBoxContainer" parent="Content"]
+[node name="Header" type="VBoxContainer" parent="Content" unique_id=1757892242]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Title" type="Label" parent="Content/Header"]
+[node name="Title" type="Label" parent="Content/Header" unique_id=667705009]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.86, 0.52, 1)
 theme_override_font_sizes/font_size = 52
 text = "RALLY 4.7"
 
-[node name="Subtitle" type="Label" parent="Content/Header"]
+[node name="Subtitle" type="Label" parent="Content/Header" unique_id=449687829]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.76, 0.86, 1)
 theme_override_font_sizes/font_size = 20
 text = "MITSUBISHI LANCER EVOLUTION"
 
-[node name="Body" type="HBoxContainer" parent="Content"]
+[node name="Body" type="HBoxContainer" parent="Content" unique_id=2089925669]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 18
 
-[node name="Left" type="VBoxContainer" parent="Content/Body"]
+[node name="Left" type="VBoxContainer" parent="Content/Body" unique_id=820771651]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.95
 theme_override_constants/separation = 8
 
-[node name="TracksLabel" type="Label" parent="Content/Body/Left"]
+[node name="TracksLabel" type="Label" parent="Content/Body/Left" unique_id=9383231]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
 theme_override_font_sizes/font_size = 18
 text = "ВЫБОР ТРАССЫ"
 
-[node name="TrackList" type="VBoxContainer" parent="Content/Body/Left"]
+[node name="TrackList" type="VBoxContainer" parent="Content/Body/Left" unique_id=648802262]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="SetupsLabel" type="Label" parent="Content/Body/Left"]
+[node name="SetupsLabel" type="Label" parent="Content/Body/Left" unique_id=673727374]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
 theme_override_font_sizes/font_size = 18
 text = "КОНФИГУРАЦИЯ LANCER EVO"
 
-[node name="SetupList" type="HBoxContainer" parent="Content/Body/Left"]
+[node name="SetupList" type="HBoxContainer" parent="Content/Body/Left" unique_id=1836260245]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ButtonRow" type="HBoxContainer" parent="Content/Body/Left"]
+[node name="ButtonRow" type="HBoxContainer" parent="Content/Body/Left" unique_id=1757083373]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="StartButton" type="Button" parent="Content/Body/Left/ButtonRow"]
+[node name="StartButton" type="Button" parent="Content/Body/Left/ButtonRow" unique_id=1181816009]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.08, 0.08, 0.09, 1)
@@ -138,64 +139,61 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_start")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "СТАРТ ▶"
 
-[node name="QuitButton" type="Button" parent="Content/Body/Left/ButtonRow"]
+[node name="QuitButton" type="Button" parent="Content/Body/Left/ButtonRow" unique_id=1728074163]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_button")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "ВЫХОД"
 
-[node name="Right" type="VBoxContainer" parent="Content/Body"]
+[node name="Right" type="VBoxContainer" parent="Content/Body" unique_id=89107806]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.05
 theme_override_constants/separation = 10
 
-[node name="Preview" type="Control" parent="Content/Body/Right"]
+[node name="Preview" type="Control" parent="Content/Body/Right" unique_id=2052911048]
 custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("2_preview")
 
-[node name="InfoLabel" type="Label" parent="Content/Body/Right"]
+[node name="InfoLabel" type="Label" parent="Content/Body/Right" unique_id=393098594]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.90, 0.94, 0.98, 1)
+theme_override_colors/font_color = Color(0.9, 0.94, 0.98, 1)
 theme_override_font_sizes/font_size = 16
-autowrap_mode = 3
 text = "Информация о трассе"
+autowrap_mode = 3
 
-[node name="Stats" type="VBoxContainer" parent="Content/Body/Right"]
+[node name="Stats" type="VBoxContainer" parent="Content/Body/Right" unique_id=1318898082]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PowerBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+[node name="PowerBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=322524807]
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 max_value = 1.0
-step = 0.01
 show_percentage = false
-custom_minimum_size = Vector2(0, 12)
 
-[node name="GripBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+[node name="GripBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=895114555]
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 max_value = 1.0
-step = 0.01
 show_percentage = false
-custom_minimum_size = Vector2(0, 12)
 
-[node name="SuspensionBar" type="ProgressBar" parent="Content/Body/Right/Stats"]
+[node name="SuspensionBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=381193201]
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 max_value = 1.0
-step = 0.01
 show_percentage = false
-custom_minimum_size = Vector2(0, 12)
 
-[node name="BestLabel" type="Label" parent="Content/Body/Right"]
+[node name="BestLabel" type="Label" parent="Content/Body/Right" unique_id=1606289039]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.95, 0.55, 1)
 theme_override_font_sizes/font_size = 17
 text = "ЛУЧШЕЕ ВРЕМЯ: —"
 
-[node name="Footer" type="Label" parent="Content"]
+[node name="Footer" type="Label" parent="Content" unique_id=413435507]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.52, 0.62, 0.70, 1)
+theme_override_colors/font_color = Color(0.52, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 15
 text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, ESC — пауза, C — камера, V — привод."
