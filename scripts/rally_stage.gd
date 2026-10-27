@@ -25,8 +25,6 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
-const MiniMapType = preload("res://scripts/ui/mini_map.gd")
-const GaugeBarType = preload("res://scripts/ui/gauge_bar.gd")
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -75,6 +73,8 @@ var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
 var _hud_ready := false
+## Мир этапа готов, физика/HUD можно тикать (await в _ready разбил старт на кадры).
+var _stage_live := false
 var _prev_lin_vel: Vector3 = Vector3.ZERO
 var _frame_delta: float = 0.016
 
@@ -99,8 +99,8 @@ var _noise_detail: FastNoiseLite = null
 var _noise_bumps: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
 
-# HUD-узлы строятся кодом в _setup_hud(): гоночная панель, телеметрия и
-# мини-карта. Ссылки держим, чтобы обновлять их в _update_hud.
+# HUD-узлы живут в scenes/ui/rally_hud.tscn (разметка правится в редакторе),
+# в _setup_hud() мы только находим их по путям и держим ссылки для _update_hud.
 var timer_label: Label = null
 var split_label: Label = null
 var stage_label: Label = null
@@ -146,10 +146,21 @@ func _ready() -> void:
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_resolve_track()
-	_build_world()
+	# На время генерации машина заморожена и _process молчит: физика и
+	# телеметрия не тикают по «пустому» миру.
+	var car_node := get_node_or_null("RallyCar") as RigidBody3D
+	if car_node != null:
+		car_node.freeze = true
+	await _build_world_async()
 	_configure_car()
+	if car_node != null:
+		car_node.freeze = false
 	_setup_hud()
+	_stage_live = true
 	_update_hud()
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("finish_loading"):
+		game.call("finish_loading")
 
 
 func _exit_tree() -> void:
@@ -322,12 +333,25 @@ func _curve_terrain_rect(curve: Curve3D) -> Rect2:
 
 
 func _build_world() -> void:
+	# Обёртка для редактора (кнопка и предпросмотр): редакторский путь внутри
+	# _build_world_async() синхронный — ожиданий там не выполняется.
+	_build_world_async()
+
+
+## Генерация мира в порциях по кадрам: в игре прогресс и статус «живой»
+## полосой на экране загрузки (autoload RallyGame), в редакторе — синхронно.
+func _build_world_async() -> void:
+	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
+	var has_progress: bool = game != null and game.has_method("set_loading_progress")
 	var curve: Curve3D = _effective_curve()
 	if track == null or curve == null:
 		push_warning("RallyStage: нет осевой линии (road_curve в трассе или узел Route/Path3D).")
 		return
 	_clear_generated()
 	_setup_noise()
+	if has_progress:
+		_report_progress(0.08, "Поле дорог и осевая линия…")
+		await get_tree().process_frame
 	# Границы карты считаем по ТОЙ кривой, что реально используется
 	# (узел Route в сцене), иначе правка кривой в 3D не меняла бы размер поля.
 	terrain_rect = _curve_terrain_rect(curve)
@@ -341,8 +365,16 @@ func _build_world() -> void:
 		# Свет и небо применяем только в игре: иначе редактор помечает сцену
 		# изменённой при каждом предпросмотре.
 		_configure_world()
-	_build_terrain()
-	_build_road()
+	if has_progress:
+		await get_tree().process_frame
+	await _build_terrain(has_progress, 0.15, 0.58)
+	if has_progress:
+		_report_progress(0.60, "Полотно дороги…")
+		await get_tree().process_frame
+	await _build_road(has_progress, 0.60, 0.80)
+	if has_progress:
+		_report_progress(0.82, "Ассеты, ворота и КПП…")
+		await get_tree().process_frame
 	if snap_props_on_build:
 		# Только «лес» из Props: ручные объекты в ManualProps не двигаем,
 		# их можно поставить руками на нужную высоту.
@@ -358,6 +390,16 @@ func _build_world() -> void:
 	for i in range(checkpoints.size()):
 		cp_triggered[i] = false
 		cp_times.append(0.0)
+	if has_progress:
+		_report_progress(1.0, "Готово")
+
+
+func _report_progress(value: float, status: String) -> void:
+	if Engine.is_editor_hint():
+		return
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("set_loading_progress"):
+		game.call("set_loading_progress", value, status)
 
 
 func _setup_noise() -> void:
@@ -501,7 +543,7 @@ func normal_at(x: float, z: float, eps: float = 1.0) -> Vector3:
 # ---------------------------------------------------------------- рельеф
 
 
-func _build_terrain() -> void:
+func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
 	if terrain == null or terrain_mesh == null or terrain_collider == null:
 		push_warning("RallyStage: узлы Terrain не найдены.")
 		return
@@ -526,6 +568,10 @@ func _build_terrain() -> void:
 			var index: int = gz * cols + gx
 			heights[index] = height_at(x, z)
 			distances[index] = network.distance_to_road(x, z)
+		if light and gz % 24 == 23:
+			# Полоса прогресса: примерно до половины этого этапа — сетка высот.
+			_report_progress(lerpf(from_pct, to_pct, 0.5 * float(gz + 1) / float(rows)), "Рельеф…")
+			await get_tree().process_frame
 
 	# «Крышки» дыры на старте и финише. Поле расстояний считает дыру
 	# вокруг ЛИНИИ дороги, поэтому у оконечностей получается полукруг —
@@ -592,6 +638,9 @@ func _build_terrain() -> void:
 			var rock: float = smoothstep(corridor + 2.0, corridor + 10.0, distances[index])
 			var grain: float = TrackConfigType.hash_noise(x * 7.3 + 11.0, z * 5.1 + 3.0)
 			colors[index] = Color(road_influence, rock, grain, 1.0)
+		if light and gz % 48 == 47:
+			_report_progress(lerpf(from_pct, to_pct, 0.5 + 0.4 * float(gz + 1) / float(rows)), "Рельеф…")
+			await get_tree().process_frame
 
 	# 5) Индексы: строго под полотном треугольники не нужны — там лежит лента
 	#    дороги (она закрывает дыру и держит коллизию). Считается по сетке
@@ -733,7 +782,7 @@ func _make_ground_material() -> ShaderMaterial:
 
 ## Лента дороги: меш + коллизия. Высота краёв совпадает с землёй (та же
 ## функция height_at), поэтому стык не просвечивает.
-func _build_road() -> void:
+func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
 	var step: float = maxf(0.5, track.road_step)
 	var length: float = network.total_length
 	var rows: int = maxi(2, ceili(length / step) + 1)
@@ -786,6 +835,9 @@ func _build_road() -> void:
 				# Светлая кромка — «накатанная» полоса, по ней видно траекторию.
 				base_color = base_color.lightened(0.08 * edge_factor)
 			colors[row * lanes + lane] = base_color
+		if light and row % 200 == 199:
+			_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
+			await get_tree().process_frame
 
 	for row in range(rows):
 		for lane in range(lanes):
@@ -1086,81 +1138,17 @@ func _make_spawn_transform() -> Transform3D:
 
 
 # ---------------------------------------------------------------- HUD
+# Разметка HUD живёт в scenes/ui/rally_hud.tscn (инстанс «RallyHUD» внутри
+# CanvasLayer «HUD» в rally_stage.tscn). Панели, подписи, шкалы, модалки и
+# мини-карта — настоящие узлы: стиль, тексты и позиции правятся в редакторе.
+# Ниже — только связывание узлов с игровой логикой. Пути соответствуют
+# дереву в rally_hud.tscn — поправьте их, если там переименуете узлы.
 
 
-func _hud_stylebox() -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.content_margin_left = 16.0
-	box.content_margin_top = 10.0
-	box.content_margin_right = 16.0
-	box.content_margin_bottom = 10.0
-	box.bg_color = Color(0.03, 0.05, 0.07, 0.82)
-	box.border_width_left = 2
-	box.border_width_top = 2
-	box.border_width_right = 2
-	box.border_width_bottom = 2
-	box.border_color = Color(0.95, 0.62, 0.12, 0.85)
-	box.corner_radius_top_left = 6
-	box.corner_radius_top_right = 6
-	box.corner_radius_bottom_right = 6
-	box.corner_radius_bottom_left = 6
-	return box
-
-
-func _styled_panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _hud_stylebox())
-	return panel
-
-
-func _make_label(text: String, size: int, color: Color, outline: bool = false) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
-	if outline:
-		label.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.05, 0.95))
-		label.add_theme_constant_override("outline_size", maxi(3, int(size / 8)))
-	return label
-
-
-func _add_gauge_row(parent: VBoxContainer, title: String, color: Color, centered: bool) -> GaugeBar:
-	parent.add_child(_make_label(title, 11, Color(0.62, 0.72, 0.82, 1.0)))
-	var gauge := GaugeBarType.new()
-	gauge.custom_minimum_size = Vector2(230.0, 10.0)
-	gauge.bar_color = color
-	gauge.centered = centered
-	parent.add_child(gauge)
-	return gauge
-
-
-func _add_button(parent: Control, text: String, method: String) -> void:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(250, 40)
-	button.add_theme_font_size_override("font_size", 16)
-	parent.add_child(button)
-	if not button.pressed.is_connected(Callable(self, method)):
-		button.pressed.connect(Callable(self, method))
-
-
-func _make_modal(title: String) -> PanelContainer:
-	var panel := _styled_panel()
-	panel.anchor_left = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -240.0
-	panel.offset_top = -190.0
-	panel.offset_right = 240.0
-	panel.offset_bottom = 190.0
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	var heading := _make_label(title, 30, Color(1.0, 0.72, 0.25, 1.0))
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(heading)
-	panel.add_child(box)
-	return panel
+func _hud_node(path: String) -> Node:
+	if hud == null:
+		return null
+	return hud.get_node_or_null(path)
 
 
 func _setup_hud() -> void:
@@ -1175,135 +1163,64 @@ func _setup_hud() -> void:
 		speed_fx_material = speed_rect.material as ShaderMaterial
 		speed_rect.visible = track.enable_speed_fx
 
-	# ---- панель этапа (верхний левый угол) ----
-	var stage_panel := _styled_panel()
-	stage_panel.anchor_left = 0.0
-	stage_panel.anchor_top = 0.0
-	stage_panel.offset_left = 14.0
-	stage_panel.offset_top = 14.0
-	stage_panel.offset_right = 334.0
-	stage_panel.offset_bottom = 118.0
-	var stage_box := VBoxContainer.new()
-	stage_box.add_theme_constant_override("separation", 3)
-	stage_panel.add_child(stage_box)
-	var stage_title := _make_label(track.display_name, 20, Color(1.0, 0.72, 0.25, 1.0))
-	stage_label = _make_label("", 14, Color(0.72, 0.83, 0.92, 1.0))
-	stage_box.add_child(stage_title)
-	stage_box.add_child(stage_label)
-	hud.add_child(stage_panel)
+	# Панель этапа (название трассы задаётся из конфига).
+	var stage_title := _hud_node("RallyHUD/StagePanel/StageBox/StageTitle") as Label
+	stage_label = _hud_node("RallyHUD/StagePanel/StageBox/StageLabel") as Label
+	if stage_title != null:
+		stage_title.text = track.display_name
 
-	# ---- таймер (верхний центр) ----
-	var timer_panel := _styled_panel()
-	timer_panel.anchor_left = 0.5
-	timer_panel.anchor_right = 0.5
-	timer_panel.anchor_top = 0.0
-	timer_panel.offset_left = -250.0
-	timer_panel.offset_right = 250.0
-	timer_panel.offset_top = 14.0
-	timer_panel.offset_bottom = 146.0
-	var timer_box := VBoxContainer.new()
-	timer_box.add_theme_constant_override("separation", 2)
-	timer_panel.add_child(timer_box)
-	timer_label = _make_label("00:00.000", 58, Color(1.0, 0.97, 0.88, 1.0), true)
-	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	split_label = _make_label("ЦЕЛЬ 00:00.000", 18, Color(0.30, 0.95, 0.55, 1.0), true)
-	split_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	timer_box.add_child(timer_label)
-	timer_box.add_child(split_label)
-	hud.add_child(timer_panel)
+	# Таймер и сплиты.
+	timer_label = _hud_node("RallyHUD/TimerPanel/TimerBox/TimerLabel") as Label
+	split_label = _hud_node("RallyHUD/TimerPanel/TimerBox/SplitLabel") as Label
 
-	# ---- мини-карта (верхний правый угол) ----
-	mini_map = MiniMapType.new()
-	mini_map.name = "MiniMap"
-	mini_map.anchor_right = 1.0
-	mini_map.anchor_top = 0.0
-	mini_map.offset_right = -14.0
-	mini_map.offset_top = 14.0
-	mini_map.offset_left = -244.0
-	mini_map.offset_bottom = 164.0
-	hud.add_child(mini_map)
+	# Мини-карта — узел из сцены, экспорты (цвета) editable прямо в инспекторе.
+	mini_map = _hud_node("RallyHUD/MiniMap") as MiniMap
 	_populate_mini_map()
 
-	# ---- спидометр (нижний левый угол) ----
-	var speed_panel := _styled_panel()
-	speed_panel.anchor_left = 0.0
-	speed_panel.anchor_bottom = 1.0
-	speed_panel.offset_left = 14.0
-	speed_panel.offset_bottom = -14.0
-	speed_panel.offset_right = 334.0
-	speed_panel.offset_top = -190.0
-	var speed_box := VBoxContainer.new()
-	speed_box.add_theme_constant_override("separation", 3)
-	speed_panel.add_child(speed_box)
-	speed_label = _make_label("000", 66, Color(1.0, 0.97, 0.88, 1.0), true)
-	gear_label = _make_label("КПП 1  A", 20, Color(1.0, 0.72, 0.25, 1.0))
-	drivetrain_label = _make_label("AWD 38:62", 14, Color(0.72, 0.83, 0.92, 1.0))
-	rpm_bar = ProgressBar.new()
-	rpm_bar.name = "RPMBar"
-	rpm_bar.custom_minimum_size = Vector2(270.0, 12)
-	rpm_bar.max_value = car.max_rpm if car != null else 7600.0
-	rpm_bar.value = 900.0
-	rpm_bar.show_percentage = false
-	var rpm_caption := _make_label("РУГ 7600", 11, Color(0.60, 0.70, 0.80, 1.0))
-	speed_box.add_child(speed_label)
-	speed_box.add_child(gear_label)
-	speed_box.add_child(drivetrain_label)
-	speed_box.add_child(rpm_caption)
-	speed_box.add_child(rpm_bar)
-	hud.add_child(speed_panel)
+	# Спидометр.
+	speed_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/SpeedLabel") as Label
+	gear_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/GearLabel") as Label
+	drivetrain_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/DrivetrainLabel") as Label
+	rpm_bar = _hud_node("RallyHUD/SpeedPanel/SpeedBox/RPMBar") as ProgressBar
 
-	# ---- телеметрия (нижний правый угол) ----
-	var tele_panel := _styled_panel()
-	tele_panel.anchor_right = 1.0
-	tele_panel.anchor_bottom = 1.0
-	tele_panel.offset_right = -14.0
-	tele_panel.offset_bottom = -14.0
-	tele_panel.offset_left = -304.0
-	tele_panel.offset_top = -244.0
-	var tele_box := VBoxContainer.new()
-	tele_box.add_theme_constant_override("separation", 6)
-	telemetry_label = _make_label("ТЕЛЕМЕТРИЯ", 14, Color(1.0, 0.72, 0.25, 1.0))
-	tele_box.add_child(telemetry_label)
-	throttle_bar = _add_gauge_row(tele_box, "ГАЗ", Color(0.30, 0.90, 0.42, 1.0), false)
-	brake_bar = _add_gauge_row(tele_box, "ТОРМОЗ", Color(0.95, 0.30, 0.30, 1.0), false)
-	steer_bar = _add_gauge_row(tele_box, "РУЛЬ", Color(0.98, 0.78, 0.20, 1.0), true)
-	slip_bar = _add_gauge_row(tele_box, "СКОЛЬЗ.", Color(0.98, 0.55, 0.15, 1.0), false)
-	suspension_bar = _add_gauge_row(tele_box, "ХОД", Color(0.35, 0.65, 0.98, 1.0), false)
-	gforce_bar = _add_gauge_row(tele_box, "G", Color(0.75, 0.45, 0.98, 1.0), false)
-	tele_panel.add_child(tele_box)
-	hud.add_child(tele_panel)
+	# Телеметрия.
+	telemetry_label = _hud_node("RallyHUD/TelemetryPanel/TeleBox/TelemetryLabel") as Label
+	throttle_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/ThrottleBar") as GaugeBar
+	brake_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/BrakeBar") as GaugeBar
+	steer_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/SteerBar") as GaugeBar
+	slip_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/SlipBar") as GaugeBar
+	suspension_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/SuspensionBar") as GaugeBar
+	gforce_bar = _hud_node("RallyHUD/TelemetryPanel/TeleBox/GForceBar") as GaugeBar
 
-	# ---- пауза / финиш ----
-	pause_panel = _make_modal("ПАУЗА")
-	var pause_box := pause_panel.get_child(0) as VBoxContainer
-	_add_button(pause_box, "ПРОДОЛЖИТЬ", "_on_resume_pressed")
-	_add_button(pause_box, "ЗАЕЗД ЗАНОВО", "_on_restart_pressed")
-	_add_button(pause_box, "ГЛАВНОЕ МЕНЮ", "_on_menu_pressed")
-	_add_button(pause_box, "ВЫХОД ИЗ ИГРЫ", "_on_quit_pressed")
-	pause_panel.visible = false
-	hud.add_child(pause_panel)
+	# Пауза / финиш: панели скрыты в сцене, кнопки связываем с обработчиками.
+	pause_panel = _hud_node("RallyHUD/PausePanel") as PanelContainer
+	results_panel = _hud_node("RallyHUD/ResultsPanel") as PanelContainer
+	results_label = _hud_node("RallyHUD/ResultsPanel/Box/ResultsLabel") as Label
+	var buttons := [
+		["RallyHUD/PausePanel/Box/ResumeButton", "resume_pressed"],
+		["RallyHUD/PausePanel/Box/RestartButton", "restart_pressed"],
+		["RallyHUD/PausePanel/Box/MenuButton", "menu_pressed"],
+		["RallyHUD/PausePanel/Box/QuitButton", "quit_pressed"],
+		["RallyHUD/ResultsPanel/Box/AgainButton", "restart_pressed"],
+		["RallyHUD/ResultsPanel/Box/MenuButton", "menu_pressed"],
+	]
+	for entry in buttons:
+		var button := _hud_node(entry[0]) as Button
+		if button != null:
+			if not button.pressed.is_connected(_on_button_pressed):
+				button.pressed.connect(_on_button_pressed.bind(entry[1]))
 
-	results_panel = _make_modal("ФИНИШ")
-	var results_box := results_panel.get_child(0) as VBoxContainer
-	results_label = _make_label("", 22, Color(1.0, 0.95, 0.85, 1.0))
-	results_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	results_box.add_child(results_label)
-	_add_button(results_box, "ЕЩЁ ЗАЕЗД", "_on_restart_pressed")
-	_add_button(results_box, "ГЛАВНОЕ МЕНЮ", "_on_menu_pressed")
-	results_panel.visible = false
-	hud.add_child(results_panel)
 
-	# ---- подсказка управления ----
-	var hint := _make_label("[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК   [C] КАМЕРА   [V] ПРИВОД   [R] СБРОС   [ESC] ПАУЗА", 13, Color(0.60, 0.70, 0.80, 0.75), true)
-	hint.anchor_left = 0.5
-	hint.anchor_right = 0.5
-	hint.anchor_bottom = 1.0
-	hint.offset_left = -340.0
-	hint.offset_right = 340.0
-	hint.offset_bottom = -14.0
-	hint.offset_top = -46.0
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hud.add_child(hint)
+func _on_button_pressed(action: String) -> void:
+	match action:
+		"resume_pressed":
+			_on_resume_pressed()
+		"restart_pressed":
+			_on_restart_pressed()
+		"menu_pressed":
+			_on_menu_pressed()
+		"quit_pressed":
+			_on_quit_pressed()
 
 
 func _update_hud() -> void:
@@ -1339,7 +1256,7 @@ func _update_hud() -> void:
 			split_label.text += "  | cell %.1f" % track.terrain_cell
 	# Спидометр.
 	if speed_label != null:
-		speed_label.text = str(int(round(car.speed_kmh))).rpad("0", 3)
+		speed_label.text = str(int(round(car.speed_kmh))).rpad(3, "0")
 	if gear_label != null:
 		gear_label.text = "%s  |  %s" % [car.get_gear_label(), car.get_drivetrain_label()]
 	if drivetrain_label != null:
@@ -1364,7 +1281,13 @@ func _update_hud() -> void:
 		var forward: Vector3 = car.global_transform.basis.z
 		var heading: float = atan2(-forward.x, -forward.z)
 		mini_map.set_car(Vector2(car.global_position.x, car.global_position.z), heading)
-		mini_map.set_progress(car_race_progress)
+		var progress: float = 0.0
+		if network != null and network.total_length > 0.0:
+			progress = clampf(
+				network.along_road(car.global_position.x, car.global_position.z) / network.total_length,
+				0.0, 1.0
+			)
+		mini_map.set_progress(progress)
 
 
 func _populate_mini_map() -> void:
@@ -1375,8 +1298,7 @@ func _populate_mini_map() -> void:
 		route.append(Vector2(p.x, p.z))
 	var cps := PackedVector2Array()
 	for cp in checkpoints:
-		var pos: Vector3 = cp["pos"]
-		cps.append(Vector2(pos.x, pos.z))
+		cps.append(cp["pos"])
 	mini_map.set_route(
 		route,
 		cps,
@@ -1401,6 +1323,9 @@ func _format_time(seconds: float) -> String:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		_process_editor(delta)
+		return
+	if not _stage_live:
+		# Идёт генерация мира (экран загрузки): машину и HUD не трогаем.
 		return
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)

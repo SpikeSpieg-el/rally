@@ -114,6 +114,14 @@ func start_race() -> void:
 	is_new_record = false
 	get_tree().paused = false
 	race_started.emit()
+	var track_name: String = ""
+	if current_track != null:
+		track_name = current_track.get("display_name")
+	begin_loading(track_name)
+	# Пара кадров, чтобы экран загрузки успел отрисоваться ПЕРЕД тяжёлым
+	# _ready() сцены этапа: иначе пользователь видел бы застывшее меню.
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var scene_path: String = config.stage_scene if config != null and not config.stage_scene.is_empty() else "res://scenes/rally_stage.tscn"
 	call_deferred("_change_scene", scene_path)
 
@@ -124,6 +132,7 @@ func restart_race() -> void:
 
 func goto_menu() -> void:
 	get_tree().paused = false
+	finish_loading()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var scene_path: String = config.menu_scene if config != null and not config.menu_scene.is_empty() else "res://scenes/main_menu.tscn"
 	call_deferred("_change_scene", scene_path)
@@ -139,3 +148,128 @@ func _change_scene(scene_path: String) -> void:
 		push_error("RallyGame: сцена не найдена: " + scene_path)
 		return
 	get_tree().change_scene_to_file(scene_path)
+
+
+# ---------------------------------------------------------------- загрузка
+
+## Экран загрузки живёт на этом autoload, поэтому переживает смену сцены:
+## его видно и между меню и заездом, пока мир этапа генерируется по кадрам.
+var _loading_root: CanvasLayer = null
+var _loading_title: Label = null
+var _loading_track: Label = null
+var _loading_status: Label = null
+var _loading_bar: ProgressBar = null
+
+
+func _build_loading_screen() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0.012, 0.022, 0.032, 1.0)
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(center)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	center.add_child(box)
+
+	var eyebrow := Label.new()
+	eyebrow.text = "RALLY  •  ЗАГРУЗКА"
+	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	eyebrow.add_theme_color_override("font_color", Color(0.98, 0.45, 0.06, 1.0))
+	eyebrow.add_theme_font_size_override("font_size", 13)
+	box.add_child(eyebrow)
+
+	_loading_title = Label.new()
+	_loading_title.text = "ГЕНЕРАЦИЯ СПЕЦУЧАСТКА"
+	_loading_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_title.add_theme_color_override("font_color", Color(0.96, 0.97, 0.99, 1.0))
+	_loading_title.add_theme_font_size_override("font_size", 30)
+	box.add_child(_loading_title)
+
+	_loading_track = Label.new()
+	_loading_track.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_track.add_theme_color_override("font_color", Color(0.62, 0.73, 0.83, 1.0))
+	_loading_track.add_theme_font_size_override("font_size", 16)
+	box.add_child(_loading_track)
+
+	var progress_row := HBoxContainer.new()
+	progress_row.add_theme_constant_override("separation", 12)
+	box.add_child(progress_row)
+
+	_loading_bar = ProgressBar.new()
+	_loading_bar.custom_minimum_size = Vector2(420.0, 18.0)
+	_loading_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_loading_bar.min_value = 0.0
+	_loading_bar.max_value = 1.0
+	_loading_bar.step = 0.001
+	_loading_bar.show_percentage = false
+	var bar_bg := StyleBoxFlat.new()
+	bar_bg.bg_color = Color(0.05, 0.075, 0.10, 1.0)
+	bar_bg.set_border_width_all(1)
+	bar_bg.border_color = Color(0.32, 0.42, 0.52, 0.6)
+	bar_bg.set_corner_radius_all(6)
+	var bar_fill := StyleBoxFlat.new()
+	bar_fill.bg_color = Color(0.98, 0.45, 0.06, 1.0)
+	bar_fill.set_corner_radius_all(6)
+	_loading_bar.add_theme_stylebox_override("background", bar_bg)
+	_loading_bar.add_theme_stylebox_override("fill", bar_fill)
+	progress_row.add_child(_loading_bar)
+
+	var percent := Label.new()
+	percent.name = "Percent"
+	percent.custom_minimum_size.x = 44.0
+	percent.add_theme_color_override("font_color", Color(0.68, 0.78, 0.86, 1.0))
+	percent.add_theme_font_size_override("font_size", 13)
+	percent.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	percent.text = "0 %"
+	_loading_bar.set_meta("percent_label", percent)
+	progress_row.add_child(percent)
+
+	_loading_status = Label.new()
+	_loading_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_status.add_theme_color_override("font_color", Color(0.55, 0.66, 0.76, 1.0))
+	_loading_status.add_theme_font_size_override("font_size", 14)
+	box.add_child(_loading_status)
+
+	var note := Label.new()
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_color_override("font_color", Color(0.45, 0.55, 0.64, 0.8))
+	note.add_theme_font_size_override("font_size", 12)
+	note.text = "Трасса строится прямо сейчас — машина встанет на линию старта."
+	box.add_child(note)
+	_loading_root = layer
+	add_child(_loading_root)
+
+
+func begin_loading(track_name: String = "") -> void:
+	if _loading_root == null:
+		_build_loading_screen()
+	get_tree().paused = false
+	_loading_root.visible = true
+	if _loading_track != null:
+		_loading_track.text = String(track_name).to_upper()
+	set_loading_progress(0.0, "Подготовка данных трассы…")
+
+
+func set_loading_progress(value: float, status: String) -> void:
+	if _loading_root == null or not _loading_root.visible:
+		return
+	if _loading_bar != null:
+		_loading_bar.value = clampf(value, 0.0, 1.0)
+		var percent: Label = _loading_bar.get_meta("percent_label", null)
+		if percent != null:
+			percent.text = "%d %%" % int(round(_loading_bar.value * 100.0))
+	if _loading_status != null and not status.is_empty():
+		_loading_status.text = status
+
+
+func finish_loading() -> void:
+	if _loading_root != null:
+		_loading_root.visible = false

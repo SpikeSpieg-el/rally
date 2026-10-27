@@ -110,7 +110,7 @@ func _draw() -> void:
 		_draw_text(Vector2(10.0, 10.0), "НЕТ МАРШРУТА", Color(0.7, 0.75, 0.8, 1.0))
 		return
 
-	if show_route:
+	if show_route and _screen.size() >= 2:
 		# Свечение под полотном + основная линия.
 		draw_polyline(_screen, route_glow_color, route_line_width + 5.0, true)
 		draw_polyline(_screen, route_color, route_line_width, true)
@@ -145,10 +145,9 @@ func _draw() -> void:
 		points.append(car_screen)
 		# Поворот «носом» вверх по маршруту: экран +Y вниз, поэтому
 		# вращаем на -heading, чтобы стрелка смотрела по направлению движения.
-		var basis := Basis2D.create_from_angle(-heading)
 		var rotated := PackedVector2Array()
 		for p in points:
-			rotated.append((basis * (p - car_screen)) + car_screen)
+			rotated.append(car_screen + (p - car_screen).rotated(-heading))
 		draw_colored_polygon(rotated, car_color)
 		draw_circle(car_screen, 3.0, Color(0.05, 0.05, 0.05, 1.0))
 
