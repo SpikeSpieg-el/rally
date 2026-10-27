@@ -1,20 +1,12 @@
 [gd_scene load_steps=17 format=3]
 [ext_resource type="Script" path="res://scripts/rally_stage.gd" id="1_stage"]
-
 [ext_resource type="PackedScene" path="res://scenes/rally_car.tscn" id="2_car"]
-
 [ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="3_speed"]
-
 [ext_resource type="Curve3D" path="res://data/tracks/stage_forest_route.tres" id="4_route"]
-
 [ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="pine_tree"]
-
 [ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="fir_tree"]
-
 [ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="boulder"]
-
 [ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="bush"]
-
 [ext_resource type="PackedScene" path="res://scenes/props/road_sign.tscn" id="road_sign"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_base"]

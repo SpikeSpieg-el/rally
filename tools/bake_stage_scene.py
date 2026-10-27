@@ -251,6 +251,10 @@ def join_blocks(header, blocks):
         out += "\n" + head + "\n"
         if body.strip("\n"):
             out += body.strip("\n") + "\n"
+    while "\n\n\n" in out:
+        out = out.replace("\n\n\n", "\n\n")
+    # Godot не ставит пустую строку между строками ext_resource
+    out = re.sub(r'(\[ext_resource [^\n]*\])\n\n(?=\[ext_resource )', r'\1\n', out)
     return out.rstrip("\n") + "\n"
 
 
