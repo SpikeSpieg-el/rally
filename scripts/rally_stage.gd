@@ -73,6 +73,15 @@ var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
 
+# Автопересборка в редакторе: как только правка кривой/настроек затихла,
+# трасса пересобирается сама (кнопка остаётся для ручного пересчёта).
+const REBUILD_DELAY := 0.45
+var _rebuild_pending: bool = false
+var _rebuild_timer: float = 0.0
+var _pending_from_track: bool = false
+var _watched_curve: Curve3D = null
+var _built_curve_signature: float = NAN
+
 var _ground_grid := PackedFloat32Array()
 var _ground_origin := Vector2.ZERO
 var _ground_cell: float = 2.0
@@ -113,8 +122,10 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
+		set_process(true)
 		if preview_in_editor:
 			rebuild_preview()
+		_watch_sources()
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_resolve_track()
@@ -130,11 +141,68 @@ func _exit_tree() -> void:
 
 
 ## Кнопка «Пересобрать трассу» в инспекторе (и предпросмотр в редакторе).
+## Тот же пересчёт запускается автоматически, когда правка кривой затихла.
 func rebuild_preview() -> void:
 	if not is_inside_tree():
 		return
+	var started: int = Time.get_ticks_msec()
 	_resolve_track()
 	_build_world()
+	_built_curve_signature = _curve_signature(_effective_curve())
+	_watch_sources()
+	if Engine.is_editor_hint() and network != null:
+		var curve: Curve3D = _effective_curve()
+		print("Трасса пересобрана: %.0f м, точек кривой %d, %.1f с" % [
+			network.total_length,
+			curve.point_count if curve != null else 0,
+			float(Time.get_ticks_msec() - started) / 1000.0,
+		])
+		if track != null and curve != null and track.road_curve != curve:
+			push_warning(
+				"Кривая в узле Route отличается от road_curve в %s: мини-карта в меню "
+				% track.resource_path + "будет рисовать старую. Назначьте эту же кривую "
+				+ "в road_curve трассы (или наоборот)."
+			)
+
+
+## Следит за кривой дороги и настройками трассы: любое изменение ставит
+## пересборку в очередь (через REBUILD_DELAY после последней правки).
+func _watch_sources() -> void:
+	if not Engine.is_editor_hint():
+		return
+	var curve: Curve3D = _effective_curve()
+	if curve != null and curve != _watched_curve:
+		if _watched_curve != null and _watched_curve.changed.is_connected(_queue_rebuild):
+			_watched_curve.changed.disconnect(_queue_rebuild)
+		_watched_curve = curve
+		if not curve.changed.is_connected(_queue_rebuild):
+			curve.changed.connect(_queue_rebuild)
+	if track != null and not track.changed.is_connected(_queue_rebuild_from_track):
+		track.changed.connect(_queue_rebuild_from_track)
+
+
+## Сигнатура кривой: по ней видно, реально ли сдвинулись точки.
+func _curve_signature(curve: Curve3D) -> float:
+	if curve == null:
+		return 0.0
+	var total: float = float(curve.point_count)
+	for i in range(curve.point_count):
+		var p: Vector3 = curve.get_point_position(i)
+		total += p.x * 0.7919 + p.y * 1.3171 + p.z * 2.1031 + float(i) * 0.017
+	return total
+
+
+func _queue_rebuild() -> void:
+	# Сам пересчёт тяжёлый, поэтому не дёргаем его на каждый сдвиг точки:
+	# ждём, пока правка затихнет.
+	_rebuild_pending = true
+	_rebuild_timer = 0.0
+
+
+func _queue_rebuild_from_track() -> void:
+	_pending_from_track = true
+	_rebuild_pending = true
+	_rebuild_timer = 0.0
 
 
 ## Ставит все ассеты из узлов Props и ManualProps ровно на землю (по мешу)
@@ -1074,6 +1142,7 @@ func _format_time(seconds: float) -> String:
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		_process_editor(delta)
 		return
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
@@ -1097,6 +1166,32 @@ func _process(delta: float) -> void:
 		var intensity: float = clampf(((car.speed_kmh if car != null else 0.0) - 70.0) / 130.0, 0.0, 1.0)
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 	_update_hud()
+
+
+## Отложенная пересборка в редакторе (см. REBUILD_DELAY).
+func _process_editor(delta: float) -> void:
+	if not _rebuild_pending:
+		return
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		# Пока тянем точку мышью — не пересобираем, чтобы редактор не подвисал
+		# посреди перетаскивания.
+		_rebuild_timer = 0.0
+		return
+	_rebuild_timer += delta
+	if _rebuild_timer < REBUILD_DELAY:
+		return
+	_rebuild_pending = false
+	_rebuild_timer = 0.0
+	var from_track: bool = _pending_from_track
+	_pending_from_track = false
+	if not preview_in_editor or not is_inside_tree():
+		return
+	# Кривая могла «измениться» без реального сдвига точек (выделение,
+	# повторный клик) — тогда тяжёлый пересчёт не нужен.
+	var signature: float = _curve_signature(_effective_curve())
+	if not from_track and is_equal_approx(signature, _built_curve_signature):
+		return
+	rebuild_preview()
 
 
 func _check_checkpoints() -> void:
