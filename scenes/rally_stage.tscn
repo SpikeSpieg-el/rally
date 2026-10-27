@@ -1,9 +1,21 @@
-[gd_scene load_steps=12 format=3]
-
+[gd_scene load_steps=17 format=3]
 [ext_resource type="Script" path="res://scripts/rally_stage.gd" id="1_stage"]
+
 [ext_resource type="PackedScene" path="res://scenes/rally_car.tscn" id="2_car"]
+
 [ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="3_speed"]
+
 [ext_resource type="Curve3D" path="res://data/tracks/stage_forest_route.tres" id="4_route"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="pine_tree"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="fir_tree"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="boulder"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="bush"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/road_sign.tscn" id="road_sign"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_base"]
 sky_top_color = Color(0.12, 0.27, 0.48, 1)
@@ -174,7 +186,9 @@ theme_override_colors/font_outline_color = Color(0.01, 0.02, 0.035, 0.95)
 theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 16
 text = "[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК
+
 [C] КАМЕРА  [V] ПРИВОД  [R] СБРОС  [Q/E] КПП
+
 [ESC] ПАУЗА   [F1-F5] ТРАССЫ"
 
 [node name="PausePanel" type="PanelContainer" parent="HUD"]
@@ -258,3 +272,1808 @@ text = "ЕЩЁ ЗАЕЗД"
 layout_mode = 2
 custom_minimum_size = Vector2(0, 42)
 text = "ГЛАВНОЕ МЕНЮ"
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="Pine_001" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.04635, 0.00000, 1.11753, 0.00000, 1.23034, 0.00000, -1.11753, 0.00000, 0.04635, 12.0051, 0.0099, 14.9357)
+
+[node name="Pine_002" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.91552, 0.00000, -0.07669, 0.00000, 1.01060, 0.00000, 0.07669, 0.00000, 0.91552, 12.0051, -0.0038, -14.2597)
+
+[node name="Pine_003" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.26162, 0.00000, -0.24892, 0.00000, 1.41453, 0.00000, 0.24892, 0.00000, -1.26162, 36.1541, -0.0016, 14.2234)
+
+[node name="Pine_004" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.55006, 0.00000, -0.89218, 0.00000, 1.15293, 0.00000, 0.89218, 0.00000, -0.55006, 36.1541, -0.1763, -9.4562)
+
+[node name="Pine_005" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.06648, 0.00000, -1.32648, 0.00000, 1.46096, 0.00000, 1.32648, 0.00000, 0.06648, 66.3754, 0.0082, 12.3999)
+
+[node name="Pine_006" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.49436, 0.00000, 1.04966, 0.00000, 1.27627, 0.00000, -1.04966, 0.00000, -0.49436, 66.3306, 0.0050, -13.4514)
+
+[node name="Pine_007" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.90334, 0.00000, -0.76516, 0.00000, 1.30224, 0.00000, 0.76516, 0.00000, -0.90334, 89.2258, -0.2019, 8.9863)
+
+[node name="Pine_008" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.04517, 0.00000, 1.09021, 0.00000, 1.20027, 0.00000, -1.09021, 0.00000, 0.04517, 88.8975, 0.0637, -14.2370)
+
+[node name="Pine_009" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.25805, 0.00000, 0.16872, 0.00000, 1.39624, 0.00000, -0.16872, 0.00000, 1.25805, 113.1088, 0.2849, 12.3195)
+
+[node name="Pine_010" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.12626, 0.00000, 0.16794, 0.00000, 1.25258, 0.00000, -0.16794, 0.00000, -1.12626, 113.2623, -0.2808, -9.1332)
+
+[node name="Pine_011" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.27542, 0.00000, -1.26338, 0.00000, 1.42236, 0.00000, 1.26338, 0.00000, -0.27542, 141.5802, 0.6718, 11.2613)
+
+[node name="Pine_012" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.00848, 0.00000, -0.03975, 0.00000, 1.11019, 0.00000, 0.03975, 0.00000, -1.00848, 141.6484, 0.6366, -14.3109)
+
+[node name="Pine_013" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.77847, 0.00000, -0.64563, 0.00000, 1.11250, 0.00000, 0.64563, 0.00000, -0.77847, 171.2259, 1.5992, 13.0832)
+
+[node name="Pine_014" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.17589, 0.00000, -0.20911, 0.00000, 1.31378, 0.00000, 0.20911, 0.00000, 1.17589, 173.6164, 1.3736, -13.0022)
+
+[node name="Pine_015" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.99370, 0.00000, 0.14066, 0.00000, 1.10397, 0.00000, -0.14066, 0.00000, -0.99370, 185.0940, 2.0587, 14.7452)
+
+[node name="Pine_016" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.15417, 0.00000, -0.07057, 0.00000, 1.27196, 0.00000, 0.07057, 0.00000, 1.15417, 190.3616, 1.6115, -5.3808)
+
+[node name="Pine_017" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.67087, 0.00000, 0.52211, 0.00000, 0.93511, 0.00000, -0.52211, 0.00000, 0.67087, 205.4448, 3.1512, 25.5045)
+
+[node name="Pine_018" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.96118, 0.00000, -0.55235, 0.00000, 1.21944, 0.00000, 0.55235, 0.00000, 0.96118, 218.0388, 3.0351, 4.7440)
+
+[node name="Pine_019" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.87823, 0.00000, 0.45747, 0.00000, 1.08926, 0.00000, -0.45747, 0.00000, 0.87823, 233.2205, 4.7423, 41.6621)
+
+[node name="Pine_020" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.84472, 0.00000, 0.20205, 0.00000, 0.95540, 0.00000, -0.20205, 0.00000, 0.84472, 245.4757, 4.7369, 28.5787)
+
+[node name="Pine_021" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.62119, 0.00000, 0.63665, 0.00000, 0.97844, 0.00000, -0.63665, 0.00000, -0.62119, 242.9229, 5.7836, 58.2679)
+
+[node name="Pine_022" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.82144, 0.00000, -0.40349, 0.00000, 1.00671, 0.00000, 0.40349, 0.00000, 0.82144, 261.2945, 5.8020, 43.7121)
+
+[node name="Pine_023" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.23417, 0.00000, 0.01600, 0.00000, 1.35770, 0.00000, -0.01600, 0.00000, 1.23417, 254.6976, 7.1500, 75.8849)
+
+[node name="Pine_024" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.74276, 0.00000, 0.77868, 0.00000, 1.18373, 0.00000, -0.77868, 0.00000, -0.74276, 277.7237, 7.1124, 61.8070)
+
+[node name="Pine_025" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.86871, 0.00000, -0.37063, 0.00000, 1.03892, 0.00000, 0.37063, 0.00000, 0.86871, 275.5126, 10.1404, 104.1237)
+
+[node name="Pine_026" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.53157, 0.00000, -1.13409, 0.00000, 1.37774, 0.00000, 1.13409, 0.00000, 0.53157, 293.8720, 9.3575, 88.6233)
+
+[node name="Pine_027" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.95747, 0.00000, 0.15823, 0.00000, 1.06750, 0.00000, -0.15823, 0.00000, -0.95747, 294.3607, 10.5852, 121.1678)
+
+[node name="Pine_028" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.01011, 0.00000, -0.58949, 0.00000, 1.28649, 0.00000, 0.58949, 0.00000, 1.01011, 308.1250, 10.9506, 108.8937)
+
+[node name="Pine_029" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.84461, 0.00000, -0.48376, 0.00000, 1.07067, 0.00000, 0.48376, 0.00000, -0.84461, 308.1532, 13.9797, 139.9151)
+
+[node name="Pine_030" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.01511, 0.00000, -0.20658, 0.00000, 1.13951, 0.00000, 0.20658, 0.00000, 1.01511, 325.4240, 13.5696, 120.3318)
+
+[node name="Pine_031" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.86699, 0.00000, 0.12945, 0.00000, 0.96426, 0.00000, -0.12945, 0.00000, -0.86699, 333.6920, 17.1388, 159.0903)
+
+[node name="Pine_032" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.45536, 0.00000, -0.83356, 0.00000, 1.04481, 0.00000, 0.83356, 0.00000, -0.45536, 345.4729, 15.6717, 133.3192)
+
+[node name="Pine_033" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.12353, 0.00000, 1.11648, 0.00000, 1.23562, 0.00000, -1.11648, 0.00000, 0.12353, 364.4489, 18.8791, 167.4351)
+
+[node name="Pine_034" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.67456, 0.00000, 1.16230, 0.00000, 1.47825, 0.00000, -1.16230, 0.00000, 0.67456, 370.6023, 17.1707, 141.3028)
+
+[node name="Pine_035" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.60983, 0.00000, 0.95404, 0.00000, 1.24552, 0.00000, -0.95404, 0.00000, -0.60983, 384.7365, 19.2615, 169.7910)
+
+[node name="Pine_036" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.75014, 0.00000, -0.82053, 0.00000, 1.22292, 0.00000, 0.82053, 0.00000, -0.75014, 389.5362, 18.1497, 148.2678)
+
+[node name="Pine_037" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.70071, 0.00000, 0.67480, 0.00000, 1.07009, 0.00000, -0.67480, 0.00000, -0.70071, 411.7362, 20.0462, 174.7389)
+
+[node name="Pine_038" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.78038, 0.00000, -0.73813, 0.00000, 1.18158, 0.00000, 0.73813, 0.00000, -0.78038, 413.6120, 18.6482, 149.8711)
+
+[node name="Pine_039" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.09436, 0.00000, -0.31311, 0.00000, 1.25210, 0.00000, 0.31311, 0.00000, -1.09436, 445.2075, 20.1523, 178.1787)
+
+[node name="Pine_040" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.96220, 0.00000, -0.92019, 0.00000, 1.46452, 0.00000, 0.92019, 0.00000, -0.96220, 452.4254, 18.8938, 155.9175)
+
+[node name="Pine_041" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.68063, 0.00000, -1.01956, 0.00000, 1.34846, 0.00000, 1.01956, 0.00000, 0.68063, 455.6995, 19.9149, 186.5168)
+
+[node name="Pine_042" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.15168, 0.00000, -1.08653, 0.00000, 1.20677, 0.00000, 1.08653, 0.00000, -0.15168, 470.8057, 19.0705, 166.8990)
+
+[node name="Pine_043" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.19204, 0.00000, 1.16414, 0.00000, 1.29786, 0.00000, -1.16414, 0.00000, 0.19204, 469.6188, 19.8477, 200.1567)
+
+[node name="Pine_044" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.44492, 0.00000, 0.85800, 0.00000, 1.06315, 0.00000, -0.85800, 0.00000, 0.44492, 491.6014, 18.4592, 208.8822)
+
+[node name="Pine_045" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.58736, 0.00000, -1.01679, 0.00000, 1.29167, 0.00000, 1.01679, 0.00000, -0.58736, 457.6180, 19.8814, 201.6582)
+
+[node name="Pine_046" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.59957, 0.00000, -0.90626, 0.00000, 1.19530, 0.00000, 0.90626, 0.00000, -0.59957, 459.8958, 19.6744, 225.8756)
+
+[node name="Pine_047" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.22704, 0.00000, 0.10664, 0.00000, 1.35484, 0.00000, -0.10664, 0.00000, -1.22704, 435.5609, 21.1442, 204.9412)
+
+[node name="Pine_048" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.01753, 0.00000, 1.02614, 0.00000, 1.12891, 0.00000, -1.02614, 0.00000, 0.01753, 433.2988, 20.4514, 227.6981)
+
+[node name="Pine_049" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.60773, 0.00000, 1.12825, 0.00000, 1.40967, 0.00000, -1.12825, 0.00000, 0.60773, 404.4688, 22.3282, 204.5268)
+
+[node name="Pine_050" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.92309, 0.00000, 0.61126, 0.00000, 1.21784, 0.00000, -0.61126, 0.00000, -0.92309, 406.4714, 21.8737, 227.3215)
+
+[node name="Pine_051" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.27964, 0.00000, 0.93831, 0.00000, 1.07701, 0.00000, -0.93831, 0.00000, -0.27964, 388.8083, 22.4263, 203.2350)
+
+[node name="Pine_052" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.30130, 0.00000, -0.22313, 0.00000, 1.45231, 0.00000, 0.22313, 0.00000, -1.30130, 390.7133, 23.3876, 225.0163)
+
+[node name="Pine_053" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.15508, 0.00000, 1.22216, 0.00000, 1.35515, 0.00000, -1.22216, 0.00000, -0.15508, 358.7562, 26.0913, 206.8412)
+
+[node name="Pine_054" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.89560, 0.00000, -0.16815, 0.00000, 1.00237, 0.00000, 0.16815, 0.00000, 0.89560, 360.6358, 26.1093, 228.3658)
+
+[node name="Pine_055" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.79853, 0.00000, -0.93142, 0.00000, 1.34955, 0.00000, 0.93142, 0.00000, -0.79853, 335.1746, 27.0341, 205.5744)
+
+[node name="Pine_056" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.20527, 0.00000, 1.30595, 0.00000, 1.45419, 0.00000, -1.30595, 0.00000, 0.20527, 336.0863, 27.0745, 233.7274)
+
+[node name="Pine_057" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.93447, 0.00000, 0.04861, 0.00000, 1.02930, 0.00000, -0.04861, 0.00000, 0.93447, 298.8857, 32.7073, 210.7523)
+
+[node name="Pine_058" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.71427, 0.00000, -0.76485, 0.00000, 1.15116, 0.00000, 0.76485, 0.00000, -0.71427, 301.2514, 32.8534, 230.6034)
+
+[node name="Pine_059" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.14380, 0.00000, -0.32270, 0.00000, 1.30729, 0.00000, 0.32270, 0.00000, 1.14380, 275.3787, 31.9477, 212.4830)
+
+[node name="Pine_060" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.49294, 0.00000, -0.95070, 0.00000, 1.17799, 0.00000, 0.95070, 0.00000, -0.49294, 283.5793, 31.9057, 238.3046)
+
+[node name="Pine_061" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.13261, 0.00000, 0.50842, 0.00000, 1.36564, 0.00000, -0.50842, 0.00000, 1.13261, 255.0675, 33.1598, 224.6817)
+
+[node name="Pine_062" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.10129, 0.00000, -1.17425, 0.00000, 1.29647, 0.00000, 1.17425, 0.00000, -0.10129, 263.7250, 32.3609, 243.5141)
+
+[node name="Pine_063" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.95544, 0.00000, -0.51852, 0.00000, 1.19578, 0.00000, 0.51852, 0.00000, 0.95544, 224.0974, 30.0537, 243.2264)
+
+[node name="Pine_064" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.59075, 0.00000, -1.05153, 0.00000, 1.32672, 0.00000, 1.05153, 0.00000, -0.59075, 239.3001, 30.4852, 259.6555)
+
+[node name="Pine_065" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.02024, 0.00000, -1.11378, 0.00000, 1.22536, 0.00000, 1.11378, 0.00000, -0.02024, 206.6810, 28.4096, 260.8508)
+
+[node name="Pine_066" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.65597, 0.00000, 0.95258, 0.00000, 1.27226, 0.00000, -0.95258, 0.00000, 0.65597, 230.1167, 30.0622, 272.0451)
+
+[node name="Pine_067" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.30554, 0.00000, 1.30039, 0.00000, 1.46938, 0.00000, -1.30039, 0.00000, -0.30554, 196.7382, 28.2225, 290.7922)
+
+[node name="Pine_068" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.16837, 0.00000, 0.57138, 0.00000, 1.43066, 0.00000, -0.57138, 0.00000, -1.16837, 217.2285, 28.6271, 298.9456)
+
+[node name="Pine_069" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.13171, 0.00000, 1.05313, 0.00000, 1.16747, 0.00000, -1.05313, 0.00000, -0.13171, 193.2201, 27.3984, 306.7388)
+
+[node name="Pine_070" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.84684, 0.00000, 0.97222, 0.00000, 1.41825, 0.00000, -0.97222, 0.00000, 0.84684, 209.5356, 29.8412, 321.1889)
+
+[node name="Pine_071" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.01232, 0.00000, 1.23770, 0.00000, 1.36153, 0.00000, -1.23770, 0.00000, 0.01232, 166.2362, 25.1414, 326.6221)
+
+[node name="Pine_072" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.08723, 0.00000, -0.12550, 0.00000, 1.20390, 0.00000, 0.12550, 0.00000, 1.08723, 176.3245, 27.5896, 345.6250)
+
+[node name="Pine_073" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.14955, 0.00000, -0.90758, 0.00000, 1.01181, 0.00000, 0.90758, 0.00000, 0.14955, 150.5393, 26.3599, 330.6998)
+
+[node name="Pine_074" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.28128, 0.00000, 1.20683, 0.00000, 1.36310, 0.00000, -1.20683, 0.00000, 0.28128, 159.7911, 24.5260, 349.4849)
+
+[node name="Pine_075" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.06682, 0.00000, -0.08401, 0.00000, 1.17713, 0.00000, 0.08401, 0.00000, 1.06682, 126.4669, 26.1558, 340.7148)
+
+[node name="Pine_076" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.91325, 0.00000, -0.00823, 0.00000, 1.00461, 0.00000, 0.00823, 0.00000, 0.91325, 133.8468, 24.8795, 362.9994)
+
+[node name="Pine_077" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.28180, 0.00000, 1.07302, 0.00000, 1.22035, 0.00000, -1.07302, 0.00000, -0.28180, 99.2847, 24.7797, 353.1680)
+
+[node name="Pine_078" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.27184, 0.00000, -1.00664, 0.00000, 1.14697, 0.00000, 1.00664, 0.00000, -0.27184, 106.2644, 24.5468, 370.1839)
+
+[node name="Pine_079" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.33690, 0.00000, -1.03171, 0.00000, 1.19385, 0.00000, 1.03171, 0.00000, 0.33690, 74.9393, 26.3131, 366.7086)
+
+[node name="Pine_080" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.53869, 0.00000, -0.79800, 0.00000, 1.05908, 0.00000, 0.79800, 0.00000, -0.53869, 92.5154, 28.0526, 383.5492)
+
+[node name="Pine_081" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.31226, 0.00000, 0.93528, 0.00000, 1.08463, 0.00000, -0.93528, 0.00000, 0.31226, 58.0993, 28.2455, 391.4242)
+
+[node name="Pine_082" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.81311, 0.00000, 0.27914, 0.00000, 0.94566, 0.00000, -0.27914, 0.00000, 0.81311, 81.6445, 30.8809, 402.0282)
+
+[node name="Pine_083" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.33424, 0.00000, -1.25534, 0.00000, 1.42899, 0.00000, 1.25534, 0.00000, 0.33424, 46.2522, 29.9619, 414.2666)
+
+[node name="Pine_084" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.15107, 0.00000, 0.14676, 0.00000, 1.27642, 0.00000, -0.14676, 0.00000, 1.15107, 69.9422, 32.0240, 423.2845)
+
+[node name="Pine_085" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.41089, 0.00000, -0.81254, 0.00000, 1.00158, 0.00000, 0.81254, 0.00000, 0.41089, 42.7399, 32.3055, 436.5758)
+
+[node name="Pine_086" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.30876, 0.00000, -1.08521, 0.00000, 1.24111, 0.00000, 1.08521, 0.00000, -0.30876, 62.0238, 34.2059, 444.1542)
+
+[node name="Pine_087" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.36676, 0.00000, -1.09786, 0.00000, 1.27325, 0.00000, 1.09786, 0.00000, 0.36676, 30.5775, 36.0736, 471.3953)
+
+[node name="Pine_088" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.01349, 0.00000, -1.09343, 0.00000, 1.20287, 0.00000, 1.09343, 0.00000, 0.01349, 48.2940, 36.1946, 477.4357)
+
+[node name="Pine_089" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.89432, 0.00000, -0.35527, 0.00000, 1.05853, 0.00000, 0.35527, 0.00000, 0.89432, 24.2290, 36.9323, 487.0814)
+
+[node name="Pine_090" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.08629, 0.00000, -0.96598, 0.00000, 1.06681, 0.00000, 0.96598, 0.00000, -0.08629, 44.0778, 36.2655, 494.2655)
+
+[node name="Pine_091" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.43154, 0.00000, 0.95102, 0.00000, 1.14879, 0.00000, -0.95102, 0.00000, 0.43154, 14.5480, 36.9315, 505.8649)
+
+[node name="Pine_092" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.77106, 0.00000, 0.59249, 0.00000, 1.06965, 0.00000, -0.59249, 0.00000, 0.77106, 34.2189, 35.8543, 517.6159)
+
+[node name="Pine_093" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.13856, 0.00000, -0.67197, 0.00000, 1.45427, 0.00000, 0.67197, 0.00000, -1.13856, -1.2668, 34.2412, 548.3607)
+
+[node name="Pine_094" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.21784, 0.00000, -0.47886, 0.00000, 1.43947, 0.00000, 0.47886, 0.00000, -1.21784, 20.5595, 34.9724, 545.4149)
+
+[node name="Pine_095" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.15480, 0.00000, -0.24807, 0.00000, 1.29926, 0.00000, 0.24807, 0.00000, -1.15480, 28.3114, 34.9072, 564.2304)
+
+[node name="Pine_096" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.27674, 0.00000, 1.04237, 0.00000, 1.18633, 0.00000, -1.04237, 0.00000, -0.27674, 21.9684, 34.6581, 545.8960)
+
+[node name="Pine_097" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.35437, 0.00000, -1.22904, 0.00000, 1.40701, 0.00000, 1.22904, 0.00000, 0.35437, 52.6478, 33.7555, 554.9667)
+
+[node name="Pine_098" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.77186, 0.00000, -0.50084, 0.00000, 1.01213, 0.00000, 0.50084, 0.00000, 0.77186, 36.5417, 35.4605, 534.3312)
+
+[node name="Pine_099" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.07600, 0.00000, -0.91569, 0.00000, 1.01072, 0.00000, 0.91569, 0.00000, 0.07600, 68.1112, 35.8912, 533.1507)
+
+[node name="Pine_100" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.17657, 0.00000, 0.59752, 0.00000, 1.45156, 0.00000, -0.59752, 0.00000, -1.17657, 50.8082, 36.0288, 521.0371)
+
+[node name="Pine_101" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.23815, 0.00000, -1.25502, 0.00000, 1.40516, 0.00000, 1.25502, 0.00000, -0.23815, 86.3618, 36.4889, 504.3494)
+
+[node name="Pine_102" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.01628, 0.00000, -0.58354, 0.00000, 1.28909, 0.00000, 0.58354, 0.00000, 1.01628, 65.0341, 36.5388, 494.4399)
+
+[node name="Pine_103" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.96568, 0.00000, 0.33356, 0.00000, 1.12384, 0.00000, -0.33356, 0.00000, -0.96568, 100.1446, 36.4103, 486.1943)
+
+[node name="Pine_104" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.06356, 0.00000, 0.17786, 0.00000, 1.18616, 0.00000, -0.17786, 0.00000, -1.06356, 74.7394, 36.5111, 471.2838)
+
+[node name="Pine_105" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.24427, 0.00000, -0.39560, 0.00000, 1.43621, 0.00000, 0.39560, 0.00000, -1.24427, 106.1496, 39.4925, 464.3403)
+
+[node name="Pine_106" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.29591, 0.00000, -1.13643, 0.00000, 1.29175, 0.00000, 1.13643, 0.00000, -0.29591, 87.2306, 38.5652, 454.1086)
+
+[node name="Pine_107" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.71032, 0.00000, 0.72638, 0.00000, 1.11757, 0.00000, -0.72638, 0.00000, 0.71032, 127.1994, 38.5799, 439.7825)
+
+[node name="Pine_108" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.51599, 0.00000, 1.07602, 0.00000, 1.31268, 0.00000, -1.07602, 0.00000, -0.51599, 109.3647, 40.2784, 422.8314)
+
+[node name="Pine_109" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.45632, 0.00000, 0.74537, 0.00000, 0.96135, 0.00000, -0.74537, 0.00000, -0.45632, 121.2407, 39.2674, 409.2772)
+
+[node name="Pine_110" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.55604, 0.00000, -0.93407, 0.00000, 1.19574, 0.00000, 0.93407, 0.00000, 0.55604, 156.3974, 40.2800, 413.4224)
+
+[node name="Pine_111" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.08060, 0.00000, 0.03155, 0.00000, 1.18916, 0.00000, -0.03155, 0.00000, 1.08060, 148.7693, 40.3699, 397.4259)
+
+[node name="Pine_112" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.59920, 0.00000, 1.10958, 0.00000, 1.38713, 0.00000, -1.10958, 0.00000, 0.59920, 183.3621, 38.9227, 406.4227)
+
+[node name="Pine_113" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.13899, 0.00000, 1.17883, 0.00000, 1.30569, 0.00000, -1.17883, 0.00000, 0.13899, 181.7006, 38.0641, 384.1254)
+
+[node name="Pine_114" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.05093, 0.00000, -0.03559, 0.00000, 1.15668, 0.00000, 0.03559, 0.00000, 1.05093, 206.7555, 37.9861, 409.8068)
+
+[node name="Pine_115" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.79023, 0.00000, 0.36341, 0.00000, 0.95676, 0.00000, -0.36341, 0.00000, -0.79023, 211.8865, 36.8511, 386.6228)
+
+[node name="Pine_116" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.62985, 0.00000, 0.91854, 0.00000, 1.22512, 0.00000, -0.91854, 0.00000, -0.62985, 236.2192, 35.2098, 418.3240)
+
+[node name="Pine_117" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.98865, 0.00000, 0.44064, 0.00000, 1.19064, 0.00000, -0.44064, 0.00000, 0.98865, 238.0573, 35.8710, 392.0729)
+
+[node name="Pine_118" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.61192, 0.00000, 0.73140, 0.00000, 1.04898, 0.00000, -0.73140, 0.00000, 0.61192, 257.7635, 34.8834, 416.6042)
+
+[node name="Pine_119" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.58378, 0.00000, -1.18290, 0.00000, 1.45102, 0.00000, 1.18290, 0.00000, -0.58378, 258.1514, 35.4568, 395.1266)
+
+[node name="Pine_120" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.96771, 0.00000, 0.49316, 0.00000, 1.19474, 0.00000, -0.49316, 0.00000, -0.96771, 291.7449, 32.3410, 411.9888)
+
+[node name="Pine_121" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.48742, 0.00000, 1.15804, 0.00000, 1.38208, 0.00000, -1.15804, 0.00000, -0.48742, 287.0739, 29.4116, 388.4933)
+
+[node name="Pine_122" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.60120, 0.00000, -1.20223, 0.00000, 1.47859, 0.00000, 1.20223, 0.00000, 0.60120, 319.2494, 28.3587, 406.1007)
+
+[node name="Pine_123" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.24328, 0.00000, -0.14197, 0.00000, 1.37650, 0.00000, 0.14197, 0.00000, 1.24328, 307.3118, 29.7488, 387.2351)
+
+[node name="Pine_124" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.87777, 0.00000, -0.75728, 0.00000, 1.27521, 0.00000, 0.75728, 0.00000, -0.87777, 340.9274, 25.1759, 384.4729)
+
+[node name="Pine_125" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.17666, 0.00000, 1.01140, 0.00000, 1.12939, 0.00000, -1.01140, 0.00000, -0.17666, 322.5700, 24.8879, 367.4674)
+
+[node name="Pine_126" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.76638, 0.00000, 0.65615, 0.00000, 1.10978, 0.00000, -0.65615, 0.00000, 0.76638, 359.8732, 21.8474, 366.1750)
+
+[node name="Pine_127" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.02169, 0.00000, 0.35614, 0.00000, 1.19018, 0.00000, -0.35614, 0.00000, 1.02169, 343.2024, 23.7976, 348.9652)
+
+[node name="Pine_128" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.83639, 0.00000, -0.67761, 0.00000, 1.18407, 0.00000, 0.67761, 0.00000, -0.83639, 359.8144, 21.7048, 332.4684)
+
+[node name="Pine_129" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.10639, 0.00000, 0.49111, 0.00000, 1.33155, 0.00000, -0.49111, 0.00000, -1.10639, 391.9273, 20.2523, 329.0613)
+
+[node name="Pine_130" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.06452, 0.00000, -1.01887, 0.00000, 1.12300, 0.00000, 1.01887, 0.00000, -0.06452, 377.4765, 20.4538, 313.6049)
+
+[node name="Pine_131" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.61874, 0.00000, 0.68484, 0.00000, 1.01525, 0.00000, -0.68484, 0.00000, 0.61874, 404.3614, 18.4292, 319.9367)
+
+[node name="Pine_132" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.41237, 0.00000, 0.95520, 0.00000, 1.14445, 0.00000, -0.95520, 0.00000, -0.41237, 393.1896, 19.6471, 304.2723)
+
+[node name="Pine_133" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.21691, 0.00000, -0.31371, 0.00000, 1.38236, 0.00000, 0.31371, 0.00000, -1.21691, 431.9539, 16.0386, 307.0188)
+
+[node name="Pine_134" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.97968, 0.00000, 0.33167, 0.00000, 1.13773, 0.00000, -0.33167, 0.00000, 0.97968, 421.1511, 18.4439, 284.7268)
+
+[node name="Pine_135" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.06303, 0.00000, -0.62040, 0.00000, 1.35391, 0.00000, 0.62040, 0.00000, 1.06303, 449.9521, 15.5761, 299.6448)
+
+[node name="Pine_136" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.32678, 0.00000, -1.28576, 0.00000, 1.45930, 0.00000, 1.28576, 0.00000, 0.32678, 440.0139, 17.7694, 275.9103)
+
+[node name="Pine_137" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.06952, 0.00000, -0.17467, 0.00000, 1.19206, 0.00000, 0.17467, 0.00000, 1.06952, 472.7581, 15.1725, 291.0895)
+
+[node name="Pine_138" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.76721, 0.00000, -0.55501, 0.00000, 1.04161, 0.00000, 0.55501, 0.00000, 0.76721, 462.6962, 17.2060, 265.7093)
+
+[node name="Pine_139" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.14057, 0.00000, -1.08031, 0.00000, 1.19836, 0.00000, 1.08031, 0.00000, 0.14057, 502.0040, 14.8735, 276.7762)
+
+[node name="Pine_140" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.37781, 0.00000, -1.13000, 0.00000, 1.31063, 0.00000, 1.13000, 0.00000, -0.37781, 520.5643, 14.5429, 275.5915)
+
+[node name="Pine_141" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.18382, 0.00000, 0.90718, 0.00000, 1.01818, 0.00000, -0.90718, 0.00000, 0.18382, 517.7936, 15.5145, 250.6737)
+
+[node name="Pine_142" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.83679, 0.00000, 0.84192, 0.00000, 1.30574, 0.00000, -0.84192, 0.00000, -0.83679, 546.9739, 13.7132, 268.0940)
+
+[node name="Pine_143" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.01445, 0.00000, -0.31401, 0.00000, 1.16813, 0.00000, 0.31401, 0.00000, 1.01445, 545.6835, 14.4449, 247.6687)
+
+[node name="Pine_144" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.56408, 0.00000, -1.11821, 0.00000, 1.37767, 0.00000, 1.11821, 0.00000, 0.56408, 559.4730, 13.5759, 271.3823)
+
+[node name="Pine_145" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.53732, 0.00000, 0.81517, 0.00000, 1.07396, 0.00000, -0.81517, 0.00000, -0.53732, 578.9375, 12.7881, 278.3988)
+
+[node name="Pine_146" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.03100, 0.00000, 0.11510, 0.00000, 1.14114, 0.00000, -0.11510, 0.00000, -1.03100, 555.5471, 12.6270, 304.1020)
+
+[node name="Pine_147" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.58565, 0.00000, 0.73366, 0.00000, 1.03262, 0.00000, -0.73366, 0.00000, -0.58565, 529.4772, 14.0475, 282.5495)
+
+[node name="Pine_148" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.14147, 0.00000, 0.64367, 0.00000, 1.44149, 0.00000, -0.64367, 0.00000, -1.14147, 538.6693, 12.7959, 308.6172)
+
+[node name="Pine_149" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.10523, 0.00000, -0.93845, 0.00000, 1.03877, 0.00000, 0.93845, 0.00000, -0.10523, 504.7903, 12.4209, 321.1317)
+
+[node name="Pine_150" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.10977, 0.00000, 0.53991, 0.00000, 1.35756, 0.00000, -0.53991, 0.00000, 1.10977, 483.4079, 12.3414, 312.0870)
+
+[node name="Pine_151" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.15526, 0.00000, -0.88431, 0.00000, 0.98762, 0.00000, 0.88431, 0.00000, 0.15526, 492.4256, 12.0249, 328.7379)
+
+[node name="Pine_152" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.91006, 0.00000, -0.17846, 0.00000, 1.02013, 0.00000, 0.17846, 0.00000, -0.91006, 455.5393, 12.7930, 323.7113)
+
+[node name="Pine_153" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.13531, 0.00000, 1.18031, 0.00000, 1.30684, 0.00000, -1.18031, 0.00000, -0.13531, 465.8758, 10.6263, 342.1742)
+
+[node name="Pine_154" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.34763, 0.00000, -0.79547, 0.00000, 0.95493, 0.00000, 0.79547, 0.00000, 0.34763, 434.4829, 11.3153, 334.5325)
+
+[node name="Pine_155" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.94385, 0.00000, 0.53977, 0.00000, 1.19602, 0.00000, -0.53977, 0.00000, 0.94385, 443.2035, 9.3213, 352.9332)
+
+[node name="Pine_156" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.63933, 0.00000, -0.73977, 0.00000, 1.07554, 0.00000, 0.73977, 0.00000, -0.63933, 410.0639, 8.8196, 348.9282)
+
+[node name="Pine_157" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.90434, 0.00000, 0.38903, 0.00000, 1.08292, 0.00000, -0.38903, 0.00000, -0.90434, 421.1294, 8.7773, 366.3932)
+
+[node name="Pine_158" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.08396, 0.00000, 0.20479, 0.00000, 1.21345, 0.00000, -0.20479, 0.00000, -1.08396, 386.4470, 9.1665, 365.9935)
+
+[node name="Pine_159" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.64302, 0.00000, 0.93221, 0.00000, 1.24572, 0.00000, -0.93221, 0.00000, 0.64302, 374.1094, 6.4055, 387.8954)
+
+[node name="Pine_160" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-1.17532, 0.00000, -0.62991, 0.00000, 1.46682, 0.00000, 0.62991, 0.00000, -1.17532, 391.0764, 4.4768, 397.8112)
+
+[node name="Pine_161" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.99442, 0.00000, 0.16946, 0.00000, 1.10963, 0.00000, -0.16946, 0.00000, 0.99442, 357.6026, 3.5779, 420.6702)
+
+[node name="Pine_162" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.54842, 0.00000, -0.74533, 0.00000, 1.01789, 0.00000, 0.74533, 0.00000, -0.54842, 378.2103, 2.4859, 428.0949)
+
+[node name="Pine_163" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.72661, 0.00000, -0.85599, 0.00000, 1.23508, 0.00000, 0.85599, 0.00000, -0.72661, 351.3275, 2.6967, 440.3599)
+
+[node name="Pine_164" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.90768, 0.00000, -0.07633, 0.00000, 1.00197, 0.00000, 0.07633, 0.00000, -0.90768, 375.6395, 2.9899, 445.2040)
+
+[node name="Pine_165" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.46755, 0.00000, 1.23878, 0.00000, 1.45649, 0.00000, -1.23878, 0.00000, 0.46755, 345.7053, 3.0074, 470.1802)
+
+[node name="Pine_166" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.04251, 0.00000, -1.27329, 0.00000, 1.40140, 0.00000, 1.27329, 0.00000, 0.04251, 370.7709, 2.0626, 473.7261)
+
+[node name="Pine_167" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.54709, 0.00000, 0.91143, 0.00000, 1.16932, 0.00000, -0.91143, 0.00000, -0.54709, 341.0712, 1.9672, 499.8182)
+
+[node name="Pine_168" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.69635, 0.00000, 0.99194, 0.00000, 1.33316, 0.00000, -0.99194, 0.00000, 0.69635, 365.5279, 0.3907, 504.5721)
+
+[node name="Pine_169" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.78607, 0.00000, -0.88617, 0.00000, 1.30303, 0.00000, 0.88617, 0.00000, 0.78607, 337.0446, 0.2187, 522.6120)
+
+[node name="Pine_170" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.63181, 0.00000, 1.16126, 0.00000, 1.45421, 0.00000, -1.16126, 0.00000, 0.63181, 363.0198, -0.8968, 527.6611)
+
+[node name="Pine_171" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(1.24997, 0.00000, -0.30002, 0.00000, 1.41401, 0.00000, 0.30002, 0.00000, 1.24997, 331.4229, -1.6711, 550.7670)
+
+[node name="Pine_172" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.72957, 0.00000, 1.00181, 0.00000, 1.36324, 0.00000, -1.00181, 0.00000, 0.72957, 356.6289, -2.1449, 555.6665)
+
+[node name="Pine_173" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.84788, 0.00000, -0.38162, 0.00000, 1.02278, 0.00000, 0.38162, 0.00000, 0.84788, 331.1321, -3.2459, 572.5610)
+
+[node name="Pine_174" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.37788, 0.00000, 0.85105, 0.00000, 1.02429, 0.00000, -0.85105, 0.00000, -0.37788, 349.6849, -3.1532, 576.1673)
+
+[node name="Pine_175" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.72832, 0.00000, 0.48824, 0.00000, 0.96451, 0.00000, -0.48824, 0.00000, -0.72832, 322.6791, -3.5182, 593.9818)
+
+[node name="Pine_176" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(0.81659, 0.00000, 0.44842, 0.00000, 1.02477, 0.00000, -0.44842, 0.00000, 0.81659, 344.2372, -4.1587, 598.1723)
+
+[node name="Pine_177" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.98300, 0.00000, 0.42720, 0.00000, 1.17899, 0.00000, -0.42720, 0.00000, -0.98300, 317.1211, -4.1780, 617.6032)
+
+[node name="Pine_178" parent="Props" instance=ExtResource("pine_tree") groups=["Props"]]
+transform = Transform3D(-0.58372, 0.00000, 0.75217, 0.00000, 1.04731, 0.00000, -0.75217, 0.00000, -0.58372, 339.4060, -4.9075, 621.9349)
+
+[node name="Fir_001" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.88518, 0.00000, -0.60011, 0.00000, 1.28331, 0.00000, 0.60011, 0.00000, -0.88518, 17.8683, 2.0097, 30.4725)
+
+[node name="Fir_002" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.06589, 0.00000, -0.88085, 0.00000, 1.05997, 0.00000, 0.88085, 0.00000, -0.06589, 17.8683, 4.6663, -40.0889)
+
+[node name="Fir_003" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.78729, 0.00000, 1.36545, 0.00000, 1.89139, 0.00000, -1.36545, 0.00000, 0.78729, 32.8939, 1.5632, 28.4141)
+
+[node name="Fir_004" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.10389, 0.00000, -0.05618, 0.00000, 1.32638, 0.00000, 0.05618, 0.00000, -1.10389, 32.8939, 1.4140, -27.4474)
+
+[node name="Fir_005" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.65241, 0.00000, 1.06671, 0.00000, 1.50048, 0.00000, -1.06671, 0.00000, 0.65241, 45.3275, 1.9549, 30.5809)
+
+[node name="Fir_006" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.99367, 0.00000, -0.51407, 0.00000, 1.34253, 0.00000, 0.51407, 0.00000, -0.99367, 45.3275, 1.2098, -26.5757)
+
+[node name="Fir_007" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.90278, 0.00000, 1.09835, 0.00000, 1.70610, 0.00000, -1.09835, 0.00000, -0.90278, 68.3923, 7.4910, 53.2564)
+
+[node name="Fir_008" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.07482, 0.00000, 0.88871, 0.00000, 1.67358, 0.00000, -0.88871, 0.00000, 1.07482, 68.0889, 0.8632, -24.6660)
+
+[node name="Fir_009" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.09414, 0.00000, -0.06597, 0.00000, 1.31535, 0.00000, 0.06597, 0.00000, -1.09414, 80.6137, 7.8024, 54.1654)
+
+[node name="Fir_010" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.32619, 0.00000, -0.98058, 0.00000, 1.24009, 0.00000, 0.98058, 0.00000, 0.32619, 79.2293, 7.9988, -52.9499)
+
+[node name="Fir_011" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.46655, 0.00000, 1.04485, 0.00000, 1.37314, 0.00000, -1.04485, 0.00000, 0.46655, 98.6103, 2.4264, 32.6452)
+
+[node name="Fir_012" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.35864, 0.00000, -0.76290, 0.00000, 1.01159, 0.00000, 0.76290, 0.00000, 0.35864, 98.0875, 0.2367, -18.5399)
+
+[node name="Fir_013" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.01421, 0.00000, 0.04600, 0.00000, 1.21830, 0.00000, -0.04600, 0.00000, 1.01421, 110.9017, 0.7890, 22.2455)
+
+[node name="Fir_014" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.39845, 0.00000, 1.40668, 0.00000, 1.75442, 0.00000, -1.40668, 0.00000, -0.39845, 111.1746, 7.0302, -51.0615)
+
+[node name="Fir_015" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.39981, 0.00000, 0.43869, 0.00000, 1.76033, 0.00000, -0.43869, 0.00000, 1.39981, 127.0447, 6.8357, 52.8584)
+
+[node name="Fir_016" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.16825, 0.00000, -1.46910, 0.00000, 1.77444, 0.00000, 1.46910, 0.00000, -0.16825, 130.0088, 0.6285, -19.5002)
+
+[node name="Fir_017" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.66498, 0.00000, 0.45321, 0.00000, 0.96568, 0.00000, -0.45321, 0.00000, -0.66498, 140.7359, 6.5336, 50.2081)
+
+[node name="Fir_018" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.10600, 0.00000, 0.39510, 0.00000, 1.40934, 0.00000, -0.39510, 0.00000, -1.10600, 141.0318, 1.4269, -25.5836)
+
+[node name="Fir_019" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.79604, 0.00000, -0.74009, 0.00000, 1.30431, 0.00000, 0.74009, 0.00000, -0.79604, 160.4188, 5.9947, 47.5368)
+
+[node name="Fir_020" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.54738, 0.00000, -0.24613, 0.00000, 1.88020, 0.00000, 0.24613, 0.00000, 1.54738, 162.3381, 1.2715, -20.1405)
+
+[node name="Fir_021" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.63536, 0.00000, -0.59110, 0.00000, 1.04136, 0.00000, 0.59110, 0.00000, 0.63536, 180.1016, 3.4817, 32.6722)
+
+[node name="Fir_022" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.48167, 0.00000, 1.44104, 0.00000, 1.82330, 0.00000, -1.44104, 0.00000, 0.48167, 194.2419, 2.5896, -22.7314)
+
+[node name="Fir_023" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.35532, 0.00000, 0.51805, 0.00000, 1.74115, 0.00000, -0.51805, 0.00000, -1.35532, 187.3097, 3.7805, 34.7110)
+
+[node name="Fir_024" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.31106, 0.00000, 0.21352, 0.00000, 1.59400, 0.00000, -0.21352, 0.00000, -1.31106, 211.0552, 3.4143, -20.9860)
+
+[node name="Fir_025" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.22491, 0.00000, -0.78478, 0.00000, 1.74569, 0.00000, 0.78478, 0.00000, -1.22491, 191.3780, 4.5457, 41.1331)
+
+[node name="Fir_026" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.10187, 0.00000, -1.24291, 0.00000, 1.49649, 0.00000, 1.24291, 0.00000, 0.10187, 216.5146, 2.8676, -5.2734)
+
+[node name="Fir_027" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.07535, 0.00000, -1.31555, 0.00000, 1.58124, 0.00000, 1.31555, 0.00000, -0.07535, 190.8483, 8.9180, 68.9512)
+
+[node name="Fir_028" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.02428, 0.00000, 0.03462, 0.00000, 1.22983, 0.00000, -0.03462, 0.00000, 1.02428, 238.8750, 3.9276, 7.9855)
+
+[node name="Fir_029" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.46583, 0.00000, 0.69177, 0.00000, 1.00079, 0.00000, -0.69177, 0.00000, -0.46583, 207.0936, 6.6945, 62.3238)
+
+[node name="Fir_030" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.16215, 0.00000, -0.87092, 0.00000, 1.06307, 0.00000, 0.87092, 0.00000, -0.16215, 256.0651, 5.0617, 7.2181)
+
+[node name="Fir_031" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.48574, 0.00000, 0.52930, 0.00000, 1.89265, 0.00000, -0.52930, 0.00000, -1.48574, 230.6082, 6.5964, 70.5961)
+
+[node name="Fir_032" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.81502, 0.00000, -0.93638, 0.00000, 1.48968, 0.00000, 0.93638, 0.00000, 0.81502, 286.5287, 6.5557, 28.5234)
+
+[node name="Fir_033" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.38364, 0.00000, -0.56650, 0.00000, 1.79415, 0.00000, 0.56650, 0.00000, 1.38364, 241.9923, 6.2313, 67.0484)
+
+[node name="Fir_034" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.25742, 0.00000, -0.82883, 0.00000, 1.04146, 0.00000, 0.82883, 0.00000, -0.25742, 294.4026, 6.8393, 30.4654)
+
+[node name="Fir_035" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.71165, 0.00000, 0.77049, 0.00000, 1.25862, 0.00000, -0.77049, 0.00000, 0.71165, 218.8180, 10.8429, 99.4398)
+
+[node name="Fir_036" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.84353, 0.00000, 0.24199, 0.00000, 1.05306, 0.00000, -0.24199, 0.00000, 0.84353, 290.2381, 7.3315, 55.9107)
+
+[node name="Fir_037" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.13528, 0.00000, 1.30793, 0.00000, 1.57789, 0.00000, -1.30793, 0.00000, 0.13528, 254.5752, 10.3183, 108.0968)
+
+[node name="Fir_038" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.66932, 0.00000, 0.60567, 0.00000, 1.08322, 0.00000, -0.60567, 0.00000, -0.66932, 301.1870, 8.6497, 74.2831)
+
+[node name="Fir_039" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.25175, 0.00000, 0.82340, 0.00000, 1.79795, 0.00000, -0.82340, 0.00000, 1.25175, 267.2039, 11.1411, 113.3554)
+
+[node name="Fir_040" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.25029, 0.00000, 0.27022, 0.00000, 1.53499, 0.00000, -0.27022, 0.00000, 1.25029, 300.2918, 9.3346, 85.3461)
+
+[node name="Fir_041" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.13394, 0.00000, -1.29822, 0.00000, 1.56613, 0.00000, 1.29822, 0.00000, -0.13394, 266.7845, 18.2359, 151.1269)
+
+[node name="Fir_042" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.48908, 0.00000, 0.94921, 0.00000, 1.28136, 0.00000, -0.94921, 0.00000, 0.48908, 342.5174, 9.5468, 81.8890)
+
+[node name="Fir_043" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.66522, 0.00000, 1.31182, 0.00000, 1.76502, 0.00000, -1.31182, 0.00000, 0.66522, 296.7853, 17.9477, 152.5388)
+
+[node name="Fir_044" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.88562, 0.00000, 0.53386, 0.00000, 1.24090, 0.00000, -0.53386, 0.00000, 0.88562, 339.9130, 11.9825, 103.7458)
+
+[node name="Fir_045" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.73889, 0.00000, 1.02191, 0.00000, 1.51326, 0.00000, -1.02191, 0.00000, -0.73889, 299.9322, 22.8817, 180.8726)
+
+[node name="Fir_046" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.32698, 0.00000, 0.17720, 0.00000, 1.60651, 0.00000, -0.17720, 0.00000, -1.32698, 337.6917, 14.3754, 124.3406)
+
+[node name="Fir_047" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.41958, 0.00000, -0.43489, 0.00000, 1.78164, 0.00000, 0.43489, 0.00000, -1.41958, 326.5520, 20.4761, 169.5631)
+
+[node name="Fir_048" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.69825, 0.00000, -0.80159, 0.00000, 1.27568, 0.00000, 0.80159, 0.00000, 0.69825, 351.3197, 13.8124, 117.8692)
+
+[node name="Fir_049" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.54509, 0.00000, -1.19254, 0.00000, 1.57345, 0.00000, 1.19254, 0.00000, -0.54509, 348.3937, 24.8503, 203.3620)
+
+[node name="Fir_050" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.16238, 0.00000, 1.33852, 0.00000, 1.61800, 0.00000, -1.33852, 0.00000, 0.16238, 371.3285, 13.3757, 115.2295)
+
+[node name="Fir_051" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.00204, 0.00000, -0.39860, 0.00000, 1.29409, 0.00000, 0.39860, 0.00000, 1.00204, 362.7906, 20.5894, 173.9252)
+
+[node name="Fir_052" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.11158, 0.00000, 1.43213, 0.00000, 1.72377, 0.00000, -1.43213, 0.00000, -0.11158, 375.5269, 14.2139, 119.9218)
+
+[node name="Fir_053" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.11069, 0.00000, -1.07828, 0.00000, 1.85760, 0.00000, 1.07828, 0.00000, 1.11069, 379.8157, 24.2915, 206.2137)
+
+[node name="Fir_054" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.27245, 0.00000, 1.36999, 0.00000, 1.67618, 0.00000, -1.36999, 0.00000, 0.27245, 399.9990, 13.6581, 118.9827)
+
+[node name="Fir_055" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.66230, 0.00000, 1.18884, 0.00000, 1.63306, 0.00000, -1.18884, 0.00000, 0.66230, 413.0655, 22.0281, 204.4787)
+
+[node name="Fir_056" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.88079, 0.00000, -0.66586, 0.00000, 1.32499, 0.00000, 0.66586, 0.00000, 0.88079, 418.0375, 16.0695, 131.8304)
+
+[node name="Fir_057" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.95067, 0.00000, 0.19051, 0.00000, 1.16349, 0.00000, -0.19051, 0.00000, 0.95067, 426.5481, 20.8202, 199.2976)
+
+[node name="Fir_058" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.83963, 0.00000, -0.18298, 0.00000, 1.03120, 0.00000, 0.18298, 0.00000, 0.83963, 433.5124, 15.4417, 130.2084)
+
+[node name="Fir_059" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.23288, 0.00000, 1.02343, 0.00000, 1.25951, 0.00000, -1.02343, 0.00000, -0.23288, 432.3418, 20.6666, 200.7077)
+
+[node name="Fir_060" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.82978, 0.00000, 0.79180, 0.00000, 1.37633, 0.00000, -0.79180, 0.00000, 0.82978, 445.8219, 12.7211, 121.9145)
+
+[node name="Fir_061" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.38474, 0.00000, -0.35025, 0.00000, 1.71402, 0.00000, 0.35025, 0.00000, 1.38474, 494.2951, 8.6601, 134.0337)
+
+[node name="Fir_062" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.53140, 0.00000, 1.32346, 0.00000, 1.71139, 0.00000, -1.32346, 0.00000, 0.53140, 496.4064, 10.4633, 142.1120)
+
+[node name="Fir_063" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.83296, 0.00000, 0.92700, 0.00000, 1.49551, 0.00000, -0.92700, 0.00000, -0.83296, 441.2330, 20.3423, 197.3782)
+
+[node name="Fir_064" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.12834, 0.00000, -0.43330, 0.00000, 1.45041, 0.00000, 0.43330, 0.00000, 1.12834, 515.5016, 13.9916, 206.2827)
+
+[node name="Fir_065" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.26261, 0.00000, 0.43888, 0.00000, 1.60405, 0.00000, -0.43888, 0.00000, -1.26261, 455.5623, 20.2962, 182.6120)
+
+[node name="Fir_066" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.94393, 0.00000, 0.17558, 0.00000, 1.15214, 0.00000, -0.17558, 0.00000, -0.94393, 460.2078, 18.0411, 239.7580)
+
+[node name="Fir_067" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.26836, 0.00000, 0.88583, 0.00000, 1.85649, 0.00000, -0.88583, 0.00000, -1.26836, 430.6382, 20.3139, 232.7051)
+
+[node name="Fir_068" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.38688, 0.00000, 0.22964, 0.00000, 1.68692, 0.00000, -0.22964, 0.00000, -1.38688, 416.7073, 20.2552, 176.1477)
+
+[node name="Fir_069" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.87791, 0.00000, 0.59545, 0.00000, 1.27296, 0.00000, -0.59545, 0.00000, -0.87791, 417.7329, 20.5673, 237.2225)
+
+[node name="Fir_070" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.34029, 0.00000, 0.81313, 0.00000, 1.05775, 0.00000, -0.81313, 0.00000, -0.34029, 410.1417, 20.1172, 174.9218)
+
+[node name="Fir_071" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.60185, 0.00000, -1.20459, 0.00000, 1.61589, 0.00000, 1.20459, 0.00000, 0.60185, 416.4722, 18.0671, 252.4674)
+
+[node name="Fir_072" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.25294, 0.00000, -0.98418, 0.00000, 1.91191, 0.00000, 0.98418, 0.00000, -1.25294, 385.1605, 19.2016, 264.9610)
+
+[node name="Fir_073" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.26270, 0.00000, 1.28568, 0.00000, 1.57469, 0.00000, -1.28568, 0.00000, 0.26270, 383.8461, 19.7647, 270.0979)
+
+[node name="Fir_074" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.94079, 0.00000, 0.69137, 0.00000, 1.40101, 0.00000, -0.69137, 0.00000, 0.94079, 347.9785, 23.6411, 197.8610)
+
+[node name="Fir_075" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.88414, 0.00000, 0.27059, 0.00000, 1.10955, 0.00000, -0.27059, 0.00000, 0.88414, 351.7149, 25.7573, 240.5829)
+
+[node name="Fir_076" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.09651, 0.00000, -0.68777, 0.00000, 1.55323, 0.00000, 0.68777, 0.00000, 1.09651, 328.9484, 21.6203, 179.1945)
+
+[node name="Fir_077" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.39407, 0.00000, -1.40415, 0.00000, 1.75008, 0.00000, 1.40415, 0.00000, -0.39407, 330.4223, 27.4210, 245.3980)
+
+[node name="Fir_078" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.04952, 0.00000, 1.11181, 0.00000, 1.83471, 0.00000, -1.11181, 0.00000, 1.04952, 315.8966, 21.2107, 173.6678)
+
+[node name="Fir_079" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.33005, 0.00000, -1.25901, 0.00000, 1.56187, 0.00000, 1.25901, 0.00000, -0.33005, 318.6513, 27.3039, 259.8656)
+
+[node name="Fir_080" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.77804, 0.00000, 0.81740, 0.00000, 1.35419, 0.00000, -0.81740, 0.00000, -0.77804, 301.4531, 25.2641, 194.3015)
+
+[node name="Fir_081" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.49982, 0.00000, -0.21173, 0.00000, 1.81763, 0.00000, 0.21173, 0.00000, 1.49982, 307.1361, 28.6778, 255.8366)
+
+[node name="Fir_082" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.37217, 0.00000, -0.79461, 0.00000, 1.05293, 0.00000, 0.79461, 0.00000, 0.37217, 277.8660, 22.9049, 177.2451)
+
+[node name="Fir_083" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.45215, 0.00000, -0.22173, 0.00000, 1.76277, 0.00000, 0.22173, 0.00000, -1.45215, 301.3970, 26.7345, 278.4693)
+
+[node name="Fir_084" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.03827, 0.00000, -1.35822, 0.00000, 1.63052, 0.00000, 1.35822, 0.00000, -0.03827, 264.2032, 25.0498, 187.9775)
+
+[node name="Fir_085" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.76931, 0.00000, -0.69304, 0.00000, 1.24253, 0.00000, 0.69304, 0.00000, 0.76931, 290.5114, 28.9275, 267.3724)
+
+[node name="Fir_086" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.44037, 0.00000, 0.44811, 0.00000, 1.81017, 0.00000, -0.44811, 0.00000, 1.44037, 245.6284, 27.7661, 209.6397)
+
+[node name="Fir_087" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.30814, 0.00000, 0.78095, 0.00000, 1.82822, 0.00000, -0.78095, 0.00000, -1.30814, 270.4675, 30.5010, 261.7804)
+
+[node name="Fir_088" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.32952, 0.00000, -0.36617, 0.00000, 1.65483, 0.00000, 0.36617, 0.00000, 1.32952, 218.2616, 26.6648, 212.7234)
+
+[node name="Fir_089" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.15184, 0.00000, 1.06965, 0.00000, 1.88628, 0.00000, -1.06965, 0.00000, 1.15184, 253.5642, 30.6820, 262.6217)
+
+[node name="Fir_090" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.87901, 0.00000, -0.39761, 0.00000, 1.15771, 0.00000, 0.39761, 0.00000, 0.87901, 208.5625, 27.5025, 234.2757)
+
+[node name="Fir_091" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.96357, 0.00000, -0.25697, 0.00000, 1.19670, 0.00000, 0.25697, 0.00000, -0.96357, 247.5200, 30.4903, 272.3610)
+
+[node name="Fir_092" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.32017, 0.00000, 1.16038, 0.00000, 1.44449, 0.00000, -1.16038, 0.00000, -0.32017, 169.3135, 25.2599, 257.8553)
+
+[node name="Fir_093" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.90841, 0.00000, 0.22293, 0.00000, 1.12244, 0.00000, -0.22293, 0.00000, 0.90841, 242.7798, 30.1956, 284.9005)
+
+[node name="Fir_094" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.49294, 0.00000, 0.91862, 0.00000, 1.25103, 0.00000, -0.91862, 0.00000, 0.49294, 180.4257, 26.5233, 270.7602)
+
+[node name="Fir_095" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.24703, 0.00000, 0.81228, 0.00000, 1.01882, 0.00000, -0.81228, 0.00000, -0.24703, 241.1083, 30.1230, 291.0417)
+
+[node name="Fir_096" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.44003, 0.00000, -0.15368, 0.00000, 1.73785, 0.00000, 0.15368, 0.00000, 1.44003, 180.1792, 26.9174, 286.8746)
+
+[node name="Fir_097" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.71274, 0.00000, -0.56858, 0.00000, 1.09410, 0.00000, 0.56858, 0.00000, 0.71274, 236.0515, 30.0667, 311.8209)
+
+[node name="Fir_098" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.00066, 0.00000, 0.90795, 0.00000, 1.62142, 0.00000, -0.90795, 0.00000, 1.00066, 172.1144, 26.4323, 288.3147)
+
+[node name="Fir_099" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.26639, 0.00000, 0.96697, 0.00000, 1.20359, 0.00000, -0.96697, 0.00000, -0.26639, 224.7274, 30.5249, 336.3454)
+
+[node name="Fir_100" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.32116, 0.00000, 0.18270, 0.00000, 1.60047, 0.00000, -0.18270, 0.00000, -1.32116, 165.8671, 26.2717, 300.9437)
+
+[node name="Fir_101" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.18735, 0.00000, 0.92753, 0.00000, 1.80803, 0.00000, -0.92753, 0.00000, -1.18735, 200.1994, 31.5467, 353.6038)
+
+[node name="Fir_102" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.87035, 0.00000, -0.36925, 0.00000, 1.13453, 0.00000, 0.36925, 0.00000, 0.87035, 139.3536, 24.2558, 291.3851)
+
+[node name="Fir_103" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.21084, 0.00000, 0.56069, 0.00000, 1.60123, 0.00000, -0.56069, 0.00000, -1.21084, 175.0287, 31.6702, 362.8074)
+
+[node name="Fir_104" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.31713, 0.00000, 0.41446, 0.00000, 1.65696, 0.00000, -0.41446, 0.00000, -1.31713, 128.5305, 23.9582, 296.8861)
+
+[node name="Fir_105" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.52808, 0.00000, 0.66508, 0.00000, 1.01908, 0.00000, -0.66508, 0.00000, 0.52808, 169.2224, 34.4215, 378.6269)
+
+[node name="Fir_106" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.97192, 0.00000, 1.09548, 0.00000, 1.75738, 0.00000, -1.09548, 0.00000, -0.97192, 124.8632, 24.9497, 326.1251)
+
+[node name="Fir_107" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.39855, 0.00000, 0.70913, 0.00000, 1.88167, 0.00000, -0.70913, 0.00000, -1.39855, 147.4509, 36.6568, 389.1638)
+
+[node name="Fir_108" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.35906, 0.00000, 1.42052, 0.00000, 1.75824, 0.00000, -1.42052, 0.00000, -0.35906, 122.0678, 24.9970, 328.9375)
+
+[node name="Fir_109" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.68356, 0.00000, -0.60733, 0.00000, 1.09727, 0.00000, 0.60733, 0.00000, 0.68356, 145.1159, 40.4657, 399.2165)
+
+[node name="Fir_110" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.92119, 0.00000, 0.06906, 0.00000, 1.10853, 0.00000, -0.06906, 0.00000, -0.92119, 91.9651, 23.0978, 325.2430)
+
+[node name="Fir_111" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.36177, 0.00000, -0.73274, 0.00000, 0.98062, 0.00000, 0.73274, 0.00000, 0.36177, 122.7823, 38.6404, 406.6962)
+
+[node name="Fir_112" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.16205, 0.00000, -0.68066, 0.00000, 1.61607, 0.00000, 0.68066, 0.00000, 1.16205, 70.9468, 23.3414, 340.8727)
+
+[node name="Fir_113" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.22284, 0.00000, -1.07792, 0.00000, 1.32085, 0.00000, 1.07792, 0.00000, 0.22284, 115.6086, 35.3883, 404.6761)
+
+[node name="Fir_114" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.54042, 0.00000, 0.20583, 0.00000, 1.86493, 0.00000, -0.20583, 0.00000, 1.54042, 52.2410, 24.9286, 366.8481)
+
+[node name="Fir_115" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.52366, 0.00000, -1.27310, 0.00000, 1.65191, 0.00000, 1.27310, 0.00000, 0.52366, 113.1053, 35.6076, 407.2608)
+
+[node name="Fir_116" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.06985, 0.00000, 0.73701, 0.00000, 1.55897, 0.00000, -0.73701, 0.00000, -1.06985, 36.9234, 24.9317, 372.3923)
+
+[node name="Fir_117" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.60777, 0.00000, 0.79760, 0.00000, 1.20333, 0.00000, -0.79760, 0.00000, -0.60777, 40.3194, 28.7564, 408.3574)
+
+[node name="Fir_118" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.50562, 0.00000, 0.91505, 0.00000, 1.25455, 0.00000, -0.91505, 0.00000, -0.50562, 90.4418, 34.6317, 427.1175)
+
+[node name="Fir_119" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.75655, 0.00000, -0.87792, 0.00000, 1.39071, 0.00000, 0.87792, 0.00000, -0.75655, 29.6378, 29.1391, 419.1246)
+
+[node name="Fir_120" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.37235, 0.00000, -0.80864, 0.00000, 1.91145, 0.00000, 0.80864, 0.00000, 1.37235, 33.9576, 30.5253, 429.1232)
+
+[node name="Fir_121" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.87480, 0.00000, -0.94449, 0.00000, 1.54485, 0.00000, 0.94449, 0.00000, 0.87480, 91.4821, 39.9504, 452.3949)
+
+[node name="Fir_122" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.86328, 0.00000, -0.24529, 0.00000, 1.07694, 0.00000, 0.24529, 0.00000, 0.86328, 15.9965, 31.1162, 449.3598)
+
+[node name="Fir_123" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.72981, 0.00000, -1.24740, 0.00000, 1.73425, 0.00000, 1.24740, 0.00000, 0.72981, -2.3318, 30.4921, 456.9386)
+
+[node name="Fir_124" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.53016, 0.00000, -0.08102, 0.00000, 1.83877, 0.00000, 0.08102, 0.00000, -1.53016, 71.0644, 36.7933, 481.9482)
+
+[node name="Fir_125" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.35700, 0.00000, -0.98127, 0.00000, 1.25304, 0.00000, 0.98127, 0.00000, 0.35700, -13.8205, 30.8902, 474.2296)
+
+[node name="Fir_126" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.39637, 0.00000, 0.48427, 0.00000, 1.77355, 0.00000, -0.48427, 0.00000, -1.39637, 51.1291, 36.3190, 503.0009)
+
+[node name="Fir_127" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.11054, 0.00000, 1.01812, 0.00000, 1.22892, 0.00000, -1.01812, 0.00000, 0.11054, 5.3912, 33.2749, 491.4031)
+
+[node name="Fir_128" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.52470, 0.00000, -1.49008, 0.00000, 1.89571, 0.00000, 1.49008, 0.00000, 0.52470, 49.7043, 36.1556, 516.5675)
+
+[node name="Fir_129" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.29993, 0.00000, 0.52268, 0.00000, 1.68129, 0.00000, -0.52268, 0.00000, 1.29993, -8.0023, 32.1474, 496.0728)
+
+[node name="Fir_130" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.72284, 0.00000, 0.54106, 0.00000, 1.08349, 0.00000, -0.54106, 0.00000, -0.72284, 44.7758, 35.8124, 527.4176)
+
+[node name="Fir_131" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.29128, 0.00000, 0.09385, 0.00000, 1.55362, 0.00000, -0.09385, 0.00000, 1.29128, -44.8710, 28.0337, 538.2474)
+
+[node name="Fir_132" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.51469, 0.00000, 0.92394, 0.00000, 1.26915, 0.00000, -0.92394, 0.00000, -0.51469, 32.0880, 35.1726, 543.1136)
+
+[node name="Fir_133" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.94058, 0.00000, -0.73019, 0.00000, 1.42889, 0.00000, 0.73019, 0.00000, -0.94058, -25.1755, 29.7935, 551.7734)
+
+[node name="Fir_134" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.27868, 0.00000, -0.16994, 0.00000, 1.54790, 0.00000, 0.16994, 0.00000, 1.27868, 16.0754, 23.8573, 610.2566)
+
+[node name="Fir_135" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.69512, 0.00000, 0.60424, 0.00000, 1.10524, 0.00000, -0.60424, 0.00000, -0.69512, 64.0855, 28.3257, 580.6707)
+
+[node name="Fir_136" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.02787, 0.00000, -1.38613, 0.00000, 1.66369, 0.00000, 1.38613, 0.00000, 0.02787, 26.5368, 35.7081, 527.8430)
+
+[node name="Fir_137" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.97881, 0.00000, 0.34469, 0.00000, 1.24527, 0.00000, -0.34469, 0.00000, 0.97881, 96.6796, 25.3079, 567.7190)
+
+[node name="Fir_138" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.33109, 0.00000, 0.65979, 0.00000, 1.78276, 0.00000, -0.65979, 0.00000, -1.33109, 84.3134, 32.1115, 547.1904)
+
+[node name="Fir_139" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.80355, 0.00000, -0.10461, 0.00000, 0.97240, 0.00000, 0.10461, 0.00000, -0.80355, 40.7255, 36.0391, 515.3073)
+
+[node name="Fir_140" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.35933, 0.00000, 1.04126, 0.00000, 1.32182, 0.00000, -1.04126, 0.00000, 0.35933, 110.8412, 29.9157, 528.6971)
+
+[node name="Fir_141" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.00193, 0.00000, 0.25457, 0.00000, 1.24052, 0.00000, -0.25457, 0.00000, -1.00193, 43.8638, 36.1605, 496.7082)
+
+[node name="Fir_142" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.10665, 0.00000, 1.05221, 0.00000, 1.26912, 0.00000, -1.05221, 0.00000, 0.10665, 101.3770, 34.3360, 511.2958)
+
+[node name="Fir_143" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.88454, 0.00000, 0.41075, 0.00000, 1.17031, 0.00000, -0.41075, 0.00000, -0.88454, 56.7246, 36.3740, 490.5469)
+
+[node name="Fir_144" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.81369, 0.00000, -1.28871, 0.00000, 1.82892, 0.00000, 1.28871, 0.00000, 0.81369, 108.7811, 35.5458, 491.3224)
+
+[node name="Fir_145" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.58869, 0.00000, 0.98286, 0.00000, 1.37481, 0.00000, -0.98286, 0.00000, -0.58869, 60.4034, 35.5354, 462.9146)
+
+[node name="Fir_146" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.85224, 0.00000, -0.78423, 0.00000, 1.38979, 0.00000, 0.78423, 0.00000, -0.85224, 141.2317, 31.6031, 484.0677)
+
+[node name="Fir_147" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.03498, 0.00000, 0.81303, 0.00000, 0.97653, 0.00000, -0.81303, 0.00000, 0.03498, 72.9057, 35.2377, 447.2186)
+
+[node name="Fir_148" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.63917, 0.00000, -1.06253, 0.00000, 1.48796, 0.00000, 1.06253, 0.00000, -0.63917, 153.1774, 30.9525, 474.2290)
+
+[node name="Fir_149" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.19076, 0.00000, -0.07951, 0.00000, 1.43209, 0.00000, 0.07951, 0.00000, -1.19076, 75.1029, 33.2315, 423.1086)
+
+[node name="Fir_150" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.54474, 0.00000, -0.29793, 0.00000, 1.88786, 0.00000, 0.29793, 0.00000, 1.54474, 140.3326, 35.8071, 455.3540)
+
+[node name="Fir_151" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.79816, 0.00000, 1.26808, 0.00000, 1.79803, 0.00000, -1.26808, 0.00000, 0.79816, 149.4168, 34.5098, 458.4963)
+
+[node name="Fir_152" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.13213, 0.00000, 0.28313, 0.00000, 1.40040, 0.00000, -0.28313, 0.00000, 1.13213, 92.8758, 31.6657, 397.9912)
+
+[node name="Fir_153" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.93227, 0.00000, 0.45946, 0.00000, 1.24721, 0.00000, -0.45946, 0.00000, -0.93227, 170.0946, 30.5972, 461.4982)
+
+[node name="Fir_154" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.15597, 0.00000, -1.03007, 0.00000, 1.85799, 0.00000, 1.03007, 0.00000, -1.15597, 121.0753, 31.8946, 385.8343)
+
+[node name="Fir_155" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.31901, 0.00000, 0.29294, 0.00000, 1.62138, 0.00000, -0.29294, 0.00000, -1.31901, 171.3990, 35.2268, 436.4123)
+
+[node name="Fir_156" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.19752, 0.00000, 1.39685, 0.00000, 1.69289, 0.00000, -1.39685, 0.00000, 0.19752, 179.2937, 36.0311, 421.6689)
+
+[node name="Fir_157" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.10355, 0.00000, -0.57885, 0.00000, 1.49539, 0.00000, 0.57885, 0.00000, 1.10355, 162.9341, 25.3871, 349.5783)
+
+[node name="Fir_158" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.18386, 0.00000, -0.78567, 0.00000, 0.96827, 0.00000, 0.78567, 0.00000, 0.18386, 186.3098, 32.1037, 445.9159)
+
+[node name="Fir_159" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.33630, 0.00000, -0.27242, 0.00000, 1.63654, 0.00000, 0.27242, 0.00000, 1.33630, 172.6960, 28.3357, 349.6066)
+
+[node name="Fir_160" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.50961, 0.00000, -1.24816, 0.00000, 1.61782, 0.00000, 1.24816, 0.00000, 0.50961, 202.3127, 35.1984, 422.8082)
+
+[node name="Fir_161" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.35539, 0.00000, -0.26076, 0.00000, 1.65629, 0.00000, 0.26076, 0.00000, 1.35539, 219.4349, 30.8871, 343.3954)
+
+[node name="Fir_162" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.06797, 0.00000, 0.03422, 0.00000, 1.28222, 0.00000, -0.03422, 0.00000, 1.06797, 200.1313, 28.1108, 456.1470)
+
+[node name="Fir_163" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.98249, 0.00000, 0.41847, 0.00000, 1.28147, 0.00000, -0.41847, 0.00000, 0.98249, 223.2667, 31.1148, 354.8943)
+
+[node name="Fir_164" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.01600, 0.00000, -1.17006, 0.00000, 1.85954, 0.00000, 1.17006, 0.00000, -1.01600, 240.6212, 28.1789, 443.4382)
+
+[node name="Fir_165" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.04615, 0.00000, 0.96467, 0.00000, 1.15893, 0.00000, -0.96467, 0.00000, -0.04615, 242.0679, 29.6060, 349.4453)
+
+[node name="Fir_166" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.11885, 0.00000, 0.01974, 0.00000, 1.34283, 0.00000, -0.01974, 0.00000, -1.11885, 259.3763, 24.5508, 446.4023)
+
+[node name="Fir_167" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.12994, 0.00000, 0.47904, 0.00000, 1.47275, 0.00000, -0.47904, 0.00000, -1.12994, 260.4395, 30.7616, 368.8703)
+
+[node name="Fir_168" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.62981, 0.00000, -1.02872, 0.00000, 1.44745, 0.00000, 1.02872, 0.00000, 0.62981, 272.8544, 23.6942, 441.3935)
+
+[node name="Fir_169" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.21797, 0.00000, 1.06536, 0.00000, 1.30492, 0.00000, -1.06536, 0.00000, -0.21797, 270.3331, 29.8100, 367.6593)
+
+[node name="Fir_170" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.29438, 0.00000, -0.14253, 0.00000, 1.56265, 0.00000, 0.14253, 0.00000, 1.29438, 288.3000, 18.7005, 446.4510)
+
+[node name="Fir_171" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.00086, 0.00000, 0.06188, 0.00000, 1.20333, 0.00000, -0.06188, 0.00000, 1.00086, 276.5116, 27.1346, 350.2960)
+
+[node name="Fir_172" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.14562, 0.00000, 0.43270, 0.00000, 1.46954, 0.00000, -0.43270, 0.00000, 1.14562, 314.8919, 21.1757, 426.1160)
+
+[node name="Fir_173" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.21636, 0.00000, 0.76716, 0.00000, 1.72569, 0.00000, -0.76716, 0.00000, 1.21636, 287.3006, 27.3718, 360.4542)
+
+[node name="Fir_174" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.46463, 0.00000, 0.96234, 0.00000, 1.28237, 0.00000, -0.96234, 0.00000, -0.46463, 344.0168, 8.6923, 426.9292)
+
+[node name="Fir_175" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.84660, 0.00000, 0.56380, 0.00000, 1.22058, 0.00000, -0.56380, 0.00000, -0.84660, 299.0406, 27.1118, 367.8134)
+
+[node name="Fir_176" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.34240, 0.00000, 0.19491, 0.00000, 1.62777, 0.00000, -0.19491, 0.00000, 1.34240, 353.9098, 12.8466, 399.7859)
+
+[node name="Fir_177" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.53898, 0.00000, -0.70280, 0.00000, 1.06281, 0.00000, 0.70280, 0.00000, -0.53898, 315.5775, 25.3921, 363.6831)
+
+[node name="Fir_178" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.82396, 0.00000, -0.23404, 0.00000, 1.02786, 0.00000, 0.23404, 0.00000, 0.82396, 319.4993, 24.9206, 346.8519)
+
+[node name="Fir_179" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.53464, 0.00000, 0.79572, 0.00000, 1.15037, 0.00000, -0.79572, 0.00000, 0.53464, 395.8269, 5.8207, 392.9134)
+
+[node name="Fir_180" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.50602, 0.00000, -0.70416, 0.00000, 1.04054, 0.00000, 0.70416, 0.00000, -0.50602, 341.6803, 23.0001, 337.7868)
+
+[node name="Fir_181" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.30691, 0.00000, 1.04861, 0.00000, 1.31112, 0.00000, -1.04861, 0.00000, -0.30691, 394.6059, 8.5979, 358.4539)
+
+[node name="Fir_182" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.24936, 0.00000, 1.48400, 0.00000, 1.80576, 0.00000, -1.48400, 0.00000, -0.24936, 345.5865, 22.6675, 312.5307)
+
+[node name="Fir_183" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.41275, 0.00000, 1.38362, 0.00000, 1.73264, 0.00000, -1.38362, 0.00000, 0.41275, 407.1159, 9.2650, 349.3843)
+
+[node name="Fir_184" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.84803, 0.00000, 0.13282, 0.00000, 1.03004, 0.00000, -0.13282, 0.00000, 0.84803, 356.1089, 21.8716, 296.8062)
+
+[node name="Fir_185" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.14592, 0.00000, -0.54336, 0.00000, 1.52186, 0.00000, 0.54336, 0.00000, -1.14592, 409.1820, 13.3577, 340.2325)
+
+[node name="Fir_186" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.21640, 0.00000, -0.28670, 0.00000, 1.49968, 0.00000, 0.28670, 0.00000, 1.21640, 364.5413, 21.3784, 288.4053)
+
+[node name="Fir_187" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.30663, 0.00000, -1.25716, 0.00000, 1.55282, 0.00000, 1.25716, 0.00000, -0.30663, 413.6767, 14.9657, 328.6275)
+
+[node name="Fir_188" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.01560, 0.00000, 1.26604, 0.00000, 1.51936, 0.00000, -1.26604, 0.00000, -0.01560, 388.8929, 20.4934, 292.2854)
+
+[node name="Fir_189" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.33263, 0.00000, 1.14078, 0.00000, 1.42595, 0.00000, -1.14078, 0.00000, 0.33263, 409.9070, 18.5443, 262.8558)
+
+[node name="Fir_190" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.29395, 0.00000, 1.11291, 0.00000, 1.38130, 0.00000, -1.11291, 0.00000, 0.29395, 445.8152, 10.5098, 331.8110)
+
+[node name="Fir_191" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.77295, 0.00000, -0.27927, 0.00000, 0.98623, 0.00000, 0.27927, 0.00000, -0.77295, 407.0536, 19.4135, 250.4009)
+
+[node name="Fir_192" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.80194, 0.00000, -0.51601, 0.00000, 1.14433, 0.00000, 0.51601, 0.00000, 0.80194, 461.5256, 10.9161, 324.4609)
+
+[node name="Fir_193" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.08595, 0.00000, -0.84019, 0.00000, 1.64763, 0.00000, 0.84019, 0.00000, -1.08595, 432.2586, 17.5701, 254.1585)
+
+[node name="Fir_194" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.03677, 0.00000, 0.80003, 0.00000, 0.96105, 0.00000, -0.80003, 0.00000, 0.03677, 485.9327, 13.1409, 309.3004)
+
+[node name="Fir_195" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.13446, 0.00000, 1.08603, 0.00000, 1.31319, 0.00000, -1.08603, 0.00000, -0.13446, 464.2545, 17.2846, 253.1312)
+
+[node name="Fir_196" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.01534, 0.00000, 1.14980, 0.00000, 1.84072, 0.00000, -1.14980, 0.00000, -1.01534, 482.2094, 14.4228, 293.4424)
+
+[node name="Fir_197" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.19489, 0.00000, 0.20263, 0.00000, 1.45434, 0.00000, -0.20263, 0.00000, -1.19489, 460.5985, 18.4839, 236.6082)
+
+[node name="Fir_198" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.72219, 0.00000, 1.32975, 0.00000, 1.81585, 0.00000, -1.32975, 0.00000, -0.72219, 512.9337, 12.4343, 321.7396)
+
+[node name="Fir_199" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.89115, 0.00000, 0.56325, 0.00000, 1.26508, 0.00000, -0.56325, 0.00000, 0.89115, 483.7906, 20.0503, 214.2845)
+
+[node name="Fir_200" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.00480, 0.00000, -1.11536, 0.00000, 1.80146, 0.00000, 1.11536, 0.00000, -1.00480, 501.3016, 15.3915, 235.7946)
+
+[node name="Fir_201" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.84664, 0.00000, -1.18306, 0.00000, 1.74575, 0.00000, 1.18306, 0.00000, -0.84664, 541.9559, 11.9710, 315.7835)
+
+[node name="Fir_202" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.59060, 0.00000, -1.00322, 0.00000, 1.39698, 0.00000, 1.00322, 0.00000, 0.59060, 530.6674, 13.3070, 229.0299)
+
+[node name="Fir_203" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.51186, 0.00000, -1.22433, 0.00000, 1.59243, 0.00000, 1.22433, 0.00000, 0.51186, 552.9857, 10.4625, 222.4809)
+
+[node name="Fir_204" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.04646, 0.00000, 0.37134, 0.00000, 1.33247, 0.00000, -0.37134, 0.00000, 1.04646, 562.7491, 8.8933, 220.5738)
+
+[node name="Fir_205" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.17252, 0.00000, 0.98864, 0.00000, 1.84043, 0.00000, -0.98864, 0.00000, -1.17252, 590.7798, 11.4394, 276.8485)
+
+[node name="Fir_206" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.34220, 0.00000, -0.32281, 0.00000, 1.65657, 0.00000, 0.32281, 0.00000, 1.34220, 592.5102, 2.6594, 321.1552)
+
+[node name="Fir_207" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.29053, 0.00000, 1.28810, 0.00000, 1.58455, 0.00000, -1.28810, 0.00000, -0.29053, 528.7366, 15.2087, 247.9191)
+
+[node name="Fir_208" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.82908, 0.00000, 0.06913, 0.00000, 0.99835, 0.00000, -0.06913, 0.00000, -0.82908, 561.5011, 5.1999, 332.5209)
+
+[node name="Fir_209" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.66838, 0.00000, -0.77390, 0.00000, 1.22708, 0.00000, 0.77390, 0.00000, -0.66838, 505.8390, 14.7911, 255.3101)
+
+[node name="Fir_210" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.39747, 0.00000, 0.91768, 0.00000, 1.20007, 0.00000, -0.91768, 0.00000, -0.39747, 536.3953, 9.3943, 329.1853)
+
+[node name="Fir_211" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.58353, 0.00000, -0.19177, 0.00000, 1.91412, 0.00000, 0.19177, 0.00000, -1.58353, 516.9114, 9.9560, 336.5459)
+
+[node name="Fir_212" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.03492, 0.00000, -1.01132, 0.00000, 1.21430, 0.00000, 1.01132, 0.00000, -0.03492, 509.9346, 3.9679, 359.8736)
+
+[node name="Fir_213" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.80143, 0.00000, 0.58063, 0.00000, 1.18759, 0.00000, -0.58063, 0.00000, 0.80143, 497.5017, 9.1844, 348.2035)
+
+[node name="Fir_214" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.30786, 0.00000, 1.23113, 0.00000, 1.52285, 0.00000, -1.23113, 0.00000, 0.30786, 452.3925, 16.3633, 293.1911)
+
+[node name="Fir_215" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.38533, 0.00000, -0.88600, 0.00000, 1.15940, 0.00000, 0.88600, 0.00000, -0.38533, 482.6132, 10.3336, 348.6547)
+
+[node name="Fir_216" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.17054, 0.00000, 0.95710, 0.00000, 1.81442, 0.00000, -0.95710, 0.00000, -1.17054, 436.7650, 14.7120, 314.4007)
+
+[node name="Fir_217" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.72072, 0.00000, 0.67238, 0.00000, 1.18279, 0.00000, -0.67238, 0.00000, 0.72072, 469.7569, 3.2181, 380.6181)
+
+[node name="Fir_218" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.84864, 0.00000, -0.46051, 0.00000, 1.15865, 0.00000, 0.46051, 0.00000, -0.84864, 417.7066, 15.4369, 322.6284)
+
+[node name="Fir_219" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.20953, 0.00000, 0.37090, 0.00000, 1.51814, 0.00000, -0.37090, 0.00000, 1.20953, 451.4975, 2.1782, 391.1578)
+
+[node name="Fir_220" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.48632, 0.00000, 0.74366, 0.00000, 1.06628, 0.00000, -0.74366, 0.00000, 0.48632, 402.3112, 16.0309, 331.7728)
+
+[node name="Fir_221" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.84208, 0.00000, -1.20971, 0.00000, 1.76872, 0.00000, 1.20971, 0.00000, 0.84208, 440.2249, 2.8602, 394.1306)
+
+[node name="Fir_222" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.27498, 0.00000, 1.48228, 0.00000, 1.80909, 0.00000, -1.48228, 0.00000, -0.27498, 374.7955, 20.9415, 319.0450)
+
+[node name="Fir_223" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.44676, 0.00000, -0.68139, 0.00000, 0.97775, 0.00000, 0.68139, 0.00000, 0.44676, 429.2433, 6.0380, 389.4833)
+
+[node name="Fir_224" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.52860, 0.00000, -1.12784, 0.00000, 1.49468, 0.00000, 1.12784, 0.00000, -0.52860, 411.2802, 8.6415, 390.0520)
+
+[node name="Fir_225" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.88598, 0.00000, 1.12154, 0.00000, 1.71512, 0.00000, -1.12154, 0.00000, 0.88598, 412.6620, 6.1273, 402.2472)
+
+[node name="Fir_226" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.23921, 0.00000, 0.82885, 0.00000, 1.03521, 0.00000, -0.82885, 0.00000, -0.23921, 419.6765, -1.4421, 430.1270)
+
+[node name="Fir_227" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.05877, 0.00000, 1.01434, 0.00000, 1.21924, 0.00000, -1.01434, 0.00000, -0.05877, 355.3345, 9.0216, 408.5829)
+
+[node name="Fir_228" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.11609, 0.00000, -1.00318, 0.00000, 1.80081, 0.00000, 1.00318, 0.00000, -1.11609, 409.3923, 0.9069, 431.1603)
+
+[node name="Fir_229" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.39845, 0.00000, -0.71836, 0.00000, 0.98576, 0.00000, 0.71836, 0.00000, 0.39845, 334.9131, 14.4629, 424.1134)
+
+[node name="Fir_230" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.44466, 0.00000, -1.53488, 0.00000, 1.91760, 0.00000, 1.53488, 0.00000, -0.44466, 417.5382, -3.6205, 446.8210)
+
+[node name="Fir_231" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.48617, 0.00000, -0.84585, 0.00000, 1.17074, 0.00000, 0.84585, 0.00000, 0.48617, 334.0434, 10.0956, 447.6195)
+
+[node name="Fir_232" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.80609, 0.00000, -0.28866, 0.00000, 1.02746, 0.00000, 0.28866, 0.00000, -0.80609, 410.9895, -3.5721, 459.7137)
+
+[node name="Fir_233" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.42527, 0.00000, 1.35568, 0.00000, 1.70498, 0.00000, -1.35568, 0.00000, -0.42527, 315.6364, 9.0827, 458.7157)
+
+[node name="Fir_234" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.77823, 0.00000, 0.39554, 0.00000, 1.04758, 0.00000, -0.39554, 0.00000, 0.77823, 412.9024, -5.1580, 471.8967)
+
+[node name="Fir_235" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.30749, 0.00000, -1.02927, 0.00000, 1.28907, 0.00000, 1.02927, 0.00000, -0.30749, 308.3798, 4.4503, 482.8152)
+
+[node name="Fir_236" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.89492, 0.00000, -1.28892, 0.00000, 1.88297, 0.00000, 1.28892, 0.00000, 0.89492, 401.7599, -4.9974, 500.9664)
+
+[node name="Fir_237" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.11399, 0.00000, -1.10468, 0.00000, 1.33265, 0.00000, 1.10468, 0.00000, -0.11399, 316.2185, 2.1364, 499.9110)
+
+[node name="Fir_238" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.09603, 0.00000, -0.85127, 0.00000, 1.02801, 0.00000, 0.85127, 0.00000, 0.09603, 379.7028, -1.3088, 512.2511)
+
+[node name="Fir_239" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.48892, 0.00000, -0.17687, 0.00000, 1.79927, 0.00000, 0.17687, 0.00000, 1.48892, 324.7123, 0.0146, 524.6840)
+
+[node name="Fir_240" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.23769, 0.00000, 0.76229, 0.00000, 1.74432, 0.00000, -0.76229, 0.00000, 1.23769, 382.9088, -3.7152, 535.9963)
+
+[node name="Fir_241" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.14457, 0.00000, 1.40069, 0.00000, 1.68976, 0.00000, -1.40069, 0.00000, 0.14457, 303.8648, -2.5113, 529.8795)
+
+[node name="Fir_242" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.68532, 0.00000, 0.63568, 0.00000, 1.12170, 0.00000, -0.63568, 0.00000, -0.68532, 365.4583, -1.7349, 541.8521)
+
+[node name="Fir_243" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.23495, 0.00000, -1.23580, 0.00000, 1.50952, 0.00000, 1.23580, 0.00000, -0.23495, 315.6352, -2.0813, 544.0017)
+
+[node name="Fir_244" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.38683, 0.00000, -1.03904, 0.00000, 1.33046, 0.00000, 1.03904, 0.00000, -0.38683, 374.1648, -3.5063, 555.3787)
+
+[node name="Fir_245" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.68646, 0.00000, -0.70248, 0.00000, 1.17864, 0.00000, 0.70248, 0.00000, 0.68646, 314.9574, -3.2526, 571.2782)
+
+[node name="Fir_246" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-1.27993, 0.00000, 0.42300, 0.00000, 1.61763, 0.00000, -0.42300, 0.00000, -1.27993, 358.1417, -3.1227, 579.6724)
+
+[node name="Fir_247" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.50230, 0.00000, -1.11227, 0.00000, 1.46452, 0.00000, 1.11227, 0.00000, 0.50230, 286.7178, -7.7697, 571.7873)
+
+[node name="Fir_248" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.28625, 0.00000, -0.14004, 0.00000, 1.55262, 0.00000, 0.14004, 0.00000, 1.28625, 357.9675, -3.3630, 585.6369)
+
+[node name="Fir_249" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(1.00193, 0.00000, -0.89523, 0.00000, 1.61234, 0.00000, 0.89523, 0.00000, 1.00193, 311.9184, -4.1253, 602.6729)
+
+[node name="Fir_250" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.14841, 0.00000, -0.89960, 0.00000, 1.09411, 0.00000, 0.89960, 0.00000, 0.14841, 366.0126, -5.6697, 613.1878)
+
+[node name="Fir_251" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.81066, 0.00000, -0.57840, 0.00000, 1.19502, 0.00000, 0.57840, 0.00000, 0.81066, 289.9940, -7.1982, 612.6806)
+
+[node name="Fir_252" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(-0.59844, 0.00000, -0.77889, 0.00000, 1.17869, 0.00000, 0.77889, 0.00000, -0.59844, 349.3514, -4.3149, 624.2183)
+
+[node name="Fir_253" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.22889, 0.00000, 1.47090, 0.00000, 1.78632, 0.00000, -1.47090, 0.00000, 0.22889, 294.1139, -6.4093, 626.6453)
+
+[node name="Fir_254" parent="Props" instance=ExtResource("fir_tree") groups=["Props"]]
+transform = Transform3D(0.31585, 0.00000, -1.26030, 0.00000, 1.55913, 0.00000, 1.26030, 0.00000, 0.31585, 370.3020, -7.8080, 641.4546)
+
+[node name="Bush_001" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.24169, 0.00000, 1.04733, 0.00000, 0.80614, 0.00000, -1.04733, 0.00000, 0.24169, 101.6638, -0.1035, -10.1049)
+
+[node name="Bush_002" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(1.32548, 0.00000, -0.34629, 0.00000, 1.02748, 0.00000, 0.34629, 0.00000, 1.32548, 127.5979, 0.0601, 9.3369)
+
+[node name="Bush_003" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(1.33568, 0.00000, -0.05048, 0.00000, 1.00248, 0.00000, 0.05048, 0.00000, 1.33568, 162.3578, 0.7809, 9.5614)
+
+[node name="Bush_004" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-1.26898, 0.00000, 0.73700, 0.00000, 1.10060, 0.00000, -0.73700, 0.00000, -1.26898, 212.4477, 3.2932, 25.8172)
+
+[node name="Bush_005" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.77855, 0.00000, -0.32743, 0.00000, 0.63345, 0.00000, 0.32743, 0.00000, -0.77855, 222.7412, 3.1768, 10.6970)
+
+[node name="Bush_006" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.86775, 0.00000, -0.13294, 0.00000, 0.65841, 0.00000, 0.13294, 0.00000, -0.86775, 245.2526, 4.7283, 28.5815)
+
+[node name="Bush_007" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.15425, 0.00000, 1.36047, 0.00000, 1.02689, 0.00000, -1.36047, 0.00000, -0.15425, 284.7810, 8.0198, 80.6919)
+
+[node name="Bush_008" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.78123, 0.00000, -0.61664, 0.00000, 0.74645, 0.00000, 0.61664, 0.00000, 0.78123, 300.4000, 9.5125, 102.3126)
+
+[node name="Bush_009" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.96603, 0.00000, -0.57637, 0.00000, 0.84369, 0.00000, 0.57637, 0.00000, 0.96603, 308.9075, 12.1280, 136.3918)
+
+[node name="Bush_010" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.79293, 0.00000, -0.30178, 0.00000, 0.63631, 0.00000, 0.30178, 0.00000, -0.79293, 339.7131, 15.1873, 157.2479)
+
+[node name="Bush_011" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.84827, 0.00000, -0.14139, 0.00000, 0.64498, 0.00000, 0.14139, 0.00000, -0.84827, 346.7387, 14.8881, 139.9443)
+
+[node name="Bush_012" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.48586, 0.00000, 0.59299, 0.00000, 0.57496, 0.00000, -0.59299, 0.00000, 0.48586, 378.3228, 17.3319, 148.3390)
+
+[node name="Bush_013" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.90647, 0.00000, 0.22873, 0.00000, 0.70116, 0.00000, -0.22873, 0.00000, -0.90647, 397.9231, 18.9809, 171.1551)
+
+[node name="Bush_014" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.97966, 0.00000, 0.89935, 0.00000, 0.99741, 0.00000, -0.89935, 0.00000, 0.97966, 470.7112, 20.1698, 200.7187)
+
+[node name="Bush_015" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.45688, 0.00000, 0.96958, 0.00000, 0.80388, 0.00000, -0.96958, 0.00000, -0.45688, 489.5532, 19.8778, 198.5463)
+
+[node name="Bush_016" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.34482, 0.00000, -1.06432, 0.00000, 0.83908, 0.00000, 1.06432, 0.00000, 0.34482, 436.2777, 21.1743, 222.5978)
+
+[node name="Bush_017" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.51732, 0.00000, -1.22321, 0.00000, 0.99608, 0.00000, 1.22321, 0.00000, -0.51732, 378.5969, 24.5176, 226.0339)
+
+[node name="Bush_018" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.29265, 0.00000, 0.94647, 0.00000, 0.74301, 0.00000, -0.94647, 0.00000, -0.29265, 315.1064, 31.5560, 229.3264)
+
+[node name="Bush_019" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-1.06381, 0.00000, -0.59404, 0.00000, 0.91382, 0.00000, 0.59404, 0.00000, -1.06381, 288.5711, 33.8899, 232.0078)
+
+[node name="Bush_020" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(1.12593, 0.00000, 0.35266, 0.00000, 0.88490, 0.00000, -0.35266, 0.00000, 1.12593, 219.6898, 30.4449, 250.5160)
+
+[node name="Bush_021" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.09349, 0.00000, -0.91779, 0.00000, 0.69190, 0.00000, 0.91779, 0.00000, -0.09349, 205.6093, 28.9793, 276.9851)
+
+[node name="Bush_022" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.19138, 0.00000, 1.20472, 0.00000, 0.91487, 0.00000, -1.20472, 0.00000, 0.19138, 223.0776, 29.4675, 282.9130)
+
+[node name="Bush_023" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.97851, 0.00000, 0.06940, 0.00000, 0.73572, 0.00000, -0.06940, 0.00000, -0.97851, 179.2308, 27.0679, 317.2017)
+
+[node name="Bush_024" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-1.31056, 0.00000, -0.40304, 0.00000, 1.02835, 0.00000, 0.40304, 0.00000, -1.31056, 34.4195, 35.3690, 462.7971)
+
+[node name="Bush_025" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.98564, 0.00000, -0.46845, 0.00000, 0.81848, 0.00000, 0.46845, 0.00000, 0.98564, 50.5462, 35.6038, 468.3275)
+
+[node name="Bush_026" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.39506, 0.00000, -0.73977, 0.00000, 0.62899, 0.00000, 0.73977, 0.00000, -0.39506, 27.1123, 36.9170, 481.4839)
+
+[node name="Bush_027" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.89428, 0.00000, -0.05878, 0.00000, 0.67215, 0.00000, 0.05878, 0.00000, -0.89428, 12.4482, 37.1962, 512.0493)
+
+[node name="Bush_028" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.87828, 0.00000, -0.30392, 0.00000, 0.69703, 0.00000, 0.30392, 0.00000, -0.87828, 55.5972, 35.2819, 546.8021)
+
+[node name="Bush_029" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.73184, 0.00000, -1.18262, 0.00000, 1.04306, 0.00000, 1.18262, 0.00000, -0.73184, 61.4746, 36.8715, 510.7831)
+
+[node name="Bush_030" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.68573, 0.00000, -0.28052, 0.00000, 0.55567, 0.00000, 0.28052, 0.00000, -0.68573, 88.6175, 38.1479, 494.1789)
+
+[node name="Bush_031" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.49303, 0.00000, -1.26167, 0.00000, 1.01593, 0.00000, 1.26167, 0.00000, 0.49303, 109.5954, 39.7744, 458.2481)
+
+[node name="Bush_032" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.74991, 0.00000, 0.48464, 0.00000, 0.66966, 0.00000, -0.48464, 0.00000, -0.74991, 113.5176, 40.8366, 421.1040)
+
+[node name="Bush_033" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.64349, 0.00000, 0.87514, 0.00000, 0.81469, 0.00000, -0.87514, 0.00000, 0.64349, 143.3768, 40.7636, 420.1063)
+
+[node name="Bush_034" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.71624, 0.00000, 0.46274, 0.00000, 0.63953, 0.00000, -0.46274, 0.00000, -0.71624, 153.2730, 40.1769, 395.0669)
+
+[node name="Bush_035" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.77246, 0.00000, -0.40168, 0.00000, 0.65299, 0.00000, 0.40168, 0.00000, -0.77246, 199.8587, 38.8899, 406.3100)
+
+[node name="Bush_036" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.69071, 0.00000, 0.89867, 0.00000, 0.85008, 0.00000, -0.89867, 0.00000, 0.69071, 203.1086, 38.6866, 388.2746)
+
+[node name="Bush_037" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.10027, 0.00000, -0.81902, 0.00000, 0.61885, 0.00000, 0.81902, 0.00000, 0.10027, 229.2542, 37.7556, 413.1003)
+
+[node name="Bush_038" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.18660, 0.00000, 0.90405, 0.00000, 0.69233, 0.00000, -0.90405, 0.00000, -0.18660, 232.0319, 37.6573, 394.2459)
+
+[node name="Bush_039" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.89034, 0.00000, -0.25734, 0.00000, 0.69509, 0.00000, 0.25734, 0.00000, 0.89034, 251.3504, 36.5725, 396.7165)
+
+[node name="Bush_040" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.67637, 0.00000, 0.26020, 0.00000, 0.54352, 0.00000, -0.26020, 0.00000, 0.67637, 292.8074, 32.2786, 411.4857)
+
+[node name="Bush_041" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.67469, 0.00000, 0.25725, 0.00000, 0.54155, 0.00000, -0.25725, 0.00000, 0.67469, 324.6905, 28.9757, 397.0181)
+
+[node name="Bush_042" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.16285, 0.00000, 1.29014, 0.00000, 0.97528, 0.00000, -1.29014, 0.00000, 0.16285, 312.9307, 28.8165, 382.5021)
+
+[node name="Bush_043" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-1.45752, 0.00000, -0.01438, 0.00000, 1.09319, 0.00000, 0.01438, 0.00000, -1.45752, 335.8164, 27.3473, 386.1656)
+
+[node name="Bush_044" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.44582, 0.00000, -0.73291, 0.00000, 0.64339, 0.00000, 0.73291, 0.00000, 0.44582, 322.2447, 27.2738, 373.0862)
+
+[node name="Bush_045" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.38390, 0.00000, 1.09219, 0.00000, 0.86827, 0.00000, -1.09219, 0.00000, -0.38390, 363.8138, 21.6905, 329.5080)
+
+[node name="Bush_046" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.72567, 0.00000, -1.09396, 0.00000, 0.98457, 0.00000, 1.09396, 0.00000, -0.72567, 402.0353, 19.0938, 320.3432)
+
+[node name="Bush_047" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(0.06724, 0.00000, 0.82533, 0.00000, 0.62105, 0.00000, -0.82533, 0.00000, 0.06724, 532.7993, 13.8165, 252.4644)
+
+[node name="Bush_048" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-1.21024, 0.00000, 0.03096, 0.00000, 0.90798, 0.00000, -0.03096, 0.00000, -1.21024, 578.7717, 13.2348, 264.9755)
+
+[node name="Bush_049" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(1.10372, 0.00000, 0.77090, 0.00000, 1.00971, 0.00000, -0.77090, 0.00000, 1.10372, 452.6947, 10.4763, 329.0686)
+
+[node name="Bush_050" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(1.27630, 0.00000, -0.24624, 0.00000, 0.97488, 0.00000, 0.24624, 0.00000, 1.27630, 435.2024, 9.8396, 358.6043)
+
+[node name="Bush_051" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.09147, 0.00000, 0.72323, 0.00000, 0.54674, 0.00000, -0.72323, 0.00000, -0.09147, 339.2189, -1.8023, 533.3925)
+
+[node name="Bush_052" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.57822, 0.00000, 0.50995, 0.00000, 0.57822, 0.00000, -0.50995, 0.00000, -0.57822, 356.4269, -1.9242, 536.7374)
+
+[node name="Bush_053" parent="Props" instance=ExtResource("bush") groups=["Props"]]
+transform = Transform3D(-0.47701, 0.00000, -0.71661, 0.00000, 0.64564, 0.00000, 0.71661, 0.00000, -0.47701, 321.3692, -4.8797, 622.9024)
+
+[node name="Boulder_001" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.39168, 0.00000, -0.38549, 0.00000, 0.38469, 0.00000, 0.38549, 0.00000, 0.39168, 459.4566, 19.8260, 193.2322)
+
+[node name="Boulder_002" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.50750, 0.00000, -0.77326, 0.00000, 0.64745, 0.00000, 0.77326, 0.00000, -0.50750, 456.0567, 19.9149, 198.6556)
+
+[node name="Boulder_003" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.13566, 0.00000, -0.85838, 0.00000, 0.99650, 0.00000, 0.85838, 0.00000, 1.13566, 417.9193, 19.0861, 246.8016)
+
+[node name="Boulder_004" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.60516, 0.00000, -0.25702, 0.00000, 0.46024, 0.00000, 0.25702, 0.00000, -0.60516, 376.0518, 3.4753, 462.8342)
+
+[node name="Boulder_005" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.20484, 0.00000, 0.04871, 0.00000, 0.84408, 0.00000, -0.04871, 0.00000, 1.20484, 350.7900, 1.5435, 455.3851)
+
+[node name="Boulder_006" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.73101, 0.00000, -1.07977, 0.00000, 0.91276, 0.00000, 1.07977, 0.00000, -0.73101, 314.6585, 17.6887, 152.7907)
+
+[node name="Boulder_007" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.43616, 0.00000, -0.29720, 0.00000, 0.36945, 0.00000, 0.29720, 0.00000, -0.43616, 40.4962, 36.0390, 514.6087)
+
+[node name="Boulder_008" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.20484, 0.00000, 0.13653, 0.00000, 0.84878, 0.00000, -0.13653, 0.00000, -1.20484, 58.1145, 36.1638, 478.7977)
+
+[node name="Boulder_009" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.71576, 0.00000, -0.36088, 0.00000, 0.56111, 0.00000, 0.36088, 0.00000, -0.71576, 314.0337, 25.2008, 346.8066)
+
+[node name="Boulder_010" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.56439, 0.00000, -0.86954, 0.00000, 0.72566, 0.00000, 0.86954, 0.00000, 0.56439, 343.8293, 22.9320, 328.7997)
+
+[node name="Boulder_011" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.70537, 0.00000, 0.40528, 0.00000, 0.56946, 0.00000, -0.40528, 0.00000, 0.70537, 70.9541, 1.6678, -29.1492)
+
+[node name="Boulder_012" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.88390, 0.00000, 0.83976, 0.00000, 0.85345, 0.00000, -0.83976, 0.00000, 0.88390, 484.8861, 11.8829, 334.4517)
+
+[node name="Boulder_013" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.09908, 0.00000, 0.92504, 0.00000, 1.00558, 0.00000, -0.92504, 0.00000, 1.09908, 354.2255, -2.8015, 573.4817)
+
+[node name="Boulder_014" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.58291, 0.00000, 0.39988, 0.00000, 0.49482, 0.00000, -0.39988, 0.00000, 0.58291, 308.5530, 9.8439, 88.4207)
+
+[node name="Boulder_015" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.33726, 0.00000, -0.76992, 0.00000, 0.58838, 0.00000, 0.76992, 0.00000, -0.33726, 220.7095, 3.1049, 3.2999)
+
+[node name="Boulder_016" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.94847, 0.00000, 0.54307, 0.00000, 0.76506, 0.00000, -0.54307, 0.00000, -0.94847, 383.5679, 20.7753, 295.5046)
+
+[node name="Boulder_017" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.17026, 0.00000, 1.36298, 0.00000, 0.96150, 0.00000, -1.36298, 0.00000, -0.17026, 385.9836, 7.9341, 369.5429)
+
+[node name="Boulder_018" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.30286, 0.00000, -0.49259, 0.00000, 0.40477, 0.00000, 0.49259, 0.00000, 0.30286, 371.2935, -1.8476, 535.2999)
+
+[node name="Boulder_019" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.03429, 0.00000, -0.84036, 0.00000, 0.93286, 0.00000, 0.84036, 0.00000, -1.03429, 218.7570, 30.3426, 339.4354)
+
+[node name="Boulder_020" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.92362, 0.00000, 1.05181, 0.00000, 0.97984, 0.00000, -1.05181, 0.00000, -0.92362, 309.7718, 25.1820, 195.5249)
+
+[node name="Boulder_021" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.37147, 0.00000, -0.74915, 0.00000, 0.58533, 0.00000, 0.74915, 0.00000, 0.37147, 428.4473, 21.1740, 203.4005)
+
+[node name="Boulder_022" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.97151, 0.00000, 1.09009, 0.00000, 1.02213, 0.00000, -1.09009, 0.00000, 0.97151, 180.4344, 26.8564, 283.7838)
+
+[node name="Boulder_023" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.59319, 0.00000, 0.34876, 0.00000, 0.48169, 0.00000, -0.34876, 0.00000, -0.59319, 198.9782, 37.0555, 410.2918)
+
+[node name="Boulder_024" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.45221, 0.00000, -0.14162, 0.00000, 1.02137, 0.00000, 0.14162, 0.00000, -1.45221, 355.8291, 14.4710, 122.5073)
+
+[node name="Boulder_025" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.61172, 0.00000, -0.93302, 0.00000, 0.78097, 0.00000, 0.93302, 0.00000, 0.61172, 346.4820, 3.8933, 453.7095)
+
+[node name="Boulder_026" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.49342, 0.00000, 0.71075, 0.00000, 0.60567, 0.00000, -0.71075, 0.00000, 0.49342, 265.8146, 26.9289, 200.7958)
+
+[node name="Boulder_027" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.91815, 0.00000, 0.07402, 0.00000, 0.64479, 0.00000, -0.07402, 0.00000, 0.91815, 247.4602, 4.7615, 0.0512)
+
+[node name="Boulder_028" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.36704, 0.00000, 0.65317, 0.00000, 0.52446, 0.00000, -0.65317, 0.00000, -0.36704, 293.1294, 29.7832, 253.6513)
+
+[node name="Boulder_029" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.22429, 0.00000, 0.53597, 0.00000, 0.40670, 0.00000, -0.53597, 0.00000, 0.22429, 297.1297, 8.0885, 66.9767)
+
+[node name="Boulder_030" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.29538, 0.00000, 0.74692, 0.00000, 0.56224, 0.00000, -0.74692, 0.00000, -0.29538, 491.9530, 16.2428, 241.9102)
+
+[node name="Boulder_031" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.70064, 0.00000, 0.27962, 0.00000, 0.52807, 0.00000, -0.27962, 0.00000, 0.70064, 454.9546, 15.4625, 297.8826)
+
+[node name="Boulder_032" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.42235, 0.00000, 0.25742, 0.00000, 1.01182, 0.00000, -0.25742, 0.00000, -1.42235, 295.4795, 9.4472, 93.6821)
+
+[node name="Boulder_033" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.00484, 0.00000, -1.16188, 0.00000, 0.81332, 0.00000, 1.16188, 0.00000, 0.00484, 200.9231, 28.4987, 290.3433)
+
+[node name="Boulder_034" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.39228, 0.00000, -0.36355, 0.00000, 0.37439, 0.00000, 0.36355, 0.00000, -0.39228, 47.3268, 35.8520, 527.5039)
+
+[node name="Boulder_035" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.58199, 0.00000, -1.28862, 0.00000, 0.98977, 0.00000, 1.28862, 0.00000, 0.58199, 126.7854, 36.5959, 457.5445)
+
+[node name="Boulder_036" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.71347, 0.00000, -0.23847, 0.00000, 0.52659, 0.00000, 0.23847, 0.00000, -0.71347, 473.7847, 13.8649, 310.0900)
+
+[node name="Boulder_037" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.15603, 0.00000, 0.77619, 0.00000, 0.55420, 0.00000, -0.77619, 0.00000, 0.15603, 473.5418, 13.8011, 311.2801)
+
+[node name="Boulder_038" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.10425, 0.00000, -0.95873, 0.00000, 0.67507, 0.00000, 0.95873, 0.00000, -0.10425, 82.3773, 35.8536, 449.4294)
+
+[node name="Boulder_039" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.46473, 0.00000, 0.46278, 0.00000, 0.45910, 0.00000, -0.46278, 0.00000, -0.46473, 55.8875, 36.4025, 495.9944)
+
+[node name="Boulder_040" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.33636, 0.00000, -1.51310, 0.00000, 1.08503, 0.00000, 1.51310, 0.00000, -0.33636, 176.6797, 26.8064, 292.5196)
+
+[node name="Boulder_041" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.44266, 0.00000, 0.35030, 0.00000, 1.03920, 0.00000, -0.35030, 0.00000, 1.44266, 74.8296, 2.5705, 33.8092)
+
+[node name="Boulder_042" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.54265, 0.00000, -0.99875, 0.00000, 0.79565, 0.00000, 0.99875, 0.00000, -0.54265, 265.0671, 31.9581, 389.5189)
+
+[node name="Boulder_043" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.28439, 0.00000, 0.46037, 0.00000, 0.37879, 0.00000, -0.46037, 0.00000, -0.28439, 344.4781, 15.1136, 129.0120)
+
+[node name="Boulder_044" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.36502, 0.00000, 0.01366, 0.00000, 0.95556, 0.00000, -0.01366, 0.00000, -1.36502, 323.0805, 29.6904, 207.9801)
+
+[node name="Boulder_045" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.06008, 0.00000, -0.86007, 0.00000, 0.95557, 0.00000, 0.86007, 0.00000, 1.06008, 136.6319, 36.2785, 452.7608)
+
+[node name="Boulder_046" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.85301, 0.00000, 0.50545, 0.00000, 0.69406, 0.00000, -0.50545, 0.00000, 0.85301, 241.0899, 32.3621, 425.6079)
+
+[node name="Boulder_047" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.36515, 0.00000, -0.15419, 0.00000, 0.96168, 0.00000, 0.15419, 0.00000, -1.36515, 365.8384, 25.7661, 207.1677)
+
+[node name="Boulder_048" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.72098, 0.00000, 0.58816, 0.00000, 0.65131, 0.00000, -0.58816, 0.00000, 0.72098, 462.4471, 17.3216, 242.9105)
+
+[node name="Boulder_049" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.78981, 0.00000, 0.20734, 0.00000, 0.57160, 0.00000, -0.20734, 0.00000, 0.78981, 496.0796, 16.1039, 241.0251)
+
+[node name="Boulder_050" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.38015, 0.00000, -0.74943, 0.00000, 1.09935, 0.00000, 0.74943, 0.00000, 1.38015, 239.0219, 7.2404, 79.2839)
+
+[node name="Boulder_051" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.66847, 0.00000, -0.24465, 0.00000, 0.49829, 0.00000, 0.24465, 0.00000, 0.66847, 455.4220, 17.2445, 143.6245)
+
+[node name="Boulder_052" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.21990, 0.00000, -1.34531, 0.00000, 0.95421, 0.00000, 1.34531, 0.00000, 0.21990, 571.4610, 10.9853, 307.4180)
+
+[node name="Boulder_053" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.18372, 0.00000, -0.58418, 0.00000, 0.92402, 0.00000, 0.58418, 0.00000, -1.18372, 368.7001, 0.1351, 507.5624)
+
+[node name="Boulder_054" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.06615, 0.00000, -1.16973, 0.00000, 0.82012, 0.00000, 1.16973, 0.00000, -0.06615, 236.2131, 3.8749, 13.0154)
+
+[node name="Boulder_055" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.46261, 0.00000, -0.34545, 0.00000, 0.40415, 0.00000, 0.34545, 0.00000, 0.46261, 387.5074, 17.6860, 344.1591)
+
+[node name="Boulder_056" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.89277, 0.00000, -0.30197, 0.00000, 0.65972, 0.00000, 0.30197, 0.00000, 0.89277, 449.8208, 19.4942, 231.7237)
+
+[node name="Boulder_057" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.96053, 0.00000, 0.52264, 0.00000, 0.76546, 0.00000, -0.52264, 0.00000, -0.96053, 91.6068, 1.6265, -29.2902)
+
+[node name="Boulder_058" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.19819, 0.00000, -0.52260, 0.00000, 0.91504, 0.00000, 0.52260, 0.00000, -1.19819, 304.1662, 9.6987, 88.4483)
+
+[node name="Boulder_059" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.63224, 0.00000, 0.99638, 0.00000, 0.82603, 0.00000, -0.99638, 0.00000, 0.63224, 10.4461, 34.8336, 504.8187)
+
+[node name="Boulder_060" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.06400, 0.00000, 1.11083, 0.00000, 1.07673, 0.00000, -1.11083, 0.00000, 1.06400, 251.4273, 35.0001, 417.2792)
+
+[node name="Boulder_061" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.23120, 0.00000, -0.73995, 0.00000, 0.54266, 0.00000, 0.73995, 0.00000, -0.23120, 389.9863, -1.4542, 492.0581)
+
+[node name="Boulder_062" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.65242, 0.00000, -0.59519, 0.00000, 0.61819, 0.00000, 0.59519, 0.00000, 0.65242, 448.0958, 20.1611, 198.4529)
+
+[node name="Boulder_063" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.16213, 0.00000, -1.07682, 0.00000, 1.10903, 0.00000, 1.07682, 0.00000, -1.16213, 106.9021, 32.6022, 397.9016)
+
+[node name="Boulder_064" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.16603, 0.00000, -1.08746, 0.00000, 0.77004, 0.00000, 1.08746, 0.00000, -0.16603, 336.0541, -0.8506, 535.5293)
+
+[node name="Boulder_065" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.65377, 0.00000, -0.77545, 0.00000, 0.70999, 0.00000, 0.77545, 0.00000, 0.65377, 311.6887, 14.6924, 143.8214)
+
+[node name="Boulder_066" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.05432, 0.00000, 0.65689, 0.00000, 0.46140, 0.00000, -0.65689, 0.00000, -0.05432, 332.1181, 13.9500, 121.9714)
+
+[node name="Boulder_067" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.06423, 0.00000, 0.94926, 0.00000, 0.99825, 0.00000, -0.94926, 0.00000, 1.06423, 369.6048, 17.1625, 141.4230)
+
+[node name="Boulder_068" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.82640, 0.00000, -0.41037, 0.00000, 0.64588, 0.00000, 0.41037, 0.00000, -0.82640, 439.3280, 15.7021, 132.4873)
+
+[node name="Boulder_069" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.30578, 0.00000, 0.30854, 0.00000, 0.93921, 0.00000, -0.30854, 0.00000, -1.30578, 456.5181, 19.9188, 200.7735)
+
+[node name="Boulder_070" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.82279, 0.00000, -0.36514, 0.00000, 0.63012, 0.00000, 0.36514, 0.00000, -0.82279, 343.1480, 3.9079, 475.5742)
+
+[node name="Boulder_071" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.92193, 0.00000, -0.73952, 0.00000, 0.82732, 0.00000, 0.73952, 0.00000, 0.92193, 294.6312, 27.9442, 377.4426)
+
+[node name="Boulder_072" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.10118, 0.00000, 0.32592, 0.00000, 0.80388, 0.00000, -0.32592, 0.00000, 1.10118, 160.4636, 37.9711, 416.6201)
+
+[node name="Boulder_073" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.63795, 0.00000, 0.88055, 0.00000, 0.76115, 0.00000, -0.88055, 0.00000, 0.63795, -9.5379, 32.3259, 537.7023)
+
+[node name="Boulder_074" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.67073, 0.00000, 0.47370, 0.00000, 0.57480, 0.00000, -0.47370, 0.00000, 0.67073, 12.3888, 31.0420, 451.8599)
+
+[node name="Boulder_075" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.20009, 0.00000, 1.11804, 0.00000, 0.79506, 0.00000, -1.11804, 0.00000, -0.20009, 286.2584, 28.4576, 370.5409)
+
+[node name="Boulder_076" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.59395, 0.00000, 0.91861, 0.00000, 0.76573, 0.00000, -0.91861, 0.00000, 0.59395, 128.6431, 36.7342, 449.9796)
+
+[node name="Boulder_077" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.11122, 0.00000, -0.42375, 0.00000, 0.83249, 0.00000, 0.42375, 0.00000, 1.11122, 461.5623, 9.5162, 361.0215)
+
+[node name="Boulder_078" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.60166, 0.00000, -0.64078, 0.00000, 0.61528, 0.00000, 0.64078, 0.00000, 0.60166, 338.0620, 0.0367, 523.6449)
+
+[node name="Boulder_079" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.31458, 0.00000, 0.43419, 0.00000, 0.37532, 0.00000, -0.43419, 0.00000, -0.31458, 376.7279, 16.9802, 138.5506)
+
+[node name="Boulder_080" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.17805, 0.00000, -0.48762, 0.00000, 0.89249, 0.00000, 0.48762, 0.00000, 1.17805, 192.5296, 27.8146, 287.2853)
+
+[node name="Boulder_081" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.22442, 0.00000, 0.49355, 0.00000, 0.37953, 0.00000, -0.49355, 0.00000, -0.22442, 379.7368, 14.9117, 124.1944)
+
+[node name="Boulder_082" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.58474, 0.00000, -0.34465, 0.00000, 0.47513, 0.00000, 0.34465, 0.00000, -0.58474, 383.4122, 16.7090, 135.7034)
+
+[node name="Boulder_083" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.71608, 0.00000, 0.22098, 0.00000, 0.52458, 0.00000, -0.22098, 0.00000, -0.71608, 313.8250, -4.5560, 640.0464)
+
+[node name="Boulder_084" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.10524, 0.00000, 1.27309, 0.00000, 0.89420, 0.00000, -1.27309, 0.00000, -0.10524, 15.9774, 33.9066, 485.7233)
+
+[node name="Boulder_085" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.42895, 0.00000, 0.43141, 0.00000, 0.42586, 0.00000, -0.43141, 0.00000, -0.42895, 507.9677, 12.3461, 324.1213)
+
+[node name="Boulder_086" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.70163, 0.00000, 1.06707, 0.00000, 0.89395, 0.00000, -1.06707, 0.00000, -0.70163, 68.9573, 0.1023, -17.3383)
+
+[node name="Boulder_087" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.52943, 0.00000, -0.86695, 0.00000, 0.71107, 0.00000, 0.86695, 0.00000, -0.52943, 23.6755, 34.1680, 475.3579)
+
+[node name="Boulder_088" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.41251, 0.00000, 0.51407, 0.00000, 0.46138, 0.00000, -0.51407, 0.00000, 0.41251, 14.9442, 33.5673, 481.7752)
+
+[node name="Boulder_089" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.54521, 0.00000, -0.01716, 0.00000, 1.08172, 0.00000, 0.01716, 0.00000, 1.54521, 27.0149, 29.6956, 586.4109)
+
+[node name="Boulder_090" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.53300, 0.00000, -0.80763, 0.00000, 0.67736, 0.00000, 0.80763, 0.00000, -0.53300, 308.6740, 26.1431, 364.0321)
+
+[node name="Boulder_091" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.60540, 0.00000, -0.31808, 0.00000, 0.47871, 0.00000, 0.31808, 0.00000, -0.60540, 15.8714, -0.0681, 10.7222)
+
+[node name="Boulder_092" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.10423, 0.00000, -0.52709, 0.00000, 0.37611, 0.00000, 0.52709, 0.00000, -0.10423, 72.6320, 36.4457, 473.5630)
+
+[node name="Boulder_093" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.71400, 0.00000, -0.42779, 0.00000, 0.58264, 0.00000, 0.42779, 0.00000, 0.71400, 57.7215, 36.4156, 492.5322)
+
+[node name="Boulder_094" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.15368, 0.00000, -1.08050, 0.00000, 1.10646, 0.00000, 1.08050, 0.00000, 1.15368, 456.3751, 13.8004, 318.4163)
+
+[node name="Boulder_095" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.03157, 0.00000, 0.72688, 0.00000, 0.88336, 0.00000, -0.72688, 0.00000, 1.03157, 11.2294, 1.6210, -28.2200)
+
+[node name="Boulder_096" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.46324, 0.00000, 0.78633, 0.00000, 0.63885, 0.00000, -0.78633, 0.00000, 0.46324, 356.2389, 19.1576, 378.3270)
+
+[node name="Boulder_097" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.85517, 0.00000, 1.00219, 0.00000, 0.92223, 0.00000, -1.00219, 0.00000, 0.85517, 354.0255, 17.7068, 385.6111)
+
+[node name="Boulder_098" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.64808, 0.00000, 0.09926, 0.00000, 0.45895, 0.00000, -0.09926, 0.00000, 0.64808, 363.6667, -0.3129, 516.8159)
+
+[node name="Boulder_099" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.22490, 0.00000, -0.45083, 0.00000, 0.35267, 0.00000, 0.45083, 0.00000, 0.22490, 417.4763, 20.5863, 237.2053)
+
+[node name="Boulder_100" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.56293, 0.00000, 0.46117, 0.00000, 0.50940, 0.00000, -0.46117, 0.00000, 0.56293, 456.1417, 19.9381, 202.9047)
+
+[node name="Boulder_101" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.25242, 0.00000, 1.20153, 0.00000, 0.85943, 0.00000, -1.20153, 0.00000, -0.25242, 233.3868, 33.4558, 423.0632)
+
+[node name="Boulder_102" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.55152, 0.00000, -0.98838, 0.00000, 0.79229, 0.00000, 0.98838, 0.00000, 0.55152, 463.2140, 13.7256, 316.7635)
+
+[node name="Boulder_103" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.89833, 0.00000, -0.30749, 0.00000, 0.66465, 0.00000, 0.30749, 0.00000, 0.89833, 356.9781, -2.5790, 566.8360)
+
+[node name="Boulder_104" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.90557, 0.00000, -0.42794, 0.00000, 0.70112, 0.00000, 0.42794, 0.00000, -0.90557, 216.5753, 5.0087, 51.5553)
+
+[node name="Boulder_105" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(1.01456, 0.00000, 0.54091, 0.00000, 0.80482, 0.00000, -0.54091, 0.00000, 1.01456, 501.2878, 12.3664, 324.3088)
+
+[node name="Boulder_106" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.81196, 0.00000, 0.12140, 0.00000, 0.57469, 0.00000, -0.12140, 0.00000, 0.81196, 127.6984, 2.3591, -32.1349)
+
+[node name="Boulder_107" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.82623, 0.00000, 1.17649, 0.00000, 1.00634, 0.00000, -1.17649, 0.00000, -0.82623, 187.4649, 27.3838, 285.1321)
+
+[node name="Boulder_108" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(0.36965, 0.00000, -0.66850, 0.00000, 0.53473, 0.00000, 0.66850, 0.00000, 0.36965, 401.8359, 19.8221, 280.3499)
+
+[node name="Boulder_109" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-0.41776, 0.00000, 1.41386, 0.00000, 1.03200, 0.00000, -1.41386, 0.00000, -0.41776, 207.0320, 3.5417, -24.6357)
+
+[node name="Boulder_110" parent="Props" instance=ExtResource("boulder") groups=["Props"]]
+transform = Transform3D(-1.50150, 0.00000, -0.55004, 0.00000, 1.11935, 0.00000, 0.55004, 0.00000, -1.50150, 536.8793, 14.1525, 235.1058)
+
+[node name="Sign_001" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(0.31787, 0.00000, 0.94813, 0.00000, 1.00000, 0.00000, -0.94813, 0.00000, 0.31787, 471.5530, 20.2375, 199.2424)
+
+[node name="Sign_002" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(-0.31787, 0.00000, -0.94813, 0.00000, 1.00000, 0.00000, 0.94813, 0.00000, -0.31787, 487.8609, 20.1283, 193.7750)
+
+[node name="Sign_003" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(0.37574, 0.00000, 0.92673, 0.00000, 1.00000, 0.00000, -0.92673, 0.00000, 0.37574, 3.8344, 35.3195, 555.7310)
+
+[node name="Sign_004" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(-0.37574, 0.00000, -0.92673, 0.00000, 1.00000, 0.00000, 0.92673, 0.00000, -0.37574, 19.7741, 35.2168, 549.2684)
+
+[node name="Sign_005" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(0.87035, 0.00000, 0.49244, 0.00000, 1.00000, 0.00000, -0.49244, 0.00000, 0.87035, 561.1853, 13.6214, 269.0965)
+
+[node name="Sign_006" parent="Props" instance=ExtResource("road_sign") groups=["Props"]]
+transform = Transform3D(-0.87035, 0.00000, -0.49244, 0.00000, 1.00000, 0.00000, 0.49244, 0.00000, -0.87035, 569.6552, 13.5749, 254.1265)

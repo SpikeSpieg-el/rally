@@ -1,6 +1,7 @@
 ## Конфигурация Lancer Evolution. Выбирается в меню перед стартом.
 ## Все параметры доступны в инспекторе: res://data/setups/*.tres
 ## Пустое/нулевое значение оставляет базовую настройку из scripts/rally_car.gd.
+@tool
 class_name RallyCarSetup
 extends Resource
 

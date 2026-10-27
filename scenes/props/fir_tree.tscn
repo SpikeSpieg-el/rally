@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Material_fir"]
+albedo_color = Color(0.075, 0.215, 0.115, 1)
+roughness = 0.95
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_fir"]
+material = SubResource("Material_fir")
+top_radius = 0.0
+bottom_radius = 1.7
+height = 6.5
+radial_segments = 7
+rings = 1
+
+[node name="FirTree" type="Node3D"]
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.25, 0)
+mesh = SubResource("Mesh_fir")
