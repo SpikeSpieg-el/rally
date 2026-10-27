@@ -15,13 +15,13 @@ enum Drivetrain { AWD, RWD, FWD }
 @export var accent_color: Color = Color(1, 0.55, 0.05, 1)
 
 @export_group("Мотор")
-@export_range(100.0, 900.0, 1.0) var max_torque: float = 390.0
+@export_range(100.0, 900.0, 1.0) var max_torque: float = 470.0
 @export_range(3000.0, 10000.0, 10.0) var max_rpm: float = 7600.0
 @export_range(1.0, 8.0, 0.01) var final_drive: float = 4.1
 @export var gear_ratios: Array[float] = [3.6, 2.4, 1.75, 1.35, 1.08, 0.88]
 ## Необязательная кривая момента. Если пусто — используется базовая кривая.
 @export var torque_curve: Curve = null
-@export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 0.8
+@export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 1.15
 
 @export_group("Привод")
 @export_enum("AWD", "RWD", "FWD") var drivetrain: int = Drivetrain.AWD
@@ -29,7 +29,7 @@ enum Drivetrain { AWD, RWD, FWD }
 
 @export_group("Масса и баланс")
 @export_range(700.0, 2200.0, 1.0) var vehicle_mass: float = 1230.0
-@export_range(0.35, 0.70, 0.01) var front_weight_distribution: float = 0.56
+@export_range(0.35, 0.70, 0.01) var front_weight_distribution: float = 0.53
 @export_range(-0.30, 0.30, 0.005) var center_of_gravity_height_offset: float = -0.10
 
 @export_group("Подвеска")
@@ -39,8 +39,8 @@ enum Drivetrain { AWD, RWD, FWD }
 @export_range(0.30, 0.80, 0.01) var rear_resting_ratio: float = 0.55
 @export_range(0.10, 1.20, 0.01) var front_damping_ratio: float = 0.46
 @export_range(0.10, 1.20, 0.01) var rear_damping_ratio: float = 0.52
-@export_range(0.0, 0.80, 0.01) var front_arb_ratio: float = 0.16
-@export_range(0.0, 0.80, 0.01) var rear_arb_ratio: float = 0.12
+@export_range(0.0, 0.80, 0.01) var front_arb_ratio: float = 0.13
+@export_range(0.0, 0.80, 0.01) var rear_arb_ratio: float = 0.10
 @export_range(0.2, 2.5, 0.05) var bump_damp_multiplier: float = 0.75
 @export_range(0.2, 2.5, 0.05) var rebound_damp_multiplier: float = 1.35
 

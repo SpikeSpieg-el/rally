@@ -15,11 +15,13 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
-const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 2.2, "Grass": 1.4}
-const BASE_COF := {"Road": 1.50, "Dirt": 1.00, "Grass": 0.65}
-const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.8, "Grass": 2.8}
-const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.0, "Grass": 0.0}
-const BASE_LONGITUDINAL := {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
+# Внедорожные значения подняты: машину «не хватало» на подъём с обочины,
+# а на траве она «утюжила» без вращения.
+const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 2.2, "Grass": 1.6}
+const BASE_COF := {"Road": 1.50, "Dirt": 1.12, "Grass": 0.85}
+const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.35, "Grass": 1.7}
+const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.0, "Grass": 0.06}
+const BASE_LONGITUDINAL := {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -182,20 +184,22 @@ func _configure_gevp() -> void:
 	rear_left_wheel = $Wheel_RL
 	rear_right_wheel = $Wheel_RR
 
-	steering_speed = 4.2
+	steering_speed = 4.8
 	countersteer_speed = 9.0
 	steering_speed_decay = 0.24
-	steering_slip_assist = 0.30
-	countersteer_assist = 0.20
-	steering_exponent = 1.45
+	steering_slip_assist = 0.25
+	countersteer_assist = 0.45
+	steering_exponent = 1.38
 	max_steering_angle = deg_to_rad(35.0)
 	front_steering_ratio = 1.0
 	rear_steering_ratio = 0.0
 
-	throttle_speed = 8.0
+	throttle_speed = 13.0
 	braking_speed = 10.0
 	front_brake_bias = 0.60
-	traction_control_max_slip = 0.80
+	# Дольше держим TCS выключенным: раллийная машина должна вращаться
+	# ногами (проскальзывать), а не «утюжить» под избыточным газом.
+	traction_control_max_slip = 1.15
 
 	enable_stability = false
 	stability_yaw_engage_angle = 0.10
@@ -204,18 +208,19 @@ func _configure_gevp() -> void:
 	stability_upright_spring = 0.0
 	stability_upright_damping = 0.0
 
-	max_torque = 390.0
+	max_torque = 470.0
 	max_rpm = 7600.0
 	idle_rpm = 900.0
-	motor_drag = 0.005
+	motor_drag = 0.004
 	motor_brake = 10.0
-	motor_moment = 0.35
-	clutch_out_rpm = 2700.0
-	max_clutch_torque_ratio = 1.45
+	motor_moment = 0.30
+	clutch_out_rpm = 2300.0
+	max_clutch_torque_ratio = 1.65
+	# Больше момента на низах: машине не хватало мощности на подъём.
 	torque_curve = Curve.new()
-	torque_curve.add_point(Vector2(0.0, 0.46))
-	torque_curve.add_point(Vector2(0.56, 1.0))
-	torque_curve.add_point(Vector2(1.0, 0.72))
+	torque_curve.add_point(Vector2(0.0, 0.55))
+	torque_curve.add_point(Vector2(0.50, 1.0))
+	torque_curve.add_point(Vector2(1.0, 0.70))
 
 	gear_ratios = [3.6, 2.4, 1.75, 1.35, 1.08, 0.88]
 	final_drive = 4.1
@@ -233,7 +238,8 @@ func _configure_gevp() -> void:
 	rear_torque_vectoring = 0.0
 
 	vehicle_mass = 1230.0
-	front_weight_distribution = 0.56
+	# Смещение веса назад — меньше подрессорник под утюжком.
+	front_weight_distribution = 0.53
 	center_of_gravity_height_offset = -0.10
 	inertia_multiplier = 1.0
 
@@ -247,8 +253,8 @@ func _configure_gevp() -> void:
 	front_rebound_damp_multiplier = 1.35
 	rear_bump_damp_multiplier = 0.75
 	rear_rebound_damp_multiplier = 1.35
-	front_arb_ratio = 0.16
-	rear_arb_ratio = 0.12
+	front_arb_ratio = 0.13
+	rear_arb_ratio = 0.10
 	front_camber = 0.012
 	rear_camber = 0.012
 	front_toe = 0.003
@@ -258,12 +264,12 @@ func _configure_gevp() -> void:
 
 	contact_patch = 0.22
 	braking_grip_multiplier = 1.25
-	wheel_to_body_torque_multiplier = 0.5
-	tire_stiffnesses = {"Road": 5.0, "Dirt": 2.2, "Grass": 1.4}
-	coefficient_of_friction = {"Road": 1.50, "Dirt": 1.00, "Grass": 0.65}
-	rolling_resistance = {"Road": 1.0, "Dirt": 1.8, "Grass": 2.8}
-	lateral_grip_assist = {"Road": 0.0, "Dirt": 0.0, "Grass": 0.0}
-	longitudinal_grip_ratio = {"Road": 0.70, "Dirt": 0.62, "Grass": 0.50}
+	wheel_to_body_torque_multiplier = 0.6
+	tire_stiffnesses = {"Road": 5.0, "Dirt": 2.2, "Grass": 1.6}
+	coefficient_of_friction = {"Road": 1.50, "Dirt": 1.12, "Grass": 0.85}
+	rolling_resistance = {"Road": 1.0, "Dirt": 1.35, "Grass": 1.7}
+	lateral_grip_assist = {"Road": 0.0, "Dirt": 0.0, "Grass": 0.06}
+	longitudinal_grip_ratio = {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
 	front_tire_radius = 0.438
 	rear_tire_radius = 0.438
 	front_tire_width = 245.0
@@ -271,9 +277,9 @@ func _configure_gevp() -> void:
 	front_wheel_mass = 15.0
 	rear_wheel_mass = 15.0
 
-	coefficient_of_drag = 0.32
+	coefficient_of_drag = 0.28
 	air_density = 1.225
-	frontal_area = 2.0
+	frontal_area = 1.9
 
 
 func _resolve_setup() -> void:
