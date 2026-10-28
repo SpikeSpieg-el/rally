@@ -15,6 +15,9 @@ extends RefCounted
 
 ## Значение «дороги рядом нет».
 const FAR: float = 100000.0
+## Порог «углы ячейки указывают на разные витки трассы» (м километража).
+## См. along_road(): усреднять такие километражи нельзя — получаются впадины.
+const ALONG_JUMP: float = 30.0
 
 ## Точки осевой линии (x, y, z) примерно через 1 м.
 var samples := PackedVector3Array()
@@ -287,8 +290,44 @@ func distance_to_road(x: float, z: float) -> float:
 
 
 ## Километраж по трассе (м) для этой точки плана.
+##
+## Тонкость: если четыре угла сеточной ячейки «голосуют» за сильно разные
+## километражи (рядом второй виток шпильки или лестница серпантина),
+## билинейное усреднение изобретает километраж ПОСЕРЕДИНЕ — и высота дороги
+## в этой точке уходит в несуществующую впадину. Поэтому при расхождении
+## углов больше ALONG_JUMP берём километраж угла, ближайшего к дороге:
+## оба варианта — настоящие высоты трассы, выдуманных не остаётся.
 func along_road(x: float, z: float) -> float:
-	return _bilinear(field_along, x, z)
+	if cols < 2 or rows < 2:
+		return 0.0
+	var fx: float = (x - origin.x) / cell
+	var fz: float = (z - origin.y) / cell
+	var gx: int = clampi(int(floor(fx)), 0, cols - 2)
+	var gz: int = clampi(int(floor(fz)), 0, rows - 2)
+	var tx: float = clampf(fx - float(gx), 0.0, 1.0)
+	var tz: float = clampf(fz - float(gz), 0.0, 1.0)
+	var i00: int = gz * cols + gx
+	var i10: int = i00 + 1
+	var i01: int = i00 + cols
+	var i11: int = i01 + 1
+	var a_min: float = minf(minf(field_along[i00], field_along[i10]), minf(field_along[i01], field_along[i11]))
+	var a_max: float = maxf(maxf(field_along[i00], field_along[i10]), maxf(field_along[i01], field_along[i11]))
+	if a_max - a_min > ALONG_JUMP:
+		# Углы disagree: ближе к дороге — правдивее.
+		var best: int = i00
+		var best_dist: float = field_dist[i00]
+		if field_dist[i10] < best_dist:
+			best = i10
+			best_dist = field_dist[i10]
+		if field_dist[i01] < best_dist:
+			best = i01
+			best_dist = field_dist[i01]
+		if field_dist[i11] < best_dist:
+			best = i11
+		return field_along[best]
+	var top: float = lerpf(field_along[i00], field_along[i10], tx)
+	var bottom: float = lerpf(field_along[i01], field_along[i11], tx)
+	return lerpf(top, bottom, tz)
 
 
 ## Гладкая базовая высота рельефа в точке плана.

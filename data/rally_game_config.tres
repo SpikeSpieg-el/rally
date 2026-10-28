@@ -3,10 +3,13 @@
 [ext_resource type="Resource" uid="uid://csy3ssx2uxglk" path="res://data/setups/11_gravel.tres" id="1_fqvxh"]
 [ext_resource type="Script" uid="uid://c734g8vb6d4mw" path="res://scripts/data/rally_game_config.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://b7vnrvvmjm6mv" path="res://data/tracks/stage_forest.tres" id="2_t"]
+[ext_resource type="Resource" uid="uid://cv4peval9k2q7" path="res://data/tracks/stage_pereval.tres" id="3_t"]
+[ext_resource type="Resource" uid="uid://cnarc7d21g6m8" path="res://data/tracks/stage_north_arc.tres" id="4_t"]
+[ext_resource type="Resource" uid="uid://cdynmic4ge9k2" path="res://data/tracks/stage_dynamic.tres" id="5_t"]
 
 [resource]
 script = ExtResource("1_script")
 title = "RALLY"
-subtitle = "ЛЕСНОЙ СПЕЦУЧАСТОК • MITSUBISHI LANCER EVOLUTION"
-tracks = Array[Resource]([ExtResource("2_t")])
+subtitle = "ЧЕТЫРЕ СПЕЦУЧАСТКА • MITSUBISHI LANCER EVOLUTION"
+tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t")])
 car_setups = Array[Resource]([ExtResource("1_fqvxh")])

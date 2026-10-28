@@ -232,7 +232,23 @@ class Net:
         return self._bilinear(self.dist, x, z, self.rect[:2], self.cell, self.cols, self.rows)
 
     def along_at(self, x, z):
-        return self._bilinear(self.along, x, z, self.rect[:2], self.cell, self.cols, self.rows)
+        # Если четыре угла ячейки «голосуют» за сильно разные километражи
+        # (второй виток шпильки/лестницы рядом), билинейное усреднение
+        # изобретает несуществующий километраж посередине — и высота дороги
+        # в этой точке проваливается. Тогда берём километраж угла, ближайшего
+        # к дороге. (Зеркало: road_network.gd -> along_road.)
+        fx = (x - self.rect[0]) / self.cell
+        fz = (z - self.rect[1]) / self.cell
+        gx = max(0, min(self.cols - 2, int(math.floor(fx))))
+        gz = max(0, min(self.rows - 2, int(math.floor(fz))))
+        i = gz * self.cols + gx
+        corners = [i, i + 1, i + self.cols, i + self.cols + 1]
+        along = [self.along[c] for c in corners]
+        if max(along) - min(along) > 30.0:
+            best = min(corners, key=lambda c: self.dist[c])
+            return self.along[best]
+        return self._bilinear(self.along, x, z, self.rect[:2], self.cell,
+                              self.cols, self.rows)
 
     def regional_height(self, x, z):
         return self._bilinear(self.regional, x, z, (self.rox, self.roz), self.rcell,
@@ -310,9 +326,9 @@ def ditch(d, cfg):
 class Stage:
     """Сетка земли + сэмплеры, как в rally_stage.gd."""
 
-    def __init__(self, cfg=None, samples=None):
+    def __init__(self, cfg=None, samples=None, curve_path=None):
         self.cfg = cfg or read_track()
-        ctrl = load_curve()
+        ctrl = load_curve(curve_path or CURVE)
         self.samples = samples or sample_curve(ctrl, 1.0)
         xs = [p[0] for p in self.samples]
         zs = [p[2] for p in self.samples]

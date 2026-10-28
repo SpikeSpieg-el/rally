@@ -1,8 +1,13 @@
 ## Мини-карта трассы в меню. Рисует ту же осевую линию (Curve3D), из которой
 ## строится заезд, — никакой отдельной «генерации для превью» больше нет.
+## Процедурная трасса плетётся здесь же (с общим кэшем генератора), поэтому
+## заезд стартует по уже готовой кривой.
 extends Control
 
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
+
+## Трасса построена (кэш генератора заполнен) — меню может уточнить длину.
+signal track_built(track: TrackConfigType)
 
 @export var background_color: Color = Color(0.025, 0.045, 0.065, 1.0)
 @export var grid_color: Color = Color(0.10, 0.16, 0.19, 1.0)
@@ -14,28 +19,62 @@ var track: TrackConfigType = null
 var _points: PackedVector2Array = PackedVector2Array()
 var _checkpoints: PackedVector2Array = PackedVector2Array()
 var _length: float = 0.0
+var _generating: bool = false
 
 
 func set_track(new_track: TrackConfigType) -> void:
 	track = new_track
-	_rebuild()
+	if track != null and track.procedural:
+		# Плетение занимает секунды: сначала показываем статус, даём кадру
+		# прорисоваться и только потом строим. Кэш общий с заездом, поэтому
+		# второй раз это мгновенно.
+		var had_curve: bool = track.get_metadata_curve() != null
+		if had_curve:
+			_generating = false
+			_rebuild(true)
+			queue_redraw()
+			return
+		_generating = true
+		_points = PackedVector2Array()
+		_checkpoints = PackedVector2Array()
+		_length = 0.0
+		queue_redraw()
+		var tree := get_tree()
+		if tree == null:
+			return
+		await tree.create_timer(0.05).timeout
+		if track != new_track:
+			# пока плелись, выбрали другую трассу
+			return
+		_rebuild(true)
+		_generating = false
+		queue_redraw()
+		track_built.emit(track)
+		return
+	_generating = false
+	_rebuild(false)
 	queue_redraw()
 
 
-func _rebuild() -> void:
+## force_build: процедурную трассу строим по-настоящему (тяжело, но один раз);
+## обычную — берём как есть. Метаданным без сборки хватает get_metadata_curve().
+func _rebuild(force_build: bool) -> void:
 	_points = PackedVector2Array()
 	_checkpoints = PackedVector2Array()
 	_length = 0.0
-	if track == null or track.road_curve == null:
+	if track == null:
 		return
-	var baked: PackedVector3Array = track.road_curve.get_baked_points()
+	var curve: Curve3D = track.get_effective_curve() if force_build else track.get_metadata_curve()
+	if curve == null:
+		return
+	var baked: PackedVector3Array = curve.get_baked_points()
 	for p in baked:
 		_points.append(Vector2(p.x, p.z))
-	_length = track.road_curve.get_baked_length()
+	_length = curve.get_baked_length()
 	if track.checkpoint_interval > 0.0 and _length > 0.0:
 		var d: float = track.checkpoint_interval
 		while d < _length - 40.0:
-			var p: Vector3 = track.road_curve.sample_baked(d)
+			var p: Vector3 = curve.sample_baked(d)
 			_checkpoints.append(Vector2(p.x, p.z))
 			d += track.checkpoint_interval
 
@@ -45,7 +84,10 @@ func _draw() -> void:
 	draw_rect(rect, background_color)
 	_draw_grid(rect)
 	if _points.size() < 2:
-		_draw_text(Vector2(16.0, 16.0), "НЕТ ОСЕВОЙ ЛИНИИ")
+		if _generating:
+			_draw_text(Vector2(16.0, 16.0), "ПЛЕТЁМ ТРАССУ…")
+		else:
+			_draw_text(Vector2(16.0, 16.0), "НЕТ ОСЕВОЙ ЛИНИИ")
 		return
 
 	var min_x: float = INF
@@ -83,7 +125,8 @@ func _draw() -> void:
 	draw_circle(start, 5.5, Color(0.2, 0.8, 1.0))
 	draw_circle(finish, 5.5, accent_color)
 	_draw_text(Vector2(margin, margin - 12.0), "СТАРТ / ФИНИШ")
-	_draw_text(Vector2(margin, size.y - 24.0), "%.0f м  •  %s" % [_length, track.surface_name])
+	var surface_line: String = track.surface_name if track != null else ""
+	_draw_text(Vector2(margin, size.y - 24.0), "%.0f м  •  %s" % [_length, surface_line])
 
 
 func _draw_grid(rect: Rect2) -> void:

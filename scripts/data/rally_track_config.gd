@@ -13,7 +13,7 @@ extends Resource
 @export var surface_name: String = "Гравий"
 @export_range(1, 5, 1) var difficulty: int = 3
 ## Эталонное время прохождения — для HUD и таблицы рекордов.
-@export_range(20.0, 900.0, 1.0) var target_time: float = 150.0
+@export_range(20.0, 2400.0, 1.0) var target_time: float = 150.0
 
 @export_group("Дорога")
 ## Осевая линия трассы. Точки: X/Z — план, Y — высота.
@@ -76,6 +76,15 @@ extends Resource
 @export_group("Ассеты")
 ## Устарело: ассеты теперь живут узлами в сцене (узел Props).
 @export var props: Array[Resource] = []
+## Использовать запечённые в сцену ассеты узла Props (они расставлены
+## вдоль кривой ночной лесной трассы). Для остальных трасс выключено —
+## их обстановка генерируется автоматически.
+@export var use_baked_props: bool = true
+## Генерировать живой лес/камни/кусты вдоль дороги (для трасс без
+## запечённых ассетов). Плотность — scenery_density.
+@export var procedural_scenery: bool = false
+## Плотность генерируемой обстановки: 0.5 — редко, 1.0 — стандарт, 1.5 — глухо.
+@export_range(0.0, 2.0, 0.05) var scenery_density: float = 1.0
 ## Автоматические ворота старт/финиш и маркеры обочины.
 @export var spawn_route_markers: bool = true
 ## Красно-белые столбики по обочинам (классика ралли).
@@ -84,6 +93,23 @@ extends Resource
 @export_range(0.0, 900.0, 10.0) var checkpoint_interval: float = 400.0
 ## Ставить ворота КП (жёлтые). Сами ворота — часть сгенерированной геометрии.
 @export var spawn_checkpoints: bool = true
+
+@export_group("Генерация трассы (процедурная)")
+## Трасса собирается сама при каждом заходе: серпантины, полки, трамплины —
+## по грамматике раллийных участков, с лимитом уклона и самозазором,
+## а не «полный рандом». road_curve при этом не используется.
+@export var procedural: bool = false
+## Сид генерации: один и тот же сид — одна и та же трасса (рекорды честные).
+@export var generation_seed: int = 20261028
+## Новый сид при каждом выходе на старт (каждый заезд — новая трасса).
+@export var reroll_seed_each_visit: bool = false
+## Целевая длина генерируемой трассы (м).
+@export_range(2000.0, 20000.0, 100.0) var procedural_length_min: float = 8000.0
+@export_range(2000.0, 20000.0, 100.0) var procedural_length_max: float = 12000.0
+## Минимальный радиус поворота генератора (м): 15 — шпильки возможны.
+@export_range(10.0, 60.0, 1.0) var procedural_min_radius: float = 15.0
+## Минимальный зазор между витками генерируемой трассы (м).
+@export_range(20.0, 80.0, 1.0) var procedural_min_gap: float = 32.0
 
 @export_group("Трава, земля, полотно — цвета")
 @export var ground_color: Color = Color(0.10, 0.17, 0.07)
@@ -135,11 +161,42 @@ extends Resource
 @export var enable_speed_fx: bool = true
 
 
+## Осевая линия, которую надо строить: для процедурной трассы кривая
+## собирается генератором (и кладётся в кэш), иначе — road_curve.
+## ВНИМАНИЕ: для procedural это тяжёлая операция (секунды) — вызывать
+## при загрузке заезда, а не из метаданных (см. get_metadata_curve).
+func get_effective_curve() -> Curve3D:
+	if procedural:
+		return RallyTrackGenerator.build_curve(
+			generation_seed,
+			procedural_length_min,
+			procedural_length_max,
+			procedural_min_radius,
+			procedural_min_gap
+		)
+	return road_curve
+
+
+## Осевая линия для метаданных (меню, длина, габариты): БЕЗ генерации.
+## Процедурная трасса отдаёт кривую, только если она уже в кэше.
+func get_metadata_curve() -> Curve3D:
+	if procedural:
+		return RallyTrackGenerator.cached_curve_for(
+			generation_seed,
+			procedural_length_min,
+			procedural_length_max,
+			procedural_min_radius,
+			procedural_min_gap
+		)
+	return road_curve
+
+
 ## Габарит трассы в плане (x, z) с учётом поля вокруг.
 func get_route_bounds() -> Rect2:
-	if road_curve == null:
+	var curve: Curve3D = get_metadata_curve()
+	if curve == null:
 		return Rect2(Vector2.ZERO, Vector2(64, 64))
-	var points: PackedVector3Array = road_curve.get_baked_points()
+	var points: PackedVector3Array = curve.get_baked_points()
 	if points.is_empty():
 		return Rect2(Vector2.ZERO, Vector2(64, 64))
 	var min_x: float = INF
@@ -164,14 +221,21 @@ func get_terrain_rect() -> Rect2:
 	)
 
 
-## Длина осевой линии (м).
+## Длина осевой линии (м). Для процедурной трассы — только из кэша
+## (0.0, пока трасса ни разу не построена), чтобы меню не запускало
+## генерацию втихую.
 func get_route_length() -> float:
-	if road_curve == null:
+	var curve: Curve3D = get_metadata_curve()
+	if curve == null:
 		return 0.0
-	return road_curve.get_baked_length()
+	return curve.get_baked_length()
 
 
 func get_record_key() -> String:
+	# У процедурной трассы рекорды считаются по сиду: другой сид — другая
+	# трасса, подсказывать ей чужое лучшее время было бы жульничеством.
+	if procedural:
+		return "%s_%d" % [id, generation_seed]
 	return id
 
 
