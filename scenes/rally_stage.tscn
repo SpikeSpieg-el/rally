@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="2_car"]
 [ext_resource type="Resource" path="res://data/rally_game_config.tres" id="2_way4p"]
 [ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="3_6y0e7"]
+[ext_resource type="Environment" path="res://data/tracks/night_environment.tres" id="night_environment"]
 [ext_resource type="Curve3D" uid="uid://cnkrnb4gwuihg" path="res://data/tracks/stage_forest_route.tres" id="4_route"]
 [ext_resource type="Resource" uid="uid://csy3ssx2uxglk" path="res://data/setups/11_gravel.tres" id="6_fxige"]
 [ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="boulder"]
@@ -13,43 +14,23 @@
 [ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="pine_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/road_sign.tscn" id="road_sign"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_base"]
-sky_top_color = Color(0.09022754, 0.21434602, 0.3873321, 1)
-sky_horizon_color = Color(0.65, 0.76, 0.86, 1)
-sky_curve = 0.075680755
-sky_energy_multiplier = 0.76
-
-[sub_resource type="Sky" id="Sky_base"]
-sky_material = SubResource("ProceduralSkyMaterial_base")
-
-[sub_resource type="Environment" id="Environment_base"]
-background_mode = 2
-background_energy_multiplier = 0.88
-sky = SubResource("Sky_base")
-tonemap_mode = 3
-tonemap_exposure = 1.05
-glow_enabled = true
-volumetric_fog_enabled = true
-volumetric_fog_density = 0.0012
-volumetric_fog_albedo = Color(0.72, 0.79, 0.88, 1)
-
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_6y0e7"]
 render_priority = 0
 shader = ExtResource("3_6y0e7")
-shader_parameter/ground_color = Color(0.09, 0.17, 0.07, 1)
-shader_parameter/ground_color_2 = Color(0.21, 0.27, 0.11, 1)
+shader_parameter/ground_color = Color(0.3, 0.38, 0.23, 1)
+shader_parameter/ground_color_2 = Color(0.42, 0.45, 0.28, 1)
 shader_parameter/road_edge_color = Color(0.3, 0.24, 0.16, 1)
 shader_parameter/rock_color = Color(0.3, 0.31, 0.32, 1)
 shader_parameter/surface_roughness = 0.97
 shader_parameter/grain_scale = 2.4
-shader_parameter/flat_shading = 1.0
+shader_parameter/flat_shading = 0.0
 shader_parameter/dither_fog = 0.0
-shader_parameter/banding_levels = 5.0
-shader_parameter/fog_color = Color(0.72, 0.79, 0.88, 1)
-shader_parameter/fog_near = 220.0
-shader_parameter/fog_far = 900.0
+shader_parameter/banding_levels = 0.0
+shader_parameter/fog_color = Color(0.09, 0.13, 0.21, 1)
+shader_parameter/fog_near = 180.0
+shader_parameter/fog_far = 650.0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_fxige"]
 _surfaces = [{
@@ -73,21 +54,21 @@ script = ExtResource("1_stage")
 game_config = ExtResource("2_way4p")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=905732852]
-environment = SubResource("Environment_base")
+environment = ExtResource("night_environment")
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1953427338]
 transform = Transform3D(0.76604444, -0.34062552, 0.54511476, 0, 0.8480481, 0.52991927, -0.6427876, -0.4059417, 0.6496425, 0, 0, 0)
-light_color = Color(0.99999887, 0.9988679, 0.793484, 1)
-light_energy = 0.664
+light_color = Color(0.64, 0.74, 1, 1)
+light_energy = 0.48
 light_indirect_energy = 0.26
-light_volumetric_fog_energy = 1.285
+light_volumetric_fog_energy = 0.55
 light_angular_distance = 5.12
 light_specular = 0.374
 shadow_enabled = true
-shadow_bias = 0.171
-shadow_normal_bias = 1.039
+shadow_bias = 0.06
+shadow_normal_bias = 0.8
 directional_shadow_split_1 = 0.086
-directional_shadow_max_distance = 84.9
+directional_shadow_max_distance = 120.0
 
 [node name="Terrain" type="StaticBody3D" parent="." unique_id=1380247706]
 physics_material_override = SubResource("PhysicsMaterial_gxar1")

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b2qrn8s2chffn" path="res://scripts/ui/mini_map.gd" id="1_mini"]
 [ext_resource type="Script" uid="uid://cjphdxoxbefkd" path="res://scripts/ui/gauge_bar.gd" id="2_gauge"]
+[ext_resource type="Script" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 14.0
@@ -394,10 +395,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -200.0
-offset_right = 240.0
-offset_bottom = 200.0
+offset_left = -280.0
+offset_top = -290.0
+offset_right = 280.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -415,6 +416,135 @@ theme_override_colors/font_color = Color(1, 0.76, 0.3, 1)
 theme_override_font_sizes/font_size = 32
 text = "ПАУЗА"
 horizontal_alignment = 1
+
+[node name="CameraOptions" type="VBoxContainer" parent="PausePanel/Box"]
+layout_mode = 2
+theme_override_constants/separation = 5
+script = ExtResource("3_camera_settings")
+
+[node name="CameraTitle" type="Label" parent="PausePanel/Box/CameraOptions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.84, 0.94, 1)
+theme_override_font_sizes/font_size = 16
+text = "НАСТРОЙКИ КАМЕРЫ"
+
+[node name="CockpitFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "FOV КАБИНЫ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 45.0
+max_value = 110.0
+step = 1.0
+value = 76.0
+
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "76°"
+horizontal_alignment = 2
+
+[node name="ChaseFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "FOV СЗАДИ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 45.0
+max_value = 110.0
+step = 1.0
+value = 72.0
+
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "72°"
+horizontal_alignment = 2
+
+[node name="Motion" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "ДВИЖЕНИЕ КАМЕРЫ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Motion"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+value = 0.35
+
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "35%"
+horizontal_alignment = 2
+
+[node name="Sensitivity" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+custom_minimum_size = Vector2(185, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "ЧУВСТВИТЕЛЬНОСТЬ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 10.0
+step = 0.5
+value = 2.5
+
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "2.5"
+horizontal_alignment = 2
+
+[node name="ResetButton" type="Button" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/hover = SubResource("SB_button_hover")
+text = "СБРОСИТЬ НАСТРОЙКИ КАМЕРЫ"
 
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
 custom_minimum_size = Vector2(260, 44)

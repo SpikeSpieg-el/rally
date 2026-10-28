@@ -341,6 +341,10 @@ buffer_length = 0.12
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rv3qr"]
 albedo_texture = ExtResource("7_finkb")
+emission_enabled = true
+emission = Color(1, 0.9, 0.76, 1)
+emission_energy_multiplier = 1.5
+emission_texture = ExtResource("7_finkb")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2o2ia"]
 resource_name = "mirror body"
@@ -410,6 +414,10 @@ shadow_mesh = SubResource("ArrayMesh_5t0kj")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_02ico"]
 albedo_texture = ExtResource("7_finkb")
+emission_enabled = true
+emission = Color(1, 0.9, 0.76, 1)
+emission_energy_multiplier = 1.5
+emission_texture = ExtResource("7_finkb")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_1n0cv"]
 _surfaces = [{
@@ -643,18 +651,26 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.1883769, 0.1
 shape = SubResource("BoxShape_body")
 
 [node name="HeadlightL" type="SpotLight3D" parent="BodyCollider" unique_id=539570592]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.9990877, -0.29121137, 2.8060355)
-light_color = Color(1, 0.91, 0.72, 1)
-light_energy = 3.0
-spot_range = 45.0
-spot_angle = 28.0
+position = Vector3(0.92, -0.29, 2.81)
+rotation = Vector3(-0.0698132, 3.1415927, 0)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0
 
 [node name="HeadlightR" type="SpotLight3D" parent="BodyCollider" unique_id=1823748999]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.87637186, -0.26425076, 2.7791517)
-light_color = Color(1, 0.91, 0.72, 1)
-light_energy = 3.0
-spot_range = 45.0
-spot_angle = 28.0
+position = Vector3(-0.92, -0.29, 2.81)
+rotation = Vector3(-0.0698132, 3.1415927, 0)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0
 
 [node name="ChassisMesh" type="MeshInstance3D" parent="." unique_id=676427284]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.048368096, 1.0557705, 0)
@@ -752,7 +768,7 @@ script = ExtResource("2_audio")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 2.9031463, 0.2543872)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 1.52, 0.2543872)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
 transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.3660817, 1.7676451)
@@ -764,8 +780,9 @@ gizmo_extents = 1.94
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
 transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.5397794, 0.21571684)
 current = true
-fov = 95.2
-far = 2500.0
+fov = 72.0
+near = 0.05
+far = 850.0
 
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0842417, -0.82839704)

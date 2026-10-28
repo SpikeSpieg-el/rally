@@ -21,7 +21,7 @@ enum Drivetrain { AWD, RWD, FWD }
 @export var gear_ratios: Array[float] = [3.6, 2.4, 1.75, 1.35, 1.08, 0.88]
 ## Необязательная кривая момента. Если пусто — используется базовая кривая.
 @export var torque_curve: Curve = null
-@export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 1.15
+@export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 0.65
 
 @export_group("Привод")
 @export_enum("AWD", "RWD", "FWD") var drivetrain: int = Drivetrain.AWD

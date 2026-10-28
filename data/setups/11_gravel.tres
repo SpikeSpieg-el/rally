@@ -5,11 +5,11 @@
 [resource]
 script = ExtResource("1_xg43i")
 id = "gravel"
-display_name = "ГРАВИЙ1"
+display_name = "ГРАВИЙ"
 description = "Базовая настройка: длинноходная подвеска, мягкие стабилизаторы, AWD 38:62. Универсальна на лесных трассах."
-body_color = Color(1, 1, 1, 0.15686275)
-max_torque = 843.0
-max_rpm = 9520.0
-vehicle_mass = 963.0
-rolling_resistance_scale = 1.33
-max_steering_angle_deg = 50.0
+body_color = Color(1, 1, 1, 1)
+max_torque = 490.0
+max_rpm = 7600.0
+vehicle_mass = 1230.0
+rolling_resistance_scale = 1.0
+max_steering_angle_deg = 34.0

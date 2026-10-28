@@ -12,7 +12,7 @@ scenes/rally_stage.tscn              ← ГЛАВНАЯ сцена: дорога
 scenes/props/*.tscn                  ← библиотека ассетов (ель, пихта, куст, валун, щит)
 data/tracks/stage_forest_route.tres  ← та же кривая дороги (редактируется и так)
 data/tracks/stage_forest.tres        ← числовые настройки: ширины, рельеф, цвета, небо
-data/setups/*.tres                   ← четыре конфигурации машины
+data/setups/*.tres                   ← конфигурации машины
 scripts/rally_stage.gd               ← сборка мешей земли и полотна (скрипт-инструмент)
 scripts/road_network.gd              ← расстояние до дороги / километраж
 tools/author_route.py                ← генератор кривой из отрезков (по желанию)
@@ -21,9 +21,9 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 
 ## Быстрый старт
 
-1. Открыть `project.godot` в Godot 4.4+ (проверялось на 4.4 API).
+1. Открыть `project.godot` в Godot 4.7+ (проект использует формат сцены 4.7).
 2. **F5** — меню. Дождаться первого импорта.
-3. Выбрать конфигурацию машины → **СТАРТ**.
+3. Выбрать доступную конфигурацию машины → **СТАРТ**.
 4. **F6** на `scenes/rally_stage.tscn` — тот же заезд без меню.
 
 ### Управление
@@ -36,10 +36,55 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 | Q / E | КПП в ручном режиме |
 | C | камера: action-3rd → капот → кокпит |
 | V | привод AWD → RWD → FWD |
-| R | сброс машины на старт |
+| R | вернуть машину на ближайшую точку трассы |
 | ESC | пауза |
 
 ---
+
+## Камеры: вид пилота и настройки
+
+Нажмите **C** дважды после старта, чтобы переключиться с камеры сзади через
+капот на вид из кабины. Мышь поворачивает обзор, средняя кнопка мыши возвращает
+его в центр. В меню паузы **ESC** есть ползунки FOV, движения камеры и
+чувствительности мыши; они сохраняются в `user://rally_camera.cfg`. Кнопка
+сброса возвращает настройки из сцены. Более подробные параметры доступны в
+инспекторе узла `RallyCar`.
+
+Чтобы изменить позицию **и направление** взгляда пилота:
+
+1. Откройте **`scenes/rally_car.tscn`**, выберите `Cameras/CamCockpit`.
+2. Двигайте и вращайте именно `CamCockpit`, затем сохраните сцену. В игре
+   используется его сохранённая трансформация; при переключении камеры и
+   нажатии **R** маркер больше не сбрасывается. На машине +Z — вперёд, +Y — вверх.
+3. Для проверки запустите этап и нажмите **C** до надписи «КАБИНА».
+   `ActiveCamera` скрипт перемещает сам; редактировать её положение не нужно.
+
+В инспекторе корня `RallyCar` доступны `initial_camera_mode`, `cockpit_fov`,
+`hood_fov`, `inside_speed_fov_bonus`, `cockpit_motion_strength` и
+`cockpit_roll_degrees`. Установите «Движение камеры» в паузе (или
+`cockpit_motion_strength` в инспекторе) в `0`, чтобы отключить инерционное
+смещение и наклон камеры: без свободного обзора она будет строго на маркере
+даже при ускорении и повороте. Сохранённые ползунки паузы
+имеют приоритет над соответствующими значениями инспектора; кнопка сброса в
+паузе снова применяет значения сцены. Для камеры сзади есть отдельные
+`chase_min_fov` / `chase_max_fov`, а положение задаётся маркером `CamChase`,
+пока включён `use_cam_chase_from_scene`.
+
+## Ночной лес: освещение и шейдеры
+
+Этап теперь ночной: луна, звёздное небо, туман, фары с тенями и гравийный
+шейдер с колеями. В `data/tracks/stage_forest.tres` можно менять `sun_color`,
+`sun_energy`, `sun_pitch/yaw`, `ambient_color/energy`, `exposure`, `fog_color`,
+`fog_density` и `star_intensity`. При плохой производительности отключите там
+`volumetric_fog` и/или `screen_space_ao`; объёмный туман и SSAO требуют Forward+.
+Фары находятся в `BodyCollider/HeadlightL` и `HeadlightR` сцены машины: их
+яркость, дальность, угол и тени редактируются как свойства `SpotLight3D`.
+
+`data/tracks/night_environment.tres` задаёт ночной фон предпросмотра в редакторе.
+В **игре** параметры окружения заново берутся из ресурса трассы, поэтому
+яркость, туман и цвет меняйте в первую очередь в `stage_forest.tres`.
+Шейдеры: `shaders/night_sky.gdshader`, `shaders/gravel_road.gdshader` и
+`shaders/forest_ground.gdshader`.
 
 ## 1. Как устроена трасса
 
@@ -155,7 +200,7 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 | Неровности полотна | `bumps_amplitude`, `bumps_wavelength`, `bumps_roughness`, `bumps_cross` (сейчас всё 0 — полотно гладкое) |
 | Разметка | `spawn_route_markers`, `spawn_edge_posts`, `spawn_checkpoints`, `checkpoint_interval` |
 | Цвета | `ground_color`, `ground_color_2`, `rock_color`, `road_color`, `road_color_2`, `shoulder_color`, `edge_post_color` |
-| Небо и свет | `sky_top_color`, `sky_horizon_color`, `fog_color`, `fog_near`, `fog_far`, `sun_energy`, `sun_pitch`, `sun_yaw` |
+| Небо и свет | `night_mode`, `sky_top_color`, `sky_horizon_color`, `star_intensity`, `sun_color/energy/pitch/yaw`, `ambient_color/energy`, `exposure`, `fog_color/density`, `volumetric_fog`, `screen_space_ao` |
 | Сцепление | `grip_scale`, `rolling_resistance_scale` |
 | PS1-стиль | `ps1_style`, `flat_shading`, `dither_fog`, `color_banding`, `sky_flat`, `enable_speed_fx` |
 
@@ -213,3 +258,17 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 | Нет рекордов | `user://rally_records.cfg`, ключ — `id` трассы |
 
 Документация по машине и подвеске — `RALLY_SETUP_RU.md`.
+
+### Автоматические проверки
+
+После установки Godot 4.7 запустите из папки проекта:
+
+```sh
+godot --headless --editor --path . --quit  # первоначальный импорт ресурсов
+godot --headless --path . --fixed-fps 120 --script res://tests/rally_regression.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/stage_smoke.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/handling_benchmark.gd
+```
+
+Проверки без окна не заменяют визуальный заезд в Forward+: объёмный туман,
+яркость и качество теней нужно оценивать с рабочим графическим рендерером.

@@ -786,6 +786,7 @@ func process_motor(delta : float) -> void:
 
 func process_clutch(delta : float):
 	if current_gear == 0:
+		tcs_active = false
 		return
 	
 	## Formula to calculate the forces needed to keep the drivetrain and motor closely coupled
@@ -804,17 +805,21 @@ func process_clutch(delta : float):
 	clutch_torque = ((a - b + c)/(motor_moment + drive_inertia_R)) * clutch_factor
 	clutch_torque = clampf(clutch_torque, -max_clutch_torque * clutch_factor, max_clutch_torque * clutch_factor)
 	
-	## Check if traction control is needed and adjust motor speed and clutch torque if needed
-	if traction_control_max_slip > 0.0:
-		var slip_y := 0.0
-		for axle in axles:
-			slip_y = maxf(slip_y, axle.get_max_wheel_slip_y())
-		if slip_y > traction_control_max_slip:
-			tcs_torque_reduction = torque_output
-			clutch_torque = 0.0
+	## TCS responds only to driven, grounded wheels spinning under power.
+	## Reduce torque progressively instead of switching the clutch completely off:
+	## that caused repeated loss of drive on loose surfaces and during braking.
+	tcs_active = false
+	if traction_control_max_slip > 0.0 and throttle_input > 0.05 and not is_braking:
+		var drive_slip := 0.0
+		for wheel in drive_wheels:
+			if wheel.is_colliding():
+				drive_slip = maxf(drive_slip, -wheel.slip_vector.y)
+		if drive_slip > traction_control_max_slip and clutch_torque > 0.0:
+			var excess: float = (drive_slip - traction_control_max_slip) / maxf(traction_control_max_slip, 0.2)
+			var torque_factor: float = clampf(1.0 - excess * 0.55, 0.20, 1.0)
+			tcs_torque_reduction = torque_output * (1.0 - torque_factor)
+			clutch_torque *= torque_factor
 			tcs_active = true
-		else:
-			tcs_active = false
 	
 	var clutch_reaction_torque := clutch_torque + tcs_torque_reduction
 	var new_rpm := motor_rpm - ((ANGULAR_VELOCITY_TO_RPM * delta * clutch_reaction_torque) / motor_moment)
