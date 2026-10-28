@@ -113,12 +113,23 @@ var track_grip_scale: float = 1.0
 var track_rolling_scale: float = 1.0
 var track_offroad_grip: float = 0.6
 
+## Необязательный «провайдер» точки сброса: сцена заезда подставляет сюда
+## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
+## а не на старт.
+var reset_provider: Callable = Callable()
+
 
 func _ready() -> void:
+	if spawn_transform == Transform3D.IDENTITY:
+		spawn_transform = global_transform
+
 	_configure_gevp()
 	_resolve_setup()
 	if active_setup != null:
 		apply_setup(active_setup)
+	else:
+		_adjust_wheel_mounts()
+
 	super._ready()
 	_apply_drivetrain()
 	_refresh_grip_tuning()
@@ -132,12 +143,14 @@ func _ready() -> void:
 	# Считываем положение и угол наклона узла CamChase со сцены
 	_capture_scene_camera_setup()
 
-	active_camera.top_level = true
-	active_camera.make_current()
 	camera_mode = clampi(initial_camera_mode, CameraMode.CHASE_3RD, CameraMode.COCKPIT_1ST)
-	_reset_action_camera()
-	if camera_mode != CameraMode.CHASE_3RD:
-		_update_cameras(0.0)
+	if active_camera != null:
+		active_camera.top_level = (camera_mode == CameraMode.CHASE_3RD)
+		active_camera.make_current()
+		_reset_action_camera()
+		_apply_initial_camera_fov()
+		if camera_mode != CameraMode.CHASE_3RD:
+			_update_cameras(0.0)
 
 	if mouse_look_enabled:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -153,12 +166,17 @@ func _capture_scene_camera_setup() -> void:
 
 	if not use_cam_chase_from_scene or cam_chase == null:
 		_scene_chase_local_pos = Vector3(0.0, chase_height, -chase_distance)
+		var fallback_target := Vector3(0.0, _scene_pivot_height + 0.15, chase_lookahead)
+		_scene_chase_look_dir_local = (fallback_target - _scene_chase_local_pos).normalized()
 		return
 
 	_scene_chase_local_pos = to_local(cam_chase.global_position)
 
-	var chase_fwd_local: Vector3 = (global_transform.basis.inverse() * (-cam_chase.global_transform.basis.z)).normalized()
-	var active_fwd_local: Vector3 = (global_transform.basis.inverse() * (-active_camera.global_transform.basis.z)).normalized()
+	var inv_car_basis: Basis = global_transform.basis.orthonormalized().inverse()
+	var chase_fwd_local: Vector3 = (inv_car_basis * (-cam_chase.global_transform.basis.z)).normalized()
+	var active_fwd_local: Vector3 = Vector3.ZERO
+	if active_camera != null:
+		active_fwd_local = (inv_car_basis * (-active_camera.global_transform.basis.z)).normalized()
 
 	if chase_fwd_local.z > 0.2:
 		_scene_chase_look_dir_local = chase_fwd_local
@@ -171,6 +189,10 @@ func _capture_scene_camera_setup() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not mouse_look_enabled:
+		return
+
+	if event.is_action_pressed("ui_cancel") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 
 	if event is InputEventMouseButton and event.pressed:
@@ -351,7 +373,15 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 		chase_height = setup_resource.chase_height
 	front_torque_split = awd_front_torque
 	_adjust_wheel_mounts()
-	_refresh_grip_tuning()
+
+	if is_ready:
+		initialize()
+		_apply_drivetrain()
+		_refresh_grip_tuning()
+		_apply_visual_setup()
+		_capture_scene_camera_setup()
+	else:
+		_refresh_grip_tuning()
 
 
 func _adjust_wheel_mounts() -> void:
@@ -372,6 +402,14 @@ func apply_track_grip(grip_scale: float, rolling_scale: float, offroad_grip: flo
 	track_rolling_scale = maxf(0.05, rolling_scale)
 	track_offroad_grip = clampf(offroad_grip, 0.05, 1.0)
 	_refresh_grip_tuning()
+
+
+func _get_surface_cof(surface_name: String) -> float:
+	if not surface_name.is_empty() and coefficient_of_friction.has(surface_name):
+		return float(coefficient_of_friction[surface_name])
+	if coefficient_of_friction.has("Dirt"):
+		return float(coefficient_of_friction["Dirt"])
+	return float(coefficient_of_friction.get("Road", 1.25))
 
 
 func _refresh_grip_tuning() -> void:
@@ -395,13 +433,15 @@ func _refresh_grip_tuning() -> void:
 		rolling_resistance[key] = float(BASE_ROLLING[key]) * rolling
 		lateral_grip_assist[key] = float(BASE_LATERAL[key])
 		longitudinal_grip_ratio[key] = float(BASE_LONGITUDINAL[key])
-	for wheel in wheel_array:
+	for wheel: WheelType in wheel_array:
 		wheel.tire_stiffnesses = tire_stiffnesses
 		wheel.coefficient_of_friction = coefficient_of_friction
 		wheel.rolling_resistance = rolling_resistance
 		wheel.lateral_grip_assist = lateral_grip_assist
 		wheel.longitudinal_grip_ratio = longitudinal_grip_ratio
 		var surface: String = str(wheel.surface_type)
+		if surface.is_empty() or not coefficient_of_friction.has(surface):
+			surface = "Dirt"
 		wheel.current_cof = float(coefficient_of_friction.get(surface, 1.0))
 		wheel.current_rolling_resistance = float(rolling_resistance.get(surface, 1.0))
 		wheel.current_lateral_grip_assist = float(lateral_grip_assist.get(surface, 0.0))
@@ -414,21 +454,32 @@ func _refresh_grip_tuning() -> void:
 
 
 func get_spawn_height_offset() -> float:
-	if front_left_wheel == null:
+	var fl_wheel: Node3D = front_left_wheel
+	if fl_wheel == null:
+		fl_wheel = get_node_or_null("Wheel_FL") as Node3D
+	if fl_wheel == null:
 		return 0.1
 	var rest_length: float = front_spring_length * (1.0 - front_resting_ratio)
-	return rest_length + front_tire_radius - front_left_wheel.position.y
+	return rest_length + front_tire_radius - fl_wheel.position.y
 
 
 func _apply_visual_setup() -> void:
-	var visual_scale: float = front_tire_radius / maxf(0.05, wheel_visual_radius)
-	for wheel_name in ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]:
+	var safe_visual_radius: float = maxf(0.05, wheel_visual_radius)
+	var front_scale: float = front_tire_radius / safe_visual_radius
+	var rear_scale: float = rear_tire_radius / safe_visual_radius
+	for wheel_name in ["Wheel_FL", "Wheel_FR"]:
 		var wheel_node: Node = get_node_or_null(wheel_name)
-		if wheel_node == null:
-			continue
-		var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
-		if visual != null:
-			visual.scale = Vector3.ONE * visual_scale
+		if wheel_node != null:
+			var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
+			if visual != null:
+				visual.scale = Vector3.ONE * front_scale
+	for wheel_name in ["Wheel_RL", "Wheel_RR"]:
+		var wheel_node: Node = get_node_or_null(wheel_name)
+		if wheel_node != null:
+			var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
+			if visual != null:
+				visual.scale = Vector3.ONE * rear_scale
+
 	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
 	if model != null:
 		model.position.y = front_tire_radius - MODEL_BODY_GROUND_CLEARANCE - MODEL_WHEEL_CENTER_Y
@@ -463,6 +514,7 @@ func _physics_process(delta: float) -> void:
 		smoothed_mouse_yaw = 0.0
 		smoothed_mouse_pitch = 0.0
 		g_force_offset = Vector3.ZERO
+		_apply_initial_camera_fov()
 		if camera_mode == CameraMode.CHASE_3RD:
 			_reset_action_camera()
 	if Input.is_action_just_pressed("drivetrain_switch"):
@@ -507,16 +559,15 @@ func _physics_process(delta: float) -> void:
 		reset_to_spawn()
 
 
-func _process(_delta: float) -> void:
-	pass
-
-
 func set_drivetrain_mode(mode: int) -> void:
 	drivetrain_mode = clampi(mode, DrivetrainMode.AWD, DrivetrainMode.FWD)
 	_apply_drivetrain()
 
 
 func _apply_drivetrain() -> void:
+	if front_axle == null or rear_axle == null:
+		return
+
 	match drivetrain_mode:
 		DrivetrainMode.AWD:
 			front_torque_split = awd_front_torque
@@ -540,7 +591,7 @@ func _apply_drivetrain() -> void:
 	drive_axles_inertia = 0.0
 	average_drive_wheel_radius = 0.0
 	for axle in axles:
-		for wheel in axle.wheels:
+		for wheel: WheelType in axle.wheels:
 			wheel.is_driven = axle.is_drive_axle
 			if axle.is_drive_axle:
 				drive_wheels.append(wheel)
@@ -550,14 +601,18 @@ func _apply_drivetrain() -> void:
 
 
 func _update_handbrake_grip(delta: float) -> void:
-	for wheel in rear_axle.wheels:
-		var surface_grip: float = float(coefficient_of_friction.get(wheel.surface_type, 1.5))
+	if rear_axle == null:
+		return
+	for wheel: WheelType in rear_axle.wheels:
+		var surface_grip: float = _get_surface_cof(str(wheel.surface_type))
 		var target_grip: float = surface_grip * lerpf(1.0, 0.55, clampf(handbrake_input, 0.0, 1.0))
 		var response: float = 16.0 if handbrake_input > 0.1 else 7.0
 		wheel.current_cof = lerpf(wheel.current_cof, target_grip, clampf(response * delta, 0.0, 1.0))
 
 
 func _setup_gravel_particles() -> void:
+	if gravel_particles == null:
+		return
 	var process_material := ParticleProcessMaterial.new()
 	process_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	process_material.emission_box_extents = Vector3(0.78, 0.05, 0.24)
@@ -587,9 +642,11 @@ func _setup_gravel_particles() -> void:
 
 
 func _update_gravel_particles() -> void:
+	if gravel_particles == null or rear_axle == null:
+		return
 	var rear_slip: float = 0.0
 	var rear_contact: bool = false
-	for wheel in rear_axle.wheels:
+	for wheel: WheelType in rear_axle.wheels:
 		rear_contact = rear_contact or wheel.is_colliding()
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
 	if handbrake_input > 0.1:
@@ -597,38 +654,59 @@ func _update_gravel_particles() -> void:
 	gravel_particles.emitting = rear_contact and speed_kmh > 8.0 and rear_slip > 0.32
 
 
+func _apply_initial_camera_fov() -> void:
+	if active_camera == null:
+		return
+	var speed_factor: float = clampf(speed_kmh / 160.0, 0.0, 1.0)
+	match camera_mode:
+		CameraMode.CHASE_3RD:
+			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, speed_factor)
+		CameraMode.HOOD:
+			active_camera.fov = hood_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
+		CameraMode.COCKPIT_1ST:
+			active_camera.fov = cockpit_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
+
+
 func _update_cameras(delta: float) -> void:
+	if active_camera == null:
+		return
+
 	mouse_idle_timer += delta
 	if mouse_auto_return_delay > 0.0 and mouse_idle_timer >= mouse_auto_return_delay:
 		var return_weight: float = _response_weight(mouse_return_speed, delta)
 		mouse_yaw = lerp_angle(mouse_yaw, 0.0, return_weight)
 		mouse_pitch = lerpf(mouse_pitch, 0.0, return_weight)
 
-	var look_smooth: float = _response_weight(18.0, delta)
+	var look_smooth: float = 1.0 if delta <= 0.0 else _response_weight(18.0, delta)
 	smoothed_mouse_yaw = lerp_angle(smoothed_mouse_yaw, mouse_yaw, look_smooth)
 	smoothed_mouse_pitch = lerpf(smoothed_mouse_pitch, mouse_pitch, look_smooth)
 
-	active_camera.top_level = camera_mode == CameraMode.CHASE_3RD
+	active_camera.top_level = (camera_mode == CameraMode.CHASE_3RD)
 	match camera_mode:
 		CameraMode.CHASE_3RD:
 			_update_action_camera(delta)
 		CameraMode.HOOD:
-			active_camera.global_transform = cam_hood.global_transform
-			active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
-			active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
+			if cam_hood != null:
+				active_camera.global_transform = cam_hood.global_transform
+				active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
+				active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
 		CameraMode.COCKPIT_1ST:
 			_update_cockpit_camera(delta)
 
 	if camera_mode != CameraMode.CHASE_3RD:
 		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
 		var target_fov: float = base_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
-		active_camera.fov = lerpf(active_camera.fov, target_fov, _response_weight(6.0, delta))
+		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(6.0, delta)
+		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 	previous_velocity = linear_velocity
 
 
 func _update_action_camera(delta: float) -> void:
 	var car_forward: Vector3 = global_transform.basis.z.normalized()
-	var car_yaw: float = atan2(car_forward.x, car_forward.z)
+	var car_yaw: float = camera_yaw
+	if Vector2(car_forward.x, car_forward.z).length_squared() > 0.0001:
+		car_yaw = atan2(car_forward.x, car_forward.z)
+
 	var desired_yaw: float = car_yaw
 	var planar_velocity := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
 	var planar_speed: float = planar_velocity.length()
@@ -638,21 +716,24 @@ func _update_action_camera(delta: float) -> void:
 		var follow_amount: float = chase_velocity_follow * clampf((speed_kmh - 15.0) / 60.0, 0.0, 1.0)
 		desired_yaw = lerp_angle(car_yaw, velocity_yaw, follow_amount)
 
-	if not camera_initialized:
+	if not camera_initialized or delta <= 0.0:
 		camera_yaw = desired_yaw
 		camera_initialized = true
 	else:
 		camera_yaw = lerp_angle(camera_yaw, desired_yaw, _response_weight(chase_yaw_response, delta))
 
 	# Опорная точка привязана напрямую к кузову без отставания по координатам,
-	# чтобы машина НИКОГДА не дёргалась и не "телепортировалась" в кадре при поворотах!
+	# чтобы машина НИКОГДА не дёргалась и не "телепортировалась" в кадре при поворотах.
 	var pivot: Vector3 = global_position + Vector3(0.0, _scene_pivot_height, 0.0)
 
 	var effective_yaw: float = camera_yaw + smoothed_mouse_yaw
 	var is_freelooking: float = clampf(absf(smoothed_mouse_yaw) * 1.5 + absf(smoothed_mouse_pitch) * 1.5, 0.0, 1.0)
 
 	var camera_forward := Vector3(sin(effective_yaw), 0.0, cos(effective_yaw))
-	var camera_right: Vector3 = camera_forward.cross(Vector3.UP).normalized()
+	# camera_local_x соответствует +basis.x машины (Vector3.UP x forward),
+	# а camera_right — визуальному правому боку при взгляде вдоль camera_forward.
+	var camera_local_x: Vector3 = Vector3.UP.cross(camera_forward).normalized()
+	var camera_right: Vector3 = -camera_local_x
 	var speed_factor: float = clampf(speed_kmh / 160.0, 0.0, 1.0)
 
 	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
@@ -670,14 +751,14 @@ func _update_action_camera(delta: float) -> void:
 
 	var orbit_dir: Vector3 = (-camera_forward * cos(total_pitch) + Vector3.UP * sin(total_pitch)).normalized()
 	var side_vec: Vector3 = (
-		camera_right * base_side_offset * (1.0 - is_freelooking)
+		camera_local_x * base_side_offset * (1.0 - is_freelooking)
 		+ camera_right * true_steering_amount * chase_corner_offset * speed_factor * (1.0 - is_freelooking)
 	)
 
 	var ideal_cam_pos: Vector3 = pivot + orbit_dir * desired_dist + side_vec
 
 	# Проверка стен: отключаем попадание луча в Area3D (триггеры/чекпоинты) и саму машину,
-	# а дистанцию сглаживаем, чтобы камера не прыгала мгновенно!
+	# а дистанцию сглаживаем, чтобы камера не прыгала мгновенно.
 	var query := PhysicsRayQueryParameters3D.create(pivot, ideal_cam_pos, 1, [get_rid()])
 	query.collide_with_areas = false
 	query.hit_from_inside = false
@@ -687,8 +768,11 @@ func _update_action_camera(delta: float) -> void:
 		var hit_dist: float = pivot.distance_to(hit["position"]) - chase_collision_radius
 		target_dist = clampf(hit_dist, 1.2, desired_dist)
 
-	var dist_speed: float = 25.0 if target_dist < _smoothed_cam_dist else 8.0
-	_smoothed_cam_dist = lerpf(_smoothed_cam_dist, target_dist, _response_weight(dist_speed, delta))
+	if delta <= 0.0:
+		_smoothed_cam_dist = target_dist
+	else:
+		var dist_speed: float = 25.0 if target_dist < _smoothed_cam_dist else 8.0
+		_smoothed_cam_dist = lerpf(_smoothed_cam_dist, target_dist, _response_weight(dist_speed, delta))
 
 	camera_position = pivot + orbit_dir * _smoothed_cam_dist + side_vec
 
@@ -697,41 +781,64 @@ func _update_action_camera(delta: float) -> void:
 		camera_position.y = min_cam_y
 
 	# Плавный учёт наклона машины на горках
-	_smoothed_slope_y = lerpf(_smoothed_slope_y, car_forward.y * 0.65, _response_weight(6.0, delta))
+	var target_slope_y: float = car_forward.y * 0.65
+	if delta <= 0.0:
+		_smoothed_slope_y = target_slope_y
+	else:
+		_smoothed_slope_y = lerpf(_smoothed_slope_y, target_slope_y, _response_weight(6.0, delta))
 
 	# Точка взгляда всегда отсчитывается от стабильного центра (pivot),
-	# чтобы не возникало обратной петли с позицией камеры
+	# а точка фокуса при обзоре мышью лежит ровно на пересечении луча взгляда CamChase
+	# с центральной вертикальной осью машины — без клевка при начале движения мыши.
 	var look_dist: float = base_back_dist + chase_lookahead
 	var default_look_dir_world: Vector3 = (
 		camera_forward * _scene_chase_look_dir_local.z
 		+ Vector3.UP * (_scene_chase_look_dir_local.y + _smoothed_slope_y)
-		+ camera_right * _scene_chase_look_dir_local.x
+		+ camera_local_x * _scene_chase_look_dir_local.x
 	).normalized()
-	var ideal_unblocked_pos: Vector3 = pivot + (-camera_forward * base_back_dist + Vector3.UP * base_height_diff)
+	var ideal_unblocked_pos: Vector3 = (
+		pivot
+		- camera_forward * base_back_dist
+		+ Vector3.UP * base_height_diff
+		+ camera_local_x * base_side_offset * (1.0 - is_freelooking)
+	)
 	var default_look_target: Vector3 = ideal_unblocked_pos + default_look_dir_world * look_dist
-	var look_target: Vector3 = default_look_target.lerp(pivot, is_freelooking)
+
+	var ray_to_center_dist: float = base_back_dist / maxf(0.15, default_look_dir_world.dot(camera_forward))
+	var freelook_focus_y: float = clampf(
+		base_height_diff + default_look_dir_world.y * ray_to_center_dist,
+		-0.6,
+		1.5
+	)
+	var freelook_target: Vector3 = pivot + Vector3(0.0, freelook_focus_y, 0.0)
+	var look_target: Vector3 = default_look_target.lerp(freelook_target, is_freelooking)
 
 	active_camera.global_position = camera_position
 	if active_camera.global_position.distance_squared_to(look_target) > 0.001:
 		active_camera.look_at(look_target, Vector3.UP)
 
 	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, speed_factor)
-	active_camera.fov = lerpf(active_camera.fov, target_fov, _response_weight(5.0, delta))
+	var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(5.0, delta)
+	active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 
 
 func _update_cockpit_camera(delta: float) -> void:
-	var safe_delta: float = maxf(delta, 0.0001)
-	var local_accel: Vector3 = global_transform.basis.inverse() * ((linear_velocity - previous_velocity) / safe_delta)
-	local_accel = local_accel.limit_length(80.0)
-	var desired_offset := Vector3(
-		clampf(-local_accel.x * 0.004, -0.09, 0.09),
-		clampf(-local_accel.y * 0.0015, -0.04, 0.04),
-		clampf(-local_accel.z * 0.003, -0.12, 0.12)
-	)
-	if is_zero_approx(cockpit_motion_strength):
+	if cam_cockpit == null:
+		return
+
+	if delta <= 0.0 or is_zero_approx(cockpit_motion_strength):
 		g_force_offset = Vector3.ZERO
 	else:
+		var safe_delta: float = maxf(delta, 0.0001)
+		var local_accel: Vector3 = global_transform.basis.orthonormalized().inverse() * ((linear_velocity - previous_velocity) / safe_delta)
+		local_accel = local_accel.limit_length(80.0)
+		var desired_offset := Vector3(
+			clampf(-local_accel.x * 0.004, -0.09, 0.09),
+			clampf(-local_accel.y * 0.0015, -0.04, 0.04),
+			clampf(-local_accel.z * 0.003, -0.12, 0.12)
+		)
 		g_force_offset = g_force_offset.lerp(desired_offset * cockpit_motion_strength, _response_weight(8.0, delta))
+
 	# Маркер — источник истины: ни переключение вида, ни тряска его не двигают.
 	# Смещение ускорения применяется только к камере в координатах кузова.
 	active_camera.global_transform = cam_cockpit.global_transform
@@ -749,7 +856,10 @@ func _reset_action_camera() -> void:
 	_smoothed_slope_y = 0.0
 	var basis_to_use: Basis = global_transform.basis if is_inside_tree() else spawn_transform.basis
 	var forward: Vector3 = basis_to_use.z.normalized()
-	camera_yaw = atan2(forward.x, forward.z)
+	if Vector2(forward.x, forward.z).length_squared() > 0.0001:
+		camera_yaw = atan2(forward.x, forward.z)
+	else:
+		camera_yaw = 0.0
 	var pivot: Vector3 = global_position + Vector3(0.0, _scene_pivot_height, 0.0)
 
 	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
@@ -762,14 +872,20 @@ func _reset_action_camera() -> void:
 		camera_position = pivot - forward * chase_distance + Vector3(0.0, chase_height - _scene_pivot_height, 0.0)
 
 	camera_initialized = true
-	active_camera.top_level = true
+	if active_camera == null:
+		return
+
+	active_camera.top_level = (camera_mode == CameraMode.CHASE_3RD)
+	if camera_mode != CameraMode.CHASE_3RD:
+		return
+
 	active_camera.global_position = camera_position
 
-	var right: Vector3 = forward.cross(Vector3.UP).normalized()
+	var local_x: Vector3 = Vector3.UP.cross(forward).normalized()
 	var look_dir: Vector3 = (
 		forward * _scene_chase_look_dir_local.z
 		+ Vector3.UP * _scene_chase_look_dir_local.y
-		+ right * _scene_chase_look_dir_local.x
+		+ local_x * _scene_chase_look_dir_local.x
 	).normalized()
 	var look_target: Vector3 = camera_position + look_dir * 10.0
 	if camera_position.distance_squared_to(look_target) > 0.001:
@@ -778,12 +894,6 @@ func _reset_action_camera() -> void:
 
 func _response_weight(response: float, delta: float) -> float:
 	return 1.0 - exp(-maxf(response, 0.0) * maxf(delta, 0.0))
-
-
-## Необязательный «провайдер» точки сброса: сцена заезда подставляет сюда
-## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
-## а не на старт.
-var reset_provider: Callable = Callable()
 
 
 func reset_to_spawn() -> void:
@@ -838,7 +948,7 @@ func reset_to_spawn() -> void:
 		axle.suspension_compression_left = 0.0
 		axle.suspension_compression_right = 0.0
 
-	for wheel in wheel_array:
+	for wheel: WheelType in wheel_array:
 		wheel.spin = 0.0
 		wheel.spin_velocity_diff = 0.0
 		wheel.applied_torque = 0.0
@@ -855,23 +965,28 @@ func reset_to_spawn() -> void:
 		wheel.previous_global_position = wheel.global_position
 		wheel.abs_enable_time = 0.0
 		wheel.limit_spin = false
-		wheel.current_cof = float(coefficient_of_friction.get(wheel.surface_type, 1.5))
+		wheel.current_cof = _get_surface_cof(str(wheel.surface_type))
+		wheel.force_raycast_update()
 
 	g_force_offset = Vector3.ZERO
-	gravel_particles.emitting = false
+	if gravel_particles != null:
+		gravel_particles.emitting = false
 	_reset_action_camera()
+	_apply_initial_camera_fov()
+	if camera_mode != CameraMode.CHASE_3RD:
+		_update_cameras(0.0)
 
 
 func get_average_tire_slip() -> float:
 	var total_slip: float = 0.0
-	for wheel in wheel_array:
+	for wheel: WheelType in wheel_array:
 		total_slip += absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y)
 	return total_slip / float(maxi(1, wheel_array.size()))
 
 
 func get_max_suspension_compression() -> float:
 	var maximum: float = 0.0
-	for wheel in wheel_array:
+	for wheel: WheelType in wheel_array:
 		if wheel.spring_length > 0.0:
 			var compression: float = 1.0 - wheel.spring_current_length / wheel.spring_length
 			maximum = maxf(maximum, compression)

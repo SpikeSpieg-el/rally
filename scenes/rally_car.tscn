@@ -14,14 +14,17 @@
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_37cw1"]
-size = Vector3(2.342453, 1.6022418, 1.5815662)
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
+friction = 0.05
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_4mbpt"]
-size = Vector3(2.3857255, 0.9961627, 1.7284168)
+size = Vector3(2.3857255, 0.9389993, 1.5204585)
 
 [sub_resource type="BoxShape3D" id="BoxShape_body"]
-size = Vector3(2.323822, 1.6785357, 2.4912574)
+size = Vector3(2.323822, 1.5751077, 2.4912574)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_37cw1"]
+size = Vector3(2.342453, 1.4717646, 1.5815662)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cavtd"]
 albedo_texture = ExtResource("4_finkb")
@@ -752,11 +755,11 @@ size = Vector3(0.04, 0.62, 1.85)
 
 [sub_resource type="BoxMesh" id="BoxMesh_roof"]
 material = SubResource("Mat_Carbon")
-size = Vector3(1.42, 0.025, 1.55)
+size = Vector3(1.3534131, 0.025, 1.55)
 
 [sub_resource type="BoxMesh" id="BoxMesh_sunstrip"]
 material = ExtResource("11_yojui")
-size = Vector3(1.46, 0.08257812, 0.02)
+size = Vector3(1.3108618, 0.08257812, 0.02)
 
 [sub_resource type="BoxMesh" id="BoxMesh_rear_mirror"]
 material = SubResource("Mat_Carbon")
@@ -780,7 +783,7 @@ height = 0.047187805
 albedo_texture = ExtResource("13_37cw1")
 
 [sub_resource type="BoxMesh" id="BoxMesh_dmcip"]
-size = Vector3(0.109375, 0.5428467, 0.61613464)
+size = Vector3(0.104003906, 0.4003296, 0.38993454)
 
 [sub_resource type="BoxMesh" id="BoxMesh_02ico"]
 material = SubResource("Mat_Carbon")
@@ -1003,6 +1006,7 @@ size = Vector3(0.065, 0.68, 0.018)
 
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 mass = 1230.0
+physics_material_override = SubResource("PhysicsMaterial_37cw1")
 center_of_mass_mode = 1
 script = ExtResource("1_car")
 front_left_wheel = NodePath("Wheel_FL")
@@ -1010,17 +1014,17 @@ front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
-[node name="BodyCollider3" type="CollisionShape3D" parent="." unique_id=2100112263]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.010932922, 1.036736, -1.8555372)
-shape = SubResource("BoxShape3D_37cw1")
-
-[node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=544108270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 0.69517267, 2.2553098)
+[node name="BodyCollider_FRONT" type="CollisionShape3D" parent="." unique_id=544108270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 0.7237544, 2.1513307)
 shape = SubResource("BoxShape3D_4mbpt")
 
-[node name="BodyCollider2" type="CollisionShape3D" parent="." unique_id=266759016]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.021438599, 1.0303619, 0.18160546)
+[node name="BodyCollider_MID" type="CollisionShape3D" parent="." unique_id=266759016]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.021438599, 1.0820758, 0.18160546)
 shape = SubResource("BoxShape_body")
+
+[node name="BodyCollider_BACK" type="CollisionShape3D" parent="." unique_id=2100112263]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.010932922, 1.0442724, -1.8015044)
+shape = SubResource("BoxShape3D_37cw1")
 
 [node name="Wheel_FL" type="RayCast3D" parent="." unique_id=1481303125 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.51, 1.905)
@@ -1113,7 +1117,7 @@ transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.11971
 gizmo_extents = 1.94
 
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
-transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.5397794, 0.21571684)
+transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, -8.225441e-06, 1.5430684, 0.21586013)
 current = true
 fov = 99.2
 far = 850.0
@@ -1153,7 +1157,7 @@ transform = Transform3D(0.9999989, -0.0012240614, -0.00081107917, 0.0014683922, 
 mesh = SubResource("ArrayMesh_4awaq")
 
 [node name="RallyCockpit" type="Node3D" parent="." unique_id=1410955852]
-transform = Transform3D(1.1270919, 0, 0, 0, 1, 0, 0, 0, 1, -0.037261724, 0.9640378, 0.11260709)
+transform = Transform3D(1.071969, 0, 0, 0, 1, 0, 0, 0, 1, -0.027093112, 0.9640378, 0.11260709)
 script = SubResource("GDScript_cockpit")
 
 [node name="InteriorShell" type="Node3D" parent="RallyCockpit" unique_id=68268009]
@@ -1190,11 +1194,11 @@ material_override = ExtResource("11_yojui")
 mesh = SubResource("BoxMesh_door_card")
 
 [node name="RoofPanel" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1924512152]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, -0.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.013620557, 0.6889701, -0.35)
 mesh = SubResource("BoxMesh_roof")
 
 [node name="WindshieldSunstrip" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1037151085]
-transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, 0, 0.7181634, 0.42516002)
+transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, 0.006800537, 0.7181634, 0.42516002)
 mesh = SubResource("BoxMesh_sunstrip")
 
 [node name="RearviewMirror" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1380165151]
@@ -1210,14 +1214,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12432505, -0.04672873, -0.0
 script = ExtResource("12_37cw1")
 
 [node name="robe" type="MeshInstance3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot" unique_id=1600033264]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037310183, -0.013768554, 0.014403522)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037310183, -0.01331687, 0.014403522)
 mesh = SubResource("CylinderMesh_wiqw4")
 
 [node name="FigureHook" type="Node3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe" unique_id=1550077644]
-transform = Transform3D(0.24603441, 0, 0.99769026, 0, 1.344, 0, -3.613634, 0, 0.06792778, 0.00014692545, -0.027471423, -0.00016093254)
+transform = Transform3D(0.24603443, 0, 0.99769026, 0, 1.344, 0, -3.613634, 0, 0.06792778, 0.00014692545, -0.039233804, -0.00016093254)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe/FigureHook" unique_id=733396187]
-transform = Transform3D(0.099, 0, 7.8231096e-08, 0, 0.125, 0, -2.2351742e-07, 0, 0.09000003, -0.0001655817, -0.021027088, -0.00062952936)
+transform = Transform3D(0.099, 0, 7.6484866e-08, 0, 0.12499994, 0, -2.2351742e-07, 0, 0.09000003, 0.00010025501, -0.01211977, -0.0018179268)
 material_override = SubResource("StandardMaterial3D_4mbpt")
 mesh = SubResource("BoxMesh_dmcip")
 
@@ -1252,11 +1256,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
 mesh = SubResource("Cyl_padding")
 
 [node name="RoofBarL" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=337873751]
-transform = Transform3D(1, 0, 0, 0, -0.030355155, 0.99953914, 0, -0.99953914, -0.030355155, 0.7, 0.71, -0.35)
+transform = Transform3D(0.9999581, 0.009141767, 0.00027762773, 0, -0.03035516, 0.99953926, 0.0091459835, -0.9994974, -0.030353889, 0.7, 0.7099999, -0.35)
 mesh = SubResource("Cyl_roof_long")
 
 [node name="RoofBarR" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=485484988]
-transform = Transform3D(1, 0, 0, 0, -0.030355155, 0.99953914, 0, -0.99953914, -0.030355155, -0.7, 0.71, -0.35)
+transform = Transform3D(0.99959457, -0.028458415, -0.0008642579, 0, -0.03035516, 0.99953926, -0.02847154, -0.99913406, -0.030342855, -0.7, 0.7099999, -0.35)
 mesh = SubResource("Cyl_roof_long")
 
 [node name="WindshieldTopCrossbar" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=591907824]

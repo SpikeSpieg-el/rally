@@ -9,107 +9,124 @@ content_margin_left = 14.0
 content_margin_top = 10.0
 content_margin_right = 14.0
 content_margin_bottom = 10.0
-bg_color = Color(0.035, 0.052, 0.075, 0.8)
+bg_color = Color(0.04, 0.055, 0.08, 0.72)
 border_width_left = 3
-border_color = Color(0.98, 0.45, 0.06, 0.9)
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.52, 0.12, 0.85)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.4)
+shadow_color = Color(0, 0, 0, 0.28)
 shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="SB_panel_glass"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.04, 0.055, 0.08, 0.65)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.25)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
 
 [sub_resource type="StyleBoxFlat" id="SB_panel_top"]
-content_margin_left = 14.0
-content_margin_top = 10.0
-content_margin_right = 14.0
-content_margin_bottom = 10.0
-bg_color = Color(0.035, 0.052, 0.075, 0.8)
+content_margin_left = 22.0
+content_margin_top = 6.0
+content_margin_right = 22.0
+content_margin_bottom = 8.0
+bg_color = Color(0.04, 0.055, 0.08, 0.72)
 border_width_top = 3
-border_color = Color(0.98, 0.45, 0.06, 0.9)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.4)
-shadow_size = 8
-
-[sub_resource type="StyleBoxFlat" id="SB_rpm_bg"]
-bg_color = Color(0.05, 0.075, 0.1, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.32, 0.42, 0.52, 0.5)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="StyleBoxFlat" id="SB_rpm_fill"]
-bg_color = Color(0.98, 0.45, 0.06, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-
-[sub_resource type="StyleBoxFlat" id="SB_modal"]
-content_margin_left = 24.0
-content_margin_top = 20.0
-content_margin_right = 24.0
-content_margin_bottom = 20.0
-bg_color = Color(0.03, 0.045, 0.065, 0.94)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.45, 0.56, 0.66, 0.35)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
+border_color = Color(1, 0.52, 0.12, 0.9)
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
-shadow_color = Color(0, 0, 0, 0.55)
-shadow_size = 14
+shadow_color = Color(0, 0, 0, 0.28)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
 
-[sub_resource type="StyleBoxFlat" id="SB_button"]
-content_margin_left = 14.0
-content_margin_top = 8.0
-content_margin_right = 14.0
-content_margin_bottom = 8.0
-bg_color = Color(0.1, 0.14, 0.18, 1)
+[sub_resource type="StyleBoxFlat" id="SB_rpm_bg"]
+bg_color = Color(1, 1, 1, 0.1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="SB_rpm_fill"]
+bg_color = Color(1, 0.52, 0.12, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="SB_modal"]
+content_margin_left = 28.0
+content_margin_top = 24.0
+content_margin_right = 28.0
+content_margin_bottom = 24.0
+bg_color = Color(0.04, 0.055, 0.075, 0.96)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.32, 0.42, 0.52, 0.6)
+border_color = Color(1, 1, 1, 0.12)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.6)
+shadow_size = 24
+
+[sub_resource type="StyleBoxFlat" id="SB_button"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.11, 0.14, 0.19, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.1)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="SB_button_pressed"]
-content_margin_left = 14.0
+content_margin_left = 16.0
 content_margin_top = 9.0
-content_margin_right = 14.0
+content_margin_right = 16.0
 content_margin_bottom = 7.0
-bg_color = Color(0.8, 0.34, 0.04, 1)
+bg_color = Color(0.85, 0.36, 0.05, 1)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="SB_button_hover"]
-content_margin_left = 14.0
+content_margin_left = 16.0
 content_margin_top = 8.0
-content_margin_right = 14.0
+content_margin_right = 16.0
 content_margin_bottom = 8.0
-bg_color = Color(0.98, 0.45, 0.06, 1)
+bg_color = Color(1, 0.48, 0.1, 1)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-shadow_color = Color(0.98, 0.45, 0.06, 0.35)
-shadow_size = 6
+shadow_color = Color(1, 0.48, 0.1, 0.3)
+shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="SB_button_focus"]
 draw_center = false
@@ -117,22 +134,22 @@ border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(1, 0.72, 0.25, 0.7)
+border_color = Color(1, 0.72, 0.25, 0.8)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="SB_hint"]
-content_margin_left = 18.0
-content_margin_top = 7.0
-content_margin_right = 18.0
-content_margin_bottom = 7.0
-bg_color = Color(0.03, 0.05, 0.07, 0.7)
-border_width_top = 2
-border_color = Color(0.98, 0.45, 0.06, 0.5)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
+content_margin_left = 14.0
+content_margin_top = 4.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+bg_color = Color(0.04, 0.055, 0.075, 0.45)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="RallyHUD" type="Control" unique_id=1658381581]
 layout_mode = 3
@@ -145,40 +162,40 @@ mouse_filter = 2
 
 [node name="StagePanel" type="PanelContainer" parent="." unique_id=1484604147]
 layout_mode = 1
-anchors_preset = -1
-offset_left = 14.0
-offset_top = 14.0
-offset_right = 340.0
-offset_bottom = 112.0
-grow_horizontal = 2
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 280.0
+offset_bottom = 68.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_panel")
 
 [node name="StageBox" type="VBoxContainer" parent="StagePanel" unique_id=441490318]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 1
+alignment = 1
 
 [node name="StageTitle" type="Label" parent="StagePanel/StageBox" unique_id=31019081]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.76, 0.3, 1)
-theme_override_font_sizes/font_size = 21
+theme_override_colors/font_color = Color(0.96, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 15
 text = "ЛЕСНОЙ СПЕЦУЧАСТОК"
 
 [node name="StageLabel" type="Label" parent="StagePanel/StageBox" unique_id=1193948982]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.73, 0.83, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.68, 0.78, 0.88, 0.85)
+theme_override_font_sizes/font_size = 11
+text = "СУ-1 • ГРАВИЙ"
 
 [node name="TimerPanel" type="PanelContainer" parent="." unique_id=766970301]
 layout_mode = 1
-anchors_preset = -1
+anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -250.0
-offset_top = 14.0
-offset_right = 250.0
-offset_bottom = 142.0
+offset_left = -135.0
+offset_top = 0.0
+offset_right = 135.0
+offset_bottom = 76.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_panel_top")
@@ -186,91 +203,60 @@ theme_override_styles/panel = SubResource("SB_panel_top")
 [node name="TimerBox" type="VBoxContainer" parent="TimerPanel" unique_id=1018728024]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 0
+theme_override_constants/separation = -3
 alignment = 1
 
 [node name="TimerLabel" type="Label" parent="TimerPanel/TimerBox" unique_id=1513995717]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.97, 0.99, 1)
-theme_override_font_sizes/font_size = 54
+theme_override_colors/font_color = Color(0.98, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 36
 text = "00:00.000"
 horizontal_alignment = 1
 
 [node name="SplitLabel" type="Label" parent="TimerPanel/TimerBox" unique_id=730141170]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.32, 0.95, 0.6, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_colors/font_color = Color(0.35, 0.95, 0.62, 0.9)
+theme_override_font_sizes/font_size = 12
 text = "ЦЕЛЬ 00:00.000"
 horizontal_alignment = 1
 
 [node name="MiniMap" type="Control" parent="." unique_id=541321273]
 layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
 anchor_right = 1.0
-offset_left = 1585.0
-offset_top = 19.0
-offset_right = -16.0
-offset_bottom = 319.0
+offset_left = -210.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = 206.0
 grow_horizontal = 0
 mouse_filter = 2
 script = ExtResource("1_mini")
-background_color = Color(0.03, 0.05, 0.07, 0.85)
-border_color = Color(0.45, 0.56, 0.66, 0.55)
-route_color = Color(0.98, 0.62, 0.2, 1)
-route_glow_color = Color(0.98, 0.62, 0.2, 0.14)
-progress_color = Color(0.35, 0.95, 0.6, 1)
-car_color = Color(1, 0.96, 0.86, 1)
-route_line_width = 1.5
 
 [node name="SpeedPanel" type="PanelContainer" parent="." unique_id=789375468]
 layout_mode = 1
-anchors_preset = -1
+anchors_preset = 3
+anchor_left = 1.0
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 1594.0
-offset_top = -581.0
-offset_right = 1920.0
-offset_bottom = -361.0
+offset_left = -230.0
+offset_top = -152.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("SB_panel")
+theme_override_styles/panel = SubResource("SB_panel_glass")
 
 [node name="SpeedBox" type="VBoxContainer" parent="SpeedPanel" unique_id=277898344]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 2
-
-[node name="SpeedLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1001499066]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.97, 0.99, 1)
-theme_override_font_sizes/font_size = 64
-text = "000"
-
-[node name="SpeedUnit" type="Label" parent="SpeedPanel/SpeedBox" unique_id=558085101]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.98, 0.45, 0.06, 1)
-theme_override_font_sizes/font_size = 15
-text = "КМ/Ч"
-
-[node name="GearLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=453572934]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.76, 0.3, 1)
-theme_override_font_sizes/font_size = 21
-text = "КПП 1  A"
-
-[node name="DrivetrainLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1152284924]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.73, 0.83, 1)
-theme_override_font_sizes/font_size = 14
-text = "AWD 38:62"
-
-[node name="RpmCaption" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1793424554]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.66, 0.76, 1)
-theme_override_font_sizes/font_size = 11
-text = "РУГ 7600"
+theme_override_constants/separation = -2
+alignment = 1
 
 [node name="RPMBar" type="ProgressBar" parent="SpeedPanel/SpeedBox" unique_id=587737963]
-custom_minimum_size = Vector2(280, 14)
+custom_minimum_size = Vector2(180, 6)
 layout_mode = 2
 theme_override_styles/background = SubResource("SB_rpm_bg")
 theme_override_styles/fill = SubResource("SB_rpm_fill")
@@ -278,41 +264,74 @@ max_value = 7600.0
 value = 900.0
 show_percentage = false
 
+[node name="RpmCaption" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1793424554]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.75, 0.65)
+theme_override_font_sizes/font_size = 9
+text = "RPM 7600"
+horizontal_alignment = 2
+
+[node name="SpeedLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1001499066]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 48
+text = "000"
+horizontal_alignment = 2
+
+[node name="SpeedUnit" type="Label" parent="SpeedPanel/SpeedBox" unique_id=558085101]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.7, 0.8, 0.75)
+theme_override_font_sizes/font_size = 10
+text = "КМ/Ч"
+horizontal_alignment = 2
+
+[node name="GearLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=453572934]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.55, 0.15, 1)
+theme_override_font_sizes/font_size = 15
+text = "КПП 1  A"
+
+[node name="DrivetrainLabel" type="Label" parent="SpeedPanel/SpeedBox" unique_id=1152284924]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.72, 0.82, 0.85)
+theme_override_font_sizes/font_size = 11
+text = "AWD 38:62"
+
 [node name="TelemetryPanel" type="PanelContainer" parent="." unique_id=1199588559]
 layout_mode = 1
-anchors_preset = -1
-anchor_left = 1.0
+anchors_preset = 2
 anchor_top = 1.0
-anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -304.0
-offset_top = -240.0
-offset_right = -14.0
-offset_bottom = -14.0
-grow_horizontal = 0
+offset_left = 20.0
+offset_top = -168.0
+offset_right = 186.0
+offset_bottom = -20.0
 grow_vertical = 0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("SB_panel")
+theme_override_styles/panel = SubResource("SB_panel_glass")
 
 [node name="TeleBox" type="VBoxContainer" parent="TelemetryPanel" unique_id=559542305]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 2
+alignment = 1
 
 [node name="TelemetryLabel" type="Label" parent="TelemetryPanel/TeleBox" unique_id=232896870]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.76, 0.3, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 11
 text = "ТЕЛЕМЕТРИЯ"
 
 [node name="ThrottleTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=584973295]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
 text = "ГАЗ"
 
 [node name="ThrottleBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=814323772]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -320,12 +339,12 @@ centered = false
 
 [node name="BrakeTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=251204331]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
 text = "ТОРМОЗ"
 
 [node name="BrakeBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=1350856692]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -334,12 +353,12 @@ centered = false
 
 [node name="SteerTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=1754989326]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
 text = "РУЛЬ"
 
 [node name="SteerBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=1792579735]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -347,12 +366,12 @@ bar_color = Color(0.98, 0.78, 0.2, 1)
 
 [node name="SlipTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=411337341]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
 text = "СКОЛЬЗ."
 
 [node name="SlipBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=590826942]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -361,12 +380,12 @@ centered = false
 
 [node name="SuspensionTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=673117915]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
-text = "ХОД"
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
+text = "ПОДВЕСКА"
 
 [node name="SuspensionBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=2072543779]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -375,12 +394,12 @@ centered = false
 
 [node name="GForceTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=197468193]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.58, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 11
-text = "G"
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.75)
+theme_override_font_sizes/font_size = 8
+text = "ПЕРЕГРУЗКА G"
 
 [node name="GForceBar" type="Control" parent="TelemetryPanel/TeleBox" unique_id=583606227]
-custom_minimum_size = Vector2(240, 10)
+custom_minimum_size = Vector2(138, 4)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
@@ -390,15 +409,15 @@ centered = false
 [node name="PausePanel" type="PanelContainer" parent="." unique_id=1350163794]
 visible = false
 layout_mode = 1
-anchors_preset = -1
+anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -290.0
-offset_right = 280.0
-offset_bottom = 290.0
+offset_left = -260.0
+offset_top = -275.0
+offset_right = 260.0
+offset_bottom = 275.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -412,20 +431,20 @@ alignment = 1
 
 [node name="PauseTitle" type="Label" parent="PausePanel/Box" unique_id=1276704520]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.76, 0.3, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_colors/font_color = Color(0.98, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 28
 text = "ПАУЗА"
 horizontal_alignment = 1
 
 [node name="CameraOptions" type="VBoxContainer" parent="PausePanel/Box"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 6
 script = ExtResource("3_camera_settings")
 
 [node name="CameraTitle" type="Label" parent="PausePanel/Box/CameraOptions"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.73, 0.84, 0.94, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 0.55, 0.15, 1)
+theme_override_font_sizes/font_size = 13
 text = "НАСТРОЙКИ КАМЕРЫ"
 
 [node name="CockpitFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
@@ -434,10 +453,10 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
-custom_minimum_size = Vector2(185, 0)
+custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "FOV КАБИНЫ"
 
 [node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/CockpitFov"]
@@ -449,9 +468,9 @@ step = 1.0
 value = 76.0
 
 [node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
-custom_minimum_size = Vector2(48, 0)
+custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "76°"
 horizontal_alignment = 2
 
@@ -461,10 +480,10 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
-custom_minimum_size = Vector2(185, 0)
+custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "FOV СЗАДИ"
 
 [node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/ChaseFov"]
@@ -476,9 +495,9 @@ step = 1.0
 value = 72.0
 
 [node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
-custom_minimum_size = Vector2(48, 0)
+custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "72°"
 horizontal_alignment = 2
 
@@ -488,10 +507,10 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
-custom_minimum_size = Vector2(185, 0)
+custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "ДВИЖЕНИЕ КАМЕРЫ"
 
 [node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Motion"]
@@ -503,9 +522,9 @@ step = 0.05
 value = 0.35
 
 [node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
-custom_minimum_size = Vector2(48, 0)
+custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "35%"
 horizontal_alignment = 2
 
@@ -515,10 +534,10 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
-custom_minimum_size = Vector2(185, 0)
+custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "ЧУВСТВИТЕЛЬНОСТЬ"
 
 [node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Sensitivity"]
@@ -530,9 +549,9 @@ step = 0.5
 value = 2.5
 
 [node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
-custom_minimum_size = Vector2(48, 0)
+custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "2.5"
 horizontal_alignment = 2
 
@@ -540,19 +559,19 @@ horizontal_alignment = 2
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
-text = "СБРОСИТЬ НАСТРОЙКИ КАМЕРЫ"
+text = "СБРОСИТЬ КАМЕРУ"
 
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -560,12 +579,12 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ПРОДОЛЖИТЬ"
 
 [node name="RestartButton" type="Button" parent="PausePanel/Box" unique_id=44005054]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -573,12 +592,12 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ЗАЕЗД ЗАНОВО"
 
 [node name="MenuButton" type="Button" parent="PausePanel/Box" unique_id=1114197855]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -586,12 +605,12 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ГЛАВНОЕ МЕНЮ"
 
 [node name="QuitButton" type="Button" parent="PausePanel/Box" unique_id=197663561]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -601,15 +620,15 @@ text = "ВЫХОД ИЗ ИГРЫ"
 [node name="ResultsPanel" type="PanelContainer" parent="." unique_id=550498226]
 visible = false
 layout_mode = 1
-anchors_preset = -1
+anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -200.0
-offset_right = 240.0
-offset_bottom = 200.0
+offset_left = -230.0
+offset_top = -190.0
+offset_right = 230.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -618,13 +637,13 @@ theme_override_styles/panel = SubResource("SB_modal")
 [node name="Box" type="VBoxContainer" parent="ResultsPanel" unique_id=627650819]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 alignment = 1
 
 [node name="FinishTitle" type="Label" parent="ResultsPanel/Box" unique_id=687127361]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.35, 0.95, 0.6, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 30
 text = "ФИНИШ!"
 horizontal_alignment = 1
 
@@ -632,17 +651,17 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.96, 0.97, 0.99, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="AgainButton" type="Button" parent="ResultsPanel/Box" unique_id=1259596871]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -650,12 +669,12 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ЕЩЁ ЗАЕЗД"
 
 [node name="MenuButton" type="Button" parent="ResultsPanel/Box" unique_id=1613360931]
-custom_minimum_size = Vector2(260, 44)
+custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 focus_mode = 0
-theme_override_colors/font_color = Color(0.93, 0.96, 1, 1)
+theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
@@ -664,19 +683,19 @@ text = "ГЛАВНОЕ МЕНЮ"
 
 [node name="Hint" type="Label" parent="." unique_id=116412231]
 layout_mode = 1
-anchors_preset = -1
+anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -340.0
-offset_top = -44.0
-offset_right = 340.0
-offset_bottom = -12.0
+offset_left = -290.0
+offset_top = -32.0
+offset_right = 290.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.68, 0.78, 0.86, 0.85)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 0.55)
+theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = SubResource("SB_hint")
-text = "[W/S] ГАЗ / ТОРМОЗ   [A/D] РУЛЬ   [SPACE] РУЧНИК   [C] КАМЕРА   [V] ПРИВОД   [R] СБРОС   [ESC] ПАУЗА"
+text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [ESC] ПАУЗА"
 horizontal_alignment = 1
