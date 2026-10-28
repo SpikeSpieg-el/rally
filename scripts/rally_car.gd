@@ -7,7 +7,6 @@ extends "res://scripts/gevp/vehicle.gd"
 enum CameraMode { CHASE_3RD, HOOD, COCKPIT_1ST }
 enum DrivetrainMode { AWD, RWD, FWD }
 
-const COCKPIT_BASE_POSITION: Vector3 = Vector3(0.35, 0.98, -0.15)
 # Геометрия импортированной модели Lancer Evo: центр колеса и клиренс кузова.
 const MODEL_WHEEL_CENTER_Y: float = 1.4588
 const MODEL_BODY_GROUND_CLEARANCE: float = 0.063
@@ -15,13 +14,13 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
-# Внедорожные значения подняты: машину «не хватало» на подъём с обочины,
-# а на траве она «утюжила» без вращения.
-const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 2.2, "Grass": 1.6}
-const BASE_COF := {"Road": 1.50, "Dirt": 1.12, "Grass": 0.85}
-const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.35, "Grass": 1.7}
-const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.0, "Grass": 0.06}
-const BASE_LONGITUDINAL := {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
+# Шины начинают создавать боковую силу раньше и сохраняют тягу на гравии.
+# Итоговые значения дополнительно зависят от сетапа и покрытия трассы.
+const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 3.8, "Grass": 2.6}
+const BASE_COF := {"Road": 1.50, "Dirt": 1.25, "Grass": 1.0}
+const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.20, "Grass": 1.5}
+const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.04, "Grass": 0.06}
+const BASE_LONGITUDINAL := {"Road": 0.70, "Dirt": 0.72, "Grass": 0.62}
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -32,6 +31,23 @@ const BASE_LONGITUDINAL := {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
 @export_group("Rally Drivetrain")
 @export_enum("AWD 38:62", "RWD 0:100", "FWD 100:0") var drivetrain_mode: int = DrivetrainMode.AWD
 @export_range(0.0, 1.0, 0.01) var awd_front_torque: float = 0.38
+
+@export_group("Управление на скорости")
+## На скорости ограничиваем угол передних колёс, а не приклеиваем машину к дороге.
+@export_range(0.1, 1.0, 0.01) var high_speed_steering_scale: float = 0.48
+@export_range(0.0, 150.0, 1.0, "suffix:km/h") var steering_limit_start_kmh: float = 30.0
+@export_range(20.0, 250.0, 1.0, "suffix:km/h") var steering_limit_full_kmh: float = 120.0
+
+@export_group("Камера: общий обзор")
+## Начальный вид; во время заезда переключается клавишей C.
+@export_enum("Сзади", "Капот", "Кабина") var initial_camera_mode: int = CameraMode.CHASE_3RD
+@export_range(45.0, 110.0, 1.0, "suffix:°") var hood_fov: float = 74.0
+@export_range(45.0, 110.0, 1.0, "suffix:°") var cockpit_fov: float = 76.0
+## Дополнительный угол обзора на скорости, 0 — постоянный FOV.
+@export_range(0.0, 20.0, 0.5, "suffix:°") var inside_speed_fov_bonus: float = 5.0
+## Смещение взгляда от ускорений: 0 — строго по маркеру CamCockpit.
+@export_range(0.0, 1.0, 0.05) var cockpit_motion_strength: float = 0.35
+@export_range(0.0, 10.0, 0.5, "suffix:°") var cockpit_roll_degrees: float = 2.0
 
 @export_group("Action Camera")
 ## Если включено — позиция и ракурс камеры берутся напрямую из узла CamChase на сцене!
@@ -45,8 +61,8 @@ const BASE_LONGITUDINAL := {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
 ## Боковое смещение камеры при повороте руля (0.0 = отключено, чтобы не было рывков).
 @export var chase_corner_offset: float = 0.0
 @export var chase_collision_radius: float = 0.28
-@export var chase_min_fov: float = 72.0
-@export var chase_max_fov: float = 91.0
+@export_range(45.0, 110.0, 1.0, "suffix:°") var chase_min_fov: float = 72.0
+@export_range(45.0, 120.0, 1.0, "suffix:°") var chase_max_fov: float = 80.0
 
 @export_group("Mouse Look")
 @export var mouse_look_enabled: bool = true
@@ -95,6 +111,7 @@ var mouse_idle_timer: float = 10.0
 var active_setup: CarSetupType = null
 var track_grip_scale: float = 1.0
 var track_rolling_scale: float = 1.0
+var track_offroad_grip: float = 0.6
 
 
 func _ready() -> void:
@@ -117,7 +134,10 @@ func _ready() -> void:
 
 	active_camera.top_level = true
 	active_camera.make_current()
+	camera_mode = clampi(initial_camera_mode, CameraMode.CHASE_3RD, CameraMode.COCKPIT_1ST)
 	_reset_action_camera()
+	if camera_mode != CameraMode.CHASE_3RD:
+		_update_cameras(0.0)
 
 	if mouse_look_enabled:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -136,7 +156,6 @@ func _capture_scene_camera_setup() -> void:
 		return
 
 	_scene_chase_local_pos = to_local(cam_chase.global_position)
-	chase_min_fov = active_camera.fov
 
 	var chase_fwd_local: Vector3 = (global_transform.basis.inverse() * (-cam_chase.global_transform.basis.z)).normalized()
 	var active_fwd_local: Vector3 = (global_transform.basis.inverse() * (-active_camera.global_transform.basis.z)).normalized()
@@ -184,22 +203,21 @@ func _configure_gevp() -> void:
 	rear_left_wheel = $Wheel_RL
 	rear_right_wheel = $Wheel_RR
 
-	steering_speed = 4.8
+	steering_speed = 6.0
 	countersteer_speed = 9.0
 	steering_speed_decay = 0.24
-	steering_slip_assist = 0.25
-	countersteer_assist = 0.45
-	steering_exponent = 1.38
+	steering_slip_assist = 0.38
+	countersteer_assist = 0.25
+	steering_exponent = 1.20
 	max_steering_angle = deg_to_rad(35.0)
 	front_steering_ratio = 1.0
 	rear_steering_ratio = 0.0
 
-	throttle_speed = 13.0
+	throttle_speed = 7.0
 	braking_speed = 10.0
 	front_brake_bias = 0.60
-	# Дольше держим TCS выключенным: раллийная машина должна вращаться
-	# ногами (проскальзывать), а не «утюжить» под избыточным газом.
-	traction_control_max_slip = 1.15
+	# TCS ограничивает пробуксовку плавно, не выключая тягу целиком.
+	traction_control_max_slip = 0.65
 
 	enable_stability = false
 	stability_yaw_engage_angle = 0.10
@@ -265,11 +283,11 @@ func _configure_gevp() -> void:
 	contact_patch = 0.22
 	braking_grip_multiplier = 1.25
 	wheel_to_body_torque_multiplier = 0.6
-	tire_stiffnesses = {"Road": 5.0, "Dirt": 2.2, "Grass": 1.6}
-	coefficient_of_friction = {"Road": 1.50, "Dirt": 1.12, "Grass": 0.85}
-	rolling_resistance = {"Road": 1.0, "Dirt": 1.35, "Grass": 1.7}
-	lateral_grip_assist = {"Road": 0.0, "Dirt": 0.0, "Grass": 0.06}
-	longitudinal_grip_ratio = {"Road": 0.65, "Dirt": 0.56, "Grass": 0.45}
+	tire_stiffnesses = BASE_STIFFNESS.duplicate()
+	coefficient_of_friction = BASE_COF.duplicate()
+	rolling_resistance = BASE_ROLLING.duplicate()
+	lateral_grip_assist = BASE_LATERAL.duplicate()
+	longitudinal_grip_ratio = BASE_LONGITUDINAL.duplicate()
 	front_tire_radius = 0.438
 	rear_tire_radius = 0.438
 	front_tire_width = 245.0
@@ -349,9 +367,10 @@ func _adjust_wheel_mounts() -> void:
 			(node as Node3D).position.y = rear_y
 
 
-func apply_track_grip(grip_scale: float, rolling_scale: float) -> void:
+func apply_track_grip(grip_scale: float, rolling_scale: float, offroad_grip: float = 0.6) -> void:
 	track_grip_scale = maxf(0.05, grip_scale)
 	track_rolling_scale = maxf(0.05, rolling_scale)
+	track_offroad_grip = clampf(offroad_grip, 0.05, 1.0)
 	_refresh_grip_tuning()
 
 
@@ -370,7 +389,9 @@ func _refresh_grip_tuning() -> void:
 	longitudinal_grip_ratio = {}
 	for key in BASE_COF.keys():
 		tire_stiffnesses[key] = float(BASE_STIFFNESS[key]) * stiffness
-		coefficient_of_friction[key] = float(BASE_COF[key]) * grip
+		# offroad_grip — отношение сцепления травы к гравийному полотну.
+		var base_cof: float = float(BASE_COF["Dirt"]) * track_offroad_grip if key == "Grass" else float(BASE_COF[key])
+		coefficient_of_friction[key] = base_cof * grip
 		rolling_resistance[key] = float(BASE_ROLLING[key]) * rolling
 		lateral_grip_assist[key] = float(BASE_LATERAL[key])
 		longitudinal_grip_ratio[key] = float(BASE_LONGITUDINAL[key])
@@ -386,6 +407,10 @@ func _refresh_grip_tuning() -> void:
 		wheel.current_lateral_grip_assist = float(lateral_grip_assist.get(surface, 0.0))
 		wheel.current_longitudinal_grip_ratio = float(longitudinal_grip_ratio.get(surface, 0.5))
 		wheel.current_tire_stiffness = 1000000.0 + 8000000.0 * float(tire_stiffnesses.get(surface, 1.0))
+	# Сила тормозов рассчитывается по сцеплению и должна обновляться после
+	# применения ресурса трассы, уже после инициализации колёс.
+	if is_ready and not wheel_array.is_empty():
+		calculate_brake_force()
 
 
 func get_spawn_height_offset() -> float:
@@ -437,6 +462,7 @@ func _physics_process(delta: float) -> void:
 		mouse_pitch = 0.0
 		smoothed_mouse_yaw = 0.0
 		smoothed_mouse_pitch = 0.0
+		g_force_offset = Vector3.ZERO
 		if camera_mode == CameraMode.CHASE_3RD:
 			_reset_action_camera()
 	if Input.is_action_just_pressed("drivetrain_switch"):
@@ -448,10 +474,20 @@ func _physics_process(delta: float) -> void:
 		automatic_transmission = false
 		manual_shift(-1)
 
-	throttle_input = Input.get_action_strength("throttle")
-	brake_input = Input.get_action_strength("brake")
+	var forward_pedal: float = Input.get_action_strength("throttle")
+	var reverse_pedal: float = Input.get_action_strength("brake")
+	# В автоматическом режиме S тормозит, затем становится газом в R;
+	# W аналогично тормозит задний ход и возвращает первую передачу.
+	# Во время перехода R -> N -> 1 сохраняем обратную раскладку педалей.
+	var reverse_controls: bool = automatic_transmission and (
+		current_gear < 0 or (current_gear == 0 and direction_request_active and direction_target > 0)
+	)
+	throttle_input = reverse_pedal if reverse_controls else forward_pedal
+	brake_input = forward_pedal if reverse_controls else reverse_pedal
 	steer_input = Input.get_axis("steer_right", "steer_left")
-	steering_input = steer_input
+	var limit_end: float = maxf(steering_limit_full_kmh, steering_limit_start_kmh + 1.0)
+	var steering_speed_blend: float = smoothstep(steering_limit_start_kmh, limit_end, speed_kmh)
+	steering_input = steer_input * lerpf(1.0, high_speed_steering_scale, steering_speed_blend)
 	handbrake_input = Input.get_action_strength("handbrake")
 
 	super._physics_process(delta)
@@ -516,8 +552,8 @@ func _apply_drivetrain() -> void:
 func _update_handbrake_grip(delta: float) -> void:
 	for wheel in rear_axle.wheels:
 		var surface_grip: float = float(coefficient_of_friction.get(wheel.surface_type, 1.5))
-		var target_grip: float = surface_grip * 0.50 if handbrake_input > 0.1 else surface_grip
-		var response: float = 12.0 if handbrake_input > 0.1 else 3.5
+		var target_grip: float = surface_grip * lerpf(1.0, 0.55, clampf(handbrake_input, 0.0, 1.0))
+		var response: float = 16.0 if handbrake_input > 0.1 else 7.0
 		wheel.current_cof = lerpf(wheel.current_cof, target_grip, clampf(response * delta, 0.0, 1.0))
 
 
@@ -577,7 +613,6 @@ func _update_cameras(delta: float) -> void:
 		CameraMode.CHASE_3RD:
 			_update_action_camera(delta)
 		CameraMode.HOOD:
-			cam_cockpit.position = COCKPIT_BASE_POSITION
 			active_camera.global_transform = cam_hood.global_transform
 			active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
 			active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
@@ -585,7 +620,8 @@ func _update_cameras(delta: float) -> void:
 			_update_cockpit_camera(delta)
 
 	if camera_mode != CameraMode.CHASE_3RD:
-		var target_fov: float = lerpf(70.0, 86.0, clampf(speed_kmh / 180.0, 0.0, 1.0))
+		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
+		var target_fov: float = base_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, _response_weight(6.0, delta))
 	previous_velocity = linear_velocity
 
@@ -692,13 +728,17 @@ func _update_cockpit_camera(delta: float) -> void:
 		clampf(-local_accel.y * 0.0015, -0.04, 0.04),
 		clampf(-local_accel.z * 0.003, -0.12, 0.12)
 	)
-	g_force_offset = g_force_offset.lerp(desired_offset, _response_weight(8.0, delta))
-	cam_cockpit.position = COCKPIT_BASE_POSITION + g_force_offset
+	if is_zero_approx(cockpit_motion_strength):
+		g_force_offset = Vector3.ZERO
+	else:
+		g_force_offset = g_force_offset.lerp(desired_offset * cockpit_motion_strength, _response_weight(8.0, delta))
+	# Маркер — источник истины: ни переключение вида, ни тряска его не двигают.
+	# Смещение ускорения применяется только к камере в координатах кузова.
 	active_camera.global_transform = cam_cockpit.global_transform
-
+	active_camera.global_position += global_transform.basis * g_force_offset
 	active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
 	active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
-	active_camera.rotate_object_local(Vector3(0.0, 0.0, 1.0), -true_steering_amount * 0.15)
+	active_camera.rotate_object_local(Vector3.FORWARD, true_steering_amount * deg_to_rad(cockpit_roll_degrees) * cockpit_motion_strength)
 
 
 func _reset_action_camera() -> void:
@@ -818,7 +858,6 @@ func reset_to_spawn() -> void:
 		wheel.current_cof = float(coefficient_of_friction.get(wheel.surface_type, 1.5))
 
 	g_force_offset = Vector3.ZERO
-	cam_cockpit.position = COCKPIT_BASE_POSITION
 	gravel_particles.emitting = false
 	_reset_action_camera()
 

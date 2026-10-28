@@ -25,6 +25,8 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
+const RoadShader = preload("res://shaders/gravel_road.gdshader")
+const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -795,9 +797,11 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
+	var uvs := PackedVector2Array()
 	vertices.resize(rows * lanes)
 	normals.resize(rows * lanes)
 	colors.resize(rows * lanes)
+	uvs.resize(rows * lanes)
 	var color_rng := RandomNumberGenerator.new()
 	color_rng.seed = track.terrain_seed ^ 0x5A17
 
@@ -825,6 +829,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 				y = ground_height(point.x, point.z)
 			y += 0.035
 			vertices[row * lanes + lane] = Vector3(point.x, y, point.z)
+			uvs[row * lanes + lane] = Vector2(lat, distance)
 
 			var base_color: Color = track.road_color * shade
 			base_color = base_color.lerp(track.road_color_2, color_rng.randf() * 0.45)
@@ -868,15 +873,13 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var road_mesh := ArrayMesh.new()
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var road_material := StandardMaterial3D.new()
-	road_material.albedo_color = Color.WHITE
-	road_material.vertex_color_use_as_albedo = true
-	road_material.roughness = 1.0
-	road_material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var road_material := ShaderMaterial.new()
+	road_material.shader = RoadShader
 
 	var road_visual := MeshInstance3D.new()
 	road_visual.name = "RoadMesh"
@@ -1072,27 +1075,47 @@ func _configure_world() -> void:
 		if env == null:
 			env = Environment.new()
 		var sky := Sky.new()
-		var sky_material := ProceduralSkyMaterial.new()
-		sky_material.sky_top_color = track.sky_top_color
-		sky_material.sky_horizon_color = track.sky_horizon_color
-		sky_material.ground_bottom_color = track.ground_color * 0.4
-		sky_material.ground_horizon_color = track.sky_horizon_color
-		sky_material.sky_curve = 0.55 if track.sky_flat else 0.18
-		sky.sky_material = sky_material
+		if track.night_mode:
+			var night_material := ShaderMaterial.new()
+			night_material.shader = NightSkyShader
+			night_material.set_shader_parameter("sky_top_color", track.sky_top_color)
+			night_material.set_shader_parameter("sky_horizon_color", track.sky_horizon_color)
+			night_material.set_shader_parameter("star_intensity", track.star_intensity)
+			sky.sky_material = night_material
+		else:
+			var day_material := ProceduralSkyMaterial.new()
+			day_material.sky_top_color = track.sky_top_color
+			day_material.sky_horizon_color = track.sky_horizon_color
+			day_material.ground_bottom_color = track.ground_color * 0.4
+			day_material.ground_horizon_color = track.sky_horizon_color
+			day_material.sky_curve = 0.55 if track.sky_flat else 0.18
+			sky.sky_material = day_material
 		env.background_mode = Environment.BG_SKY
+		env.background_energy_multiplier = 1.0
 		env.sky = sky
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = track.ambient_color
+		env.ambient_light_energy = track.ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = 1.05
+		env.tonemap_exposure = track.exposure
 		env.glow_enabled = true
-		env.volumetric_fog_enabled = not track.ps1_style
-		env.volumetric_fog_density = 0.02
-		env.volumetric_fog_albedo = track.fog_color
-		env.fog_enabled = true
+		env.glow_intensity = 0.45
+		env.glow_bloom = 0.02
+		env.ssao_enabled = track.screen_space_ao
+		env.ssao_radius = 1.2
+		env.ssao_intensity = 1.0
+		env.volumetric_fog_enabled = track.volumetric_fog and not track.ps1_style
+		env.volumetric_fog_density = track.volumetric_fog_density
+		env.volumetric_fog_albedo = Color(0.68, 0.73, 0.82)
+		env.volumetric_fog_anisotropy = 0.35
+		env.volumetric_fog_length = 90.0
+		env.fog_enabled = track.fog_density > 0.0
 		env.fog_light_color = track.fog_color
-		env.fog_density = 0.0032
+		env.fog_density = track.fog_density
 		world_environment.environment = env
 	if sun_light != null:
 		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
+		sun_light.light_color = track.sun_color
 		sun_light.light_energy = track.sun_energy
 
 
@@ -1105,7 +1128,7 @@ func _configure_car() -> void:
 		push_warning("RallyStage: узел RallyCar не найден.")
 		return
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
-	car.apply_track_grip(track.grip_scale, track.rolling_resistance_scale)
+	car.apply_track_grip(track.grip_scale, track.rolling_resistance_scale, track.offroad_grip)
 	car.spawn_transform = _make_spawn_transform()
 	car.reset_to_spawn()
 	# Провайдер сброса появляется только после стартовой расстановки: иначе
@@ -1194,6 +1217,9 @@ func _setup_hud() -> void:
 
 	# Пауза / финиш: панели скрыты в сцене, кнопки связываем с обработчиками.
 	pause_panel = _hud_node("RallyHUD/PausePanel") as PanelContainer
+	var camera_settings := _hud_node("RallyHUD/PausePanel/Box/CameraOptions")
+	if camera_settings != null and camera_settings.has_method("initialize"):
+		camera_settings.call("initialize", car)
 	results_panel = _hud_node("RallyHUD/ResultsPanel") as PanelContainer
 	results_label = _hud_node("RallyHUD/ResultsPanel/Box/ResultsLabel") as Label
 	var buttons := [

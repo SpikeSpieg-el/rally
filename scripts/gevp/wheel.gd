@@ -162,15 +162,20 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 		last_collider = get_collider()
 		last_collision_point = get_collision_point()
 		last_collision_normal = get_collision_normal()
-		var surface_groups : Array[StringName] = last_collider.get_groups()
-		if surface_groups.size() > 0:
-			if surface_type != surface_groups[0]:
-				surface_type = surface_groups[0]
-				current_cof = coefficient_of_friction[surface_type]
-				current_rolling_resistance = rolling_resistance[surface_type]
-				current_lateral_grip_assist = lateral_grip_assist[surface_type]
-				current_longitudinal_grip_ratio = longitudinal_grip_ratio[surface_type]
-				current_tire_stiffness = 1000000.0 + 8000000.0 * tire_stiffnesses[surface_type]
+		# A collider may also belong to unrelated groups (e.g. Props). Only
+		# switch to a group for which all tire parameters actually exist.
+		for group in last_collider.get_groups():
+			var surface: String = str(group)
+			if not tire_stiffnesses.has(surface) or not coefficient_of_friction.has(surface) or not rolling_resistance.has(surface) or not lateral_grip_assist.has(surface) or not longitudinal_grip_ratio.has(surface):
+				continue
+			if surface_type != surface:
+				surface_type = surface
+				current_cof = coefficient_of_friction[surface]
+				current_rolling_resistance = rolling_resistance[surface]
+				current_lateral_grip_assist = lateral_grip_assist[surface]
+				current_longitudinal_grip_ratio = longitudinal_grip_ratio[surface]
+				current_tire_stiffness = 1000000.0 + 8000000.0 * tire_stiffnesses[surface]
+			break
 	else:
 		last_collider = null
 	

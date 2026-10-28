@@ -29,7 +29,7 @@ extends Resource
 @export_range(0.5, 4.0, 0.1) var road_step: float = 1.5
 ## Поперечный уклон полотна (крен к обочинам), м.
 @export_range(0.0, 0.4, 0.01) var road_camber: float = 0.07
-## Сцепление вне дороги: 0.6 — гравий, 0.35 — снег.
+## Сцепление травы относительно гравийного полотна: 0.9 = 90 % сцепления дороги.
 @export_range(0.05, 1.0, 0.01) var offroad_grip: float = 0.6
 
 @export_group("Рельеф")
@@ -98,8 +98,21 @@ extends Resource
 @export var sky_top_color: Color = Color(0.12, 0.27, 0.48)
 @export var sky_horizon_color: Color = Color(0.65, 0.76, 0.86)
 @export var fog_color: Color = Color(0.72, 0.79, 0.88)
+## Дистанции для опционального PS1-дизер-тумана.
 @export_range(40.0, 600.0, 10.0) var fog_near: float = 140.0
 @export_range(80.0, 900.0, 10.0) var fog_far: float = 360.0
+## Ночная трасса использует звёздное небо и лунный свет вместо дневного неба.
+@export var night_mode: bool = false
+@export_range(0.0, 2.0, 0.05) var star_intensity: float = 0.8
+@export var sun_color: Color = Color(1.0, 0.96, 0.85)
+@export var ambient_color: Color = Color(0.55, 0.61, 0.72)
+@export_range(0.0, 2.0, 0.05) var ambient_energy: float = 0.8
+@export_range(0.2, 3.0, 0.05) var exposure: float = 1.05
+@export_range(0.0, 0.05, 0.0001) var fog_density: float = 0.0032
+## Объёмный туман делает видимыми лучи фар (Forward+; можно выключить для FPS).
+@export var volumetric_fog: bool = false
+@export_range(0.0, 0.05, 0.0001) var volumetric_fog_density: float = 0.003
+@export var screen_space_ao: bool = true
 @export_range(0.0, 4.0, 0.05) var sun_energy: float = 1.4
 @export_range(-80.0, 80.0, 1.0) var sun_pitch: float = -32.0
 @export_range(-180.0, 180.0, 1.0) var sun_yaw: float = 35.0
