@@ -7,34 +7,21 @@
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_finkb"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="5_rv3qr"]
 [ext_resource type="Texture2D" uid="uid://bkkv8xfjypj5w" path="res://textures/mitsubishi.png" id="7_02ico"]
-[ext_resource type="Texture2D" uid="uid://bsolhe7em3asy" path="res://textures/light_emmision.png" id="7_finkb"]
+[ext_resource type="Texture2D" uid="uid://ce2gjyhr8dh68" path="res://textures/mitsubishi_glossy.png" id="7_gxar1"]
 [ext_resource type="Texture2D" uid="uid://ch66w628acnj1" path="res://textures/иташа2.jpg" id="8_finkb"]
 [ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="9_02ico"]
+[ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
+[ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
+[ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_37cw1"]
+size = Vector3(2.342453, 1.6022418, 1.5815662)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4mbpt"]
+size = Vector3(2.3857255, 0.9961627, 1.7284168)
 
 [sub_resource type="BoxShape3D" id="BoxShape_body"]
-size = Vector3(2.3857255, 1.3673141, 5.3418074)
-
-[sub_resource type="StandardMaterial3D" id="Material_body"]
-albedo_color = Color(0.72, 0.055, 0.035, 1)
-metallic = 0.28
-roughness = 0.3
-
-[sub_resource type="BoxMesh" id="BoxMesh_chassis"]
-material = SubResource("Material_body")
-size = Vector3(2.573866, 1.6527832, 5.8766603)
-
-[sub_resource type="StandardMaterial3D" id="Material_cabin"]
-albedo_color = Color(0.035, 0.065, 0.085, 1)
-metallic = 0.35
-roughness = 0.2
-
-[sub_resource type="BoxMesh" id="BoxMesh_cabin"]
-material = SubResource("Material_cabin")
-size = Vector3(1.45, 0.55, 2)
-
-[sub_resource type="BoxMesh" id="BoxMesh_hood"]
-material = SubResource("Material_body")
-size = Vector3(1.65, 0.45, 1.3)
+size = Vector3(2.323822, 1.6785357, 2.4912574)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cavtd"]
 albedo_texture = ExtResource("4_finkb")
@@ -339,12 +326,8 @@ shadow_mesh = SubResource("ArrayMesh_ipwwn")
 mix_rate = 22050.0
 buffer_length = 0.12
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rv3qr"]
-albedo_texture = ExtResource("7_finkb")
-emission_enabled = true
-emission = Color(1, 0.9, 0.76, 1)
-emission_energy_multiplier = 1.5
-emission_texture = ExtResource("7_finkb")
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yojui"]
+albedo_texture = ExtResource("7_gxar1")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2o2ia"]
 resource_name = "mirror body"
@@ -412,12 +395,8 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_5t0kj")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_02ico"]
-albedo_texture = ExtResource("7_finkb")
-emission_enabled = true
-emission = Color(1, 0.9, 0.76, 1)
-emission_energy_multiplier = 1.5
-emission_texture = ExtResource("7_finkb")
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_37cw1"]
+albedo_texture = ExtResource("7_gxar1")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_1n0cv"]
 _surfaces = [{
@@ -637,6 +616,391 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6jtoh")
 
+[sub_resource type="GDScript" id="GDScript_cockpit"]
+script/source = "extends Node3D
+
+@export var max_steering_wheel_angle_deg: float = 420.0
+@export var steer_smooth_speed: float = 12.0
+
+@onready var steering_pivot: Node3D = $Dashboard/SteeringColumn/SteeringWheelPivot
+@onready var handbrake_pivot: Node3D = $Controls/HandbrakeBase/HandbrakePivot
+@onready var shifter_pivot: Node3D = $Controls/ShifterBase/ShifterPivot
+@onready var pedal_gas: Node3D = $Controls/PedalBox/PedalGasPivot
+@onready var pedal_brake: Node3D = $Controls/PedalBox/PedalBrakePivot
+
+@onready var gear_label: Label3D = $Dashboard/MotecDisplay/GearLabel
+@onready var speed_label: Label3D = $Dashboard/MotecDisplay/SpeedLabel
+@onready var rpm_label: Label3D = $Dashboard/MotecDisplay/RPMLabel
+@onready var shift_lights: Node3D = $Dashboard/MotecDisplay/ShiftLights
+
+var _car: RigidBody3D
+var _current_steer: float = 0.0
+var _last_gear: String = \"N\"
+var _shifter_kick: float = 0.0
+
+func _ready() -> void:
+	var p: Node = get_parent()
+	while p != null:
+		if p is RigidBody3D:
+			_car = p
+			break
+		p = p.get_parent()
+
+func _process(delta: float) -> void:
+	# 1. Вращение руля
+	var steer_input: float = 0.0
+	if InputMap.has_action(\"steer_left\") and InputMap.has_action(\"steer_right\"):
+		steer_input = Input.get_axis(\"steer_right\", \"steer_left\")
+	else:
+		steer_input = Input.get_axis(\"ui_right\", \"ui_left\")
+
+	if _car and \"steering_input\" in _car:
+		steer_input = float(_car.get(\"steering_input\"))
+
+	_current_steer = lerp(_current_steer, steer_input, clampf(delta * steer_smooth_speed, 0.0, 1.0))
+	if steering_pivot:
+		steering_pivot.rotation.z = deg_to_rad(-_current_steer * (max_steering_wheel_angle_deg * 0.5))
+
+	# 2. Педали и ручник
+	var throttle: float = 1.0 if Input.is_action_pressed(\"ui_up\") else 0.0
+	var brake: float = 1.0 if Input.is_action_pressed(\"ui_down\") else 0.0
+	var handbrake: float = 1.0 if Input.is_action_pressed(\"ui_accept\") else 0.0
+
+	if pedal_gas:
+		pedal_gas.rotation.x = lerp(pedal_gas.rotation.x, deg_to_rad(throttle * 18.0), delta * 15.0)
+	if pedal_brake:
+		pedal_brake.rotation.x = lerp(pedal_brake.rotation.x, deg_to_rad(brake * 14.0), delta * 15.0)
+	if handbrake_pivot:
+		handbrake_pivot.rotation.x = lerp(handbrake_pivot.rotation.x, deg_to_rad(-handbrake * 24.0), delta * 14.0)
+
+	# 3. Приборы (Скорость, Передача, Обороты)
+	var speed_kmh: float = 0.0
+	if _car:
+		speed_kmh = _car.linear_velocity.length() * 3.6
+
+	var rpm: float = clampf(1100.0 + fmod(speed_kmh * 115.0, 6800.0) + throttle * 650.0, 950.0, 8000.0)
+	if _car and \"engine_rpm\" in _car:
+		rpm = float(_car.get(\"engine_rpm\"))
+
+	var gear_str: String = \"N\"
+	if speed_kmh > 1.5:
+		var g: int = clampi(int(speed_kmh / 32.0) + 1, 1, 6)
+		gear_str = str(g)
+	if _car and \"current_gear\" in _car:
+		gear_str = str(_car.get(\"current_gear\"))
+
+	if gear_str != _last_gear:
+		_last_gear = gear_str
+		_shifter_kick = 1.0
+
+	_shifter_kick = move_toward(_shifter_kick, 0.0, delta * 6.0)
+	if shifter_pivot:
+		shifter_pivot.rotation.x = deg_to_rad(-_shifter_kick * 12.0)
+
+	if gear_label:
+		gear_label.text = gear_str
+	if speed_label:
+		speed_label.text = \"%03d KM/H\" % int(round(speed_kmh))
+	if rpm_label:
+		rpm_label.text = \"%04d RPM\" % int(round(rpm))
+
+	# 4. Shift-lights (блинкеры оборотов)
+	if shift_lights:
+		var ratio: float = inverse_lerp(3500.0, 7500.0, rpm)
+		var count: int = shift_lights.get_child_count()
+		for i in range(count):
+			var led := shift_lights.get_child(i) as MeshInstance3D
+			if led:
+				var threshold: float = float(i + 1) / float(count)
+				led.visible = ratio >= threshold
+"
+
+[sub_resource type="StandardMaterial3D" id="Mat_FloorMetal"]
+albedo_color = Color(0.22, 0.23, 0.25, 1)
+metallic = 0.6
+roughness = 0.45
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("Mat_FloorMetal")
+size = Vector3(1.92, 0.03, 2.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tunnel"]
+material = SubResource("Mat_FloorMetal")
+size = Vector3(0.28, 0.22, 2.35)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Aluminum"]
+albedo_color = Color(0.78, 0.8, 0.83, 1)
+metallic = 0.85
+roughness = 0.22
+
+[sub_resource type="BoxMesh" id="BoxMesh_footplate"]
+material = SubResource("Mat_Aluminum")
+size = Vector3(0.52, 0.012, 0.58)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Carbon"]
+albedo_color = Color(0.11, 0.11, 0.12, 1)
+metallic = 0.35
+roughness = 0.38
+
+[sub_resource type="BoxMesh" id="BoxMesh_firewall"]
+material = SubResource("Mat_Carbon")
+size = Vector3(1.88, 0.95, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_door_card"]
+material = SubResource("Mat_Carbon")
+size = Vector3(0.04, 0.62, 1.85)
+
+[sub_resource type="BoxMesh" id="BoxMesh_roof"]
+material = SubResource("Mat_Carbon")
+size = Vector3(1.42, 0.025, 1.55)
+
+[sub_resource type="BoxMesh" id="BoxMesh_sunstrip"]
+material = ExtResource("11_yojui")
+size = Vector3(1.46, 0.08257812, 0.02)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rear_mirror"]
+material = SubResource("Mat_Carbon")
+size = Vector3(0.34, 0.075, 0.03)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Mirror"]
+albedo_color = Color(0.85, 0.9, 0.95, 1)
+metallic = 1.0
+roughness = 0.04
+
+[sub_resource type="BoxMesh" id="BoxMesh_rear_mirror_glass"]
+material = SubResource("Mat_Mirror")
+size = Vector3(0.32, 0.06, 0.005)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wiqw4"]
+top_radius = 0.0043945313
+bottom_radius = 0.0043945313
+height = 0.047187805
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4mbpt"]
+albedo_texture = ExtResource("13_37cw1")
+
+[sub_resource type="BoxMesh" id="BoxMesh_dmcip"]
+size = Vector3(0.109375, 0.5428467, 0.61613464)
+
+[sub_resource type="BoxMesh" id="BoxMesh_02ico"]
+material = SubResource("Mat_Carbon")
+size = Vector3(1.42, 0.025, 1.4338928)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Cage"]
+albedo_color = Color(0.18, 0.2, 0.22, 1)
+metallic = 0.75
+roughness = 0.32
+
+[sub_resource type="CylinderMesh" id="Cyl_b_pillar"]
+material = SubResource("Mat_Cage")
+top_radius = 0.038
+bottom_radius = 0.038
+height = 1.45
+
+[sub_resource type="CylinderMesh" id="Cyl_a_pillar"]
+material = SubResource("Mat_Cage")
+top_radius = 0.036
+bottom_radius = 0.036
+height = 0.92
+
+[sub_resource type="StandardMaterial3D" id="Mat_CagePadding"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="Cyl_padding"]
+material = SubResource("Mat_CagePadding")
+top_radius = 0.048
+bottom_radius = 0.048
+height = 0.45
+
+[sub_resource type="CylinderMesh" id="Cyl_roof_long"]
+material = SubResource("Mat_Cage")
+top_radius = 0.036
+bottom_radius = 0.036
+height = 1.25
+
+[sub_resource type="CylinderMesh" id="Cyl_cross_top"]
+material = SubResource("Mat_Cage")
+top_radius = 0.035
+bottom_radius = 0.035
+height = 1.44
+
+[sub_resource type="CylinderMesh" id="Cyl_diag_x"]
+material = SubResource("Mat_Cage")
+top_radius = 0.032
+bottom_radius = 0.032
+height = 1.72
+
+[sub_resource type="CylinderMesh" id="Cyl_door_bar"]
+material = SubResource("Mat_Cage")
+top_radius = 0.034
+bottom_radius = 0.034
+height = 1.38
+
+[sub_resource type="CylinderMesh" id="Cyl_corner_post"]
+material = SubResource("Mat_Cage")
+top_radius = 0.038
+bottom_radius = 0.038
+height = 0.82
+
+[sub_resource type="BoxMesh" id="BoxMesh_dash_main"]
+material = ExtResource("11_yojui")
+size = Vector3(1.68, 0.28, 0.46)
+
+[sub_resource type="BoxMesh" id="BoxMesh_dash_hood"]
+material = ExtResource("11_yojui")
+size = Vector3(0.43422365, 0.14, 0.28)
+
+[sub_resource type="BoxMesh" id="BoxMesh_center_console"]
+material = SubResource("Mat_Carbon")
+size = Vector3(0.28, 0.38, 0.22)
+
+[sub_resource type="StandardMaterial3D" id="Mat_RedAnodized"]
+albedo_color = Color(0.85, 0.12, 0.15, 1)
+metallic = 0.7
+roughness = 0.28
+
+[sub_resource type="CylinderMesh" id="Cyl_horn_btn"]
+material = SubResource("Mat_RedAnodized")
+top_radius = 0.022
+bottom_radius = 0.022
+height = 0.012
+
+[sub_resource type="BoxMesh" id="BoxMesh_motec_body"]
+material = SubResource("Mat_Carbon")
+size = Vector3(0.24, 0.13, 0.03)
+
+[sub_resource type="StandardMaterial3D" id="Mat_ScreenGlow"]
+albedo_color = Color(0.03, 0.06, 0.09, 1)
+roughness = 0.15
+emission_enabled = true
+emission_energy_multiplier = 1.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_motec_screen"]
+material = SubResource("Mat_ScreenGlow")
+size = Vector3(0.21, 0.095, 0.008)
+
+[sub_resource type="StandardMaterial3D" id="Mat_LedGreen"]
+albedo_color = Color(0.1, 1, 0.2, 1)
+emission_enabled = true
+emission = Color(0.1, 1, 0.2, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_led_green"]
+material = SubResource("Mat_LedGreen")
+size = Vector3(0.022, 0.012, 0.01)
+
+[sub_resource type="StandardMaterial3D" id="Mat_LedYellow"]
+albedo_color = Color(1, 0.85, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.85, 0.1, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_led_yellow"]
+material = SubResource("Mat_LedYellow")
+size = Vector3(0.022, 0.012, 0.01)
+
+[sub_resource type="StandardMaterial3D" id="Mat_LedRed"]
+albedo_color = Color(1, 0.12, 0.12, 1)
+emission_enabled = true
+emission = Color(1, 0.12, 0.12, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_led_red"]
+material = SubResource("Mat_LedRed")
+size = Vector3(0.022, 0.012, 0.01)
+
+[sub_resource type="CylinderMesh" id="Cyl_steering_col"]
+material = SubResource("Mat_Carbon")
+top_radius = 0.042
+bottom_radius = 0.048
+height = 0.34
+
+[sub_resource type="BoxMesh" id="BoxMesh_paddle"]
+material = SubResource("Mat_Aluminum")
+size = Vector3(0.035, 0.11, 0.008)
+
+[sub_resource type="TorusMesh" id="Torus_steering_rim"]
+material = ExtResource("11_yojui")
+inner_radius = 0.142
+outer_radius = 0.174
+rings = 32
+ring_segments = 16
+
+[sub_resource type="StandardMaterial3D" id="Mat_YellowMarker"]
+albedo_color = Color(0.98, 0.82, 0.08, 1)
+roughness = 0.4
+
+[sub_resource type="CylinderMesh" id="Cyl_yellow_marker"]
+material = SubResource("Mat_YellowMarker")
+top_radius = 0.018
+bottom_radius = 0.018
+height = 0.022
+
+[sub_resource type="BoxMesh" id="BoxMesh_spoke"]
+material = SubResource("Mat_Carbon")
+size = Vector3(0.13, 0.028, 0.012)
+
+[sub_resource type="CylinderMesh" id="Cyl_wheel_hub"]
+material = SubResource("Mat_Carbon")
+top_radius = 0.048
+bottom_radius = 0.052
+height = 0.045
+
+[sub_resource type="BoxMesh" id="BoxMesh_shifter_box"]
+material = SubResource("Mat_Aluminum")
+size = Vector3(0.09, 0.14, 0.18)
+
+[sub_resource type="CylinderMesh" id="Cyl_shifter_rod"]
+material = SubResource("Mat_Aluminum")
+top_radius = 0.012
+bottom_radius = 0.014
+height = 0.38
+
+[sub_resource type="CylinderMesh" id="Cyl_shifter_knob"]
+material = SubResource("Mat_Carbon")
+top_radius = 0.022
+bottom_radius = 0.018
+height = 0.09
+
+[sub_resource type="CylinderMesh" id="Cyl_handbrake_rod"]
+material = SubResource("Mat_RedAnodized")
+top_radius = 0.013
+bottom_radius = 0.016
+height = 0.42
+
+[sub_resource type="BoxMesh" id="BoxMesh_pedal_face"]
+material = SubResource("Mat_Aluminum")
+size = Vector3(0.06, 0.11, 0.012)
+
+[sub_resource type="StandardMaterial3D" id="Mat_SeatFabric"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_seat_base"]
+material = SubResource("Mat_SeatFabric")
+size = Vector3(0.48, 0.09, 0.52)
+
+[sub_resource type="BoxMesh" id="BoxMesh_seat_bolster"]
+material = SubResource("Mat_SeatFabric")
+size = Vector3(0.07, 0.24, 0.52)
+
+[sub_resource type="BoxMesh" id="BoxMesh_seat_back"]
+material = SubResource("Mat_SeatFabric")
+size = Vector3(0.46, 0.86, 0.09)
+
+[sub_resource type="BoxMesh" id="BoxMesh_seat_ear"]
+material = SubResource("Mat_SeatFabric")
+size = Vector3(0.06, 0.22, 0.24)
+
+[sub_resource type="StandardMaterial3D" id="Mat_HarnessRed"]
+albedo_color = Color(0.82, 0.1, 0.12, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_harness"]
+material = SubResource("Mat_HarnessRed")
+size = Vector3(0.065, 0.68, 0.018)
+
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 mass = 1230.0
 center_of_mass_mode = 1
@@ -646,46 +1010,17 @@ front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
+[node name="BodyCollider3" type="CollisionShape3D" parent="." unique_id=2100112263]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.010932922, 1.036736, -1.8555372)
+shape = SubResource("BoxShape3D_37cw1")
+
 [node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=544108270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 1.1883769, 0.1742754)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0029380322, 0.69517267, 2.2553098)
+shape = SubResource("BoxShape3D_4mbpt")
+
+[node name="BodyCollider2" type="CollisionShape3D" parent="." unique_id=266759016]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.021438599, 1.0303619, 0.18160546)
 shape = SubResource("BoxShape_body")
-
-[node name="HeadlightL" type="SpotLight3D" parent="BodyCollider" unique_id=539570592]
-position = Vector3(0.92, -0.29, 2.81)
-rotation = Vector3(-0.0698132, 3.1415927, 0)
-light_color = Color(1, 0.91, 0.76, 1)
-light_energy = 8.0
-light_volumetric_fog_energy = 0.45
-shadow_enabled = true
-spot_range = 85.0
-spot_attenuation = 0.75
-spot_angle = 32.0
-
-[node name="HeadlightR" type="SpotLight3D" parent="BodyCollider" unique_id=1823748999]
-position = Vector3(-0.92, -0.29, 2.81)
-rotation = Vector3(-0.0698132, 3.1415927, 0)
-light_color = Color(1, 0.91, 0.76, 1)
-light_energy = 8.0
-light_volumetric_fog_energy = 0.45
-shadow_enabled = true
-spot_range = 85.0
-spot_attenuation = 0.75
-spot_angle = 32.0
-
-[node name="ChassisMesh" type="MeshInstance3D" parent="." unique_id=676427284]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.048368096, 1.0557705, 0)
-visible = false
-mesh = SubResource("BoxMesh_chassis")
-
-[node name="CabinMesh" type="MeshInstance3D" parent="ChassisMesh" unique_id=808184725]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.2)
-visible = false
-mesh = SubResource("BoxMesh_cabin")
-
-[node name="HoodSlope" type="MeshInstance3D" parent="ChassisMesh" unique_id=457874129]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 1.35)
-visible = false
-mesh = SubResource("BoxMesh_hood")
 
 [node name="Wheel_FL" type="RayCast3D" parent="." unique_id=1481303125 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.51, 1.905)
@@ -768,10 +1103,10 @@ script = ExtResource("2_audio")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3840972, 1.52, 0.2543872)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.37895462, 1.4922605, 0.16412842)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
-transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.3660817, 1.7676451)
+transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.2886993, 1.7676451)
 
 [node name="CamChase" type="Marker3D" parent="Cameras" unique_id=1159103674]
 transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 3.3938675, -6.0426235)
@@ -780,8 +1115,7 @@ gizmo_extents = 1.94
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
 transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, 0, 1.5397794, 0.21571684)
 current = true
-fov = 72.0
-near = 0.05
+fov = 99.2
 far = 850.0
 
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
@@ -789,12 +1123,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0842417, -0.82839704)
 
 [node name="Mitsubishi_Body_003" type="MeshInstance3D" parent="low poly lance evo" unique_id=1821021235]
 transform = Transform3D(0.9999989, -0.001461585, -1.9809818e-06, -0.001461585, -0.99999523, -0.0027107242, 1.9809818e-06, 0.0027107242, -0.9999963, -1.0149342, 2.4177818, 1.7646542)
-material_override = SubResource("StandardMaterial3D_rv3qr")
+material_override = SubResource("StandardMaterial3D_yojui")
 mesh = SubResource("ArrayMesh_xhqiv")
 
 [node name="Mitsubishi_Body_002" type="MeshInstance3D" parent="low poly lance evo" unique_id=1721385432]
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
-material_override = SubResource("StandardMaterial3D_02ico")
+material_override = SubResource("StandardMaterial3D_37cw1")
 mesh = SubResource("ArrayMesh_7wfi5")
 
 [node name="Mitsubishi_Body" type="MeshInstance3D" parent="low poly lance evo" unique_id=837516741]
@@ -817,3 +1151,431 @@ mesh = SubResource("ArrayMesh_qyg1a")
 [node name="Circle_005" type="MeshInstance3D" parent="low poly lance evo/Mitsubishi_Body" unique_id=1291720364]
 transform = Transform3D(0.9999989, -0.0012240614, -0.00081107917, 0.0014683922, 0.83363885, 0.552308, 8.81555e-08, -0.5523086, 0.83363974, -0.46008286, 0.8256886, -1.1070246)
 mesh = SubResource("ArrayMesh_4awaq")
+
+[node name="RallyCockpit" type="Node3D" parent="." unique_id=1410955852]
+transform = Transform3D(1.1270919, 0, 0, 0, 1, 0, 0, 0, 1, -0.037261724, 0.9640378, 0.11260709)
+script = SubResource("GDScript_cockpit")
+
+[node name="InteriorShell" type="Node3D" parent="RallyCockpit" unique_id=68268009]
+
+[node name="FloorPan" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=260427731]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.738, 0.07)
+mesh = SubResource("BoxMesh_floor")
+
+[node name="TransmissionTunnel" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1373903523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.62, 0.1)
+mesh = SubResource("BoxMesh_tunnel")
+
+[node name="DriverFootPlate" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1255090625]
+transform = Transform3D(1, 0, 0, 0, 0.9848077, 0.17364818, 0, -0.17364818, 0.9848077, 0.42, -0.69, 0.68)
+mesh = SubResource("BoxMesh_footplate")
+
+[node name="CoDriverFootPlate" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=857092224]
+transform = Transform3D(1, 0, 0, 0, 0.9396926, 0.34202015, 0, -0.34202015, 0.9396926, -0.42, -0.65, 0.72)
+mesh = SubResource("BoxMesh_footplate")
+
+[node name="FrontFirewall" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=405660149]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 1.15)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_firewall")
+
+[node name="DoorCardL" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=982944072]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.91, -0.38, 0.05)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_door_card")
+
+[node name="DoorCardR" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=568766124]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.91, -0.38, 0.05)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_door_card")
+
+[node name="RoofPanel" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1924512152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, -0.35)
+mesh = SubResource("BoxMesh_roof")
+
+[node name="WindshieldSunstrip" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1037151085]
+transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, 0, 0.7181634, 0.42516002)
+mesh = SubResource("BoxMesh_sunstrip")
+
+[node name="RearviewMirror" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=1380165151]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.66807985, 0.43876007)
+mesh = SubResource("BoxMesh_rear_mirror")
+
+[node name="MirrorGlass" type="MeshInstance3D" parent="RallyCockpit/InteriorShell/RearviewMirror" unique_id=1533730972]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.016)
+mesh = SubResource("BoxMesh_rear_mirror_glass")
+
+[node name="CharmPivot" type="Node3D" parent="RallyCockpit/InteriorShell/RearviewMirror" unique_id=1850801482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12432505, -0.04672873, -0.02054882)
+script = ExtResource("12_37cw1")
+
+[node name="robe" type="MeshInstance3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot" unique_id=1600033264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037310183, -0.013768554, 0.014403522)
+mesh = SubResource("CylinderMesh_wiqw4")
+
+[node name="FigureHook" type="Node3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe" unique_id=1550077644]
+transform = Transform3D(0.24603441, 0, 0.99769026, 0, 1.344, 0, -3.613634, 0, 0.06792778, 0.00014692545, -0.027471423, -0.00016093254)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe/FigureHook" unique_id=733396187]
+transform = Transform3D(0.099, 0, 7.8231096e-08, 0, 0.125, 0, -2.2351742e-07, 0, 0.09000003, -0.0001655817, -0.021027088, -0.00062952936)
+material_override = SubResource("StandardMaterial3D_4mbpt")
+mesh = SubResource("BoxMesh_dmcip")
+
+[node name="RoofPanel2" type="MeshInstance3D" parent="RallyCockpit/InteriorShell" unique_id=2115038823]
+transform = Transform3D(1, 0, 0, 0, 0.0073566064, 0.99997294, 0, -0.99997294, 0.0073566064, 0, 0.02076596, -0.86927736)
+mesh = SubResource("BoxMesh_02ico")
+
+[node name="RollCage" type="Node3D" parent="RallyCockpit" unique_id=1328434229]
+
+[node name="BPillarL" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=709214714]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 0, -0.44)
+mesh = SubResource("Cyl_b_pillar")
+
+[node name="BPillarR" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=289251882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0, -0.44)
+mesh = SubResource("Cyl_b_pillar")
+
+[node name="APillarL" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=54895980]
+transform = Transform3D(1, 0, 0, 0, 0.54082984, 0.84113204, 0, -0.84113204, 0.54082984, 0.74, 0.38, 0.62)
+mesh = SubResource("Cyl_a_pillar")
+
+[node name="APillarPaddingL" type="MeshInstance3D" parent="RallyCockpit/RollCage/APillarL" unique_id=1906970932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
+mesh = SubResource("Cyl_padding")
+
+[node name="APillarR" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=67099436]
+transform = Transform3D(1, 0, 0, 0, 0.54082984, 0.84113204, 0, -0.84113204, 0.54082984, -0.74, 0.38, 0.62)
+mesh = SubResource("Cyl_a_pillar")
+
+[node name="APillarPaddingR" type="MeshInstance3D" parent="RallyCockpit/RollCage/APillarR" unique_id=2037457010]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
+mesh = SubResource("Cyl_padding")
+
+[node name="RoofBarL" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=337873751]
+transform = Transform3D(1, 0, 0, 0, -0.030355155, 0.99953914, 0, -0.99953914, -0.030355155, 0.7, 0.71, -0.35)
+mesh = SubResource("Cyl_roof_long")
+
+[node name="RoofBarR" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=485484988]
+transform = Transform3D(1, 0, 0, 0, -0.030355155, 0.99953914, 0, -0.99953914, -0.030355155, -0.7, 0.71, -0.35)
+mesh = SubResource("Cyl_roof_long")
+
+[node name="WindshieldTopCrossbar" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=591907824]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -9.004027e-06, 0.6901506, 0.28002676)
+mesh = SubResource("Cyl_cross_top")
+
+[node name="BPillarTopCrossbar" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=2082367684]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0.71, -0.44)
+mesh = SubResource("Cyl_cross_top")
+
+[node name="DashCrossbar" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=1732531969]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0.08, 0.96)
+mesh = SubResource("Cyl_cross_top")
+
+[node name="RearCrossDiag1" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=1092097521]
+transform = Transform3D(0.70710677, -0.70710677, 0, 0.70710677, 0.70710677, 0, 0, 0, 1, 0, 0.05, -0.44)
+mesh = SubResource("Cyl_diag_x")
+
+[node name="RearCrossDiag2" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=872085053]
+transform = Transform3D(0.70710677, 0.70710677, 0, -0.70710677, 0.70710677, 0, 0, 0, 1, 0, 0.05, -0.44)
+mesh = SubResource("Cyl_diag_x")
+
+[node name="DoorBarL1" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=1199544544]
+transform = Transform3D(1, 0, 0, 0, 0.25881904, -0.9659258, 0, 0.9659258, 0.25881904, 0.76, -0.25, 0.25)
+mesh = SubResource("Cyl_door_bar")
+
+[node name="DoorBarL2" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=67046430]
+transform = Transform3D(1, 0, 0, 0, -0.25881904, -0.9659258, 0, 0.9659258, -0.25881904, 0.76, -0.25, 0.25)
+mesh = SubResource("Cyl_door_bar")
+
+[node name="DoorBarR1" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=2105632451]
+transform = Transform3D(1, 0, 0, 0, 0.25881904, -0.9659258, 0, 0.9659258, 0.25881904, -0.76, -0.25, 0.25)
+mesh = SubResource("Cyl_door_bar")
+
+[node name="DoorBarR2" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=712674044]
+transform = Transform3D(1, 0, 0, 0, -0.25881904, -0.9659258, 0, 0.9659258, -0.25881904, -0.76, -0.25, 0.25)
+mesh = SubResource("Cyl_door_bar")
+
+[node name="FrontPostL" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=1314341477]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, -0.32, 0.96)
+mesh = SubResource("Cyl_corner_post")
+
+[node name="FrontPostR" type="MeshInstance3D" parent="RallyCockpit/RollCage" unique_id=1739725535]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, -0.32, 0.96)
+mesh = SubResource("Cyl_corner_post")
+
+[node name="Dashboard" type="Node3D" parent="RallyCockpit" unique_id=224370540]
+
+[node name="DashMainBlock" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=663291030]
+transform = Transform3D(1, 0, 0, 0, 0.9848077, -0.17364818, 0, 0.17364818, 0.9848077, 0, 0.120000005, 0.95256543)
+mesh = SubResource("BoxMesh_dash_main")
+
+[node name="InstrumentHood" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=1454581984]
+transform = Transform3D(1, 0, 0, 0, 0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0.47038478, 0.24613535, 0.78)
+mesh = SubResource("BoxMesh_dash_hood")
+
+[node name="CenterConsole" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=559641877]
+transform = Transform3D(0.9848077, 0, -0.17364818, 0.03015369, 0.9848077, 0.17101008, 0.17101008, -0.17364818, 0.9698463, 0.02, -0.06, 0.74)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_center_console")
+
+[node name="StartButton" type="MeshInstance3D" parent="RallyCockpit/Dashboard/CenterConsole" unique_id=640103094]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0.06, 0.1, -0.112)
+mesh = SubResource("Cyl_horn_btn")
+
+[node name="CoDriverTripmaster" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=1972177773]
+transform = Transform3D(0.9920019, 0.0032762692, -0.12618063, 0, 0.9996632, 0.025956167, 0.12622313, -0.025748568, 0.99166775, -0.38, 0.2301774, 0.67999995)
+mesh = SubResource("BoxMesh_motec_body")
+
+[node name="TripmasterLabel" type="Label3D" parent="RallyCockpit/Dashboard/CoDriverTripmaster" unique_id=13274688]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -0.018)
+pixel_size = 0.0012
+modulate = Color(1, 0.55, 0.1, 1)
+text = "STAGE 01
+14.82 KM"
+font_size = 24
+
+[node name="MotecDisplay" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=1382733211]
+transform = Transform3D(0.9517525, 0.036782417, -0.30465394, -0.048800156, 0.99829847, -0.03192406, 0.30296132, 0.04525098, 0.9519281, 0.12830997, 0.2678187, 0.6409297)
+mesh = SubResource("BoxMesh_motec_body")
+
+[node name="Screen" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay" unique_id=769448716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.005, -0.014)
+mesh = SubResource("BoxMesh_motec_screen")
+
+[node name="GearLabel" type="Label3D" parent="RallyCockpit/Dashboard/MotecDisplay" unique_id=1100613100]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0.002, -0.02)
+pixel_size = 0.0014
+modulate = Color(1, 0.92, 0.2, 1)
+text = "N"
+font_size = 42
+outline_size = 6
+
+[node name="SpeedLabel" type="Label3D" parent="RallyCockpit/Dashboard/MotecDisplay" unique_id=1173728430]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.055, 0.018, -0.02)
+pixel_size = 0.0009
+modulate = Color(0.85, 0.98, 1, 1)
+text = "000 KM/H"
+font_size = 22
+
+[node name="RPMLabel" type="Label3D" parent="RallyCockpit/Dashboard/MotecDisplay" unique_id=558331609]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.055, -0.026, -0.02)
+pixel_size = 0.0009
+modulate = Color(0.6, 0.9, 1, 1)
+text = "1000 RPM"
+font_size = 20
+
+[node name="ShiftLights" type="Node3D" parent="RallyCockpit/Dashboard/MotecDisplay" unique_id=840495920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.052, -0.016)
+
+[node name="LED1" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=124836275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.075, 0, 0)
+mesh = SubResource("BoxMesh_led_green")
+
+[node name="LED2" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=36234538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.045, 0, 0)
+mesh = SubResource("BoxMesh_led_green")
+
+[node name="LED3" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=445307709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.015, 0, 0)
+mesh = SubResource("BoxMesh_led_yellow")
+
+[node name="LED4" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=1482314600]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.015, 0, 0)
+mesh = SubResource("BoxMesh_led_yellow")
+
+[node name="LED5" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=1027626119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.045, 0, 0)
+mesh = SubResource("BoxMesh_led_red")
+
+[node name="LED6" type="MeshInstance3D" parent="RallyCockpit/Dashboard/MotecDisplay/ShiftLights" unique_id=645757356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.075, 0, 0)
+mesh = SubResource("BoxMesh_led_red")
+
+[node name="SteeringColumn" type="Node3D" parent="RallyCockpit/Dashboard" unique_id=1896717090]
+transform = Transform3D(1, 0, 0, 0, 0.9913708, -0.13108735, 0, 0.13108735, 0.9913708, 0.384, 0.14582169, 0.597312)
+
+[node name="ColumnShaft" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn" unique_id=1273461220]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0.08)
+mesh = SubResource("Cyl_steering_col")
+
+[node name="PaddleL" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn" unique_id=936643215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.11, 0.01, -0.06)
+mesh = SubResource("BoxMesh_paddle")
+
+[node name="PaddleR" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn" unique_id=1430201422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11, 0.01, -0.06)
+mesh = SubResource("BoxMesh_paddle")
+
+[node name="SteeringWheelPivot" type="Node3D" parent="RallyCockpit/Dashboard/SteeringColumn" unique_id=1611177438]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.1)
+
+[node name="WheelRim" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=1814612293]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
+mesh = SubResource("Torus_steering_rim")
+
+[node name="YellowTopStripe" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=101917990]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0.158, 0)
+mesh = SubResource("Cyl_yellow_marker")
+
+[node name="SpokeLeft" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=429958534]
+transform = Transform3D(0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, 0, 0, 0, 1, 0.08, -0.02, 0.012)
+mesh = SubResource("BoxMesh_spoke")
+
+[node name="SpokeRight" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=134625924]
+transform = Transform3D(0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 0, 0, 0, 1, -0.08, -0.02, 0.012)
+mesh = SubResource("BoxMesh_spoke")
+
+[node name="SpokeBottom" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=1043800073]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, -0.085, 0.012)
+mesh = SubResource("BoxMesh_spoke")
+
+[node name="CenterHub" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=558799633]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0.015)
+mesh = SubResource("Cyl_wheel_hub")
+
+[node name="HornButton" type="MeshInstance3D" parent="RallyCockpit/Dashboard/SteeringColumn/SteeringWheelPivot" unique_id=332964425]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, -0.01)
+mesh = SubResource("Cyl_horn_btn")
+
+[node name="Controls" type="Node3D" parent="RallyCockpit" unique_id=1626271732]
+
+[node name="ShifterBase" type="MeshInstance3D" parent="RallyCockpit/Controls" unique_id=1852037065]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08, -0.45, 0.42)
+mesh = SubResource("BoxMesh_shifter_box")
+
+[node name="ShifterPivot" type="Node3D" parent="RallyCockpit/Controls/ShifterBase" unique_id=401260956]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+
+[node name="ShifterRod" type="MeshInstance3D" parent="RallyCockpit/Controls/ShifterBase/ShifterPivot" unique_id=939532227]
+transform = Transform3D(1, 0, 0, 0, 0.9961947, -0.08715574, 0, 0.08715574, 0.9961947, 0, 0.19, 0)
+mesh = SubResource("Cyl_shifter_rod")
+
+[node name="ShifterKnob" type="MeshInstance3D" parent="RallyCockpit/Controls/ShifterBase/ShifterPivot" unique_id=1975244481]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0.013366342)
+mesh = SubResource("Cyl_shifter_knob")
+
+[node name="HandbrakeBase" type="Node3D" parent="RallyCockpit/Controls" unique_id=741981227]
+transform = Transform3D(0.99752027, 0.07037941, 0, -0.07037941, 0.99752027, 0, 0, 0, 1, 0.09585674, -0.5455243, 0.53999996)
+
+[node name="HandbrakePivot" type="Node3D" parent="RallyCockpit/Controls/HandbrakeBase" unique_id=483399603]
+
+[node name="HandbrakeLever" type="MeshInstance3D" parent="RallyCockpit/Controls/HandbrakeBase/HandbrakePivot" unique_id=1938924514]
+transform = Transform3D(1, 0, 0, 0, 0.9396926, -0.34202015, 0, 0.34202015, 0.9396926, 0, 0.2, -0.06)
+mesh = SubResource("Cyl_handbrake_rod")
+
+[node name="PedalBox" type="Node3D" parent="RallyCockpit/Controls" unique_id=1699159904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.384, -0.58, 0.94)
+
+[node name="PedalGasPivot" type="Node3D" parent="RallyCockpit/Controls/PedalBox" unique_id=1783928647]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11, 0, 0)
+
+[node name="GasFace" type="MeshInstance3D" parent="RallyCockpit/Controls/PedalBox/PedalGasPivot" unique_id=1943796730]
+transform = Transform3D(1, 0, 0, 0, 0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0.06, -0.03)
+mesh = SubResource("BoxMesh_pedal_face")
+
+[node name="PedalBrakePivot" type="Node3D" parent="RallyCockpit/Controls/PedalBox" unique_id=1242138060]
+
+[node name="BrakeFace" type="MeshInstance3D" parent="RallyCockpit/Controls/PedalBox/PedalBrakePivot" unique_id=170117545]
+transform = Transform3D(1, 0, 0, 0, 0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0.06, -0.03)
+mesh = SubResource("BoxMesh_pedal_face")
+
+[node name="PedalClutchPivot" type="Node3D" parent="RallyCockpit/Controls/PedalBox" unique_id=1832859062]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.11, 0, 0)
+
+[node name="ClutchFace" type="MeshInstance3D" parent="RallyCockpit/Controls/PedalBox/PedalClutchPivot" unique_id=1468539742]
+transform = Transform3D(1, 0, 0, 0, 0.8660254, -0.5, 0, 0.5, 0.8660254, 0, 0.06, -0.03)
+mesh = SubResource("BoxMesh_pedal_face")
+
+[node name="Seats" type="Node3D" parent="RallyCockpit" unique_id=1891664401]
+
+[node name="DriverBucketSeat" type="Node3D" parent="RallyCockpit/Seats" unique_id=2098783421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.384, -0.56, 0.02)
+
+[node name="SeatBase" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=395050689]
+mesh = SubResource("BoxMesh_seat_base")
+
+[node name="BolsterL" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=1827290386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.08, 0)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_seat_bolster")
+
+[node name="BolsterR" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=1414502880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22, 0.08, 0)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_seat_bolster")
+
+[node name="SeatBack" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=344152745]
+transform = Transform3D(1, 0, 0, 0, 0.9791116, 0.20332414, 0, -0.20332414, 0.9791116, 0, 0.48090202, -0.30114543)
+mesh = SubResource("BoxMesh_seat_back")
+
+[node name="HeadEarL" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=346349198]
+transform = Transform3D(1, 0, 0, 0, 0.89312494, 0.44980875, 0, -0.44980875, 0.89312494, 0.20999998, 0.7668318, -0.4003631)
+mesh = SubResource("BoxMesh_seat_ear")
+
+[node name="HeadEarR" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=424490653]
+transform = Transform3D(1, 0, 0, 0, 0.89312494, 0.44980875, 0, -0.44980875, 0.89312494, -0.21, 0.7668318, -0.4003631)
+mesh = SubResource("BoxMesh_seat_ear")
+
+[node name="HarnessL" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=373426553]
+transform = Transform3D(1, 0, 0, 0, 0.9791116, 0.20332414, 0, -0.20332414, 0.9791116, 0.099999994, 0.48552996, -0.24749303)
+mesh = SubResource("BoxMesh_harness")
+
+[node name="HarnessR" type="MeshInstance3D" parent="RallyCockpit/Seats/DriverBucketSeat" unique_id=29630843]
+transform = Transform3D(1, 0, 0, 0, 0.9791116, 0.20332414, 0, -0.20332414, 0.9791116, -0.099999994, 0.48552996, -0.24749303)
+mesh = SubResource("BoxMesh_harness")
+
+[node name="CoDriverBucketSeat" type="Node3D" parent="RallyCockpit/Seats" unique_id=1974243080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.384, -0.58, -0.04)
+
+[node name="SeatBase" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=121512522]
+mesh = SubResource("BoxMesh_seat_base")
+
+[node name="BolsterL" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=947504200]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.08, 0)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_seat_bolster")
+
+[node name="BolsterR" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=1245087044]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22, 0.08, 0)
+material_override = ExtResource("11_yojui")
+mesh = SubResource("BoxMesh_seat_bolster")
+
+[node name="SeatBack" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=1258145682]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 0, 0.44, -0.26)
+mesh = SubResource("BoxMesh_seat_back")
+
+[node name="HeadEarL" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=710376227]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21, 0.74, -0.22)
+mesh = SubResource("BoxMesh_seat_ear")
+
+[node name="HeadEarR" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=1076092828]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21, 0.74, -0.22)
+mesh = SubResource("BoxMesh_seat_ear")
+
+[node name="HarnessL" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=748842192]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 0.1, 0.42, -0.21)
+mesh = SubResource("BoxMesh_harness")
+
+[node name="HarnessR" type="MeshInstance3D" parent="RallyCockpit/Seats/CoDriverBucketSeat" unique_id=1654173906]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, -0.1, 0.42, -0.21)
+mesh = SubResource("BoxMesh_harness")
+
+[node name="HeadlightL" type="SpotLight3D" parent="." unique_id=539570592]
+transform = Transform3D(-0.97420615, 0.015741242, -0.2251102, 9.844174e-16, 0.997564, 0.069756486, 0.22565988, 0.0679572, -0.971833, 0.8031842, 0.74156404, 2.8338642)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0
+
+[node name="HeadlightR" type="SpotLight3D" parent="." unique_id=1823748999]
+transform = Transform3D(-0.9972683, -0.0051525193, 0.07368443, 1.0954397e-15, 0.997564, 0.069756486, -0.073864356, 0.06956594, -0.994839, -0.7841496, 0.74156404, 2.8122394)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0

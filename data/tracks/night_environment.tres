@@ -1,6 +1,6 @@
-[gd_resource type="Environment" load_steps=4 format=3]
+[gd_resource type="Environment" format=3 uid="uid://bb8gswph2upes"]
 
-[ext_resource type="Shader" path="res://shaders/night_sky.gdshader" id="1_sky"]
+[ext_resource type="Shader" uid="uid://cyita8xe1pd6f" path="res://shaders/night_sky.gdshader" id="1_sky"]
 
 [sub_resource type="ShaderMaterial" id="NightSkyMaterial"]
 shader = ExtResource("1_sky")
@@ -13,7 +13,6 @@ sky_material = SubResource("NightSkyMaterial")
 
 [resource]
 background_mode = 2
-background_energy_multiplier = 1.0
 sky = SubResource("NightSky")
 ambient_light_source = 2
 ambient_light_color = Color(0.48, 0.56, 0.72, 1)
