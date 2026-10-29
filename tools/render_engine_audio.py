@@ -35,6 +35,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import engine_audio_model as m  # noqa: E402
+import godot_import  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE_DIR = os.path.join(ROOT, "audio", "engine")
@@ -108,66 +109,13 @@ def _append_smpl(path: str, frames: int, sr: int) -> None:
         f.write(body)
 
 
-def _uid_for(path: str) -> str:
-    """Стабильный uid в формате Godot (основание 36, 63 бита)."""
-    digest = hashlib.md5(path.encode("utf-8")).digest()
-    value = int.from_bytes(digest[:8], "big") & ((1 << 63) - 1)
-    if value == 0:
-        value = 1
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
-    out = ""
-    while value > 0:
-        out = alphabet[value % 36] + out
-        value //= 36
-    return "uid://" + out
-
-
 def write_import_file(path: str) -> str:
     """Создаёт .import рядом с WAV — как это делает сам Godot.
 
-    Имя импортированного файла содержит md5 от полного пути res:// — та же
-    схема, что у уже лежащих в репозитории текстур.
+    Формат и точки зацикливания описаны в tools/godot_import.py.
     """
-    res_path = "res://" + os.path.relpath(path, ROOT).replace(os.sep, "/")
-    digest = hashlib.md5(res_path.encode("utf-8")).hexdigest()
-    base = os.path.basename(path)
-    imported = "res://.godot/imported/%s-%s.sample" % (base, digest)
-    body = """[remap]
-
-importer="wav"
-type="AudioStreamWAV"
-uid="%s"
-path="%s"
-
-[deps]
-
-source_file="%s"
-dest_files=["%s"]
-
-[params]
-
-force/8_bit=false
-force/loop_mode=0
-force/max_rate=false
-force/max_rate_hz=44100
-edit/trim=false
-edit/normalize=0
-edit/fade_in=0.0
-edit/fade_out=0.0
-edit/repeat=0
-edit/repeat_count=0
-edit/repeat_length=0.0
-edit/filter_gain=0.0
-edit/filter_mix_rate=0
-edit/filter_size=0
-edit/filter_type=0
-compress/mode=0
-compress/mix_rate=44100
-compress/quality=1
-""" % (_uid_for(res_path), imported, res_path, imported)
-    with open(path + ".import", "w", encoding="utf-8") as f:
-        f.write(body)
-    return path + ".import"
+    return godot_import.write_import_file(path, ROOT,
+                                           loop=godot_import.is_loop_asset(path))
 
 
 def loopify(data: np.ndarray, loop_len: int, sr: int = SR) -> np.ndarray:
@@ -351,20 +299,23 @@ def engine_start(seed: int = 67, seconds: float = 1.6) -> np.ndarray:
 
 def build_vehicle() -> list:
     written = []
+    # Третий элемент — луп ли это. Одиночные звуки (хлопки, сброс турбины,
+    # переключение передачи, запуск) зацикливать нельзя: Godot читает блок
+    # smpl при импорте, и такой звук потом повторялся бы бесконечно.
     jobs = [
-        ("gravel_road.wav", gravel_road()),
-        ("wind.wav", wind()),
-        ("bov_01.wav", blow_off(seed=31)),
-        ("bov_02.wav", blow_off(seed=32)),
-        ("bov_03.wav", blow_off(seed=33)),
-        ("shift.wav", gear_shift()),
-        ("start.wav", engine_start()),
+        ("gravel_road.wav", gravel_road(), True),
+        ("wind.wav", wind(), True),
+        ("bov_01.wav", blow_off(seed=31), False),
+        ("bov_02.wav", blow_off(seed=32), False),
+        ("bov_03.wav", blow_off(seed=33), False),
+        ("shift.wav", gear_shift(), False),
+        ("start.wav", engine_start(), False),
     ]
     for i in range(6):
-        jobs.append(("pop_%02d.wav" % (i + 1), pop(seed=41 + i)))
-    for name, data in jobs:
+        jobs.append(("pop_%02d.wav" % (i + 1), pop(seed=41 + i), False))
+    for name, data, loop in jobs:
         path = os.path.join(VEHICLE_DIR, name)
-        write_wav(path, data)
+        write_wav(path, data, loop=loop)
         write_import_file(path)
         written.append(path)
         print("  %-34s %6.2f с" % (os.path.relpath(path, ROOT), data.size / SR))
