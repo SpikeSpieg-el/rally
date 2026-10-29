@@ -20,7 +20,9 @@ const BASE_STIFFNESS := {"Road": 5.0, "Dirt": 3.8, "Grass": 2.6}
 const BASE_COF := {"Road": 1.50, "Dirt": 1.25, "Grass": 1.0}
 const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.20, "Grass": 1.5}
 const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.04, "Grass": 0.06}
-const BASE_LONGITUDINAL := {"Road": 0.70, "Dirt": 0.72, "Grass": 0.62}
+const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
+## На какой скорости ещё можно включить задний ход из первой передачи.
+const REVERSE_SHIFT_MAX_KMH: float = 15.0
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -117,6 +119,15 @@ var track_offroad_grip: float = 0.6
 ## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
 ## а не на старт.
 var reset_provider: Callable = Callable()
+
+## Нижняя граница падения в мировых координатах. Сцена заезда может
+## переопределить её через провайдер ниже: на сгенерированной трассе дорога
+## уходит на десятки метров ниже нуля, и жёсткий порог −20 м бесконечно
+## сбрасывал машину на одном месте.
+var fall_limit_y: float = -20.0
+## Необязательный провайдер нижней границы: считается от земли ПОД машиной,
+## а не от абсолютного нуля мира.
+var fall_limit_provider: Callable = Callable()
 
 
 func _ready() -> void:
@@ -236,8 +247,10 @@ func _configure_gevp() -> void:
 	rear_steering_ratio = 0.0
 
 	throttle_speed = 7.0
-	braking_speed = 10.0
-	front_brake_bias = 0.60
+	braking_speed = 14.0
+	front_brake_bias = 0.66
+	# Задний ход включается только водителем (shift_down), а не удержанием тормоза.
+	automatic_reverse_on_brake = false
 	# TCS ограничивает пробуксовку плавно, не выключая тягу целиком.
 	traction_control_max_slip = 0.65
 
@@ -303,7 +316,7 @@ func _configure_gevp() -> void:
 	rear_bump_stop_multiplier = 1.2
 
 	contact_patch = 0.22
-	braking_grip_multiplier = 1.25
+	braking_grip_multiplier = 1.05
 	wheel_to_body_torque_multiplier = 0.6
 	tire_stiffnesses = BASE_STIFFNESS.duplicate()
 	coefficient_of_friction = BASE_COF.duplicate()
@@ -519,23 +532,12 @@ func _physics_process(delta: float) -> void:
 			_reset_action_camera()
 	if Input.is_action_just_pressed("drivetrain_switch"):
 		set_drivetrain_mode((drivetrain_mode + 1) % 3)
-	if Input.is_action_just_pressed("shift_up"):
-		automatic_transmission = false
-		manual_shift(1)
-	elif Input.is_action_just_pressed("shift_down"):
-		automatic_transmission = false
-		manual_shift(-1)
 
-	var forward_pedal: float = Input.get_action_strength("throttle")
-	var reverse_pedal: float = Input.get_action_strength("brake")
-	# В автоматическом режиме S тормозит, затем становится газом в R;
-	# W аналогично тормозит задний ход и возвращает первую передачу.
-	# Во время перехода R -> N -> 1 сохраняем обратную раскладку педалей.
-	var reverse_controls: bool = automatic_transmission and (
-		current_gear < 0 or (current_gear == 0 and direction_request_active and direction_target > 0)
-	)
-	throttle_input = reverse_pedal if reverse_controls else forward_pedal
-	brake_input = forward_pedal if reverse_controls else reverse_pedal
+	_handle_gear_input()
+
+	# W — всегда газ, S — всегда тормоз, в том числе на задней передаче.
+	throttle_input = Input.get_action_strength("throttle")
+	brake_input = Input.get_action_strength("brake")
 	steer_input = Input.get_axis("steer_right", "steer_left")
 	var limit_end: float = maxf(steering_limit_full_kmh, steering_limit_start_kmh + 1.0)
 	var steering_speed_blend: float = smoothstep(steering_limit_start_kmh, limit_end, speed_kmh)
@@ -555,8 +557,37 @@ func _physics_process(delta: float) -> void:
 
 	_update_cameras(delta)
 
-	if global_position.y < -20.0:
+	var fall_limit: float = fall_limit_y
+	if fall_limit_provider.is_valid():
+		var provided: Variant = fall_limit_provider.call()
+		if provided is float or provided is int:
+			fall_limit = float(provided)
+	if global_position.y < fall_limit:
 		reset_to_spawn()
+
+
+func _handle_gear_input() -> void:
+	if Input.is_action_just_pressed("shift_up"):
+		# Из R или N — на первую. Передачи 1–6 остаются автоматическими.
+		if current_gear <= 0:
+			_select_gear(1)
+		return
+	if not Input.is_action_just_pressed("shift_down"):
+		return
+	# Задний ход — только осознанно и только на малой скорости.
+	if current_gear == 0:
+		_select_gear(-1)
+	elif current_gear == 1 and speed_kmh < REVERSE_SHIFT_MAX_KMH:
+		_select_gear(-1)
+
+
+func _select_gear(target_gear: int) -> void:
+	if target_gear == current_gear or is_shifting:
+		return
+	direction_request_active = false
+	direction_target = 0
+	# shift() принимает относительное изменение, поэтому считаем разницу.
+	shift(target_gear - current_gear)
 
 
 func set_drivetrain_mode(mode: int) -> void:

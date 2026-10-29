@@ -108,8 +108,8 @@ func _run() -> void:
 	car._update_cameras(1.0 / 120.0)
 	_check(marker.transform.is_equal_approx(edited_marker), "изменённый маркер должен сохраняться")
 	_check(car.active_camera.global_transform.is_equal_approx(marker.global_transform), "камера должна следовать за изменением маркера")
-	var left_light: SpotLight3D = car.get_node("BodyCollider/HeadlightL")
-	var right_light: SpotLight3D = car.get_node("BodyCollider/HeadlightR")
+	var left_light: SpotLight3D = car.get_node("HeadlightL")
+	var right_light: SpotLight3D = car.get_node("HeadlightR")
 	var beam_direction: Vector3 = -left_light.transform.basis.z.normalized()
 	_check(beam_direction.z > 0.9 and beam_direction.y < 0.0, "фары должны светить вперёд и немного вниз")
 	_check((-right_light.transform.basis.z.normalized()).is_equal_approx(beam_direction), "обе фары должны светить в одном направлении")
@@ -212,20 +212,51 @@ func _run() -> void:
 	print("Поворот: изменение курса %.1f°" % rad_to_deg(heading_change))
 	_check(heading_change > deg_to_rad(3.0), "руль должен менять направление машины")
 
+	# Удержание тормоза на месте не должно само включать задний ход.
 	car.reset_to_spawn()
 	await _wait_physics(120)
 	start_position = car.global_position
 	Input.action_press("brake")
-	await _wait_physics(420)
+	await _wait_physics(240)
 	Input.action_release("brake")
-	var reverse_distance: float = car.global_position.z - start_position.z
-	print("Задний ход: %.1f м" % reverse_distance)
-	_check(reverse_distance < -2.0, "задний ход не должен пропасть после настройки TCS")
+	var hold_distance: float = (car.global_position - start_position).length()
+	print("Тормоз на месте: передача %d, смещение %.2f м" % [car.current_gear, hold_distance])
+	_check(car.current_gear == 1 and hold_distance < 1.0, "удержание тормоза не должно включать задний ход")
+
+	# Задний ход включается только shift_down (Q).
+	Input.action_press("shift_down")
+	await _wait_physics(2)
+	Input.action_release("shift_down")
+	await _wait_physics(60)
+	_check(car.current_gear == -1, "shift_down на месте должен включать задний ход")
+	start_position = car.global_position
+	Input.action_press("throttle")
+	await _wait_physics(180)
+	Input.action_release("throttle")
+	var reverse_distance: float = (car.global_position - start_position).dot(car.global_basis.z)
+	print("Задний ход: %.1f м, передача %d" % [reverse_distance, car.current_gear])
+	_check(reverse_distance < -2.0, "W на задней передаче должен ехать назад")
+
+	# S тормозит задний ход и не переключает передачу.
+	var reverse_speed_before: float = car.linear_velocity.dot(car.global_basis.z)
+	Input.action_press("brake")
+	await _wait_physics(120)
+	Input.action_release("brake")
+	var reverse_speed_after: float = car.linear_velocity.dot(car.global_basis.z)
+	print("Тормоз в заднем ходе: %.1f -> %.1f м/с, передача %d" % [reverse_speed_before, reverse_speed_after, car.current_gear])
+	_check(car.current_gear == -1 and absf(reverse_speed_after) < absf(reverse_speed_before), "S должен тормозить задний ход, не меняя передачу")
+
+	# shift_up (E) возвращает первую передачу, и W снова едет вперёд.
+	Input.action_press("shift_up")
+	await _wait_physics(2)
+	Input.action_release("shift_up")
+	await _wait_physics(60)
+	_check(car.current_gear == 1, "shift_up из R должен включать первую передачу")
 	Input.action_press("throttle")
 	await _wait_physics(900)
 	Input.action_release("throttle")
 	print("Выход из заднего хода: передача %d, продольная скорость %.1f м/с" % [car.current_gear, car.linear_velocity.dot(car.global_basis.z)])
-	_check(car.current_gear > 0 and car.linear_velocity.dot(car.global_basis.z) > 0.0, "W после заднего хода должен тормозить и включать движение вперёд")
+	_check(car.current_gear > 0 and car.linear_velocity.dot(car.global_basis.z) > 0.0, "W после включения первой передачи должен вести машину вперёд")
 
 	world.queue_free()
 	await process_frame

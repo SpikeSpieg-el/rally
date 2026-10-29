@@ -140,6 +140,10 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 @export var shift_time := 0.3
 ## Enables automatic gear changes
 @export var automatic_transmission := true
+## When enabled, holding the brake at standstill automatically selects reverse.
+## Disable it if reverse should only be selected by the player (e.g. a manual
+## shift-down input), so the brake pedal never turns into a throttle.
+@export var automatic_reverse_on_brake := true
 ## Timer to prevent the automatic gear shifts changing gears too quickly 
 ## in milliseconds
 @export var automatic_time_between_shifts := 1000.0
@@ -879,20 +883,26 @@ func process_transmission() -> void:
 		# Select a new direction only once per brake press. The request remains
 		# active through N so 1 -> N -> R (or R -> N -> 1) can complete without
 		# the opposite branch immediately undoing it on the next physics tick.
-		if brake_input < 0.25:
+		# When automatic reverse is disabled, the brake pedal never changes gear:
+		# reverse must be requested explicitly by the player.
+		if not automatic_reverse_on_brake:
 			direction_request_active = false
 			direction_target = 0
-		if brake_input > 0.75 and speed < 1.0 and not direction_request_active:
-			direction_target = 1 if current_gear < 0 else -1
-			direction_request_active = true
-		if direction_request_active and brake_input > 0.75 and speed < 1.0:
-			if delta_time - last_shift_delta_time > shift_time:
-				if direction_target < 0:
-					if current_gear >= 0:
-						shift(-1)
-				elif direction_target > 0:
-					if current_gear <= 0:
-						shift(1)
+		else:
+			if brake_input < 0.25:
+				direction_request_active = false
+				direction_target = 0
+			if brake_input > 0.75 and speed < 1.0 and not direction_request_active:
+				direction_target = 1 if current_gear < 0 else -1
+				direction_request_active = true
+			if direction_request_active and brake_input > 0.75 and speed < 1.0:
+				if delta_time - last_shift_delta_time > shift_time:
+					if direction_target < 0:
+						if current_gear >= 0:
+							shift(-1)
+					elif direction_target > 0:
+						if current_gear <= 0:
+							shift(1)
 
 func process_drive(delta : float) -> void:
 	var current_gear_ratio := get_gear_ratio(current_gear)
@@ -1026,7 +1036,7 @@ func complete_shift() -> void:
 	## Called when it is time to complete a shift in progress
 	if current_gear == -1:
 		brake_amount = 0.0
-	if requested_gear < current_gear:
+	if requested_gear > 0 and requested_gear < current_gear:
 		var wheel_spin := speed / average_drive_wheel_radius
 		var requested_gear_rpm := gear_ratios[requested_gear - 1] * final_drive * wheel_spin * ANGULAR_VELOCITY_TO_RPM
 		motor_rpm = lerpf(motor_rpm, requested_gear_rpm, 0.5)
@@ -1093,7 +1103,11 @@ func calculate_average_tire_friction(weight : float, surface : String) -> float:
 
 func calculate_brake_force() -> void:
 	var friction := calculate_average_tire_friction(vehicle_mass * 9.8, "Road")
-	max_brake_force = ((friction * braking_grip_multiplier) * average_drive_wheel_radius) / wheel_array.size()
+	# calculate_average_tire_friction() returns the total friction force of all
+	# four tires, while process_axle_drive() splits max_brake_force across the
+	# axles (0.5 * bias per wheel, summing to 1.0). Dividing by the wheel count
+	# here therefore made the brakes four times weaker than the tires allow.
+	max_brake_force = friction * braking_grip_multiplier * brake_force_multiplier * average_drive_wheel_radius
 	max_handbrake_force = ((friction * braking_grip_multiplier * 0.05) / average_drive_wheel_radius)
 
 func calculate_center_of_gravity(front_distribution : float) -> Vector3:

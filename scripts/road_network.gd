@@ -157,7 +157,13 @@ func _build_field(area: Rect2, cell_size: float) -> void:
 			if site < 0 or field_dist[index] > refine_limit:
 				continue
 			var p := Vector2(origin.x + float(gx) * cell, z)
-			var best_dist: float = field_dist[index]
+			# ВАЖНО: along берём всегда из найденного отрезка, а не «если
+			# стало ближе». У ячеек, до которых доехал chamfer, field_along
+			# остаётся нулём-заглушкой; при точном совпадении расстояния
+			# условие «строго меньше» не срабатывало, и высота земли
+			# считалась по высоте старта трассы (y = 0) — получались
+			# вертикальные шипы в 25–70 м у кромки дороги.
+			var found_dist: float = INF
 			var best_along: float = field_along[index]
 			for k in range(maxi(0, site - window), mini(seg_count, site + window + 1)):
 				var a: Vector3 = samples[k]
@@ -165,10 +171,10 @@ func _build_field(area: Rect2, cell_size: float) -> void:
 				var result: Vector3 = _nearest_on_segment(
 					p, Vector2(a.x, a.z), Vector2(b.x, b.z), sample_dists[k], sample_dists[k + 1]
 				)
-				if result.x < best_dist:
-					best_dist = result.x
+				if result.x < found_dist:
+					found_dist = result.x
 					best_along = result.y
-			field_dist[index] = best_dist
+			field_dist[index] = minf(field_dist[index], found_dist)
 			field_along[index] = best_along
 
 	_build_regional(area)
@@ -249,6 +255,9 @@ func _chamfer_pass(reverse: bool) -> void:
 			var index: int = gz * cols + gx
 			var best: float = field_dist[index]
 			var best_site: int = field_site[index]
+			# Километраж тянем вместе с участком. Иначе у всех ячеек, до
+			# которых дошёл chamfer, along остаётся нулём-заглушкой.
+			var best_along: float = field_along[index]
 			for off in offsets:
 				var nx: int = gx + off.x
 				var nz: int = gz + off.y
@@ -262,8 +271,10 @@ func _chamfer_pass(reverse: bool) -> void:
 				if candidate < best:
 					best = candidate
 					best_site = field_site[n_index]
+					best_along = field_along[n_index]
 			field_dist[index] = best
 			field_site[index] = best_site
+			field_along[index] = best_along
 
 
 # ---------------------------------------------------------------- запросы

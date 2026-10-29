@@ -440,7 +440,9 @@ func _setup_noise() -> void:
 	_noise_hills = _make_noise(track.terrain_seed, track.hills_frequency, 3)
 	_noise_ridge = _make_noise(track.terrain_seed + 91, track.ridge_frequency, 4)
 	_noise_detail = _make_noise(track.terrain_seed + 173, track.detail_frequency, 2)
-	_noise_bumps = _make_noise(track.terrain_seed + 257, 0.35, 2)
+	# Низкая частота: «шершавость» полотна должна быть длиной в метры, а не
+	# в полметра — иначе на шаге строк меша она читается как рёбра.
+	_noise_bumps = _make_noise(track.terrain_seed + 257, 0.08, 1)
 	_rng.seed = track.terrain_seed
 
 
@@ -535,6 +537,26 @@ func corridor_half() -> float:
 	return track.road_half_width + track.road_shoulder
 
 
+## Ширина перехода «полотно → рельеф»: за ней насыпь/выемка уже слилась
+## с базовым рельефом. Нужна ограничителю склонов, чтобы он не «сглаживал»
+## готовый откос и не делал из него стенку.
+func _embankment_width(x: float, z: float, distance: float) -> float:
+	var along: float = network.along_road(x, z)
+	var road_y: float = network.height_at_along(along)
+	var fade: float = smoothstep(
+		track.hills_fade_start,
+		track.hills_fade_start + track.hills_fade_length,
+		distance
+	)
+	var base: float = network.regional_height(x, z) + _hills_at(x, z) * fade
+	var max_slope: float = tan(deg_to_rad(maxf(6.0, track.embankment_slope_deg)))
+	return clampf(
+		absf(road_y - base) / maxf(max_slope, 0.05),
+		track.embankment_min_width,
+		track.embankment_max_width
+	)
+
+
 ## Кювет вдоль кромки: насколько опустить землю в этой точке.
 func _road_ditch(distance: float) -> float:
 	if track.road_ditch_depth <= 0.0:
@@ -559,8 +581,13 @@ func _hills_at(x: float, z: float) -> float:
 func _surface_bumps_along(along: float) -> float:
 	if track.bumps_amplitude <= 0.0 and track.bumps_roughness <= 0.0:
 		return 0.0
-	var wave: float = sin(along * TAU / maxf(track.bumps_wavelength, 0.5))
-	var roughness: float = _noise_bumps.get_noise_1d(along * 5.0)
+	# Волна длиной в несколько метров: короткую синусоиду шаг строк полотна
+	# (1.5–2 м) превращает в пилу — та самая «гармошка» поперёк дороги.
+	var wavelength: float = maxf(track.bumps_wavelength, 4.0)
+	var wave: float = sin(along * TAU / wavelength)
+	# «Шершавость» тоже низкочастотная (≈10 м): крупные мягкие волны,
+	# а не случайный сдвиг каждой поперечной полосы меша на ±5 см.
+	var roughness: float = _noise_bumps.get_noise_1d(along)
 	var cross: float = 1.0 - track.bumps_cross * 0.5 * (roughness * 0.5 + 0.5)
 	return (track.bumps_amplitude * wave + track.bumps_roughness * roughness) * cross
 
@@ -637,8 +664,10 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 			heights[index] -= _road_ditch(distances[index])
 
 	# 3) Лимит склонов: страховка от «стенок» (тесные шпильки, косогоры).
-	#    Ячейки у самой дороги не двигаются — там всё уже сходится с полотном.
-	heights = _limit_terrain_slopes(heights, distances, cols, rows, cell)
+	#    Весь переход «полотно → рельеф» уже задан height_at плавным откосом,
+	#    поэтому он — якорь: раньше ограничитель «размазывал» и его, утягивая
+	#    землю у дороги на несколько метров вниз и делая из откоса стенку.
+	heights = _limit_terrain_slopes(heights, distances, cols, rows, cell, origin)
 	_ground_grid = heights.duplicate()
 	_ground_origin = origin
 	_ground_cell = cell
@@ -724,22 +753,26 @@ func _limit_terrain_slopes(
 	distances: PackedFloat32Array,
 	cols: int,
 	rows: int,
-	cell: float
+	cell: float,
+	origin: Vector2
 ) -> PackedFloat32Array:
 	var max_slope: float = tan(deg_to_rad(clampf(track.max_terrain_slope_deg, 20.0, 75.0)))
 	var max_delta: float = cell * max_slope
-	# Якоря — только сама дорога и обочина (полотно + 0.5 м), иначе у тесной
-	# шпильки между двумя «жёсткими» ячейками остаётся стенка.
-	var anchor_distance: float = track.road_half_width + track.road_shoulder + 0.5
+	var corridor: float = corridor_half()
+	var search_reach: float = corridor + track.embankment_max_width
 	var anchored := PackedByteArray()
 	anchored.resize(cols * rows)
 	var dirty := PackedInt32Array()
 	for gz in range(rows):
 		for gx in range(cols):
 			var index: int = gz * cols + gx
-			if distances[index] < anchor_distance:
-				anchored[index] = 1
-				continue
+			# Якоря — дорога, обочина и весь готовый откос насыпи/выемки.
+			if distances[index] < search_reach:
+				var x: float = origin.x + float(gx) * cell
+				var z: float = origin.y + float(gz) * cell
+				if distances[index] < corridor + _embankment_width(x, z, distances[index]):
+					anchored[index] = 1
+					continue
 			if gz == 0 or gx == 0 or gz == rows - 1 or gx == cols - 1:
 				anchored[index] = 1
 				continue
@@ -818,6 +851,10 @@ func _make_ground_material() -> ShaderMaterial:
 ## функция height_at), поэтому стык не просвечивает.
 func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
 	var step: float = maxf(0.5, track.road_step)
+	if track.bumps_amplitude > 0.0 or track.bumps_roughness > 0.0:
+		# Волну кочек рисуем плотнее, чем шаг из конфига: минимум ~10 строк
+		# на длину волны, иначе синус превращается в треугольные рёбра.
+		step = minf(step, maxf(0.6, track.bumps_wavelength / 10.0))
 	var length: float = network.total_length
 	var rows: int = maxi(2, ceili(length / step) + 1)
 	var half: float = track.road_half_width
@@ -920,10 +957,14 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	if generated != null:
 		generated.add_child(road_visual)
 
-	# Коллизия только по проезжей части (полотно + обочина).
+	# Коллизия — по всей видимой ленте, включая внешнюю «юбку» (outer):
+	# она ложится на землю и плавно уводит край полотна в кювет. Если
+	# обрывать коллизию на обочине, под видимым краем остаётся невидимая
+	# ступенька в глубину кювета — машина упирается в неё, пытаясь
+	# вернуться на трассу.
 	var faces := PackedVector3Array()
 	for row in range(rows - 1):
-		for lane in range(1, lanes - 2):
+		for lane in range(0, lanes - 1):
 			var i0: int = row * lanes + lane
 			var i1: int = i0 + 1
 			var i2: int = i0 + lanes
@@ -1359,6 +1400,19 @@ func _configure_car() -> void:
 	# Провайдер сброса появляется только после стартовой расстановки: иначе
 	# первая же установка машины уехала бы в «ближайшую точку трассы».
 	car.reset_provider = Callable(self, "_rescue_transform")
+	# Порог падения считаем от земли, а не от абсолютного нуля: сгенерированная
+	# «Живая лента» уходит на десятки метров ниже 0, и старый порог −20 м
+	# бесконечно возвращал машину в ту же низкую точку.
+	car.fall_limit_provider = Callable(self, "_fall_limit_y")
+
+
+## Нижняя граница «машина упала в бездну»: на 25 м ниже земли под ней.
+## Абсолютный порог здесь не годится — полотно может законно лежать ниже нуля
+## (процедурная трасса, перевал), и тогда сброс срабатывал бы каждый кадр.
+func _fall_limit_y() -> float:
+	if car == null or network == null:
+		return -1.0e9
+	return height_at(car.global_position.x, car.global_position.z) - 25.0
 
 
 ## Точка сброса по клавише R: ближайшая точка дороги впереди/рядом, чтобы
