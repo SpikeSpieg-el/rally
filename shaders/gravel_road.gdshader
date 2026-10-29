@@ -6,6 +6,9 @@ render_mode diffuse_burley, specular_schlick_ggx;
 uniform float detail_strength : hint_range(0.0, 0.5) = 0.16;
 uniform float track_strength : hint_range(0.0, 0.4) = 0.12;
 uniform float road_roughness : hint_range(0.0, 1.0) = 0.92;
+// Погода: мокрое полотно темнее и глянцевее, снег — светлее и матовее.
+uniform float wetness : hint_range(0.0, 1.0) = 0.0;
+uniform float snow_cover : hint_range(0.0, 1.0) = 0.0;
 
 varying vec3 world_position;
 
@@ -38,7 +41,11 @@ void fragment() {
 	float rut_variation = mix(0.7, 1.0, value_noise(vec2(UV.y * 0.12, UV.x)));
 	float surface = 1.0 + gravel * detail_strength + broad * detail_strength * 0.5;
 	surface *= 1.0 - ruts * rut_variation * track_strength;
-	ALBEDO = COLOR.rgb * surface;
-	ROUGHNESS = road_roughness;
-	SPECULAR = 0.22;
+	vec3 albedo = COLOR.rgb * surface;
+	// Дождь: гравий темнеет, колеи блестят. Снег: полотно укрыто почти целиком.
+	albedo *= mix(1.0, 0.62, wetness);
+	albedo = mix(albedo, vec3(0.87, 0.90, 0.95) * surface, snow_cover * 0.85);
+	ALBEDO = albedo;
+	ROUGHNESS = mix(mix(road_roughness, 0.22, wetness), 0.72, snow_cover * 0.85);
+	SPECULAR = mix(mix(0.22, 0.55, wetness), 0.08, snow_cover * 0.85);
 }

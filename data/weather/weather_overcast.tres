@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="RallyWeatherConfig" format=3 uid="uid://iigaaphj4hr41"]
+
+[ext_resource type="Script" uid="uid://semtibtr5hg9r" path="res://scripts/data/rally_weather_config.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "overcast"
+display_name = "ПАСМУРНО"
+short_name = "СЕРО"
+description = "Низкие серые облака, рассеянный свет. Полотно прохладное и чуть влажное — держит почти как в сухую, но солнца нет."
+precipitation = 0
+precipitation_intensity = 0.00
+wind_speed = 5.0
+time_of_day = 0
+sky_tint_strength = 0.45
+sky_tint = Color(0.58, 0.62, 0.67)
+sky_desaturation = 0.45
+sun_energy_scale = 0.55
+sun_tint_strength = 0.40
+sun_tint = Color(0.86, 0.89, 0.95)
+ambient_energy_scale = 1.15
+exposure_scale = 1.06
+fog_color = Color(0.66, 0.7, 0.75)
+fog_color_strength = 0.50
+fog_density_scale = 1.80
+fog_density_add = 0.0006
+visibility_scale = 0.90
+volumetric_fog = false
+wetness = 0.18
+snow_cover = 0.00
+grip_scale = 0.97
+rolling_resistance_scale = 1.04
+offroad_grip_scale = 0.96

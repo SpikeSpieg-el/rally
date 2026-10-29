@@ -23,6 +23,8 @@ const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.04, "Grass": 0.06}
 const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
 ## На какой скорости ещё можно включить задний ход из первой передачи.
 const REVERSE_SHIFT_MAX_KMH: float = 15.0
+## Базовое торможение двигателем. Сетап задаёт множитель к нему.
+const BASE_MOTOR_BRAKE: float = 10.0
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -361,12 +363,22 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	awd_front_torque = setup_resource.awd_front_torque
 	max_torque = setup_resource.max_torque
 	max_rpm = setup_resource.max_rpm
+	# Холостой ход не может быть выше середины отсечки: иначе мотор «висит»
+	# на оборотах и машина сама ползёт со старта.
+	idle_rpm = clampf(setup_resource.idle_rpm, 500.0, max_rpm * 0.6)
+	motor_brake = BASE_MOTOR_BRAKE * setup_resource.engine_brake_scale
 	final_drive = setup_resource.final_drive
 	if not setup_resource.gear_ratios.is_empty():
 		gear_ratios = setup_resource.gear_ratios.duplicate()
 	traction_control_max_slip = setup_resource.traction_control_max_slip
+	var engine_curve: Curve = null
 	if setup_resource.torque_curve != null:
-		torque_curve = setup_resource.torque_curve.duplicate() as Curve
+		engine_curve = setup_resource.torque_curve.duplicate() as Curve
+	else:
+		# Пресет мотора может задать характер кривой без ручной Curve.
+		engine_curve = setup_resource.build_torque_curve()
+	if engine_curve != null:
+		torque_curve = engine_curve
 	vehicle_mass = setup_resource.vehicle_mass
 	front_weight_distribution = setup_resource.front_weight_distribution
 	center_of_gravity_height_offset = setup_resource.center_of_gravity_height_offset

@@ -18,6 +18,9 @@ uniform float banding_levels : hint_range(0.0, 8.0) = 5.0;
 uniform vec3 fog_color : source_color = vec3(0.72, 0.79, 0.88);
 uniform float fog_near : hint_range(10.0, 400.0) = 130.0;
 uniform float fog_far : hint_range(50.0, 800.0) = 320.0;
+// Погода: сырая земля темнее, снег ложится на пологие места.
+uniform float wetness : hint_range(0.0, 1.0) = 0.0;
+uniform float snow_cover : hint_range(0.0, 1.0) = 0.0;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -73,9 +76,13 @@ void fragment() {
     float rock_amt = smoothstep(0.55, 0.85, slope) * vertex_info.g;
     albedo = mix(albedo, rock_color * mix(0.80, 1.15, vertex_info.b), rock_amt);
 
+    // Дождь темнит и «лакирует» грунт, снег укрывает ровные места.
+    albedo *= mix(1.0, 0.78, wetness);
+    float snow_amount = snow_cover * (1.0 - smoothstep(0.15, 0.65, slope));
+    albedo = mix(albedo, vec3(0.88, 0.91, 0.96) * mix(0.92, 1.04, fine_noise), snow_amount);
     ALBEDO = albedo;
-    ROUGHNESS = surface_roughness;
-    SPECULAR = 0.16;
+    ROUGHNESS = mix(surface_roughness, 0.62, snow_amount);
+    SPECULAR = mix(mix(0.16, 0.42, wetness), 0.10, snow_amount);
 
     // PS1-дизер-туман: жёсткие прямоугольные полосы вместо плавного затенения.
 	if (dither_fog > 0.5) {

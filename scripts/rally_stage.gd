@@ -22,6 +22,8 @@ extends Node3D
 const CarType = preload("res://scripts/rally_car.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
+const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
@@ -55,6 +57,9 @@ const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 
 var track: TrackConfigType = null
 var setup: CarSetupType = null
+## Погода и «характер трассы» текущего заезда (из автозагрузки RallyGame).
+var weather: WeatherType = null
+var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
 var terrain_rect: Rect2 = Rect2()
@@ -75,6 +80,11 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
+## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
+var _weather_particles: GPUParticles3D = null
+## Условия уже наложены на копию трассы: повторный _resolve_track не должен
+## умножать сцепление и кочки второй раз.
+var _track_prepared := false
 var _hud_ready := false
 ## Мир этапа готов, физика/HUD можно тикать (await в _ready разбил старт на кадры).
 var _stage_live := false
@@ -160,6 +170,7 @@ func _ready() -> void:
 		car_node.freeze = true
 	await _build_world_async()
 	_configure_car()
+	_setup_precipitation()
 	if car_node != null:
 		car_node.freeze = false
 	_setup_hud()
@@ -291,12 +302,24 @@ func _resolve_track() -> void:
 			track = first
 	if track == null:
 		track = TrackConfigType.new()
+	if not Engine.is_editor_hint() and not _track_prepared:
+		# Погода и характер трассы применяются к КОПИИ конфига: исходный
+		# .tres в репозитории остаётся нетронутым, а сцепление/ширина/кочки
+		# не «накапливаются» от заезда к заезду.
+		track = track.duplicate() as TrackConfigType
+		_resolve_conditions(game)
+		_apply_conditions_to_track()
+		_track_prepared = true
 	if not Engine.is_editor_hint() and track.procedural and track.reroll_seed_each_visit:
 		# «Каждый заезд — новая трасса»: новый сид ещё до построения кривой.
-		# Рекорды при этом честно считаются по фактическому сиду.
-		var reroll := RandomNumberGenerator.new()
-		reroll.seed = hash("reroll_%d_%d" % [Time.get_ticks_msec(), Time.get_unix_time_from_system()])
-		track.generation_seed = reroll.randi_range(1, 999999)
+		# Сид сразу сохраняется, поэтому трассу можно вернуть по номеру,
+		# а рекорды честно считаются по фактическому сиду.
+		if game != null and game.has_method("reroll_live_seed"):
+			game.call("reroll_live_seed", track)
+		else:
+			var reroll := RandomNumberGenerator.new()
+			reroll.seed = hash("reroll_%d_%d" % [Time.get_ticks_msec(), Time.get_unix_time_from_system()])
+			track.generation_seed = reroll.randi_range(1, 999999999)
 	if car_setup_override != null:
 		setup = car_setup_override
 	elif game != null:
@@ -307,6 +330,41 @@ func _resolve_track() -> void:
 		var first_setup: Variant = game_config.call("get_setup", 0)
 		if first_setup is CarSetupType:
 			setup = first_setup
+
+
+## Погода и характер трассы выбраны в меню; автозагрузка RallyGame хранит их
+## между сценами. Прямой запуск сцены (F6) работает без них — тогда трасса
+## выглядит ровно так, как записана в своём .tres.
+func _resolve_conditions(game: Node) -> void:
+	if game == null:
+		return
+	var selected_weather: Variant = game.get("current_weather")
+	if selected_weather is WeatherType:
+		weather = selected_weather
+		# «КАК НА ТРАССЕ» — это отсутствие погоды, а не отдельный эффект:
+		# так день/ночь и туман трассы остаются ровно такими, как в .tres.
+		if String(weather.id) == "default":
+			weather = null
+	var selected_profile: Variant = game.get("current_profile")
+	if selected_profile is ProfileType:
+		track_profile = selected_profile
+
+
+## Накладывает профиль полотна и поправки погоды на копию конфига трассы.
+## Сцепление перемножается: снег по грязи скользит сильнее, чем снег по
+## асфальту, и это честно видно в меню (там показывается итог).
+func _apply_conditions_to_track() -> void:
+	if track == null:
+		return
+	if track_profile != null:
+		track_profile.apply_to(track)
+	if weather == null:
+		return
+	track.grip_scale = clampf(track.grip_scale * weather.grip_scale, 0.2, 2.0)
+	track.rolling_resistance_scale = clampf(
+		track.rolling_resistance_scale * weather.rolling_resistance_scale, 0.2, 4.0
+	)
+	track.offroad_grip = clampf(track.offroad_grip * weather.offroad_grip_scale, 0.05, 1.0)
 
 
 # ---------------------------------------------------------------- сборка мира
@@ -842,10 +900,26 @@ func _make_ground_material() -> ShaderMaterial:
 	material.set_shader_parameter("flat_shading", 1.0 if track.flat_shading else 0.0)
 	material.set_shader_parameter("dither_fog", 1.0 if track.dither_fog else 0.0)
 	material.set_shader_parameter("banding_levels", float(track.color_banding))
-	material.set_shader_parameter("fog_color", track.fog_color)
-	material.set_shader_parameter("fog_near", track.fog_near)
-	material.set_shader_parameter("fog_far", track.fog_far)
+	# Дизер-туман в шейдере должен совпадать с погодой, иначе земля
+	# «просвечивает» светлее атмосферного тумана.
+	material.set_shader_parameter("fog_color", _effective_fog_color())
+	material.set_shader_parameter("fog_near", track.fog_near * _weather_visibility_scale())
+	material.set_shader_parameter("fog_far", track.fog_far * _weather_visibility_scale())
+	material.set_shader_parameter("wetness", _weather_wetness())
+	material.set_shader_parameter("snow_cover", _weather_snow_cover())
 	return material
+
+
+func _weather_visibility_scale() -> float:
+	return weather.visibility_scale if weather != null else 1.0
+
+
+func _weather_wetness() -> float:
+	return weather.wetness if weather != null else 0.0
+
+
+func _weather_snow_cover() -> float:
+	return weather.snow_cover if weather != null else 0.0
 
 
 # ---------------------------------------------------------------- полотно
@@ -953,6 +1027,9 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 
 	var road_material := ShaderMaterial.new()
 	road_material.shader = RoadShader
+	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
+	road_material.set_shader_parameter("wetness", _weather_wetness())
+	road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
 
 	var road_visual := MeshInstance3D.new()
 	road_visual.name = "RoadMesh"
@@ -1338,6 +1415,33 @@ func _spawn_checkpoints() -> void:
 
 
 func _configure_world() -> void:
+	# Погода «КАК НА ТРАССЕ» (weather == null) оставляет всё как в .tres.
+	var night: bool = track.night_mode
+	if weather != null:
+		night = weather.resolve_night(track.night_mode)
+	var sky_top: Color = _weather_sky_color(track.sky_top_color)
+	var sky_horizon: Color = _weather_sky_color(track.sky_horizon_color)
+	var fog_color: Color = _effective_fog_color()
+	var fog_density: float = track.fog_density
+	var volumetric: bool = track.volumetric_fog
+	var volumetric_density: float = track.volumetric_fog_density
+	var ambient_energy: float = track.ambient_energy
+	var exposure: float = track.exposure
+	var sun_energy: float = track.sun_energy
+	var sun_color: Color = track.sun_color
+	if weather != null:
+		fog_density = clampf(
+			track.fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
+		)
+		volumetric = volumetric or weather.volumetric_fog
+		volumetric_density = clampf(
+			track.volumetric_fog_density * weather.fog_density_scale
+			+ weather.fog_density_add * 0.5, 0.0, 0.05
+		)
+		ambient_energy *= weather.ambient_energy_scale
+		exposure *= weather.exposure_scale
+		sun_energy *= weather.sun_energy_scale
+		sun_color = track.sun_color.lerp(weather.sun_tint, weather.sun_tint_strength)
 	if world_environment != null:
 		var env: Environment = null
 		if world_environment.environment != null:
@@ -1345,19 +1449,19 @@ func _configure_world() -> void:
 		if env == null:
 			env = Environment.new()
 		var sky := Sky.new()
-		if track.night_mode:
+		if night:
 			var night_material := ShaderMaterial.new()
 			night_material.shader = NightSkyShader
-			night_material.set_shader_parameter("sky_top_color", track.sky_top_color)
-			night_material.set_shader_parameter("sky_horizon_color", track.sky_horizon_color)
+			night_material.set_shader_parameter("sky_top_color", sky_top)
+			night_material.set_shader_parameter("sky_horizon_color", sky_horizon)
 			night_material.set_shader_parameter("star_intensity", track.star_intensity)
 			sky.sky_material = night_material
 		else:
 			var day_material := ProceduralSkyMaterial.new()
-			day_material.sky_top_color = track.sky_top_color
-			day_material.sky_horizon_color = track.sky_horizon_color
+			day_material.sky_top_color = sky_top
+			day_material.sky_horizon_color = sky_horizon
 			day_material.ground_bottom_color = track.ground_color * 0.4
-			day_material.ground_horizon_color = track.sky_horizon_color
+			day_material.ground_horizon_color = sky_horizon
 			day_material.sky_curve = 0.55 if track.sky_flat else 0.18
 			sky.sky_material = day_material
 		env.background_mode = Environment.BG_SKY
@@ -1365,28 +1469,111 @@ func _configure_world() -> void:
 		env.sky = sky
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = track.ambient_color
-		env.ambient_light_energy = track.ambient_energy
+		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = track.exposure
+		env.tonemap_exposure = exposure
 		env.glow_enabled = true
 		env.glow_intensity = 0.45
 		env.glow_bloom = 0.02
 		env.ssao_enabled = track.screen_space_ao
 		env.ssao_radius = 1.2
 		env.ssao_intensity = 1.0
-		env.volumetric_fog_enabled = track.volumetric_fog and not track.ps1_style
-		env.volumetric_fog_density = track.volumetric_fog_density
+		env.volumetric_fog_enabled = volumetric and not track.ps1_style
+		env.volumetric_fog_density = volumetric_density
 		env.volumetric_fog_albedo = Color(0.68, 0.73, 0.82)
+		if weather != null:
+			env.volumetric_fog_albedo = weather.fog_color.lerp(
+				Color(0.68, 0.73, 0.82), 0.4
+			)
 		env.volumetric_fog_anisotropy = 0.35
 		env.volumetric_fog_length = 90.0
-		env.fog_enabled = track.fog_density > 0.0
-		env.fog_light_color = track.fog_color
-		env.fog_density = track.fog_density
+		env.fog_enabled = fog_density > 0.0
+		env.fog_light_color = fog_color
+		env.fog_density = fog_density
 		world_environment.environment = env
 	if sun_light != null:
 		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
-		sun_light.light_color = track.sun_color
-		sun_light.light_energy = track.sun_energy
+		sun_light.light_color = sun_color
+		sun_light.light_energy = sun_energy
+
+
+## Цвет неба трассы с поправкой погоды (подмешать тон + обесцветить).
+func _weather_sky_color(base: Color) -> Color:
+	if weather == null:
+		return base
+	var result: Color = base.lerp(weather.sky_tint, weather.sky_tint_strength)
+	if weather.sky_desaturation > 0.0:
+		var luminance: float = result.get_luminance()
+		result = result.lerp(
+			Color(luminance, luminance, luminance, result.a), weather.sky_desaturation
+		)
+	return result
+
+
+func _effective_fog_color() -> Color:
+	if weather == null:
+		return track.fog_color
+	return track.fog_color.lerp(weather.fog_color, weather.fog_color_strength)
+
+
+## Осадки — настоящие частицы вокруг машины, а не «плёночный» фильтр:
+## кубик эмиссии едет за автомобилем, сами частицы живут в мировых
+## координатах, поэтому дождь не «прилипает» к камере.
+func _setup_precipitation() -> void:
+	if _weather_particles != null:
+		_weather_particles.queue_free()
+		_weather_particles = null
+	if weather == null or not weather.has_precipitation():
+		return
+	# В headless (тесты, выделенный сервер) частицы не нужны.
+	if DisplayServer.get_name() == "headless":
+		return
+	var intensity: float = clampf(weather.precipitation_intensity, 0.0, 1.0)
+	var particles := GPUParticles3D.new()
+	particles.name = "WeatherParticles"
+	# Пауза останавливает и дождь: иначе капли «висят» над машиной в паузе.
+	particles.process_mode = Node.PROCESS_MODE_PAUSABLE
+	particles.amount = int(lerpf(700.0, 2600.0, intensity))
+	particles.lifetime = 2.4
+	particles.local_coords = false
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.visibility_aabb = AABB(Vector3(-80.0, -40.0, -80.0), Vector3(160.0, 90.0, 160.0))
+	var particle_material := ParticlesMaterial.new()
+	particle_material.emission_shape = ParticlesMaterial.EMISSION_SHAPE_BOX
+	particle_material.emission_box_extents = Vector3(48.0, 12.0, 48.0)
+	# Ветер сносит осадки в сторону — дождь идёт «по косой».
+	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
+	var quad := QuadMesh.new()
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if weather.precipitation == WeatherType.Precipitation.RAIN:
+		particle_material.direction = (Vector3.DOWN + wind.normalized() * 0.15).normalized()
+		particle_material.spread = 3.0
+		particle_material.initial_velocity_min = 26.0
+		particle_material.initial_velocity_max = 34.0
+		particle_material.gravity = Vector3(0.0, -30.0, 0.0)
+		particle_material.scale_min = 0.7
+		particle_material.scale_max = 1.3
+		quad.size = Vector2(0.028, 0.55)
+		material.albedo_color = Color(0.72, 0.82, 0.95, 0.45)
+	else:
+		particle_material.direction = (Vector3.DOWN + wind.normalized() * 0.4).normalized()
+		particle_material.spread = 25.0
+		particle_material.initial_velocity_min = 1.2
+		particle_material.initial_velocity_max = 3.0
+		particle_material.gravity = Vector3(wind.x * 0.25, -1.6, wind.z * 0.25)
+		particle_material.scale_min = 0.6
+		particle_material.scale_max = 1.8
+		quad.size = Vector2(0.09, 0.09)
+		material.albedo_color = Color(0.96, 0.98, 1.0, 0.85)
+	quad.material = material
+	particles.process_material = particle_material
+	particles.draw_pass_1 = quad
+	add_child(particles)
+	_weather_particles = particles
 
 
 # ---------------------------------------------------------------- машина
@@ -1589,11 +1776,17 @@ func _update_hud() -> void:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
 	if stage_label != null:
-		stage_label.text = "%s  |  %.0f м  |  %s  |  УРОВЕНЬ %d/5" % [
+		var conditions: String = ""
+		if weather != null:
+			conditions += "  |  %s" % weather.display_name
+		if track_profile != null:
+			conditions += "  |  %s" % track_profile.display_name
+		stage_label.text = "%s  |  %.0f м  |  %s  |  УРОВЕНЬ %d/5%s" % [
 			track.display_name,
 			network.total_length if network != null else 0.0,
 			track.surface_name,
-			track.difficulty
+			track.difficulty,
+			conditions
 		]
 	if split_label != null:
 		if stage_finished:
@@ -1664,8 +1857,17 @@ func _populate_mini_map() -> void:
 	)
 
 
+## Рекорд с учётом условий заезда. Погода и профиль полотна меняют сцепление,
+## поэтому сухой асфальт и мокрая глина — разные таблицы рекордов.
+func _record_key() -> String:
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("record_key_for"):
+		return String(game.call("record_key_for", track))
+	return track.get_record_key()
+
+
 func _split_key(cp_index: int) -> String:
-	return "%s_cp%d" % [track.id, cp_index]
+	return "%s_cp%d" % [_record_key(), cp_index]
 
 
 func _format_time(seconds: float) -> String:
@@ -1684,6 +1886,9 @@ func _process(delta: float) -> void:
 	if not _stage_live:
 		# Идёт генерация мира (экран загрузки): машину и HUD не трогаем.
 		return
+	# Осадки летят вокруг машины: эмиттер над капотом, частицы — в мире.
+	if _weather_particles != null and car != null:
+		_weather_particles.global_position = car.global_position + Vector3(0.0, 16.0, 0.0)
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
 		return
@@ -1782,8 +1987,8 @@ func _finish_stage() -> void:
 	var game: Node = get_node_or_null("/root/RallyGame")
 	is_new_record = false
 	if game != null:
-		is_new_record = bool(game.call("submit_time", track.get_record_key(), stage_time))
-		best_time = float(game.call("get_best_time", track.get_record_key()))
+		is_new_record = bool(game.call("submit_time", _record_key(), stage_time))
+		best_time = float(game.call("get_best_time", _record_key()))
 	if results_panel != null:
 		results_panel.visible = true
 		if results_label != null:

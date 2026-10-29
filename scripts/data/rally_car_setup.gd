@@ -6,6 +6,12 @@ class_name RallyCarSetup
 extends Resource
 
 enum Drivetrain { AWD, RWD, FWD }
+## Форма кривой момента:
+## CUSTOM — берётся поле torque_curve этого ресурса;
+## TURBO_PUNCH — полка с середины и спад к отсечке (турбо);
+## ATMO_LINEAR — ровный рост до красной зоны (атмо);
+## HIGH_REV — «злой» мотор, всё в верхах.
+enum TorqueShape { CUSTOM, TURBO_PUNCH, ATMO_LINEAR, HIGH_REV }
 
 @export_group("Описание")
 @export var id: String = "setup"
@@ -15,12 +21,22 @@ enum Drivetrain { AWD, RWD, FWD }
 @export var accent_color: Color = Color(1, 0.55, 0.05, 1)
 
 @export_group("Мотор")
+## Название мотора для карточки в меню: «4G63T · 2.0 TURBO».
+@export var engine_name: String = ""
 @export_range(100.0, 900.0, 1.0) var max_torque: float = 470.0
 @export_range(3000.0, 10000.0, 10.0) var max_rpm: float = 7600.0
+@export_range(500.0, 2000.0, 10.0) var idle_rpm: float = 900.0
+## Характер кривой момента: турбо-полка, атмо-линейка или высокие обороты.
+@export_enum("Своя кривая", "Турбо-полка", "Атмо-линейка", "Высокие обороты")
+var torque_shape: int = TorqueShape.TURBO_PUNCH
+## Необязательная кривая момента. Если пусто — строится по torque_shape.
+@export var torque_curve: Curve = null
+## Торможение двигателем относительно базы (1.0 — как в машине сцены).
+@export_range(0.2, 3.0, 0.05) var engine_brake_scale: float = 1.0
+## Турбина: сброс газа даёт blow-off и хлопки в выхлопе. У атмо этого нет.
+@export var turbo: bool = true
 @export_range(1.0, 8.0, 0.01) var final_drive: float = 4.1
 @export var gear_ratios: Array[float] = [3.6, 2.4, 1.75, 1.35, 1.08, 0.88]
-## Необязательная кривая момента. Если пусто — используется базовая кривая.
-@export var torque_curve: Curve = null
 @export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 0.65
 
 @export_group("Привод")
@@ -56,6 +72,58 @@ enum Drivetrain { AWD, RWD, FWD }
 @export_group("Камера")
 @export_range(3.0, 12.0, 0.1) var chase_distance: float = 5.8
 @export_range(0.5, 4.0, 0.05) var chase_height: float = 1.55
+
+
+## Кривая момента по выбранному характеру. Возвращает null для CUSTOM:
+## тогда используется поле torque_curve (или базовая кривая машины).
+## По оси X — доля оборотов от max_rpm, по Y — доля max_torque.
+func build_torque_curve() -> Curve:
+	var points := PackedVector2Array()
+	match torque_shape:
+		TorqueShape.TURBO_PUNCH:
+			# Турбо просыпается к 2800–3200 об/мин, дальше ровная полка
+			# и мягкий спад к отсечке.
+			points = PackedVector2Array([
+				Vector2(0.0, 0.58), Vector2(0.22, 0.72), Vector2(0.38, 0.94),
+				Vector2(0.55, 1.0), Vector2(0.75, 0.9), Vector2(0.9, 0.76),
+				Vector2(1.0, 0.58),
+			])
+		TorqueShape.ATMO_LINEAR:
+			# Атмосферник: момент растёт почти линейно до самой отсечки.
+			points = PackedVector2Array([
+				Vector2(0.0, 0.42), Vector2(0.3, 0.62), Vector2(0.55, 0.79),
+				Vector2(0.8, 0.94), Vector2(0.95, 1.0), Vector2(1.0, 0.98),
+			])
+		TorqueShape.HIGH_REV:
+			# «Злой» мотор: внизу пусто, весь момент в верхах.
+			points = PackedVector2Array([
+				Vector2(0.0, 0.3), Vector2(0.25, 0.45), Vector2(0.5, 0.66),
+				Vector2(0.72, 0.88), Vector2(0.9, 1.0), Vector2(1.0, 0.9),
+			])
+		_:
+			return null
+	var curve := Curve.new()
+	for point in points:
+		curve.add_point(point)
+	return curve
+
+
+## Строка для меню: «4G63T · 2.0 TURBO · 470 Нм · 7600 об/мин».
+func get_engine_summary() -> String:
+	var name_text: String = engine_name if not engine_name.is_empty() else "LANCER EVOLUTION"
+	return "%s  •  %d Нм  •  %d об/мин%s" % [
+		name_text, int(round(max_torque)), int(round(max_rpm)), "  •  TURBO" if turbo else "",
+	]
+
+
+func get_drivetrain_name() -> String:
+	match drivetrain:
+		Drivetrain.RWD:
+			return "RWD"
+		Drivetrain.FWD:
+			return "FWD"
+		_:
+			return "AWD"
 
 
 func get_power_rating() -> float:

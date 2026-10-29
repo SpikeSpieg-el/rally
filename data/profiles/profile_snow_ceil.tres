@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="RallyTrackProfile" format=3 uid="uid://r3vd0ie37kjdz"]
+
+[ext_resource type="Script" uid="uid://e8gn6f5khcspc" path="res://scripts/data/rally_track_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = "snow_profile"
+display_name = "СНЕЖНАЯ ЦЕЛИНА"
+description = "Полотно укрыто снегом: светлое, скользкое, с плотным накатом. Снег меняет и грунт вокруг, поэтому трасса выглядит по-зимнему даже без снегопада."
+surface_name = "Снег"
+road_width_scale = 0.95
+shoulder_scale = 1.20
+bumps_scale = 1.25
+camber_scale = 1.00
+grip_scale = 0.58
+rolling_resistance_scale = 1.80
+offroad_grip_scale = 0.70
+override_road_colors = true
+road_color = Color(0.78, 0.82, 0.88, 1)
+road_color_2 = Color(0.90, 0.93, 0.97, 1)
+shoulder_color = Color(0.72, 0.76, 0.82, 1)
+hills_scale = 0.80

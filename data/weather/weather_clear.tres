@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="RallyWeatherConfig" format=3 uid="uid://tlkc86xl1gorb"]
+
+[ext_resource type="Script" uid="uid://semtibtr5hg9r" path="res://scripts/data/rally_weather_config.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "clear"
+display_name = "ЯСНО"
+short_name = "СУХО"
+description = "Сухая солнечная погода: чуть больше солнца, меньше дымки, полотно сухое и цепкое. Лучшие условия для рекорда."
+precipitation = 0
+precipitation_intensity = 0.00
+wind_speed = 2.0
+time_of_day = 0
+sky_tint_strength = 0.08
+sky_tint = Color(0.55, 0.75, 0.95)
+sky_desaturation = 0.00
+sun_energy_scale = 1.12
+sun_tint_strength = 0.00
+sun_tint = Color(1, 1, 1, 1)
+ambient_energy_scale = 1.00
+exposure_scale = 1.02
+fog_color = Color(0.72, 0.79, 0.88, 1)
+fog_color_strength = 0.15
+fog_density_scale = 0.70
+fog_density_add = 0.0000
+visibility_scale = 1.15
+volumetric_fog = false
+wetness = 0.00
+snow_cover = 0.00
+grip_scale = 1.04
+rolling_resistance_scale = 0.98
+offroad_grip_scale = 1.02

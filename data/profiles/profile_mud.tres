@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="RallyTrackProfile" format=3 uid="uid://og91f163sff2z"]
+
+[ext_resource type="Script" uid="uid://e8gn6f5khcspc" path="res://scripts/data/rally_track_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = "mud"
+display_name = "ГРЯЗЬ · КОЛЕЯ"
+description = "Разбитая дождями колея: полотно уже, обочина разъезжена, кочек больше, сцепление ниже. Машину тянет в колею — руль приходится держать."
+surface_name = "Грязь"
+road_width_scale = 0.92
+shoulder_scale = 1.25
+bumps_scale = 1.90
+camber_scale = 1.30
+grip_scale = 0.82
+rolling_resistance_scale = 1.40
+offroad_grip_scale = 0.85
+override_road_colors = true
+road_color = Color(0.24, 0.19, 0.14, 1)
+road_color_2 = Color(0.32, 0.25, 0.18, 1)
+shoulder_color = Color(0.22, 0.18, 0.13, 1)
+hills_scale = 1.00

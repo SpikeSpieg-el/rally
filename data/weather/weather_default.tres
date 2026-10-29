@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="RallyWeatherConfig" format=3 uid="uid://i59bwvdtb1tv8"]
+
+[ext_resource type="Script" uid="uid://semtibtr5hg9r" path="res://scripts/data/rally_weather_config.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "default"
+display_name = "КАК НА ТРАССЕ"
+short_name = "КАК НА ТРАССЕ"
+description = "Погода ровно та, что записана в конфиге трассы: ночной лес остаётся ночным, перевал — солнечным. Ничего не перекрашивается."
+precipitation = 0
+precipitation_intensity = 0.00
+wind_speed = 0.0
+time_of_day = 0
+sky_tint_strength = 0.00
+sky_tint = Color(0.62, 0.68, 0.74, 1)
+sky_desaturation = 0.00
+sun_energy_scale = 1.00
+sun_tint_strength = 0.00
+sun_tint = Color(1, 1, 1, 1)
+ambient_energy_scale = 1.00
+exposure_scale = 1.00
+fog_color = Color(0.72, 0.79, 0.88, 1)
+fog_color_strength = 0.00
+fog_density_scale = 1.00
+fog_density_add = 0.0000
+visibility_scale = 1.00
+volumetric_fog = false
+wetness = 0.00
+snow_cover = 0.00
+grip_scale = 1.00
+rolling_resistance_scale = 1.00
+offroad_grip_scale = 1.00
