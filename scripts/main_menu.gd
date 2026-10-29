@@ -116,13 +116,16 @@ func _connect_signals() -> void:
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_pressed):
 		quit_button.pressed.connect(_on_quit_pressed)
 	if preview != null and preview.has_signal("track_built"):
-		if not preview.track_built.is_connected(_on_preview_track_built):
-			preview.track_built.connect(_on_preview_track_built)
+		if not preview.is_connected("track_built", _on_preview_track_built):
+			preview.connect("track_built", _on_preview_track_built)
 
 
 ## Превью закончило плести процедурную трассу — длина стала точной.
 func _on_preview_track_built(built_track: TrackConfigType) -> void:
-	if built_track == config.get_track(selected_track) as TrackConfigType:
+	# ВАЖНО: «x == y as T» парсер читает как «(x == y) as T» — приведение
+	# bool к типу. Каст делаем отдельным присваиванием.
+	var selected: TrackConfigType = config.get_track(selected_track) as TrackConfigType
+	if built_track == selected:
 		_refresh()
 
 
