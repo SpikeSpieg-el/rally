@@ -123,6 +123,10 @@ var mini_map: MiniMap = null
 var pause_panel: Control = null
 var results_panel: Control = null
 var results_label: Label = null
+var hint_label: Label = null
+var resume_button: Button = null
+var again_button: Button = null
+var pause_buttons: Array[Button] = []
 var speed_rect: ColorRect = null
 
 
@@ -1509,11 +1513,59 @@ func _setup_hud() -> void:
 		["RallyHUD/ResultsPanel/Box/AgainButton", "restart_pressed"],
 		["RallyHUD/ResultsPanel/Box/MenuButton", "menu_pressed"],
 	]
+	pause_buttons.clear()
 	for entry in buttons:
 		var button := _hud_node(entry[0]) as Button
 		if button != null:
+			button.focus_mode = Control.FOCUS_ALL
+			pause_buttons.append(button)
 			if not button.pressed.is_connected(_on_button_pressed):
 				button.pressed.connect(_on_button_pressed.bind(entry[1]))
+	resume_button = _hud_node("RallyHUD/PausePanel/Box/ResumeButton") as Button
+	again_button = _hud_node("RallyHUD/ResultsPanel/Box/AgainButton") as Button
+
+	# Слайдеры и кнопки в модалках тоже должны принимать фокус: иначе
+	# стрелками/D-pad в паузе нельзя дойти до настроек.
+	for panel in [pause_panel, results_panel]:
+		if panel == null:
+			continue
+		for node in panel.find_children("*", "Control", true, false):
+			var control := node as Control
+			if control is BaseButton or control is Range:
+				control.focus_mode = Control.FOCUS_ALL
+
+	hint_label = _hud_node("RallyHUD/Hint") as Label
+	_update_input_hint()
+	var controller := _controller_manager()
+	if controller != null and controller.has_signal("active_device_changed"):
+		if not controller.is_connected("active_device_changed", _on_active_input_device_changed):
+			controller.connect("active_device_changed", _on_active_input_device_changed)
+
+
+func _controller_manager() -> Node:
+	return get_node_or_null("/root/ControllerManager")
+
+
+func _on_active_input_device_changed(_gamepad_active: bool) -> void:
+	_update_input_hint()
+
+
+## Подсказка внизу HUD: на геймпаде — его собственные символы кнопок
+## (✕/○/□/△, A/B/X/Y, B/A/Y/X), на клавиатуре — прежняя строка.
+func _update_input_hint() -> void:
+	if hint_label == null:
+		return
+	var controller := _controller_manager()
+	if controller != null and bool(controller.get("gamepad_active")) and controller.has_method("get_glyphs"):
+		var glyphs: Dictionary = controller.call("get_glyphs")
+		hint_label.text = "[%s] ГАЗ  •  [%s] ТОРМОЗ  •  [%s] РУЛЬ  •  [%s] РУЧНИК  •  [%s] КАМЕРА  •  [%s/%s] КПП  •  [%s] ПРИВОД  •  [%s] ПАУЗА" % [
+			String(glyphs["r2"]), String(glyphs["l2"]), String(glyphs["stick"]),
+			String(glyphs["cancel"]), String(glyphs["north"]),
+			String(glyphs["r1"]), String(glyphs["l1"]),
+			String(glyphs["l3"]), String(glyphs["start"]),
+		]
+	else:
+		hint_label.text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [ESC] ПАУЗА"
 
 
 func _on_button_pressed(action: String) -> void:
@@ -1634,7 +1686,11 @@ func _process(delta: float) -> void:
 		return
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
+		return
 	if is_paused:
+		# B/○ на геймпаде и Esc на клавиатуре закрывают паузу.
+		if Input.is_action_just_pressed("ui_cancel"):
+			_set_paused(false)
 		return
 	if Input.is_action_just_pressed("reset_car"):
 		stage_time = 0.0
@@ -1702,6 +1758,9 @@ func _check_checkpoints() -> void:
 				var game: Node = get_node_or_null("/root/RallyGame")
 				if game != null:
 					game.call("submit_split", _split_key(i), stage_time)
+				var controller := _controller_manager()
+				if controller != null and controller.has_method("rumble"):
+					controller.call("rumble", 0.18, 0.22, 0.10)
 
 
 func _check_finish() -> void:
@@ -1731,6 +1790,11 @@ func _finish_stage() -> void:
 			var record_line: String = "НОВЫЙ РЕКОРД!" if is_new_record else "ЛУЧШЕЕ: %s" % _format_time(best_time)
 			results_label.text = "%s\n\nВРЕМЯ  %s\n%s" % [track.display_name, _format_time(stage_time), record_line]
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if again_button != null:
+		again_button.grab_focus()
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("rumble"):
+		controller.call("rumble", 0.45, 0.85, 0.45)
 
 
 func _set_paused(value: bool) -> void:
@@ -1740,8 +1804,12 @@ func _set_paused(value: bool) -> void:
 		pause_panel.visible = value
 	if value:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		if resume_button != null:
+			resume_button.grab_focus()
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if car != null and car.mouse_look_enabled else Input.MOUSE_MODE_VISIBLE
+		if not stage_finished and is_inside_tree():
+			get_viewport().gui_release_focus()
 
 
 func _on_resume_pressed() -> void:

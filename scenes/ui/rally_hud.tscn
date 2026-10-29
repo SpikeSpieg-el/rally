@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b2qrn8s2chffn" path="res://scripts/ui/mini_map.gd" id="1_mini"]
 [ext_resource type="Script" uid="uid://cjphdxoxbefkd" path="res://scripts/ui/gauge_bar.gd" id="2_gauge"]
 [ext_resource type="Script" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
+[ext_resource type="Script" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 14.0
@@ -415,9 +416,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -260.0
-offset_top = -275.0
+offset_top = -345.0
 offset_right = 260.0
-offset_bottom = 275.0
+offset_bottom = 345.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -564,6 +565,11 @@ theme_override_styles/normal = SubResource("SB_button")
 theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
 text = "СБРОСИТЬ КАМЕРУ"
+
+[node name="ControllerOptions" type="VBoxContainer" parent="PausePanel/Box"]
+layout_mode = 2
+theme_override_constants/separation = 4
+script = ExtResource("4_controller_settings")
 
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
 custom_minimum_size = Vector2(260, 42)

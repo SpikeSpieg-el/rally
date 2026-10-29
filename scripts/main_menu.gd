@@ -22,11 +22,13 @@ const StagePreviewType = preload("res://scripts/stage_preview.gd")
 @onready var grip_bar: ProgressBar = get_node_or_null("Content/Body/Right/Stats/GripBar") as ProgressBar
 @onready var suspension_bar: ProgressBar = get_node_or_null("Content/Body/Right/Stats/SuspensionBar") as ProgressBar
 @onready var best_label: Label = get_node_or_null("Content/Body/Right/BestLabel") as Label
+@onready var footer_label: Label = get_node_or_null("Content/Footer") as Label
 
 var track_buttons: Array[Button] = []
 var setup_buttons: Array[Button] = []
 var selected_track: int = 0
 var selected_setup: int = 0
+var controller_manager: Node = null
 
 
 func _ready() -> void:
@@ -37,7 +39,11 @@ func _ready() -> void:
 	_restore_selection()
 	_build_buttons()
 	_connect_signals()
+	_connect_focus_navigation()
 	_refresh()
+	_setup_controller()
+	if start_button != null:
+		start_button.grab_focus()
 
 
 func _get_game() -> Node:
@@ -120,6 +126,113 @@ func _connect_signals() -> void:
 			preview.connect("track_built", _on_preview_track_built)
 
 
+## Явные соседи фокуса: с геймпада по меню можно ходить D-pad/левым стиком,
+## не полагаясь на то, как Godot угадает геометрию динамических кнопок.
+func _connect_focus_navigation() -> void:
+	for i in range(track_buttons.size()):
+		var button := track_buttons[i]
+		if not button.focus_entered.is_connected(_on_track_focused):
+			button.focus_entered.connect(_on_track_focused.bind(i))
+		_set_focus_neighbors(
+			button,
+			track_buttons[i - 1] if i > 0 else track_buttons[track_buttons.size() - 1],
+			track_buttons[i + 1] if i + 1 < track_buttons.size() else start_button,
+			null,
+			setup_buttons[clampi(selected_setup, 0, setup_buttons.size() - 1)] if not setup_buttons.is_empty() else start_button
+		)
+	for i in range(setup_buttons.size()):
+		var button := setup_buttons[i]
+		if not button.focus_entered.is_connected(_on_setup_focused):
+			button.focus_entered.connect(_on_setup_focused.bind(i))
+		_set_focus_neighbors(
+			button,
+			track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null,
+			start_button,
+			setup_buttons[i - 1] if i > 0 else setup_buttons[setup_buttons.size() - 1],
+			setup_buttons[i + 1] if i + 1 < setup_buttons.size() else setup_buttons[0]
+		)
+	_set_focus_neighbors(start_button, _selected_setup_button(), track_buttons[0] if not track_buttons.is_empty() else null, quit_button, quit_button)
+	_set_focus_neighbors(quit_button, _selected_setup_button(), track_buttons[0] if not track_buttons.is_empty() else null, start_button, start_button)
+	_update_dynamic_focus()
+
+
+func _set_focus_neighbors(control: Control, top: Control, bottom: Control, left: Control, right: Control) -> void:
+	if control == null:
+		return
+	if top != null:
+		control.focus_neighbor_top = control.get_path_to(top)
+	if bottom != null:
+		control.focus_neighbor_bottom = control.get_path_to(bottom)
+	if left != null:
+		control.focus_neighbor_left = control.get_path_to(left)
+	if right != null:
+		control.focus_neighbor_right = control.get_path_to(right)
+
+
+## Соседи, которые зависят от текущего выбора трассы/конфигурации.
+func _update_dynamic_focus() -> void:
+	var setup_target := _selected_setup_button()
+	var track_target: Button = track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null
+	for button in track_buttons:
+		if setup_target != null:
+			button.focus_neighbor_right = button.get_path_to(setup_target)
+	for button in setup_buttons:
+		if track_target != null:
+			button.focus_neighbor_top = button.get_path_to(track_target)
+	if start_button != null and setup_target != null:
+		start_button.focus_neighbor_top = start_button.get_path_to(setup_target)
+	if quit_button != null and setup_target != null:
+		quit_button.focus_neighbor_top = quit_button.get_path_to(setup_target)
+
+
+func _selected_setup_button() -> Button:
+	if setup_buttons.is_empty():
+		return null
+	return setup_buttons[clampi(selected_setup, 0, setup_buttons.size() - 1)]
+
+
+func _on_track_focused(index: int) -> void:
+	if selected_track == index:
+		return
+	selected_track = index
+	_sync_game()
+	_refresh()
+
+
+func _on_setup_focused(index: int) -> void:
+	if selected_setup == index:
+		return
+	selected_setup = index
+	_sync_game()
+	_refresh()
+
+
+func _setup_controller() -> void:
+	controller_manager = get_node_or_null("/root/ControllerManager")
+	if controller_manager != null and controller_manager.has_signal("active_device_changed"):
+		if not controller_manager.is_connected("active_device_changed", _on_input_device_changed):
+			controller_manager.connect("active_device_changed", _on_input_device_changed)
+	_update_footer()
+
+
+func _on_input_device_changed(_gamepad_active: bool) -> void:
+	_update_footer()
+
+
+func _update_footer() -> void:
+	if footer_label == null:
+		return
+	if controller_manager != null and bool(controller_manager.get("gamepad_active")) and controller_manager.has_method("get_glyphs"):
+		var glyphs: Dictionary = controller_manager.call("get_glyphs")
+		footer_label.text = "Геймпад: [%s/%s] трасса  •  [%s/%s] конфигурация  •  [%s] старт  •  [%s] выход  •  горячее подключение" % [
+			String(glyphs["dpad_up"]), String(glyphs["dpad_down"]),
+			String(glyphs["dpad_left"]), String(glyphs["dpad_right"]),
+			String(glyphs["accept"]), String(glyphs["cancel"]),
+		]
+	else:
+		footer_label.text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, ESC — пауза, C — камера, V — привод."
+
+
 ## Превью закончило плести процедурную трассу — длина стала точной.
 func _on_preview_track_built(built_track: TrackConfigType) -> void:
 	# ВАЖНО: «x == y as T» парсер читает как «(x == y) as T» — приведение
@@ -179,6 +292,7 @@ func _refresh() -> void:
 		if game != null:
 			best = float(game.call("get_best_time", track.get_record_key()))
 		best_label.text = "ЛУЧШЕЕ ВРЕМЯ:  %s" % (_format_time(best) if best > 0.0 else "—")
+	_update_dynamic_focus()
 
 
 func _format_time(seconds: float) -> String:
@@ -209,6 +323,8 @@ func _on_setup_pressed(index: int) -> void:
 
 func _on_start_pressed() -> void:
 	_sync_game()
+	if controller_manager != null and controller_manager.has_method("rumble"):
+		controller_manager.call("rumble", 0.35, 0.65, 0.2)
 	var game: Node = _get_game()
 	if game != null:
 		game.call("start_race")

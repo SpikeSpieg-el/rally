@@ -77,6 +77,15 @@ const REVERSE_SHIFT_MAX_KMH: float = 15.0
 @export var inside_min_pitch_deg: float = -35.0
 @export var inside_max_pitch_deg: float = 35.0
 
+@export_group("Контроллер")
+## Скорость обзора правым стиком, градусов в секунду.
+@export_range(30.0, 360.0, 5.0, "suffix:°/с") var gamepad_look_speed: float = 160.0
+@export var gamepad_look_enabled: bool = true
+@export var gamepad_rumble_enabled: bool = true
+@export_range(0.0, 1.0, 0.05) var gamepad_rumble_on_shift: float = 0.30
+@export_range(0.0, 1.0, 0.05) var gamepad_rumble_on_reset: float = 0.55
+
+
 @onready var gravel_particles: GPUParticles3D = $GravelParticles
 @onready var active_camera: Camera3D = $Cameras/ActiveCamera
 @onready var cam_chase: Marker3D = $Cameras/CamChase
@@ -202,7 +211,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not mouse_look_enabled:
 		return
 
-	if event.is_action_pressed("ui_cancel") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventKey and event.is_action_pressed("ui_cancel") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 
@@ -210,10 +219,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
-			mouse_yaw = 0.0
-			mouse_pitch = 0.0
-			smoothed_mouse_yaw = 0.0
-			smoothed_mouse_pitch = 0.0
+			recenter_look()
 
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		mouse_yaw -= event.relative.x * mouse_sensitivity
@@ -530,20 +536,32 @@ func _physics_process(delta: float) -> void:
 		_apply_initial_camera_fov()
 		if camera_mode == CameraMode.CHASE_3RD:
 			_reset_action_camera()
+	if Input.is_action_just_pressed("camera_recenter"):
+		recenter_look()
 	if Input.is_action_just_pressed("drivetrain_switch"):
 		set_drivetrain_mode((drivetrain_mode + 1) % 3)
 
 	_handle_gear_input()
 
 	# W — всегда газ, S — всегда тормоз, в том числе на задней передаче.
-	throttle_input = Input.get_action_strength("throttle")
-	brake_input = Input.get_action_strength("brake")
-	steer_input = Input.get_axis("steer_right", "steer_left")
+	# На геймпаде триггеры и стик дополнительно проходят через мёртвую зону
+	# и кривую отклика из ControllerManager (клавиатура остаётся как была).
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("get_throttle_input"):
+		throttle_input = float(controller.call("get_throttle_input"))
+		brake_input = float(controller.call("get_brake_input"))
+		steer_input = float(controller.call("get_steering_input"))
+		handbrake_input = float(controller.call("get_handbrake_input"))
+	else:
+		throttle_input = Input.get_action_strength("throttle")
+		brake_input = Input.get_action_strength("brake")
+		steer_input = Input.get_axis("steer_right", "steer_left")
+		handbrake_input = Input.get_action_strength("handbrake")
 	var limit_end: float = maxf(steering_limit_full_kmh, steering_limit_start_kmh + 1.0)
 	var steering_speed_blend: float = smoothstep(steering_limit_start_kmh, limit_end, speed_kmh)
 	steering_input = steer_input * lerpf(1.0, high_speed_steering_scale, steering_speed_blend)
-	handbrake_input = Input.get_action_strength("handbrake")
 
+	_apply_gamepad_look(delta)
 	super._physics_process(delta)
 	_update_handbrake_grip(delta)
 
@@ -588,6 +606,7 @@ func _select_gear(target_gear: int) -> void:
 	direction_target = 0
 	# shift() принимает относительное изменение, поэтому считаем разницу.
 	shift(target_gear - current_gear)
+	_rumble(0.12, gamepad_rumble_on_shift, 0.08)
 
 
 func set_drivetrain_mode(mode: int) -> void:
@@ -927,6 +946,55 @@ func _response_weight(response: float, delta: float) -> float:
 	return 1.0 - exp(-maxf(response, 0.0) * maxf(delta, 0.0))
 
 
+func _controller_manager() -> Node:
+	return get_node_or_null("/root/ControllerManager")
+
+
+func _rumble(weak: float, strong: float, duration: float = 0.12) -> void:
+	if not gamepad_rumble_enabled:
+		return
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("rumble"):
+		controller.call("rumble", weak, strong, duration)
+
+
+## Правый стик двигает свободный обзор так же, как мышь, но с постоянной
+## угловой скоростью. Работает в погоне и в видах из кабины/с капота.
+func _apply_gamepad_look(delta: float) -> void:
+	if not mouse_look_enabled or not gamepad_look_enabled:
+		return
+	var controller := _controller_manager()
+	if controller == null or not controller.has_method("get_look_vector"):
+		return
+	if not bool(controller.get("gamepad_active")):
+		return
+	var look: Vector2 = controller.call("get_look_vector")
+	if look.length_squared() < 0.0001:
+		return
+
+	var step: float = deg_to_rad(gamepad_look_speed) * maxf(delta, 0.0)
+	mouse_yaw -= look.x * step
+	mouse_idle_timer = 0.0
+	if camera_mode == CameraMode.CHASE_3RD:
+		mouse_pitch += look.y * step
+		mouse_yaw = wrapf(mouse_yaw, -PI, PI)
+		mouse_pitch = clampf(mouse_pitch, deg_to_rad(chase_min_pitch_deg), deg_to_rad(chase_max_pitch_deg))
+	else:
+		var max_yaw: float = deg_to_rad(inside_max_yaw_deg)
+		mouse_pitch -= look.y * step
+		mouse_yaw = clampf(mouse_yaw, -max_yaw, max_yaw)
+		mouse_pitch = clampf(mouse_pitch, deg_to_rad(inside_min_pitch_deg), deg_to_rad(inside_max_pitch_deg))
+
+
+## R3 / средняя кнопка мыши возвращают обзор в центр.
+func recenter_look() -> void:
+	mouse_yaw = 0.0
+	mouse_pitch = 0.0
+	smoothed_mouse_yaw = 0.0
+	smoothed_mouse_pitch = 0.0
+	mouse_idle_timer = 10.0
+
+
 func reset_to_spawn() -> void:
 	var target: Transform3D = spawn_transform
 	if reset_provider.is_valid():
@@ -1006,6 +1074,7 @@ func reset_to_spawn() -> void:
 	_apply_initial_camera_fov()
 	if camera_mode != CameraMode.CHASE_3RD:
 		_update_cameras(0.0)
+	_rumble(0.35, gamepad_rumble_on_reset, 0.25)
 
 
 func get_average_tire_slip() -> float:

@@ -37,7 +37,9 @@ func _run() -> void:
 		ok = ok and arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array and not arrays[Mesh.ARRAY_TEX_UV].is_empty()
 	ok = ok and stage.world_environment.environment.volumetric_fog_enabled
 	ok = ok and stage.get_node_or_null("HUD/RallyHUD/PausePanel/Box/CameraOptions") != null
-	print("Проверка окружения: дорога=%s, материал=%s, UV=%s, туман=%s, HUD=%s" % [road != null, road.material_override is ShaderMaterial if road else false, not road.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV].is_empty() if road else false, stage.world_environment.environment.volumetric_fog_enabled, stage.get_node_or_null("HUD/RallyHUD/PausePanel/Box/CameraOptions") != null])
+	var controller_options = stage.get_node_or_null("HUD/RallyHUD/PausePanel/Box/ControllerOptions")
+	ok = ok and controller_options != null and controller_options.get_node_or_null("Status") != null
+	print("Проверка окружения: дорога=%s, материал=%s, UV=%s, туман=%s, HUD=%s, контроллер=%s" % [road != null, road.material_override is ShaderMaterial if road else false, not road.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV].is_empty() if road else false, stage.world_environment.environment.volumetric_fog_enabled, stage.get_node_or_null("HUD/RallyHUD/PausePanel/Box/CameraOptions") != null, controller_options != null])
 	for i in range(2):
 		Input.action_press("camera_switch")
 		await physics_frame
@@ -63,6 +65,9 @@ func _run() -> void:
 	slider.value = target_fov
 	ok = ok and paused and stage.pause_panel.visible and not car.can_process()
 	ok = ok and camera_options.can_process() and is_equal_approx(car.cockpit_fov, target_fov)
+	var resume_button: Button = stage.resume_button
+	ok = ok and resume_button != null and resume_button.focus_mode == Control.FOCUS_ALL
+	print("Фокус паузы: кнопка=%s, режим=%s, фокус=%s" % [resume_button != null, resume_button.focus_mode if resume_button != null else -1, resume_button.has_focus() if resume_button != null else false])
 	var expected_fov: float = target_fov + car.inside_speed_fov_bonus * clampf(car.speed_kmh / 180.0, 0.0, 1.0)
 	ok = ok and is_equal_approx(car.active_camera.fov, expected_fov)
 	print("Проверка паузы: paused=%s, панель=%s, машина=%s, настройки=%s, fov=%.2f/%.2f (ожид. %.2f)" % [paused, stage.pause_panel.visible, car.can_process(), camera_options.can_process(), car.cockpit_fov, car.active_camera.fov, expected_fov])
