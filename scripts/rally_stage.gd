@@ -27,6 +27,7 @@ const RoadNetworkType = preload("res://scripts/road_network.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 const RoadShader = preload("res://shaders/gravel_road.gdshader")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
+const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -286,6 +287,12 @@ func _resolve_track() -> void:
 			track = first
 	if track == null:
 		track = TrackConfigType.new()
+	if not Engine.is_editor_hint() and track.procedural and track.reroll_seed_each_visit:
+		# «Каждый заезд — новая трасса»: новый сид ещё до построения кривой.
+		# Рекорды при этом честно считаются по фактическому сиду.
+		var reroll := RandomNumberGenerator.new()
+		reroll.seed = hash("reroll_%d_%d" % [Time.get_ticks_msec(), Time.get_unix_time_from_system()])
+		track.generation_seed = reroll.randi_range(1, 999999)
 	if car_setup_override != null:
 		setup = car_setup_override
 	elif game != null:
@@ -301,10 +308,17 @@ func _resolve_track() -> void:
 # ---------------------------------------------------------------- сборка мира
 
 
-## Осевая линия. ПЕРВЫЙ источник — узел Route (Path3D) прямо в сцене: его
-## кривую видно и можно тянуть точками в 3D-вьюпорте. Ресурс road_curve —
-## только запасной вариант для сцен без Path3D.
+## Осевая линия. В РЕДАКТОРЕ первый источник — узел Route (Path3D) прямо
+## в сцене: его кривую видно и можно тянуть точками в 3D-вьюпорте.
+## В ИГРЕ выбранный ресурс трассы главнее: в Route лежит авторская кривая
+## лесного спецучастка, а заездить могли на перевал, северную дугу или
+## сгенерированную трассу.
 func _effective_curve() -> Curve3D:
+	if not Engine.is_editor_hint() and track != null:
+		if track.procedural:
+			return track.get_effective_curve()
+		if track.road_curve != null:
+			return track.road_curve
 	var path := get_node_or_null("Route") as Path3D
 	if path != null and path.curve != null and path.curve.point_count >= 2:
 		return path.curve
@@ -345,11 +359,22 @@ func _build_world() -> void:
 func _build_world_async() -> void:
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	var has_progress: bool = game != null and game.has_method("set_loading_progress")
-	var curve: Curve3D = _effective_curve()
+	var curve: Curve3D
+	if track != null and track.procedural:
+		# Плетение трассы — тяжёлая синхронная работа: даём кадру
+		# прорисоваться ДО неё, чтобы на экране загрузки висел статус,
+		# а не молчание.
+		if has_progress:
+			_report_progress(0.04, "Плетение трассы (сид %d)…" % track.generation_seed)
+			await get_tree().process_frame
+		curve = _effective_curve()
+	else:
+		curve = _effective_curve()
 	if track == null or curve == null:
 		push_warning("RallyStage: нет осевой линии (road_curve в трассе или узел Route/Path3D).")
 		return
 	_clear_generated()
+	_apply_baked_props_visibility()
 	_setup_noise()
 	if has_progress:
 		_report_progress(0.08, "Поле дорог и осевая линия…")
@@ -377,9 +402,11 @@ func _build_world_async() -> void:
 	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
-	if snap_props_on_build:
-		# Только «лес» из Props: ручные объекты в ManualProps не двигаем,
-		# их можно поставить руками на нужную высоту.
+	if snap_props_on_build and track.use_baked_props:
+		# Только «лес» из Props (запечённая обстановка лесной трассы):
+		# ручные объекты в ManualProps не двигаем, их можно поставить
+		# руками на нужную высоту. У трасс без запечённых пропсов
+		# обстановка генерируется своя.
 		_snap_prop_nodes(false)
 	if track.spawn_route_markers:
 		_spawn_route_markers()
@@ -387,6 +414,11 @@ func _build_world_async() -> void:
 		_spawn_edge_posts()
 	if track.spawn_checkpoints:
 		_spawn_checkpoints()
+	if track.procedural_scenery:
+		if has_progress:
+			_report_progress(0.90, "Лес, камни и знаки…")
+			await get_tree().process_frame
+		await _spawn_procedural_scenery(has_progress)
 	cp_triggered.resize(checkpoints.size())
 	cp_times.clear()
 	for i in range(checkpoints.size()):
@@ -923,6 +955,199 @@ func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -
 
 
 # ---------------------------------------------------------------- ассеты
+
+
+## Запечённые в сцену Props/ManualProps расставлены под лесную трассу:
+## перевалу, северной дуге и генерации они не подходят — прячем целиком.
+func _apply_baked_props_visibility() -> void:
+	for node_name in ["Props", "ManualProps"]:
+		var root := get_node_or_null(node_name) as Node3D
+		if root != null:
+			root.visible = track.use_baked_props
+
+
+## Живая обстановка вдоль трассы: ели, сосны, кусты, валуны (MultiMesh),
+## коллизия стволов у самых обочин и знаки на входах в крутые повороты.
+## Всё детерминировано terrain_seed: один и тот же сид — один и тот же лес.
+func _spawn_procedural_scenery(light: bool = false) -> void:
+	if generated == null or network == null:
+		return
+	var container := Node3D.new()
+	container.name = "Scenery"
+	generated.add_child(container)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = track.terrain_seed ^ 8237431
+	var corridor: float = corridor_half()
+	var firs: Array[Transform3D] = []
+	var pines: Array[Transform3D] = []
+	var bushes: Array[Transform3D] = []
+	var rocks: Array[Transform3D] = []
+	var trunks: Array[Vector3] = []
+	var distance: float = 6.0
+	var trunk_since: float = -100.0
+	var step_count: int = 0
+	var total_steps: float = maxf(1.0, (network.total_length - 12.0) / 8.0)
+	while distance < network.total_length - 6.0:
+		var center: Vector3 = network.point_at(distance)
+		var dir: Vector3 = network.direction_at(distance)
+		var side := Vector3(dir.z, 0.0, -dir.x)
+		for side_sign in [-1.0, 1.0]:
+			for _attempt in range(2):
+				if rng.randf() > track.scenery_density * 0.62:
+					continue
+				var lateral: float = corridor + rng.randf_range(4.0, 56.0)
+				var point: Vector3 = center + side * (lateral * side_sign)
+				# Виток своей трассы рядом: не сажаем ничего на чужое полотно.
+				if network.distance_to_road(point.x, point.z) < corridor + 3.0:
+					continue
+				var ground: float = ground_height(point.x, point.z)
+				var roll: float = rng.randf()
+				var angle: float = rng.randf_range(0.0, TAU)
+				if roll < 0.46:
+					# ель
+					var s_fir: float = rng.randf_range(0.8, 1.8)
+					firs.append(Transform3D(
+						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_fir),
+						Vector3(point.x, ground + 3.25 * s_fir, point.z)
+					))
+					if lateral < corridor + 24.0 and distance - trunk_since > 38.0:
+						trunks.append(Vector3(point.x, ground, point.z))
+						trunk_since = distance
+				elif roll < 0.70:
+					# сосна
+					var s_pine: float = rng.randf_range(0.9, 2.0)
+					pines.append(Transform3D(
+						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_pine),
+						Vector3(point.x, ground + 4.5 * s_pine, point.z)
+					))
+					if lateral < corridor + 24.0 and distance - trunk_since > 38.0:
+						trunks.append(Vector3(point.x, ground, point.z))
+						trunk_since = distance
+				elif roll < 0.85:
+					# куст
+					var s_bush: float = rng.randf_range(0.7, 1.4)
+					bushes.append(Transform3D(
+						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_bush),
+						Vector3(point.x, ground + 0.45 * s_bush, point.z)
+					))
+				else:
+					# валун (чуть врастает в землю)
+					var s_rock: float = rng.randf_range(0.8, 2.4)
+					rocks.append(Transform3D(
+						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_rock),
+						Vector3(point.x, ground + 0.75 * s_rock, point.z)
+					))
+		step_count += 1
+		if light and step_count % 64 == 63:
+			_report_progress(lerpf(0.90, 0.97, float(step_count) / total_steps), "Лес, камни и знаки…")
+			await get_tree().process_frame
+		distance += 8.0
+	_add_scenery_multimesh(container, "Firs", _make_scenery_mesh("fir"), firs)
+	_add_scenery_multimesh(container, "Pines", _make_scenery_mesh("pine"), pines)
+	_add_scenery_multimesh(container, "Bushes", _make_scenery_mesh("bush"), bushes)
+	_add_scenery_multimesh(container, "Boulders", _make_scenery_mesh("boulder"), rocks)
+	if not trunks.is_empty():
+		var body := StaticBody3D.new()
+		body.name = "TreeTrunks"
+		var shape := CylinderShape3D.new()
+		shape.radius = 0.45
+		shape.height = 9.0
+		for t in trunks:
+			var collider := CollisionShape3D.new()
+			collider.shape = shape
+			collider.position = Vector3(t.x, t.y + 4.5, t.z)
+			body.add_child(collider)
+		container.add_child(body)
+	_spawn_corner_signs(container)
+
+
+func _make_scenery_mesh(kind: String) -> Mesh:
+	var material := StandardMaterial3D.new()
+	material.roughness = 0.95
+	if kind == "fir":
+		material.albedo_color = Color(0.075, 0.215, 0.115)
+		var mesh_fir := CylinderMesh.new()
+		mesh_fir.top_radius = 0.0
+		mesh_fir.bottom_radius = 1.7
+		mesh_fir.height = 6.5
+		mesh_fir.radial_segments = 7
+		mesh_fir.rings = 1
+		mesh_fir.material = material
+		return mesh_fir
+	if kind == "pine":
+		material.albedo_color = Color(0.09, 0.17, 0.12)
+		var mesh_pine := CylinderMesh.new()
+		mesh_pine.top_radius = 0.0
+		mesh_pine.bottom_radius = 1.35
+		mesh_pine.height = 9.0
+		mesh_pine.radial_segments = 7
+		mesh_pine.rings = 1
+		mesh_pine.material = material
+		return mesh_pine
+	if kind == "bush":
+		material.albedo_color = Color(0.13, 0.28, 0.12)
+		var mesh_bush := SphereMesh.new()
+		mesh_bush.radius = 0.95
+		mesh_bush.height = 1.5
+		mesh_bush.radial_segments = 6
+		mesh_bush.rings = 2
+		mesh_bush.material = material
+		return mesh_bush
+	material.albedo_color = Color(0.31, 0.32, 0.33)
+	material.roughness = 0.98
+	var mesh_rock := SphereMesh.new()
+	mesh_rock.radius = 1.2
+	mesh_rock.height = 2.1
+	mesh_rock.radial_segments = 7
+	mesh_rock.rings = 3
+	mesh_rock.material = material
+	return mesh_rock
+
+
+func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D]) -> void:
+	if transforms.is_empty():
+		return
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multimesh
+	parent.add_child(instance)
+
+
+## Знаки на входах в крутые повороты: смотрим поворот на 55 м вперёд,
+## знак ставим на ВНЕШНЮЮ сторону обочины, лицом к подъезжающей машине.
+func _spawn_corner_signs(parent: Node3D) -> void:
+	var last_sign: float = -10000.0
+	var distance: float = 50.0
+	while distance < network.total_length - 90.0:
+		var turn: float = _turn_ahead(distance, 55.0)
+		if absf(turn) > deg_to_rad(58.0) and distance - last_sign > 110.0:
+			var center: Vector3 = network.point_at(distance)
+			var dir: Vector3 = network.direction_at(distance)
+			var side := Vector3(dir.z, 0.0, -dir.x)
+			# side указывает в сторону роста heading, наружу поворота —
+			# противоположная сторона.
+			var outer: float = -1.0 if turn > 0.0 else 1.0
+			var point: Vector3 = center + side * (outer * (corridor_half() + 2.6))
+			var sign_node: Node3D = RoadSignScene.instantiate()
+			sign_node.position = Vector3(point.x, ground_height(point.x, point.z), point.z)
+			sign_node.rotation.y = atan2(-dir.x, -dir.z)
+			parent.add_child(sign_node)
+			last_sign = distance
+		distance += 12.0
+
+
+func _turn_ahead(distance: float, lookahead: float) -> float:
+	var d0: Vector3 = network.direction_at(distance)
+	var d1: Vector3 = network.direction_at(distance + lookahead)
+	var h0: float = atan2(d0.x, d0.z)
+	var h1: float = atan2(d1.x, d1.z)
+	return atan2(sin(h1 - h0), cos(h1 - h0))
 
 
 # ---------------------------------------------------------------- разметка

@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://cdynmic4ge9k2"]
+
+[ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = "dynamic_stage"
+display_name = "ЖИВАЯ ЛЕНТА"
+description = "Трасса, которая плетётся сама — но не «на полный рандом»: генератор собирает её из раллийных приёмов (шпильки с полками, шиканы, гребни-трамплины, эссе), проверяет самозазор, уклон и радиусы, а неудачную сборку пересобирает с новым сидом. Один сид — одна и та же трасса, рекорды честные. Сид можно поменять в конфиге."
+target_time = 780.0
+road_half_width = 4.4
+road_shoulder = 1.6
+road_step = 1.5
+road_camber = 0.07
+offroad_grip = 0.6
+terrain_margin = 90.0
+terrain_cell = 3.0
+terrain_seed = 777
+hills_height = 13.0
+hills_frequency = 0.0045
+ridge_height = 11.0
+ridge_frequency = 0.0018
+max_terrain_slope_deg = 40.0
+road_ditch_depth = 0.45
+detail_height = 0.32
+bumps_amplitude = 0.1
+bumps_wavelength = 6.5
+bumps_roughness = 0.06
+bumps_cross = 0.3
+checkpoint_interval = 500.0
+use_baked_props = false
+procedural_scenery = true
+scenery_density = 1.0
+procedural = true
+generation_seed = 20261028
+reroll_seed_each_visit = false
+procedural_length_min = 8000.0
+procedural_length_max = 12000.0
+procedural_min_radius = 15.0
+procedural_min_gap = 32.0
+ground_color = Color(0.12, 0.19, 0.08, 1)
+ground_color_2 = Color(0.23, 0.28, 0.12, 1)
+rock_color = Color(0.31, 0.32, 0.33, 1)
+road_color = Color(0.35, 0.29, 0.2, 1)
+road_color_2 = Color(0.46, 0.38, 0.27, 1)
+shoulder_color = Color(0.32, 0.26, 0.18, 1)
+sky_top_color = Color(0.2, 0.38, 0.6, 1)
+sky_horizon_color = Color(0.75, 0.8, 0.85, 1)
+fog_color = Color(0.79, 0.83, 0.88, 1)
+fog_near = 160.0
+fog_far = 480.0
+sun_color = Color(1.0, 0.95, 0.82, 1)
+ambient_color = Color(0.6, 0.63, 0.7, 1)
+ambient_energy = 0.85
+exposure = 1.05
+fog_density = 0.0028
+sun_energy = 1.45
+sun_pitch = -38.0
+sun_yaw = 45.0
+grip_scale = 1.0

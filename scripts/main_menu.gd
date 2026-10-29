@@ -115,6 +115,15 @@ func _connect_signals() -> void:
 		start_button.pressed.connect(_on_start_pressed)
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_pressed):
 		quit_button.pressed.connect(_on_quit_pressed)
+	if preview != null and preview.has_signal("track_built"):
+		if not preview.track_built.is_connected(_on_preview_track_built):
+			preview.track_built.connect(_on_preview_track_built)
+
+
+## Превью закончило плести процедурную трассу — длина стала точной.
+func _on_preview_track_built(built_track: TrackConfigType) -> void:
+	if built_track == config.get_track(selected_track) as TrackConfigType:
+		_refresh()
 
 
 func _refresh() -> void:
@@ -137,10 +146,19 @@ func _refresh() -> void:
 	if preview != null and preview is StagePreviewType:
 		preview.call("set_track", track)
 	if info_label != null:
-		info_label.text = "%s\n\n%s\n\nДЛИНА: %.0f м\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s" % [
+		var length_value: float = track.get_route_length()
+		var length_line: String = "ДЛИНА: %.0f м" % length_value
+		if length_value <= 0.0 and track.procedural:
+			# трасса ещё не сплетена (кэш пуст): честный диапазон из конфига
+			length_line = "ДЛИНА: %d–%d км  •  СИД %d" % [
+				int(round(track.procedural_length_min / 1000.0)),
+				int(round(track.procedural_length_max / 1000.0)),
+				track.generation_seed
+			]
+		info_label.text = "%s\n\n%s\n\n%s\nПОКРЫТИЕ: %s\nСЛОЖНОСТЬ: %d/5\nЦЕЛЬ: %s" % [
 			track.display_name,
 			track.description,
-			track.get_route_length(),
+			length_line,
 			track.surface_name,
 			track.difficulty,
 			_format_time(track.target_time)

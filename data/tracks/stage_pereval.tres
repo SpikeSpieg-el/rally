@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://cv4peval9k2q7"]
+
+[ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
+[ext_resource type="Curve3D" uid="uid://cp3rv4lr0ut3" path="res://data/tracks/stage_pereval_route.tres" id="2_curve"]
+
+[resource]
+script = ExtResource("1_script")
+id = "pereval"
+display_name = "ПЕРЕВАЛ"
+description = "Горный серпантин: семь шпилек над обрывом, полки на подъёме и скоростной спуск с шифтами. Каменистые склоны, жёсткий щебень, высота 112 м перепада. Ручная трасса — лестница антипараллельных витков."
+target_time = 440.0
+road_curve = ExtResource("2_curve")
+road_half_width = 4.0
+road_shoulder = 1.0
+road_step = 1.5
+road_camber = 0.06
+offroad_grip = 0.55
+terrain_margin = 90.0
+terrain_cell = 3.0
+terrain_seed = 8123
+hills_height = 18.0
+hills_frequency = 0.006
+ridge_height = 26.0
+ridge_frequency = 0.0022
+hills_fade_start = 12.0
+hills_fade_length = 60.0
+max_terrain_slope_deg = 38.0
+road_ditch_depth = 0.5
+detail_height = 0.4
+embankment_slope_deg = 26.0
+embankment_min_width = 4.0
+embankment_max_width = 36.0
+bumps_amplitude = 0.1
+bumps_wavelength = 6.5
+bumps_roughness = 0.06
+bumps_cross = 0.3
+checkpoint_interval = 420.0
+use_baked_props = false
+procedural_scenery = true
+scenery_density = 0.9
+ground_color = Color(0.16, 0.2, 0.11, 1)
+ground_color_2 = Color(0.27, 0.27, 0.17, 1)
+rock_color = Color(0.34, 0.34, 0.35, 1)
+road_color = Color(0.36, 0.32, 0.24, 1)
+road_color_2 = Color(0.47, 0.42, 0.31, 1)
+shoulder_color = Color(0.33, 0.3, 0.22, 1)
+sky_top_color = Color(0.16, 0.34, 0.58, 1)
+sky_horizon_color = Color(0.72, 0.8, 0.88, 1)
+fog_color = Color(0.78, 0.84, 0.9, 1)
+fog_near = 170.0
+fog_far = 520.0
+sun_color = Color(1.0, 0.97, 0.9, 1)
+ambient_color = Color(0.6, 0.64, 0.72, 1)
+ambient_energy = 0.85
+exposure = 1.05
+fog_density = 0.0026
+sun_energy = 1.5
+sun_pitch = -44.0
+sun_yaw = 60.0
+grip_scale = 0.95
