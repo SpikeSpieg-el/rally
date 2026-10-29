@@ -1,0 +1,18 @@
+[gd_resource type="AudioBusLayout" format=3]
+
+[sub_resource type="AudioEffectLimiter" id="AudioEffectLimiter_master"]
+resource_name = "Limiter"
+ceiling_db = -1.0
+threshold_db = -8.0
+soft_clip_db = 2.0
+soft_clip_ratio = 10.0
+
+[resource]
+bus/0/name = &"Master"
+bus/0/solo = false
+bus/0/mute = false
+bus/0/bypass_fx = false
+bus/0/volume_db = 0.0
+bus/0/send = &""
+bus/0/effect/0/effect = SubResource("AudioEffectLimiter_master")
+bus/0/effect/0/enabled = true

@@ -12,6 +12,11 @@ const EXPECTED_RATE := 32000
 ## иначе на стыке будет слышен щелчок.
 const MIN_LOOP_SECONDS := 0.9
 const MAX_LOOP_SECONDS := 1.2
+## Одиночные звуки (хлопки, сброс турбины, переключение, запуск): их нельзя
+## зацикливать, иначе получится непрерывный треск.
+const ONESHOT_NAMES := ["bov_01.wav", "bov_02.wav", "bov_03.wav", "shift.wav",
+	"start.wav", "pop_01.wav", "pop_02.wav", "pop_03.wav", "pop_04.wav",
+	"pop_05.wav", "pop_06.wav"]
 
 var failures: Array[String] = []
 
@@ -54,6 +59,15 @@ func _read_wav_header(path: String) -> Dictionary:
 	return result
 
 
+func _read_text(path: String) -> String:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return ""
+	var text := file.get_as_text()
+	file.close()
+	return text
+
+
 func _run() -> void:
 	var sound = EngineSoundScript.new()
 	_check(sound != null, "скрипт звука должен создаваться")
@@ -78,6 +92,12 @@ func _run() -> void:
 				"длительность лупа %s вне диапазона: %.2f с" % [path, seconds])
 			_check(bool(header["has_smpl"]),
 				"в %s нет блока smpl, луп не будет бесшовным" % path)
+			# Точки зацикливания в .import должны совпадать с длиной файла.
+			var import_text := _read_text(path + ".import")
+			_check(import_text.contains("edit/loop_mode=2"),
+				"%s должен импортироваться как луп (edit/loop_mode=2)" % path)
+			_check(import_text.contains("edit/loop_end=%d" % int(header["frames"])),
+				"в .import для %s неверная точка конца лупа" % path)
 
 	# 2. На диске нет лишних лупов: сетка в коде и в файлах совпадают.
 	var dir := DirAccess.open(ENGINE_DIR)
@@ -105,25 +125,45 @@ func _run() -> void:
 		_check(FileAccess.file_exists(VEHICLE_DIR + "pop_%02d.wav" % (i + 1)),
 			"нет хлопка pop_%02d.wav" % (i + 1))
 
-	# 4. Логика выбора лупа.
+	# 4. Одиночные звуки не зациклены: иначе хлопок в выхлопе превращается
+	#    в непрерывный треск.
+	for name in ONESHOT_NAMES:
+		var path := VEHICLE_DIR + name
+		if not FileAccess.file_exists(path):
+			continue
+		var header := _read_wav_header(path)
+		_check(not bool(header["has_smpl"]),
+			"в %s не должно быть блока smpl: это одиночный звук" % path)
+		var import_text := _read_text(path + ".import")
+		_check(import_text.contains("edit/loop_mode=1"),
+			"%s должен импортироваться без зацикливания (edit/loop_mode=1)" % path)
+
+	# 5. Логика выбора лупа.
 	_check(sound._grid_index(0.0) == 0, "на нулевых оборотах берётся первый луп")
 	_check(sound._grid_index(100000.0) == grid.size() - 1,
 		"на максимальных оборотах берётся последний луп")
 	_check(sound._grid_index(int(grid[3])) == 3,
 		"обороты из сетки должны выбирать свой луп")
-	var between := int((float(grid[3]) + float(grid[4])) * 0.5)
-	_check(sound._grid_index(between) == 3,
+	# Сетка геометрическая, поэтому граница между точками — геометрическое
+	# среднее, а не арифметическое.
+	var low_rpm := float(grid[3])
+	var high_rpm := float(grid[4])
+	var middle := sqrt(low_rpm * high_rpm)
+	_check(sound._grid_index(int(middle * 0.99)) == 3,
 		"между точками сетки берётся нижний луп")
+	_check(sound._grid_index(int(middle * 1.01)) == 4,
+		"выше геометрической середины берётся верхний луп")
 	_check(is_equal_approx(sound._pitch_for(3, float(grid[3])), 1.0),
 		"на оборотах своей точки сетки тон не корректируется")
 	var corrected := sound._pitch_for(3, float(grid[3]) * 1.05)
 	_check(corrected > 1.0, "питч-коррекция должна подтягивать тон вверх")
-	_check(absf(sound._pitch_for(3, float(grid[3]) * 2.0) - 1.07) < 0.001,
+	var limit := float(sound.PITCH_LIMIT)
+	_check(absf(sound._pitch_for(3, float(grid[3]) * 2.0) - (1.0 + limit)) < 0.001,
 		"питч-коррекция ограничена, чтобы тембр не «плыл»")
 	_check(sound._to_db(0.0) <= -59.0, "нулевая громкость должна давать тишину")
 	_check(sound._to_db(1.0) > -0.1, "единичная громкость должна давать 0 дБ")
 
-	# 5. Сетка оборотов должна быть возрастающей и логарифмической: только
+	# 6. Сетка оборотов должна быть возрастающей и логарифмической: только
 	#    тогда питч-коррекция укладывается в предел на всём диапазоне.
 	for i in range(grid.size() - 1):
 		_check(int(grid[i]) < int(grid[i + 1]), "сетка оборотов должна возрастать")
@@ -138,7 +178,48 @@ func _run() -> void:
 	_check(absf(sound._grid_index(1050.0) - 1) <= 1,
 		"выбор лупа должен идти по ближайшей точке сетки")
 
-	# 6. Машина содержит узел звука с нужным скриптом.
+	# 7. Гистерезис переключения: на границе двух точек сетки луп не должен
+	#    прыгать туда-сюда, иначе двигатель «заикается».
+	var low_index := grid.find(2850)
+	var high_index := grid.find(3080)
+	_check(low_index >= 0 and high_index == low_index + 1,
+		"в сетке должны быть точки 2850 и 3080")
+	if low_index >= 0 and high_index == low_index + 1:
+		_check(not sound._worth_switch(low_index, high_index, 2850.0),
+			"на точке сетки переключать луп нельзя")
+		_check(not sound._worth_switch(low_index, high_index, 3000.0),
+			"в середине между точками луп меняться не должен (гистерезис)")
+		_check(sound._worth_switch(low_index, high_index, 3060.0),
+			"близко к следующей точке сетки луп должен смениться")
+	_check(float(sound.SWITCH_MARGIN) > 0.0,
+		"гистерезис переключения должен быть включён")
+	_check(float(sound.MIN_SWITCH_INTERVAL) > 0.0,
+		"минимальный интервал между переключениями должен быть включён")
+	_check(float(sound.PITCH_SLEW) > 0.0,
+		"скорость изменения тона должна быть ограничена")
+
+	# 8. Микс не должен быть перегружен: громкость двигателя в сумме с
+	#    общей не должна уходить в плюс.
+	_check(float(sound.master_volume_db) + float(sound.engine_volume_db) <= 0.0,
+		"двигатель не должен играть громче unity по сумме каналов")
+	_check(float(sound.engine_volume_db) <= 0.0,
+		"громкость двигателя должна быть выставлена в минус")
+	_check(float(sound.unit_size) > 0.0 and float(sound.max_distance) > 0.0,
+		"должны быть заданы размер источника и максимальная дистанция")
+	_check(int(sound.attenuation_model) == 1,
+		"звук должен затухать по квадрату расстояния")
+	_check(int(sound.EVENT_SLOTS) >= 4,
+		"должно быть достаточно слотов для одиночных звуков")
+
+	# 9. На Master должен быть ограничитель, иначе сумма голосов даёт
+	#    цифровые перегрузки и характерное потрескивание.
+	_check(FileAccess.file_exists("res://default_bus_layout.tres"),
+		"нет раскладки аудио-шины с ограничителем")
+	var bus_text := _read_text("res://default_bus_layout.tres")
+	_check(bus_text.contains("AudioEffectLimiter"),
+		"в раскладке шины должен быть AudioEffectLimiter")
+
+	# 10. Машина содержит узел звука с нужным скриптом.
 	var car := CarScene.instantiate()
 	var audio_node := car.get_node_or_null("EngineAudio")
 	_check(audio_node != null, "в сцене машины должен быть узел EngineAudio")

@@ -19,6 +19,12 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 RallyGame="*res://scripts/game_state.gd"
 ControllerManager="*res://scripts/input/controller_manager.gd"
 
+[audio]
+
+buses/default_bus_layout="res://default_bus_layout.tres"
+driver/output_latency=15
+driver/mix_rate=44100
+
 [display]
 
 window/size/viewport_width=1920
