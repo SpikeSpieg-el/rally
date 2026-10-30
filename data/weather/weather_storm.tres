@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="RallyWeatherConfig" format=3 uid="uid://qcgn65kudrcre"]
+
+[ext_resource type="Script" uid="uid://semtibtr5hg9r" path="res://scripts/data/rally_weather_config.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "storm"
+display_name = "ГРОЗА"
+short_name = "ШТОРМ"
+description = "Ливень стеной и сильный боковой ветер. Самая злая погода: почти нулевая видимость, мокрое полотно и минимум сцепления."
+precipitation = 1
+precipitation_intensity = 1.00
+wind_speed = 22.0
+time_of_day = 0
+sky_tint_strength = 0.75
+sky_tint = Color(0.16, 0.2, 0.27)
+sky_desaturation = 0.40
+sun_energy_scale = 0.25
+sun_tint_strength = 0.60
+sun_tint = Color(0.6, 0.68, 0.8)
+ambient_energy_scale = 0.90
+exposure_scale = 1.20
+fog_color = Color(0.34, 0.4, 0.48)
+fog_color_strength = 0.85
+fog_density_scale = 3.20
+fog_density_add = 0.0020
+visibility_scale = 0.55
+volumetric_fog = true
+wetness = 1.00
+snow_cover = 0.00
+grip_scale = 0.72
+rolling_resistance_scale = 1.28
+offroad_grip_scale = 0.70

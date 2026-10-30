@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RallyTrackProfile" format=3 uid="uid://oka2qnyfyl4e8"]
+
+[ext_resource type="Script" uid="uid://e8gn6f5khcspc" path="res://scripts/data/rally_track_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = "gravel"
+display_name = "ГРАВИЙ · КЛАССИКА"
+description = "Покрытие и ширина ровно те, что записаны в конфиге трассы: щебень перевала остаётся щебнем, тундра — тундрой. Ничего не меняется."
+surface_name = ""
+road_width_scale = 1.00
+shoulder_scale = 1.00
+bumps_scale = 1.00
+camber_scale = 1.00
+grip_scale = 1.00
+rolling_resistance_scale = 1.00
+offroad_grip_scale = 1.00
+override_road_colors = false
+hills_scale = 1.00

@@ -5,21 +5,21 @@
 до инициализации GEVP. Список конфигураций — в `data/rally_game_config.tres`,
 порядок в массиве = порядок в меню.
 
-## Активная конфигурация
+## Три пресета мотора
 
-В меню сейчас подключён один сетап — `data/setups/11_gravel.tres`:
-490 Н·м, 1230 кг, AWD 38:62, угол руля 34° и более ранний плавный TCS.
-Изменяйте его в инспекторе. Ресурсы ниже тоже остаются в проекте и их можно
-добавить в массив `car_setups` файла `data/rally_game_config.tres`.
+В меню подключены три ресурса из `data/setups/` — порядок в массиве
+`car_setups` файла `data/rally_game_config.tres` = порядок кнопок в меню:
 
-## Дополнительные конфигурации
-
-| Файл | Название | Идея |
+| Файл | Название | Мотор и идея |
 |---|---|---|
-| `data/setups/setup_01_gravel.tres` | ГРАВИЙ | длинноходная подвеска, AWD 38:62, базовый момент 390 Н·м |
-| `data/setups/setup_02_tarmac.tres` | АСФАЛЬТ | низкая, жёсткая, COF ×1.28, момент 420 Н·м |
-| `data/setups/setup_03_snow.tres` | ЗИМА | мягкая, момент 300 Н·м, ранний traction control |
-| `data/setups/setup_04_group_a.tres` | GROUP A | 520 Н·м, широкие шины, жёсткие стабилизаторы |
+| `data/setups/engine_stock.tres` | 2.0 TURBO · СТОК | 4G63T, 470 Н·м / 7600, длинные передачи, мягкая подвеска, AWD 38:62 |
+| `data/setups/engine_group_a.tres` | 2.0 TURBO · ГРУППА A | 4G63T, 620 Н·м / 8200, короткий ряд, жёсткая подвеска, AWD 42:58 |
+| `data/setups/engine_atmo.tres` | 2.4 АТМО · РЕВУЩИЙ | 4G64, 430 Н·м / 9000, весь момент в верхах, RWD, 1080 кг |
+
+Старый `data/setups/11_gravel.tres` остался как эталон для тестов
+(`tests/rally_regression.gd`, `tests/handling_benchmark.gd`). Чтобы добавить
+свой пресет — продублируйте любой файл, поменяйте `id`/`display_name` и
+добавьте ресурс в `car_setups` конфига.
 
 Конфигурация выбирается **в меню перед стартом**. Также её можно назначить
  напрямую в Inspector узла `RallyCar` (`setup_override`) или сцены
@@ -29,7 +29,7 @@
 
 | Группа | Поля | Комментарий |
 |---|---|---|
-| Мотор | `max_torque`, `max_rpm`, `final_drive`, `gear_ratios`, `torque_curve`, `traction_control_max_slip` | кривая момента необязательна; без неё используется базовая из `rally_car.gd` |
+| Мотор | `engine_name`, `max_torque`, `max_rpm`, `idle_rpm`, `torque_shape`, `torque_curve`, `engine_brake_scale`, `turbo`, `final_drive`, `gear_ratios`, `traction_control_max_slip` | `torque_shape` строит кривую момента (турбо-полка / атмо-линейка / высокие обороты); ручная `torque_curve` главнее; `turbo = false` убирает blow-off и хлопки |
 | Привод | `drivetrain` (AWD/RWD/FWD), `awd_front_torque` | `0.38` = 38 % момента на переднюю ось |
 | Масса | `vehicle_mass`, `front_weight_distribution`, `center_of_gravity_height_offset` | ЦТ рассчитывается GEVP по точкам колёс; отрицательное значение опускает его |
 | Подвеска | `front/rear_spring_length`, `resting_ratio`, `damping_ratio`, `arb_ratio`, `bump/rebound_damp_multiplier` | см. ниже |

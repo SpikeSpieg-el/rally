@@ -444,7 +444,12 @@ func _pitch_for(index: int, rpm: float) -> float:
 	var base := float(RPM_GRID[clampi(index, 0, RPM_GRID.size() - 1)])
 	if base <= 0.0:
 		return 1.0
-	return clampf(rpm / base, 1.0 - PITCH_LIMIT, 1.0 + PITCH_LIMIT)
+	# Моторы, которые крутятся выше верхнего сэмпла (атмо 9000 об/мин),
+	# продолжают «тянуться» вверх по питчу, а не упираются в потолок:
+	# иначе на последней тысяче оборотов звук стоит на месте.
+	var top := float(RPM_GRID[RPM_GRID.size() - 1])
+	var limit: float = PITCH_LIMIT if rpm <= top else 0.25
+	return clampf(rpm / base, 1.0 - limit, 1.0 + limit)
 
 
 func _to_db(linear: float) -> float:
@@ -498,7 +503,7 @@ func _update_events(rpm: float, throttle: float, delta: float) -> void:
 	# Хлопки в выхлопе бывают только на сброс газа: если сыпать ими
 	# постоянно, звук превращается в треск и мотор «захлёбывается».
 	var lifted: bool = _prev_throttle > 0.5 and throttle < 0.1
-	if lifted and not shifting:
+	if lifted and not shifting and _turbo_enabled():
 		if _boost > 0.3 and _bov_cooldown <= 0.0 and not _bov_streams.is_empty():
 			_play_event(_bov_streams[randi() % _bov_streams.size()], 0.7, 0.06)
 			_bov_cooldown = BOV_COOLDOWN
@@ -513,6 +518,14 @@ func _update_events(rpm: float, throttle: float, delta: float) -> void:
 		_prev_gear = gear
 		if _shift_stream != null:
 			_play_event(_shift_stream, 0.9, 0.0)
+
+
+## У атмосферного мотора нет blow-off и «антилаг»-хлопков: пресет мотора
+## выключает их одним флагом turbo = false.
+func _turbo_enabled() -> bool:
+	if car == null or car.active_setup == null:
+		return true
+	return car.active_setup.turbo
 
 
 func _play_event(stream: AudioStream, volume: float, pitch_jitter: float = 0.0) -> void:

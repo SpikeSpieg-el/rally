@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="RallyTrackProfile" format=3 uid="uid://m9utmglh9ca4q"]
+
+[ext_resource type="Script" uid="uid://e8gn6f5khcspc" path="res://scripts/data/rally_track_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = "asphalt"
+display_name = "АСФАЛЬТ · ТРЕК"
+description = "Гладкое и широкое асфальтовое полотно: почти нет кочек, высокое сцепление, но и скорость выше. Настоящий трек посреди леса."
+surface_name = "Асфальт"
+road_width_scale = 1.12
+shoulder_scale = 0.85
+bumps_scale = 0.12
+camber_scale = 1.40
+grip_scale = 1.32
+rolling_resistance_scale = 0.85
+offroad_grip_scale = 0.55
+override_road_colors = true
+road_color = Color(0.20, 0.21, 0.23, 1)
+road_color_2 = Color(0.28, 0.29, 0.31, 1)
+shoulder_color = Color(0.26, 0.26, 0.25, 1)
+hills_scale = 0.90

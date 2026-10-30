@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://h22xrv8c29ysh"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "engine_atmo"
+display_name = "2.4 АТМО · РЕВУЩИЙ"
+description = "Атмосферный 2.4 без турбины: 430 Нм, отсечка 9000, весь момент в верхах. Задний привод, лёгкий кузов и честный звук без blow-off. Мотор надо крутить."
+body_color = Color(0.72, 0.12, 0.10, 1)
+accent_color = Color(0.95, 0.95, 0.95, 1)
+engine_name = "4G64 · 2.4 АТМО"
+max_torque = 430.0
+max_rpm = 9000.0
+idle_rpm = 1100.0
+torque_shape = 3
+engine_brake_scale = 1.70
+turbo = false
+final_drive = 4.35
+gear_ratios = Array[float]([3.2, 2.25, 1.7, 1.36, 1.12, 0.95])
+traction_control_max_slip = 0.75
+drivetrain = 1
+awd_front_torque = 0.00
+vehicle_mass = 1080.0
+front_weight_distribution = 0.54
+center_of_gravity_height_offset = -0.16
+front_spring_length = 0.29
+rear_spring_length = 0.31
+front_resting_ratio = 0.55
+rear_resting_ratio = 0.55
+front_damping_ratio = 0.44
+rear_damping_ratio = 0.50
+front_arb_ratio = 0.12
+rear_arb_ratio = 0.08
+bump_damp_multiplier = 0.72
+rebound_damp_multiplier = 1.30
+tire_radius = 0.440
+tire_width = 235.0
+grip_scale = 0.98
+tire_stiffness_scale = 0.98
+rolling_resistance_scale = 1.00
+max_steering_angle_deg = 36.0
+chase_distance = 5.9
+chase_height = 1.58

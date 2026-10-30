@@ -1,15 +1,34 @@
 [gd_resource type="Resource" script_class="RallyGameConfig" format=3 uid="uid://ddy67ekslqf3h"]
 
-[ext_resource type="Resource" uid="uid://csy3ssx2uxglk" path="res://data/setups/11_gravel.tres" id="1_fqvxh"]
 [ext_resource type="Script" uid="uid://c734g8vb6d4mw" path="res://scripts/data/rally_game_config.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://b7vnrvvmjm6mv" path="res://data/tracks/stage_forest.tres" id="2_t"]
 [ext_resource type="Resource" uid="uid://cv4peval9k2q7" path="res://data/tracks/stage_pereval.tres" id="3_t"]
 [ext_resource type="Resource" uid="uid://cnarc7d21g6m8" path="res://data/tracks/stage_north_arc.tres" id="4_t"]
 [ext_resource type="Resource" uid="uid://cdynmic4ge9k2" path="res://data/tracks/stage_dynamic.tres" id="5_t"]
+[ext_resource type="Resource" uid="uid://hvt7acezb4jm6" path="res://data/setups/engine_stock.tres" id="6_setup"]
+[ext_resource type="Resource" uid="uid://e9zw6klhl3niy" path="res://data/setups/engine_group_a.tres" id="7_setup"]
+[ext_resource type="Resource" uid="uid://h22xrv8c29ysh" path="res://data/setups/engine_atmo.tres" id="8_setup"]
+[ext_resource type="Resource" uid="uid://i59bwvdtb1tv8" path="res://data/weather/weather_default.tres" id="w1"]
+[ext_resource type="Resource" uid="uid://tlkc86xl1gorb" path="res://data/weather/weather_clear.tres" id="w2"]
+[ext_resource type="Resource" uid="uid://iigaaphj4hr41" path="res://data/weather/weather_overcast.tres" id="w3"]
+[ext_resource type="Resource" uid="uid://devgavsrgnt6i" path="res://data/weather/weather_rain.tres" id="w4"]
+[ext_resource type="Resource" uid="uid://unqxm7w9nu6tv" path="res://data/weather/weather_fog.tres" id="w5"]
+[ext_resource type="Resource" uid="uid://z0cwj7e88r5g9" path="res://data/weather/weather_snow.tres" id="w6"]
+[ext_resource type="Resource" uid="uid://qcgn65kudrcre" path="res://data/weather/weather_storm.tres" id="w7"]
+[ext_resource type="Resource" uid="uid://oka2qnyfyl4e8" path="res://data/profiles/profile_gravel.tres" id="p1"]
+[ext_resource type="Resource" uid="uid://og91f163sff2z" path="res://data/profiles/profile_mud.tres" id="p2"]
+[ext_resource type="Resource" uid="uid://m9utmglh9ca4q" path="res://data/profiles/profile_asphalt.tres" id="p3"]
+[ext_resource type="Resource" uid="uid://r3vd0ie37kjdz" path="res://data/profiles/profile_snow_ceil.tres" id="p4"]
 
 [resource]
 script = ExtResource("1_script")
 title = "RALLY"
-subtitle = "ЧЕТЫРЕ СПЕЦУЧАСТКА • MITSUBISHI LANCER EVOLUTION"
+subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 3 МОТОРА"
 tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t")])
-car_setups = Array[Resource]([ExtResource("1_fqvxh")])
+car_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup")])
+weather_presets = Array[Resource]([ExtResource("w1"), ExtResource("w2"), ExtResource("w3"), ExtResource("w4"), ExtResource("w5"), ExtResource("w6"), ExtResource("w7")])
+track_profiles = Array[Resource]([ExtResource("p1"), ExtResource("p2"), ExtResource("p3"), ExtResource("p4")])
+default_track_index = 0
+default_setup_index = 0
+default_weather_index = 0
+default_profile_index = 0

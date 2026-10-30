@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://e9zw6klhl3niy"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "engine_group_a"
+display_name = "2.0 TURBO · ГРУППА A"
+description = "Боевой мотор Группы A: 620 Нм, отсечка 8200, короткий ряд и злая подвеска. Требует точной работы газом — зато валит из любого поворота."
+body_color = Color(0.16, 0.36, 0.68, 1)
+accent_color = Color(1, 0.82, 0.15, 1)
+engine_name = "4G63T · ГРУППА A"
+max_torque = 620.0
+max_rpm = 8200.0
+idle_rpm = 1000.0
+torque_shape = 1
+engine_brake_scale = 1.35
+turbo = true
+final_drive = 4.55
+gear_ratios = Array[float]([3.0, 2.05, 1.55, 1.24, 1.02, 0.86])
+traction_control_max_slip = 0.55
+drivetrain = 0
+awd_front_torque = 0.42
+vehicle_mass = 1185.0
+front_weight_distribution = 0.52
+center_of_gravity_height_offset = -0.13
+front_spring_length = 0.27
+rear_spring_length = 0.29
+front_resting_ratio = 0.52
+rear_resting_ratio = 0.54
+front_damping_ratio = 0.55
+rear_damping_ratio = 0.62
+front_arb_ratio = 0.19
+rear_arb_ratio = 0.15
+bump_damp_multiplier = 0.80
+rebound_damp_multiplier = 1.45
+tire_radius = 0.440
+tire_width = 255.0
+grip_scale = 1.10
+tire_stiffness_scale = 1.12
+rolling_resistance_scale = 1.00
+max_steering_angle_deg = 33.0
+chase_distance = 5.6
+chase_height = 1.50

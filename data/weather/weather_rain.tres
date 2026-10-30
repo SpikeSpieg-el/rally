@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="RallyWeatherConfig" format=3 uid="uid://devgavsrgnt6i"]
+
+[ext_resource type="Script" uid="uid://semtibtr5hg9r" path="res://scripts/data/rally_weather_config.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "rain"
+display_name = "ДОЖДЬ"
+short_name = "ДОЖДЬ"
+description = "Затяжной дождь: полотно блестит, гравий уходит из-под колёс, сцепление падает. Дворники не нужны — но тормозить раньше стоит."
+precipitation = 1
+precipitation_intensity = 0.65
+wind_speed = 8.0
+time_of_day = 0
+sky_tint_strength = 0.60
+sky_tint = Color(0.34, 0.4, 0.48)
+sky_desaturation = 0.50
+sun_energy_scale = 0.40
+sun_tint_strength = 0.50
+sun_tint = Color(0.72, 0.79, 0.9)
+ambient_energy_scale = 1.05
+exposure_scale = 1.12
+fog_color = Color(0.48, 0.55, 0.64)
+fog_color_strength = 0.70
+fog_density_scale = 2.40
+fog_density_add = 0.0012
+visibility_scale = 0.72
+volumetric_fog = false
+wetness = 0.90
+snow_cover = 0.00
+grip_scale = 0.82
+rolling_resistance_scale = 1.18
+offroad_grip_scale = 0.78
