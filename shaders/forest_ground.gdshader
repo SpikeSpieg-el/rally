@@ -5,6 +5,8 @@ render_mode specular_schlick_ggx;
 // (R — влияние дороги, G — крутизна склона, B — шум), жёсткий дизер-туман.
 // Параметры выставляются из scripts/rally_stage.gd — те же значения,
 // что использует генератор рельефа и коллизий. Всё редактируется ресурсом трассы.
+uniform sampler2D ground_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D rock_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
 uniform vec3 ground_color : source_color = vec3(0.10, 0.17, 0.07);
 uniform vec3 ground_color_2 : source_color = vec3(0.21, 0.26, 0.11);
 uniform vec3 road_edge_color : source_color = vec3(0.31, 0.25, 0.17);
@@ -66,6 +68,9 @@ void fragment() {
 
     vec3 ground = mix(ground_color, ground_color_2, broad_noise);
     ground *= mix(0.80, 1.14, fine_noise);
+    // Текстура в мировых координатах не растягивается при изменении сетки.
+    vec3 ground_detail = texture(ground_texture, world_pos.xz * 0.25).rgb;
+    ground *= 0.65 + ground_detail * 1.5;
 
     // Обочина: твёрдый грунт рядом с дорогой (по вершинному цвету R).
     float road_influence = vertex_info.r;  // 0 = дорога, 1 = вне дороги
@@ -74,7 +79,8 @@ void fragment() {
 
     // Камни на крутых склонах (по вершинному цвету G).
     float rock_amt = smoothstep(0.55, 0.85, slope) * vertex_info.g;
-    albedo = mix(albedo, rock_color * mix(0.80, 1.15, vertex_info.b), rock_amt);
+    vec3 rock_detail = texture(rock_texture, world_pos.xz * 0.22).rgb;
+    albedo = mix(albedo, rock_color * (0.65 + rock_detail * 1.3) * mix(0.80, 1.15, vertex_info.b), rock_amt);
 
     // Дождь темнит и «лакирует» грунт, снег укрывает ровные места.
     albedo *= mix(1.0, 0.78, wetness);

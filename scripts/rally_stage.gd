@@ -29,6 +29,12 @@ const RoadNetworkType = preload("res://scripts/road_network.gd")
 const TireMarksType = preload("res://scripts/tire_marks.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 const RoadShader = preload("res://shaders/gravel_road.gdshader")
+const GroundTexture = preload("res://textures/environment/forest_floor.png")
+const GravelTexture = preload("res://textures/environment/gravel.png")
+const NeedleTexture = preload("res://textures/environment/needles.png")
+const RockTexture = preload("res://textures/environment/rock.png")
+const SpeedShader = preload("res://shaders/speed_fx.gdshader")
+const WeatherMotionShader = preload("res://shaders/weather_motion.gdshader")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 
@@ -44,6 +50,16 @@ const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 @export_tool_button("Посадить ассеты на землю") var snap_button = snap_props_to_ground
 ## Автоматически ставить ассеты из Props/ManualProps на землю при сборке.
 @export var snap_props_on_build: bool = true
+
+@export_group("Стилизация и ощущение скорости")
+## Сила мягкой ретро-палитры (0 — оригинальные цвета).
+@export_range(0.0, 1.0, 0.05) var retro_style_strength: float = 0.35
+## Общая интенсивность скоростного размытия и виньетки.
+@export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
+## Насыщенность ближнего слоя дождя/снега на скорости.
+@export_range(0.0, 2.0, 0.05) var weather_motion_strength: float = 1.0
+## Плотность мировых частиц осадков (относительно пресета погоды).
+@export_range(0.1, 2.0, 0.1) var precipitation_density: float = 1.0
 
 @export_group("Отладка")
 @export var show_debug_info: bool = false
@@ -81,6 +97,8 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
+var weather_motion_material: ShaderMaterial = null
+var _weather_phase: float = 0.0
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
 ## Условия уже наложены на копию трассы: повторный _resolve_track не должен
@@ -910,6 +928,8 @@ func _limit_terrain_slopes(
 func _make_ground_material() -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = GroundShader
+	material.set_shader_parameter("ground_texture", GroundTexture)
+	material.set_shader_parameter("rock_texture", RockTexture)
 	material.set_shader_parameter("ground_color", track.ground_color)
 	material.set_shader_parameter("ground_color_2", track.ground_color_2)
 	material.set_shader_parameter("road_edge_color", track.shoulder_color)
@@ -1046,7 +1066,10 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 
 	var road_material := ShaderMaterial.new()
 	road_material.shader = RoadShader
+	road_material.set_shader_parameter("gravel_texture", GravelTexture)
 	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
+	road_material.set_shader_parameter("stage_length", network.total_length)
+	road_material.set_shader_parameter("zone_offset", minf(track.road_half_width * 0.45, 1.5))
 	road_material.set_shader_parameter("wetness", _weather_wetness())
 	road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
 
@@ -1086,6 +1109,28 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	road_body.add_child(collider)
 	if generated != null:
 		generated.add_child(road_body)
+
+
+## Локальные скользкие полосы: та же формула используется шейдером дороги.
+## Начало и финиш свободны; полосы чередуются по сторонам и оставляют объезд.
+func live_surface_grip(world_point: Vector3) -> float:
+	if network == null or track == null:
+		return 1.0
+	var p: Vector3 = to_local(world_point)
+	var along: float = network.along_road(p.x, p.z)
+	if along < 150.0 or along > network.total_length - 40.0:
+		return 1.0
+	var cell_index: int = floori((along - 150.0) / 240.0)
+	var local_along: float = fposmod(along - 150.0, 240.0)
+	var center: Vector3 = network.point_at(along)
+	var dir: Vector3 = network.direction_at(along)
+	var side := Vector3(dir.z, 0.0, -dir.x)
+	var lateral: float = (p - center).dot(side)
+	var offset: float = minf(track.road_half_width * 0.45, 1.5)
+	var zone_side: float = 1.0 if cell_index % 2 == 0 else -1.0
+	var longitudinal: float = smoothstep(0.0, 3.0, local_along) * (1.0 - smoothstep(17.0, 20.0, local_along))
+	var across: float = 1.0 - smoothstep(0.7, 1.5, absf(lateral - zone_side * offset))
+	return 1.0 - longitudinal * across * (0.20 if cell_index % 2 == 0 else 0.13)
 
 
 func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -> void:
@@ -1206,7 +1251,8 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 	var material := StandardMaterial3D.new()
 	material.roughness = 0.95
 	if kind == "fir":
-		material.albedo_color = Color(0.075, 0.215, 0.115)
+		material.albedo_texture = NeedleTexture
+		material.albedo_color = Color(0.9, 1.0, 0.9)
 		var mesh_fir := CylinderMesh.new()
 		mesh_fir.top_radius = 0.0
 		mesh_fir.bottom_radius = 1.7
@@ -1216,7 +1262,8 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 		mesh_fir.material = material
 		return mesh_fir
 	if kind == "pine":
-		material.albedo_color = Color(0.09, 0.17, 0.12)
+		material.albedo_texture = NeedleTexture
+		material.albedo_color = Color(0.75, 0.85, 0.8)
 		var mesh_pine := CylinderMesh.new()
 		mesh_pine.top_radius = 0.0
 		mesh_pine.bottom_radius = 1.35
@@ -1226,7 +1273,8 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 		mesh_pine.material = material
 		return mesh_pine
 	if kind == "bush":
-		material.albedo_color = Color(0.13, 0.28, 0.12)
+		material.albedo_texture = NeedleTexture
+		material.albedo_color = Color(1.0, 1.0, 0.9)
 		var mesh_bush := SphereMesh.new()
 		mesh_bush.radius = 0.95
 		mesh_bush.height = 1.5
@@ -1234,7 +1282,8 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 		mesh_bush.rings = 2
 		mesh_bush.material = material
 		return mesh_bush
-	material.albedo_color = Color(0.31, 0.32, 0.33)
+	material.albedo_texture = RockTexture
+	material.albedo_color = Color(0.85, 0.88, 0.9)
 	material.roughness = 0.98
 	var mesh_rock := SphereMesh.new()
 	mesh_rock.radius = 1.2
@@ -1552,14 +1601,15 @@ func _setup_precipitation() -> void:
 	particles.name = "WeatherParticles"
 	# Пауза останавливает и дождь: иначе капли «висят» над машиной в паузе.
 	particles.process_mode = Node.PROCESS_MODE_PAUSABLE
-	particles.amount = int(lerpf(700.0, 2600.0, intensity))
+	particles.amount = maxi(1, int(lerpf(700.0, 2600.0, intensity) * precipitation_density))
 	particles.lifetime = 2.4
+	particles.preprocess = 2.0
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	particles.visibility_aabb = AABB(Vector3(-80.0, -40.0, -80.0), Vector3(160.0, 90.0, 160.0))
 	var particle_material := ParticleProcessMaterial.new()
 	particle_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	particle_material.emission_box_extents = Vector3(48.0, 12.0, 48.0)
+	particle_material.emission_box_extents = Vector3(28.0, 10.0, 28.0)
 	# Ветер сносит осадки в сторону — дождь идёт «по косой».
 	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
 	var quad := QuadMesh.new()
@@ -1670,10 +1720,36 @@ func _setup_hud() -> void:
 		return
 	_hud_ready = true
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
+	# Эффекты мира под HUD: даже при отключённом blur остаётся мягкая стилизация.
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
-	if speed_rect != null:
+	if speed_rect == null:
+		speed_rect = ColorRect.new()
+		speed_rect.name = "SpeedShaderRect"
+		speed_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hud.add_child(speed_rect)
+		speed_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		hud.move_child(speed_rect, 0)
+		speed_fx_material = ShaderMaterial.new()
+		speed_fx_material.shader = SpeedShader
+		speed_rect.material = speed_fx_material
+	else:
 		speed_fx_material = speed_rect.material as ShaderMaterial
-		speed_rect.visible = track.enable_speed_fx
+	speed_rect.visible = true
+	if speed_fx_material != null:
+		speed_fx_material.set_shader_parameter("retro_strength", retro_style_strength)
+
+	if weather != null and weather.has_precipitation():
+		var weather_rect := ColorRect.new()
+		weather_rect.name = "WeatherMotionRect"
+		weather_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hud.add_child(weather_rect)
+		weather_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		hud.move_child(weather_rect, 1)
+		weather_motion_material = ShaderMaterial.new()
+		weather_motion_material.shader = WeatherMotionShader
+		weather_motion_material.set_shader_parameter("weather_intensity", clampf(weather.precipitation_intensity * weather_motion_strength, 0.0, 1.0))
+		weather_motion_material.set_shader_parameter("is_snow", 1.0 if weather.precipitation == WeatherType.Precipitation.SNOW else 0.0)
+		weather_rect.material = weather_motion_material
 
 	# Панель этапа (название трассы задаётся из конфига).
 	var stage_title := _hud_node("RallyHUD/StagePanel/StageBox/StageTitle") as Label
@@ -1907,7 +1983,11 @@ func _process(delta: float) -> void:
 		return
 	# Осадки летят вокруг машины: эмиттер над капотом, частицы — в мире.
 	if _weather_particles != null and car != null:
-		_weather_particles.global_position = car.global_position + Vector3(0.0, 16.0, 0.0)
+		# На скорости генератор смотрит вперёд по фактической скорости, а не
+		# по направлению кузова: во время заноса перед камерой нет пустоты.
+		var lead: Vector3 = car.linear_velocity * 0.35
+		lead.y = 0.0
+		_weather_particles.global_position = car.global_position + lead.limit_length(18.0) + Vector3(0.0, 12.0, 0.0)
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
 		return
@@ -1930,9 +2010,23 @@ func _process(delta: float) -> void:
 			stage_time += delta
 		_check_checkpoints()
 		_check_finish()
+	var speed: float = car.speed_kmh if car != null else 0.0
 	if speed_fx_material != null:
-		var intensity: float = clampf(((car.speed_kmh if car != null else 0.0) - 70.0) / 130.0, 0.0, 1.0)
+		var intensity: float = clampf((speed - 65.0) / 115.0 * speed_effect_strength, 0.0, 1.0) if track.enable_speed_fx else 0.0
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
+	if weather_motion_material != null and car != null:
+		var motion: float = smoothstep(20.0, 120.0, speed)
+		_weather_phase += delta * lerpf(2.0, 13.0, motion)
+		# Скорость проецируем в систему активной камеры: вид с капота,
+		# кабины, камеры сзади и боковой занос работают одинаково.
+		var camera: Camera3D = car.active_camera
+		var sideways: float = 0.0
+		if camera != null:
+			var camera_velocity: Vector3 = camera.global_basis.inverse() * car.linear_velocity
+			sideways = clampf(-camera_velocity.x / 25.0, -1.5, 1.5)
+		weather_motion_material.set_shader_parameter("flow", Vector2(sideways, 1.0))
+		weather_motion_material.set_shader_parameter("phase", _weather_phase)
+		weather_motion_material.set_shader_parameter("speed_intensity", motion)
 	_frame_delta = delta
 	_update_hud()
 

@@ -303,7 +303,10 @@ func process_tires(braking : bool, delta : float):
 		slip_vector = Vector2(0.0001, 0.0001)
 	
 	var cornering_stiffness := 0.5 * current_tire_stiffness * pow(contact_patch, 2.0)
-	var friction := current_cof * spring_force - (spring_force / (tire_width * contact_patch * 0.2))
+	var live_grip := 1.0
+	if last_collider != null and last_collider.name == "RoadSurface" and vehicle != null and vehicle.has_method("live_surface_grip"):
+		live_grip = float(vehicle.call("live_surface_grip", last_collision_point))
+	var friction := current_cof * live_grip * spring_force - (spring_force / (tire_width * contact_patch * 0.2))
 	var deflect := 1.0 / (sqrt(pow(cornering_stiffness * slip_vector.y, 2.0) + pow(cornering_stiffness * slip_vector.x, 2.0)))
 	
 	## Adds in additional longitudinal grip when braking

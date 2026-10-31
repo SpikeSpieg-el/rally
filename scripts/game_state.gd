@@ -11,6 +11,7 @@
 extends Node
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
+const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 
 signal selection_changed
 signal race_started
@@ -114,7 +115,7 @@ func _restore_saved_selection() -> void:
 			0, maxi(0, profile_count() - 1)
 		)
 	current_track = get_track(track_index)
-	current_setup = get_setup(setup_index)
+	current_setup = get_custom_setup(setup_index)
 	current_weather = get_weather(weather_index)
 	current_profile = get_profile(profile_index)
 
@@ -250,9 +251,40 @@ func select_track(index: int) -> void:
 
 func select_setup(index: int) -> void:
 	setup_index = clampi(index, 0, maxi(0, setup_count() - 1))
-	current_setup = get_setup(setup_index)
+	current_setup = get_custom_setup(setup_index)
 	_save_selection()
 	selection_changed.emit()
+
+
+## Персональная копия пресета; исходные .tres никогда не меняются.
+func get_custom_setup(index: int) -> CarSetupType:
+	var base := get_setup(index) as CarSetupType
+	if base == null:
+		return null
+	var result := base.duplicate(true) as CarSetupType
+	var section := "garage_" + base.id
+	var color: Variant = _conditions.get_value(section, "body_color", base.body_color)
+	if color is Color:
+		result.body_color = Color(color.r, color.g, color.b, 1.0)
+	result.max_torque = clampf(float(_conditions.get_value(section, "max_torque", base.max_torque)), 250.0, 750.0)
+	result.final_drive = clampf(float(_conditions.get_value(section, "final_drive", base.final_drive)), 3.0, 5.5)
+	result.front_spring_length = clampf(float(_conditions.get_value(section, "front_spring_length", base.front_spring_length)), 0.20, 0.45)
+	result.rear_spring_length = clampf(float(_conditions.get_value(section, "rear_spring_length", base.rear_spring_length)), 0.20, 0.45)
+	result.tire_radius = clampf(float(_conditions.get_value(section, "tire_radius", base.tire_radius)), 0.38, 0.50)
+	return result
+
+
+func save_custom_setup(index: int, setup: CarSetupType) -> void:
+	var base := get_setup(index) as CarSetupType
+	if base == null or setup == null:
+		return
+	var section := "garage_" + base.id
+	for property in ["body_color", "max_torque", "final_drive", "front_spring_length", "rear_spring_length", "tire_radius"]:
+		_conditions.set_value(section, property, setup.get(property))
+	save_conditions()
+	if index == setup_index:
+		current_setup = get_custom_setup(index)
+		selection_changed.emit()
 
 
 func select_weather(index: int) -> void:

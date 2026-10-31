@@ -1,12 +1,18 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/bark.png" id="tex_bark"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/needles.png" id="tex_needles"]
 
 [sub_resource type="StandardMaterial3D" id="Material_trunk"]
-albedo_color = Color(0.23, 0.13, 0.07, 1)
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("tex_bark")
 roughness = 1.0
 specular_mode = 2
 
 [sub_resource type="StandardMaterial3D" id="Material_needles"]
-albedo_color = Color(0.09, 0.28, 0.13, 1)
+albedo_color = Color(0.9, 1, 0.9, 1)
+albedo_texture = ExtResource("tex_needles")
 roughness = 0.95
 specular_mode = 2
 

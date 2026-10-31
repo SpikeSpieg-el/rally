@@ -9,6 +9,7 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const StagePreviewType = preload("res://scripts/stage_preview.gd")
+const GarageScene = preload("res://scenes/garage_menu.tscn")
 
 @export var config: GameConfigType = null
 
@@ -35,6 +36,7 @@ var selected_setup: int = 0
 var selected_weather: int = 0
 var selected_profile: int = 0
 var controller_manager: Node = null
+var garage = null
 
 # Блок условий заезда строится кодом: так меню остаётся одним .tscn,
 # а списки погоды/характеров растут вместе с конфигом.
@@ -286,8 +288,8 @@ func _connect_focus_navigation() -> void:
 			setup_buttons[i - 1] if i > 0 else setup_buttons[setup_buttons.size() - 1],
 			setup_buttons[i + 1] if i + 1 < setup_buttons.size() else setup_buttons[0]
 		)
-	_set_focus_neighbors(start_button, _selected_setup_button(), track_buttons[0] if not track_buttons.is_empty() else null, quit_button, quit_button)
-	_set_focus_neighbors(quit_button, _selected_setup_button(), track_buttons[0] if not track_buttons.is_empty() else null, start_button, start_button)
+	_set_focus_neighbors(start_button, track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null, track_buttons[0] if not track_buttons.is_empty() else null, quit_button, quit_button)
+	_set_focus_neighbors(quit_button, track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null, track_buttons[0] if not track_buttons.is_empty() else null, start_button, start_button)
 	_update_dynamic_focus()
 
 
@@ -306,7 +308,7 @@ func _set_focus_neighbors(control: Control, top: Control, bottom: Control, left:
 
 ## Соседи, которые зависят от текущего выбора трассы/конфигурации.
 func _update_dynamic_focus() -> void:
-	var setup_target := _selected_setup_button()
+	var setup_target: Button = start_button
 	var track_target: Button = track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null
 	for button in track_buttons:
 		if setup_target != null:
@@ -314,10 +316,10 @@ func _update_dynamic_focus() -> void:
 	for button in setup_buttons:
 		if track_target != null:
 			button.focus_neighbor_top = button.get_path_to(track_target)
-	if start_button != null and setup_target != null:
-		start_button.focus_neighbor_top = start_button.get_path_to(setup_target)
-	if quit_button != null and setup_target != null:
-		quit_button.focus_neighbor_top = quit_button.get_path_to(setup_target)
+	if start_button != null and track_target != null:
+		start_button.focus_neighbor_top = start_button.get_path_to(track_target)
+	if quit_button != null and track_target != null:
+		quit_button.focus_neighbor_top = quit_button.get_path_to(track_target)
 
 
 func _selected_setup_button() -> Button:
@@ -359,9 +361,8 @@ func _update_footer() -> void:
 		return
 	if controller_manager != null and bool(controller_manager.get("gamepad_active")) and controller_manager.has_method("get_glyphs"):
 		var glyphs: Dictionary = controller_manager.call("get_glyphs")
-		footer_label.text = "Геймпад: [%s/%s] трасса  •  [%s/%s] конфигурация  •  [%s] старт  •  [%s] выход  •  погода и сид — мышью" % [
+		footer_label.text = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  погода и сид — мышью" % [
 			String(glyphs["dpad_up"]), String(glyphs["dpad_down"]),
-			String(glyphs["dpad_left"]), String(glyphs["dpad_right"]),
 			String(glyphs["accept"]), String(glyphs["cancel"]),
 		]
 	else:
@@ -474,9 +475,7 @@ func _track_info_text(
 		if not weather_summary.is_empty() and weather_summary != weather.display_name:
 			weather_line += "  •  %s" % weather_summary
 		grip *= weather.grip_scale
-	var engine_line: String = ""
-	if setup != null:
-		engine_line = "\nМОТОР: %s" % setup.get_engine_summary()
+	var engine_line: String = "\nМАШИНА И НАСТРОЙКИ — В ГАРАЖЕ"
 	return "%s\n\n%s\n\n%s\n%s\n%s\n" % [
 		track.display_name,
 		track.description,
@@ -591,6 +590,8 @@ func _on_seed_copy_pressed() -> void:
 ## Горячие клавиши меню: F1–F5 — трассы, F6 — погода, F7 — характер,
 ## F8 — новый сид «Живой ленты». Раньше F1–F5 были только в подписи.
 func _input(event: InputEvent) -> void:
+	if garage != null and garage.visible:
+		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
@@ -674,10 +675,31 @@ func _on_setup_pressed(index: int) -> void:
 
 func _on_start_pressed() -> void:
 	_sync_game()
-	if controller_manager != null and controller_manager.has_method("rumble"):
-		controller_manager.call("rumble", 0.35, 0.65, 0.2)
+	if garage == null:
+		garage = GarageScene.instantiate()
+		garage.name = "Garage"
+		add_child(garage)
+		garage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		garage.back_requested.connect(_on_garage_back)
+		garage.start_requested.connect(_on_garage_start)
+	get_node("Content").hide()
+	garage.open(config, selected_setup, _get_game())
+
+
+func _on_garage_back() -> void:
+	garage.hide()
+	get_node("Content").show()
+	_refresh()
+	if start_button != null:
+		start_button.grab_focus()
+
+
+func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
+	selected_setup = index
+	_sync_game()
 	var game: Node = _get_game()
 	if game != null:
+		game.call("save_custom_setup", index, tuned_setup)
 		game.call("start_race")
 	else:
 		get_tree().change_scene_to_file(config.stage_scene)

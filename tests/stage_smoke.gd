@@ -29,9 +29,34 @@ func _run() -> void:
 
 	var road := stage.get_node_or_null("Generated/RoadMesh") as MeshInstance3D
 	var car = stage.get_node("RallyCar")
+	# Видимые полосы и физика привязаны к километражу и стороне дороги.
+	var offset: float = minf(stage.track.road_half_width * 0.45, 1.5)
+	var d := 160.0
+	var center: Vector3 = stage.network.point_at(d)
+	var direction: Vector3 = stage.network.direction_at(d)
+	var side := Vector3(direction.z, 0.0, -direction.x)
+	var slippery: float = stage.live_surface_grip(stage.to_global(center + side * offset))
+	var bypass: float = stage.live_surface_grip(stage.to_global(center - side * offset))
+	var start_grip: float = stage.live_surface_grip(stage.to_global(stage.network.point_at(10.0)))
+	var zones_ok: bool = slippery < bypass and is_equal_approx(start_grip, 1.0)
+	print("Живые участки: полоса=%.2f, объезд=%.2f, старт=%.2f" % [slippery, bypass, start_grip])
 	var marker: Marker3D = car.get_node("Cameras/CamCockpit")
 	var authored_marker := marker.transform
-	var ok := road != null and road.material_override is ShaderMaterial
+	var ok := zones_ok and road != null and road.material_override is ShaderMaterial
+	# Постобработка мира обязательно находится под HUD и не перехватывает мышь.
+	var speed_rect := stage.hud.get_node_or_null("SpeedShaderRect") as ColorRect
+	ok = ok and speed_rect != null and speed_rect.visible and speed_rect.material is ShaderMaterial
+	ok = ok and speed_rect != null and speed_rect.mouse_filter == Control.MOUSE_FILTER_IGNORE
+	ok = ok and speed_rect != null and speed_rect.get_index() < stage.hud.get_node("RallyHUD").get_index()
+	if road != null and road.material_override is ShaderMaterial:
+		ok = ok and road.material_override.get_shader_parameter("gravel_texture") != null
+	var ground_material := stage.terrain_mesh.material_override as ShaderMaterial
+	ok = ok and ground_material != null and ground_material.get_shader_parameter("ground_texture") != null
+	ok = ok and ground_material != null and ground_material.get_shader_parameter("rock_texture") != null
+	for kind in ["fir", "pine", "bush", "boulder"]:
+		var scenery_mesh: Mesh = stage._make_scenery_mesh(kind)
+		var scenery_material := scenery_mesh.surface_get_material(0) as StandardMaterial3D
+		ok = ok and scenery_material != null and scenery_material.albedo_texture != null
 	if road != null:
 		var arrays: Array = road.mesh.surface_get_arrays(0)
 		ok = ok and arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array and not arrays[Mesh.ARRAY_TEX_UV].is_empty()
