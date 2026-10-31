@@ -26,6 +26,7 @@ const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
+const TireMarksType = preload("res://scripts/tire_marks.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 const RoadShader = preload("res://shaders/gravel_road.gdshader")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
@@ -170,6 +171,13 @@ func _ready() -> void:
 		car_node.freeze = true
 	await _build_world_async()
 	_configure_car()
+	var marks = TireMarksType.new()
+	marks.name = "TireMarks"
+	marks.road_surface = track.surface_name
+	marks.snow_cover = _weather_snow_cover()
+	add_child(marks)
+	if car != null:
+		car.tire_marks = marks
 	_setup_precipitation()
 	if car_node != null:
 		car_node.freeze = false
@@ -542,8 +550,12 @@ func _clear_generated() -> void:
 func height_at(x: float, z: float) -> float:
 	if network == null:
 		return 0.0
-	var corridor: float = track.road_half_width + track.road_shoulder
 	var distance: float = network.distance_to_road(x, z)
+	return _height_with_distance(x, z, distance)
+
+
+func _height_with_distance(x: float, z: float, distance: float) -> float:
+	var corridor: float = track.road_half_width + track.road_shoulder
 	var along: float = network.along_road(x, z)
 	var road_y: float = network.height_at_along(along)
 	var fade: float = smoothstep(
@@ -689,8 +701,9 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 		for gx in range(cols):
 			var x: float = origin.x + float(gx) * cell
 			var index: int = gz * cols + gx
-			heights[index] = height_at(x, z)
-			distances[index] = network.distance_to_road(x, z)
+			var distance: float = network.distance_to_road(x, z)
+			distances[index] = distance
+			heights[index] = _height_with_distance(x, z, distance)
 		if light and gz % 24 == 23:
 			# Полоса прогресса: примерно до половины этого этапа — сетка высот.
 			_report_progress(lerpf(from_pct, to_pct, 0.5 * float(gz + 1) / float(rows)), "Рельеф…")
@@ -772,6 +785,8 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	#    расстояний, без повторных запросов к дороге. На «крышках» старта/
 	#    финиша дыру не делаем — там ленты спереди нет, оставляем рельеф.
 	var indices := PackedInt32Array()
+	indices.resize((rows - 1) * (cols - 1) * 6)
+	var index_count := 0
 	var hole_distance: float = corridor * 0.92
 	for gz in range(rows - 1):
 		for gx in range(cols - 1):
@@ -785,12 +800,16 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 			var hole_11: bool = distances[i11] < hole_distance and cap[i11] == 0
 			if hole_00 and hole_10 and hole_01 and hole_11:
 				continue
-			indices.append(i00)
-			indices.append(i10)
-			indices.append(i01)
-			indices.append(i10)
-			indices.append(i11)
-			indices.append(i01)
+			indices[index_count] = i00
+			indices[index_count + 1] = i10
+			indices[index_count + 2] = i01
+			indices[index_count + 3] = i10
+			indices[index_count + 4] = i11
+			indices[index_count + 5] = i01
+			index_count += 6
+		if light and gz % 48 == 47:
+			await get_tree().process_frame
+	indices.resize(index_count)
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
