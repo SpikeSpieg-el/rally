@@ -11,6 +11,8 @@ const MarkShader = preload("res://shaders/tire_marks.gdshader")
 
 var road_surface := "Гравий"
 var snow_cover := 0.0
+var wetness := 0.0
+var _soil_material: ShaderMaterial
 var _trails := {}
 var _chunks: Array = []
 var _next_segment := 0
@@ -21,13 +23,19 @@ var _material: ShaderMaterial
 func _ready() -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = MarkShader
+	_soil_material = ShaderMaterial.new()
+	_soil_material.shader = preload("res://shaders/loose_soil.gdshader")
 	for i in range(CHUNK_COUNT):
 		var visual := MeshInstance3D.new()
 		visual.name = "Marks%d" % i
 		visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		visual.material_override = _material
 		add_child(visual)
-		_chunks.append({"visual": visual, "segments": [], "dirty": false})
+		var soil := MeshInstance3D.new()
+		soil.name = "LooseSoil%d" % i
+		soil.material_override = _soil_material
+		add_child(soil)
+		_chunks.append({"visual": visual, "soil": soil, "segments": [], "dirty": false})
 
 
 func break_trails() -> void:
@@ -69,11 +77,12 @@ func update_wheels(wheels: Array, speed: float) -> void:
 		var point: Vector3 = to_local(wheel.last_collision_point + wheel.last_collision_normal * 0.012)
 		var normal: Vector3 = (global_basis.inverse() * wheel.last_collision_normal).normalized()
 		var previous: Dictionary = _trails.get(key, {})
-		var current := {"point": point, "normal": normal, "alpha": alpha, "surface": surface, "collider": collider.get_instance_id(), "distance": 0.0}
+		var current := {"point": point, "normal": normal, "alpha": alpha, "surface": surface, "collider": collider.get_instance_id(), "distance": 0.0, "looseness": maxf(rut, intensity * 0.75)}
 		if previous.is_empty() or previous.surface != surface or previous.collider != current.collider:
 			if alpha >= 0.025:
 				# Плавное начало вместо обрубленного прямоугольника.
 				current.alpha = 0.0
+				current.looseness = 0.0
 				_trails[key] = current
 			else:
 				_trails.erase(key)
@@ -89,6 +98,7 @@ func update_wheels(wheels: Array, speed: float) -> void:
 		else:
 			# Телепортация: новый след начинается отдельно.
 			current.alpha = 0.0
+			current.looseness = 0.0
 		if alpha < 0.025:
 			_trails.erase(key)
 		else:
@@ -131,7 +141,7 @@ func _add_segment(a: Dictionary, b: Dictionary, width: float) -> void:
 	var color_b: Color = color_a
 	color_a.a = a.alpha
 	color_b.a = b.alpha
-	var segment := {"vertices": [a.point - side_a, a.point + side_a, b.point - side_b, b.point + side_b], "colors": [color_a, color_a, color_b, color_b], "start_distance": a.distance, "end_distance": b.distance}
+	var segment := {"vertices": [a.point - side_a, a.point + side_a, b.point - side_b, b.point + side_b], "colors": [color_a, color_a, color_b, color_b], "start_distance": a.distance, "end_distance": b.distance, "soil": _soil_vertices(a, b, side_a, side_b), "soil_color": _surface_color(a.surface).lightened(0.18).lerp(Color(0.12, 0.075, 0.035), wetness * 0.6)}
 	var chunk_index: int = int(_next_segment / CHUNK_SIZE) % CHUNK_COUNT
 	var slot: int = _next_segment % CHUNK_SIZE
 	var chunk: Dictionary = _chunks[chunk_index]
@@ -163,4 +173,54 @@ func _rebuild_chunk(chunk: Dictionary) -> void:
 	if not vertices.is_empty():
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	chunk.visual.mesh = mesh
+	_rebuild_soil(chunk)
 	chunk.dirty = false
+
+
+## Два треугольных валика вытесненного грунта по краям следа.
+## Профиль непрерывен между сегментами; высота зависит от пробуксовки/колеи.
+func _soil_vertices(a: Dictionary, b: Dictionary, side_a: Vector3, side_b: Vector3) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	if a.surface == "asphalt":
+		return result
+	for sign_side in [-1.0, 1.0]:
+		var profiles: Array = []
+		for endpoint in [a, b]:
+			var side: Vector3 = side_a if endpoint == a else side_b
+			var loose: float = endpoint.get("looseness", 0.0)
+			var wave := 0.8 + 0.2 * sin(endpoint.distance * 19.0 + sign_side * 2.0)
+			var height := (0.008 + loose * 0.055) * wave
+			var center: Vector3 = endpoint.point - endpoint.normal * 0.008
+			profiles.append([
+				center + side * sign_side * 0.88,
+				center + side * sign_side * 1.35 + endpoint.normal * height,
+				center + side * sign_side * (1.9 + loose * 0.4),
+			])
+		for lane in range(2):
+			result.append_array(PackedVector3Array([profiles[0][lane], profiles[0][lane + 1], profiles[1][lane], profiles[0][lane + 1], profiles[1][lane + 1], profiles[1][lane]]))
+	return result
+
+
+func _rebuild_soil(chunk: Dictionary) -> void:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	for segment in chunk.segments:
+		var soil: PackedVector3Array = segment.soil
+		for i in range(0, soil.size(), 3):
+			var normal := (soil[i + 1] - soil[i]).cross(soil[i + 2] - soil[i]).normalized()
+			if normal.y < 0.0:
+				normal = -normal
+			for j in range(3):
+				vertices.append(soil[i + j])
+				normals.append(normal)
+				colors.append(segment.soil_color)
+	var mesh := ArrayMesh.new()
+	if not vertices.is_empty():
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_COLOR] = colors
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	chunk.soil.mesh = mesh
