@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://b2qrn8s2chffn" path="res://scripts/ui/mini_map.gd" id="1_mini"]
 [ext_resource type="Script" uid="uid://cjphdxoxbefkd" path="res://scripts/ui/gauge_bar.gd" id="2_gauge"]
-[ext_resource type="Script" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
-[ext_resource type="Script" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
+[ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
+[ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 14.0
@@ -24,6 +24,20 @@ shadow_color = Color(0, 0, 0, 0.28)
 shadow_size = 8
 shadow_offset = Vector2(0, 3)
 
+[sub_resource type="StyleBoxFlat" id="SB_panel_top"]
+content_margin_left = 22.0
+content_margin_top = 6.0
+content_margin_right = 22.0
+content_margin_bottom = 8.0
+bg_color = Color(0.04, 0.055, 0.08, 0.72)
+border_width_top = 3
+border_color = Color(1, 0.52, 0.12, 0.9)
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.28)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
 [sub_resource type="StyleBoxFlat" id="SB_panel_glass"]
 content_margin_left = 12.0
 content_margin_top = 10.0
@@ -40,20 +54,6 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 shadow_color = Color(0, 0, 0, 0.25)
-shadow_size = 8
-shadow_offset = Vector2(0, 3)
-
-[sub_resource type="StyleBoxFlat" id="SB_panel_top"]
-content_margin_left = 22.0
-content_margin_top = 6.0
-content_margin_right = 22.0
-content_margin_bottom = 8.0
-bg_color = Color(0.04, 0.055, 0.08, 0.72)
-border_width_top = 3
-border_color = Color(1, 0.52, 0.12, 0.9)
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0, 0, 0, 0.28)
 shadow_size = 8
 shadow_offset = Vector2(0, 3)
 
@@ -86,7 +86,6 @@ corner_radius_top_left = 16
 corner_radius_top_right = 16
 corner_radius_bottom_right = 16
 corner_radius_bottom_left = 16
-shadow_color = Color(0, 0, 0, 0.6)
 shadow_size = 24
 
 [sub_resource type="StyleBoxFlat" id="SB_button"]
@@ -194,7 +193,6 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -135.0
-offset_top = 0.0
 offset_right = 135.0
 offset_bottom = 76.0
 grow_horizontal = 2
@@ -437,111 +435,108 @@ theme_override_font_sizes/font_size = 28
 text = "ПАУЗА"
 horizontal_alignment = 1
 
-[node name="CameraOptions" type="VBoxContainer" parent="PausePanel/Box"]
+[node name="CameraOptions" type="VBoxContainer" parent="PausePanel/Box" unique_id=157391495]
 layout_mode = 2
 theme_override_constants/separation = 6
 script = ExtResource("3_camera_settings")
 
-[node name="CameraTitle" type="Label" parent="PausePanel/Box/CameraOptions"]
+[node name="CameraTitle" type="Label" parent="PausePanel/Box/CameraOptions" unique_id=1395620939]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.55, 0.15, 1)
 theme_override_font_sizes/font_size = 13
 text = "НАСТРОЙКИ КАМЕРЫ"
 
-[node name="CockpitFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+[node name="CockpitFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions" unique_id=1476780557]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov" unique_id=2092748184]
 custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
 theme_override_font_sizes/font_size = 13
 text = "FOV КАБИНЫ"
 
-[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/CockpitFov" unique_id=1395870006]
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 45.0
 max_value = 110.0
-step = 1.0
 value = 76.0
 
-[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov"]
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/CockpitFov" unique_id=1378004048]
 custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "76°"
 horizontal_alignment = 2
 
-[node name="ChaseFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+[node name="ChaseFov" type="HBoxContainer" parent="PausePanel/Box/CameraOptions" unique_id=1895166535]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov" unique_id=430065641]
 custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
 theme_override_font_sizes/font_size = 13
 text = "FOV СЗАДИ"
 
-[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/ChaseFov" unique_id=1212079541]
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 45.0
 max_value = 110.0
-step = 1.0
 value = 72.0
 
-[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov"]
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/ChaseFov" unique_id=751350682]
 custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "72°"
 horizontal_alignment = 2
 
-[node name="Motion" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+[node name="Motion" type="HBoxContainer" parent="PausePanel/Box/CameraOptions" unique_id=673400163]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Motion" unique_id=980141262]
 custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
 theme_override_font_sizes/font_size = 13
 text = "ДВИЖЕНИЕ КАМЕРЫ"
 
-[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Motion"]
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Motion" unique_id=1056226325]
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.0
 max_value = 1.0
 step = 0.05
 value = 0.35
 
-[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Motion"]
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Motion" unique_id=939087224]
 custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "35%"
 horizontal_alignment = 2
 
-[node name="Sensitivity" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+[node name="Sensitivity" type="HBoxContainer" parent="PausePanel/Box/CameraOptions" unique_id=1250454021]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity" unique_id=1227314522]
 custom_minimum_size = Vector2(175, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
 theme_override_font_sizes/font_size = 13
 text = "ЧУВСТВИТЕЛЬНОСТЬ"
 
-[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/Sensitivity" unique_id=62317658]
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.5
@@ -549,14 +544,14 @@ max_value = 10.0
 step = 0.5
 value = 2.5
 
-[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity"]
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/Sensitivity" unique_id=1402444936]
 custom_minimum_size = Vector2(44, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "2.5"
 horizontal_alignment = 2
 
-[node name="ResetButton" type="Button" parent="PausePanel/Box/CameraOptions"]
+[node name="ResetButton" type="Button" parent="PausePanel/Box/CameraOptions" unique_id=979334653]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
@@ -566,7 +561,7 @@ theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
 text = "СБРОСИТЬ КАМЕРУ"
 
-[node name="ControllerOptions" type="VBoxContainer" parent="PausePanel/Box"]
+[node name="ControllerOptions" type="VBoxContainer" parent="PausePanel/Box" unique_id=77763089]
 layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("4_controller_settings")

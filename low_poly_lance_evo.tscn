@@ -1,6 +1,7 @@
 [gd_scene format=4 uid="uid://bnolykrqylfnv"]
 
-[ext_resource type="Texture2D" uid="uid://bkkv8xfjypj5w" path="res://textures/mitsubishi.png" id="2_c4xtp"]
+[ext_resource type="Texture2D" uid="uid://ch66w628acnj1" path="res://textures/иташа2.jpg" id="1_c4xtp"]
+[ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="1_nipno"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="3_c4xtp"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="3_nipno"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_psh58"]
@@ -168,7 +169,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_1n0cv")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_psh58"]
-albedo_texture = ExtResource("2_c4xtp")
+albedo_texture = ExtResource("1_c4xtp")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_e8r34"]
 resource_name = "mitsubishi"
@@ -684,6 +685,7 @@ shadow_mesh = SubResource("ArrayMesh_vksdm")
 
 [node name="Circle_001" type="MeshInstance3D" parent="." unique_id=1122162727]
 transform = Transform3D(0.09687788, 0, 0, 0, 0, -0.09687788, 0, 0.09687788, 0, 0.6066237, 1.3198779, -1.8189112)
+material_override = ExtResource("1_nipno")
 mesh = SubResource("ArrayMesh_fcs3b")
 
 [node name="Mitsubishi_Body_003" type="MeshInstance3D" parent="." unique_id=1821021235]
@@ -701,6 +703,7 @@ mesh = SubResource("ArrayMesh_es165")
 
 [node name="Circle" type="MeshInstance3D" parent="Mitsubishi_Body" unique_id=84476251]
 transform = Transform3D(0.99999785, 0.0014684469, 0.0014680147, 0.0014684469, -0.00029337406, -0.9999989, -0.0014680147, 0.9999989, -0.00029551983, 0.6293413, -0.8123318, -2.8807304)
+material_override = ExtResource("1_nipno")
 mesh = SubResource("ArrayMesh_stvga")
 
 [node name="Circle_002" type="MeshInstance3D" parent="Mitsubishi_Body" unique_id=1858615247]

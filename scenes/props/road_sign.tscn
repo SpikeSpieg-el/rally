@@ -1,42 +1,41 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3 uid="uid://dblndqw45wkp4"]
 
 [sub_resource type="StandardMaterial3D" id="Material_post"]
+specular_mode = 2
 albedo_color = Color(0.26, 0.19, 0.11, 1)
-roughness = 1.0
-specular_mode = 2
-
-[sub_resource type="StandardMaterial3D" id="Material_board"]
-albedo_color = Color(0.94, 0.92, 0.85, 1)
-roughness = 0.85
-specular_mode = 2
-
-[sub_resource type="StandardMaterial3D" id="Material_stripe"]
-albedo_color = Color(0.82, 0.12, 0.09, 1)
-roughness = 0.85
-specular_mode = 2
 
 [sub_resource type="BoxMesh" id="Mesh_post"]
 material = SubResource("Material_post")
 size = Vector3(0.1, 1.9, 0.1)
 
+[sub_resource type="StandardMaterial3D" id="Material_board"]
+specular_mode = 2
+albedo_color = Color(0.94, 0.92, 0.85, 1)
+roughness = 0.85
+
 [sub_resource type="BoxMesh" id="Mesh_board"]
 material = SubResource("Material_board")
 size = Vector3(1.5, 0.85, 0.07)
+
+[sub_resource type="StandardMaterial3D" id="Material_stripe"]
+specular_mode = 2
+albedo_color = Color(0.82, 0.12, 0.09, 1)
+roughness = 0.85
 
 [sub_resource type="BoxMesh" id="Mesh_stripe"]
 material = SubResource("Material_stripe")
 size = Vector3(1.5, 0.16, 0.075)
 
-[node name="RoadSign" type="Node3D"]
+[node name="RoadSign" type="Node3D" unique_id=420621947]
 
-[node name="Post" type="MeshInstance3D" parent="."]
+[node name="Post" type="MeshInstance3D" parent="." unique_id=869417296]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 mesh = SubResource("Mesh_post")
 
-[node name="Board" type="MeshInstance3D" parent="."]
+[node name="Board" type="MeshInstance3D" parent="." unique_id=1143931547]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0)
 mesh = SubResource("Mesh_board")
 
-[node name="Stripe" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0.045)
+[node name="Stripe" type="MeshInstance3D" parent="." unique_id=254696641]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0.07130161)
 mesh = SubResource("Mesh_stripe")
