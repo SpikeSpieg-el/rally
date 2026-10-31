@@ -1,6 +1,8 @@
 shader_type canvas_item;
 
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
+// Лёгкая ретро-палитра и субпиксельная зернистость только для мира, не HUD.
+uniform float retro_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float speed_intensity : hint_range(0.0, 1.0) = 0.0;
 
 // Очень аккуратные значения, которые не искажают геометрию экрана
@@ -31,6 +33,10 @@ void fragment() {
 		accum += texture(screen_texture, sample_uv).rgb;
 	}
 	vec3 color = accum / float(SAMPLES);
+	// Небольшое смешивание с сеткой 720p вместо жёсткого пикселизации.
+	vec2 retro_grid = vec2(1280.0, 720.0);
+	vec2 pixel_uv = (floor(uv * retro_grid) + 0.5) / retro_grid;
+	color = mix(color, texture(screen_texture, pixel_uv).rgb, retro_strength * 0.30);
 
 	// Легкая хроматическая аберрация строго вокруг текущей точки
 	vec2 ca_offset = dir * (aberration_strength * mask);
@@ -41,5 +47,8 @@ void fragment() {
 	float vignette = smoothstep(0.35, 0.90, radius) * intensity * vignette_strength;
 	color *= 1.0 - vignette;
 
+	float grain = fract(sin(dot(floor(FRAGCOORD.xy / 2.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+	vec3 retro_color = floor(clamp(color + grain / 64.0, 0.0, 1.0) * 40.0 + 0.5) / 40.0;
+	color = mix(color, retro_color, retro_strength);
 	COLOR = vec4(color, 1.0);
 }

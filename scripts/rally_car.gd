@@ -436,6 +436,14 @@ func apply_track_grip(grip_scale: float, rolling_scale: float, offroad_grip: flo
 	_refresh_grip_tuning()
 
 
+## Вызывается колесом только при контакте с полотном, не с землёй/препятствиями.
+func live_surface_grip(point: Vector3) -> float:
+	var stage := get_parent()
+	if stage != null and stage.has_method("live_surface_grip"):
+		return float(stage.call("live_surface_grip", point))
+	return 1.0
+
+
 func _get_surface_cof(surface_name: String) -> float:
 	if not surface_name.is_empty() and coefficient_of_friction.has(surface_name):
 		return float(coefficient_of_friction[surface_name])

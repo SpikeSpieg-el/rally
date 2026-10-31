@@ -117,12 +117,14 @@ layout_mode = 2
 theme_override_constants/separation = 3
 
 [node name="SetupsLabel" type="Label" parent="Content/Body/Left" unique_id=673727374]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
 theme_override_font_sizes/font_size = 18
 text = "КОНФИГУРАЦИЯ LANCER EVO"
 
 [node name="SetupList" type="HBoxContainer" parent="Content/Body/Left" unique_id=1836260245]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 6
 
@@ -137,7 +139,7 @@ theme_override_colors/font_color = Color(0.08, 0.08, 0.09, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxFlat_start")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-text = "СТАРТ ▶"
+text = "ДАЛЕЕ · МАШИНА  ▶"
 
 [node name="QuitButton" type="Button" parent="Content/Body/Left/ButtonRow" unique_id=1728074163]
 layout_mode = 2
@@ -165,6 +167,7 @@ text = "Информация о трассе"
 autowrap_mode = 3
 
 [node name="Stats" type="VBoxContainer" parent="Content/Body/Right" unique_id=1318898082]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 

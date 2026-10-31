@@ -1,0 +1,359 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/garage_menu.gd" id="garage_script"]
+[ext_resource type="PackedScene" path="res://low_poly_lance_evo.tscn" id="car_model"]
+
+[sub_resource type="Environment" id="ShowroomEnvironment"]
+background_mode = 1
+background_color = Color(0.035, 0.055, 0.072, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.72, 0.8, 0.9, 1)
+ambient_light_energy = 0.8
+
+[sub_resource type="StandardMaterial3D" id="PlatformMaterial"]
+albedo_color = Color(0.1, 0.14, 0.17, 1)
+metallic = 0.35
+roughness = 0.6
+
+[sub_resource type="CylinderMesh" id="PlatformMesh"]
+material = SubResource("PlatformMaterial")
+top_radius = 4.8
+bottom_radius = 4.8
+height = 0.12
+
+[sub_resource type="StyleBoxFlat" id="StartStyle"]
+bg_color = Color(0.94, 0.43, 0.07, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="Garage" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("garage_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.018, 0.028, 0.041, 1)
+
+[node name="Accent" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 6.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.98, 0.48, 0.05, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 30
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Eyebrow" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
+theme_override_font_sizes/font_size = 16
+text = "02  /  ПОДГОТОВКА К ЗАЕЗДУ"
+
+[node name="Title" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.96, 0.96, 1)
+theme_override_font_sizes/font_size = 46
+text = "ГАРАЖ"
+
+[node name="Body" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="ShowroomColumn" type="VBoxContainer" parent="Margin/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.3
+theme_override_constants/separation = 10
+
+[node name="CarTitle" type="Label" parent="Margin/Layout/Body/ShowroomColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.91, 0.94, 1)
+theme_override_font_sizes/font_size = 20
+text = "MITSUBISHI LANCER EVOLUTION"
+
+[node name="Preview" type="SubViewportContainer" parent="Margin/Layout/Body/ShowroomColumn"]
+custom_minimum_size = Vector2(480, 380)
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="Viewport" type="SubViewport" parent="Margin/Layout/Body/ShowroomColumn/Preview"]
+own_world_3d = true
+size = Vector2i(960, 600)
+render_target_update_mode = 4
+
+[node name="Showroom" type="Node3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
+environment = SubResource("ShowroomEnvironment")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
+rotation = Vector3(-0.872665, -0.610865, 0)
+light_energy = 1.8
+
+[node name="Platform" type="MeshInstance3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
+position = Vector3(0, -0.08, 0)
+mesh = SubResource("PlatformMesh")
+
+[node name="Turntable" type="Node3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
+unique_name_in_owner = true
+
+[node name="PreviewModel" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Turntable" instance=ExtResource("car_model")]
+unique_name_in_owner = true
+position = Vector3(0, -1.0842417, -0.82839704)
+
+[node name="Camera" type="Camera3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
+position = Vector3(7.5, 4, 8)
+rotation = Vector3(-0.267, 0.753, 0)
+current = true
+fov = 36.0
+
+[node name="PreviewCaption" type="Label" parent="Margin/Layout/Body/ShowroomColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 14
+text = "ПРЕДПРОСМОТР  /  кузов и колёса"
+
+[node name="SettingsScroll" type="ScrollContainer" parent="Margin/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="Settings" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ConfigurationTitle" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
+theme_override_font_sizes/font_size = 16
+text = "КОНФИГУРАЦИЯ"
+
+[node name="SetupSelector" type="OptionButton" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+
+[node name="Description" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.73, 0.78, 1)
+theme_override_font_sizes/font_size = 15
+text = "Описание конфигурации"
+autowrap_mode = 3
+
+[node name="Summary" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.94, 0.96, 1)
+theme_override_font_sizes/font_size = 19
+text = "Характеристики машины"
+autowrap_mode = 3
+
+[node name="SettingsTitle" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
+theme_override_font_sizes/font_size = 16
+text = "НАСТРОЙКИ  /  влияют на заезд"
+
+[node name="Torque" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 14
+text = "КРУТЯЩИЙ МОМЕНТ"
+
+[node name="TorqueValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
+theme_override_font_sizes/font_size = 15
+text = "—"
+
+[node name="TorqueSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+focus_mode = 2
+tooltip_text = "Больше момент — сильнее тяга двигателя."
+min_value = 250
+max_value = 750
+step = 10
+
+[node name="FinalDrive" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 14
+text = "ГЛАВНАЯ ПАРА"
+
+[node name="FinalDriveValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
+theme_override_font_sizes/font_size = 15
+text = "—"
+
+[node name="FinalDriveSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+focus_mode = 2
+tooltip_text = "Больше число — короче передачи и интенсивнее разгон."
+min_value = 3
+max_value = 5.5
+step = 0.05
+
+[node name="Spring" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 14
+text = "ХОД ПОДВЕСКИ"
+
+[node name="SpringValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
+theme_override_font_sizes/font_size = 15
+text = "—"
+
+[node name="SpringSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+focus_mode = 2
+tooltip_text = "Изменяет ход передней и задней подвески."
+min_value = 0.2
+max_value = 0.45
+step = 0.005
+
+[node name="TireRadius" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 14
+text = "РАДИУС КОЛЕСА"
+
+[node name="TireRadiusValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
+theme_override_font_sizes/font_size = 15
+text = "—"
+
+[node name="TireRadiusSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+focus_mode = 2
+tooltip_text = "Меняет размер колёс и физический радиус шины."
+min_value = 0.38
+max_value = 0.5
+step = 0.005
+
+[node name="ColorRow" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/ColorRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.78, 0.84, 0.87, 1)
+theme_override_font_sizes/font_size = 15
+text = "ЦВЕТ КУЗОВА"
+
+[node name="BodyColor" type="ColorPickerButton" parent="Margin/Layout/Body/SettingsScroll/Settings/ColorRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 38)
+layout_mode = 2
+edit_alpha = false
+
+[node name="ResetButton" type="Button" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "СБРОСИТЬ ПРЕСЕТ"
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackButton" type="Button" parent="Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(210, 52)
+layout_mode = 2
+text = "◀  К ТРАССЕ"
+
+[node name="Spacer" type="Control" parent="Margin/Layout/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StartButton" type="Button" parent="Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.06, 0.06, 0.06, 1)
+theme_override_font_sizes/font_size = 21
+theme_override_styles/normal = SubResource("StartStyle")
+text = "НА СТАРТ  ▶"
+
+[editable path="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Turntable/PreviewModel"]
