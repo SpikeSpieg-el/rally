@@ -4,8 +4,8 @@
 
 [sub_resource type="ShaderMaterial" id="NightSkyMaterial"]
 shader = ExtResource("1_sky")
-shader_parameter/sky_top_color = Color(0.025, 0.045, 0.105, 1)
-shader_parameter/sky_horizon_color = Color(0.13, 0.19, 0.29, 1)
+shader_parameter/sky_top_color = Color(0.035, 0.045, 0.075, 1)
+shader_parameter/sky_horizon_color = Color(0.13, 0.16, 0.19, 1)
 shader_parameter/star_intensity = 0.8
 
 [sub_resource type="Sky" id="NightSky"]
@@ -23,11 +23,15 @@ ssao_enabled = true
 ssao_radius = 1.2
 ssao_intensity = 1.0
 glow_enabled = true
-glow_intensity = 0.45
-glow_bloom = 0.02
+glow_intensity = 0.2
+glow_bloom = 0.005
 fog_enabled = true
-fog_light_color = Color(0.09, 0.13, 0.21, 1)
-fog_density = 0.0022
+fog_mode = 1
+fog_light_color = Color(0.16, 0.18, 0.2, 1)
+fog_density = 1.0
+fog_sky_affect = 0.35
+fog_depth_begin = 55.0
+fog_depth_end = 260.0
 volumetric_fog_enabled = true
 volumetric_fog_density = 0.0025
 volumetric_fog_albedo = Color(0.68, 0.73, 0.82, 1)
