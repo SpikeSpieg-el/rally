@@ -4,6 +4,7 @@ render_mode diffuse_burley, specular_schlick_ggx;
 // Вершинный цвет задаёт покрытие и обочины, UV.x — метры от оси,
 // UV.y — расстояние по дороге. Детали привязаны к миру, не к камере.
 uniform sampler2D gravel_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform float loose_relief : hint_range(0.0, 1.0) = 1.0;
 uniform float detail_strength : hint_range(0.0, 0.5) = 0.16;
 uniform float track_strength : hint_range(0.0, 0.4) = 0.12;
 uniform float road_roughness : hint_range(0.0, 1.0) = 0.92;
@@ -59,6 +60,9 @@ void fragment() {
 	zone *= 1.0 - smoothstep(0.7, 1.5, abs(UV.x - side * zone_offset));
 	if (UV.y < 150.0 || UV.y > stage_length - 40.0) { zone = 0.0; }
 	albedo = mix(albedo, mix(albedo * 0.38, albedo * 1.28, parity), zone * 0.8);
+	// Освещаемый микрорельеф камешков: рыхлость видна и вне следов.
+	float relief = gravel * loose_relief * (1.0 - snow_cover * 0.65);
+	NORMAL = normalize(NORMAL - 0.65 * (dFdx(relief) * normalize(dFdx(VERTEX)) + dFdy(relief) * normalize(dFdy(VERTEX))));
 	ALBEDO = albedo;
 	ROUGHNESS = mix(mix(road_roughness, 0.22, wetness), 0.72, snow_cover * 0.85);
 	SPECULAR = mix(mix(0.22, 0.55, wetness), 0.08, snow_cover * 0.85);

@@ -36,6 +36,7 @@ func _run() -> void:
 	marks.update_wheels([wheel], 10.0)
 	ok = ok and marks._next_segment == 1
 	var first: Dictionary = marks._chunks[0].segments[0]
+	ok = ok and first.soil.is_empty() # на асфальте нет валиков грунта
 	ok = ok and first.colors[0].a == 0.0 and first.colors[2].a > 0.0
 	# Поворот: общая кромка и непрерывные координаты текстуры.
 	wheel.last_collision_point = Vector3(0.5, 0.0, 3.0)
@@ -67,6 +68,14 @@ func _run() -> void:
 	marks.update_wheels([wheel], 10.0)
 	ok = ok and marks._next_segment == 4
 	ok = ok and marks._surface_kind(true, false) == "mud"
+	var mud: Dictionary = marks._chunks[0].segments[3]
+	ok = ok and mud.soil.size() == 24
+	var raised := false
+	for vertex in mud.soil:
+		raised = raised or vertex.y > 0.007
+	ok = ok and raised # настоящие вершины над дорогой, не только цвет
+	marks._process(1.0)
+	ok = ok and marks._chunks[0].soil.mesh.get_surface_count() == 1
 	marks.snow_cover = 1.0
 	ok = ok and marks._surface_kind(false, true) == "snow"
 	marks.snow_cover = 0.0

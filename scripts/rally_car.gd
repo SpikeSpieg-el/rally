@@ -130,6 +130,8 @@ var track_offroad_grip: float = 0.6
 ## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
 ## а не на старт.
 var tire_marks: Node = null
+const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
+var surface_effects: SurfaceEffectsType = null
 var reset_provider: Callable = Callable()
 
 ## Нижняя граница падения в мировых координатах. Сцена заезда может
@@ -162,6 +164,9 @@ func _ready() -> void:
 	requested_gear = 1
 	_setup_gravel_particles()
 	_apply_visual_setup()
+	surface_effects = SurfaceEffectsType.new()
+	add_child(surface_effects)
+	surface_effects.install(self)
 
 	# Считываем положение и угол наклона узла CamChase со сцены
 	_capture_scene_camera_setup()
@@ -603,6 +608,8 @@ func _physics_process(delta: float) -> void:
 	_update_gravel_particles()
 	if is_instance_valid(tire_marks):
 		tire_marks.call("update_wheels", wheel_array, linear_velocity.length())
+		if is_instance_valid(surface_effects):
+			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta)
 
 	_update_cameras(delta)
 

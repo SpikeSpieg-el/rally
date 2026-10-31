@@ -196,6 +196,7 @@ func _ready() -> void:
 	marks.name = "TireMarks"
 	marks.road_surface = track.surface_name
 	marks.snow_cover = _weather_snow_cover()
+	marks.wetness = _weather_wetness()
 	add_child(marks)
 	if car != null:
 		car.tire_marks = marks
@@ -1071,6 +1072,8 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var road_material := ShaderMaterial.new()
 	road_material.shader = RoadShader
 	road_material.set_shader_parameter("gravel_texture", GravelTexture)
+	var road_kind: String = surface_state.surface_kind(track.surface_name, false, _weather_snow_cover())
+	road_material.set_shader_parameter("loose_relief", 0.08 if road_kind == "asphalt" else 1.0)
 	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
 	road_material.set_shader_parameter("stage_length", network.total_length)
 	road_material.set_shader_parameter("zone_offset", minf(track.road_half_width * 0.45, 1.5))
