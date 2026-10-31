@@ -6,6 +6,8 @@ signal back_requested
 signal start_requested(index: int, setup: RallyCarSetup)
 
 const SetupType = preload("res://scripts/data/rally_car_setup.gd")
+const TrackType = preload("res://scripts/data/rally_track_config.gd")
+const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 ## Скорость вращения витрины, радиан/сек. 0 — остановить модель.
 @export_range(0.0, 1.0, 0.01) var turntable_speed: float = 0.16
 
@@ -22,6 +24,8 @@ var _updating := false
 @onready var _model: Node3D = %PreviewModel
 @onready var _turntable: Node3D = %Turntable
 @onready var _start: Button = %StartButton
+@onready var _preview_container: SubViewportContainer = $Margin/Layout/Body/ShowroomColumn/Preview
+@onready var _retro_rect: ColorRect = $Margin/Layout/Body/ShowroomColumn/Preview/Viewport/PostFX/RetroShaderRect
 var _values: Dictionary = {}
 var _sliders: Dictionary = {}
 var _wheels: Array[Node3D] = []
@@ -66,6 +70,7 @@ func _request_back() -> void:
 func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	config = game_config
 	game = game_state
+	_configure_preview_style()
 	drafts.clear()
 	_selector.clear()
 	for i in range(config.setup_count()):
@@ -74,6 +79,22 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	show()
 	_select_setup(clampi(index, 0, maxi(0, config.setup_count() - 1)))
 	_start.grab_focus()
+
+
+func _configure_preview_style() -> void:
+	var selected_track: TrackType = null
+	if game != null:
+		selected_track = game.get("current_track") as TrackType
+	if selected_track == null and config != null:
+		selected_track = config.get_track(config.default_track_index) as TrackType
+	var enabled: bool = selected_track != null and selected_track.ps1_style
+	# Реально уменьшаем только 3D-превью; элементы меню остаются чёткими.
+	_preview_container.stretch_shrink = 3 if enabled else 1
+	_preview_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if enabled else CanvasItem.TEXTURE_FILTER_PARENT_NODE
+	_retro_rect.visible = enabled
+	var material := _retro_rect.material as ShaderMaterial
+	if material != null and selected_track != null:
+		Ps1Materials.configure_post_effect(material, enabled, 1.0, 270.0, selected_track.color_banding, selected_track.dither_fog)
 
 
 func _process(delta: float) -> void:

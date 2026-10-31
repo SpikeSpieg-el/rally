@@ -1,7 +1,12 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/garage_menu.gd" id="garage_script"]
 [ext_resource type="PackedScene" path="res://low_poly_lance_evo.tscn" id="car_model"]
+[ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="ps1_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShowroomPS1Material"]
+resource_local_to_scene = true
+shader = ExtResource("ps1_shader")
 
 [sub_resource type="Environment" id="ShowroomEnvironment"]
 background_mode = 1
@@ -137,6 +142,19 @@ position = Vector3(7.5, 4, 8)
 rotation = Vector3(-0.267, 0.753, 0)
 current = true
 fov = 36.0
+
+[node name="PostFX" type="CanvasLayer" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport"]
+layer = 1
+
+[node name="RetroShaderRect" type="ColorRect" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/PostFX"]
+material = SubResource("ShowroomPS1Material")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="PreviewCaption" type="Label" parent="Margin/Layout/Body/ShowroomColumn"]
 layout_mode = 2

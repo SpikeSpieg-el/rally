@@ -46,7 +46,7 @@ enum TimeOfDay { KEEP, DAY, NIGHT }
 @export_range(0.0, 1.0, 0.01) var fog_color_strength: float = 0.0
 @export_range(0.0, 6.0, 0.05) var fog_density_scale: float = 1.0
 @export_range(0.0, 0.04, 0.0001) var fog_density_add: float = 0.0
-## Насколько сжать «дальность» дизер-тумана в шейдере земли (0.3 — густой).
+## Насколько сжать дальность тумана PS1-окружения (0.3 — густой).
 @export_range(0.2, 1.0, 0.01) var visibility_scale: float = 1.0
 ## Включить объёмный туман (лучи фар, дымка), даже если у трассы он выключен.
 @export var volumetric_fog: bool = false

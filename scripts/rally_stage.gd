@@ -37,6 +37,7 @@ const GravelTexture = preload("res://textures/environment/gravel.png")
 const NeedleTexture = preload("res://textures/environment/needles.png")
 const RockTexture = preload("res://textures/environment/rock.png")
 const SpeedShader = preload("res://shaders/speed_fx.gdshader")
+const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const WeatherMotionShader = preload("res://shaders/weather_motion.gdshader")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
@@ -55,8 +56,12 @@ const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 @export var snap_props_on_build: bool = true
 
 @export_group("Стилизация и ощущение скорости")
-## Сила мягкой ретро-палитры (0 — оригинальные цвета).
-@export_range(0.0, 1.0, 0.05) var retro_style_strength: float = 0.35
+## Сила экранной PS1-стилизации (0 — без пикселизации и палитры).
+@export_range(0.0, 1.0, 0.05) var retro_style_strength: float = 1.0
+## Высота виртуального изображения мира; ширина следует соотношению сторон.
+@export_range(180, 720, 1, "suffix:px") var retro_resolution_height: int = 270
+## Лёгкая привязка вершин дороги и земли к экранной сетке (0 — без дрожания).
+@export_range(0.0, 1.0, 0.05) var retro_vertex_snap: float = 0.15
 ## Общая интенсивность скоростного размытия и виньетки.
 @export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
 ## Насыщенность ближнего слоя дождя/снега на скорости.
@@ -192,6 +197,10 @@ func _ready() -> void:
 		car_node.freeze = true
 	await _build_world_async()
 	_configure_car()
+	if track != null and track.ps1_style:
+		# Только визуальные копии: настройки краски, слои грязи и ресурсы
+		# редактора остаются нетронутыми.
+		Ps1Materials.apply_nearest(self)
 	var marks = TireMarksType.new()
 	marks.name = "TireMarks"
 	marks.road_surface = track.surface_name
@@ -935,20 +944,18 @@ func _make_ground_material() -> ShaderMaterial:
 	material.shader = GroundShader
 	material.set_shader_parameter("ground_texture", GroundTexture)
 	material.set_shader_parameter("rock_texture", RockTexture)
+	material.set_shader_parameter("ground_texture_smooth", GroundTexture)
+	material.set_shader_parameter("rock_texture_smooth", RockTexture)
+	material.set_shader_parameter("ps1_textures", track.ps1_style)
 	material.set_shader_parameter("ground_color", track.ground_color)
 	material.set_shader_parameter("ground_color_2", track.ground_color_2)
 	material.set_shader_parameter("road_edge_color", track.shoulder_color)
 	material.set_shader_parameter("rock_color", track.rock_color)
 	material.set_shader_parameter("surface_roughness", 0.97)
 	material.set_shader_parameter("grain_scale", 2.4)
-	material.set_shader_parameter("flat_shading", 1.0 if track.flat_shading else 0.0)
-	material.set_shader_parameter("dither_fog", 1.0 if track.dither_fog else 0.0)
-	material.set_shader_parameter("banding_levels", float(track.color_banding))
-	# Дизер-туман в шейдере должен совпадать с погодой, иначе земля
-	# «просвечивает» светлее атмосферного тумана.
-	material.set_shader_parameter("fog_color", _effective_fog_color())
-	material.set_shader_parameter("fog_near", track.fog_near * _weather_visibility_scale())
-	material.set_shader_parameter("fog_far", track.fog_far * _weather_visibility_scale())
+	material.set_shader_parameter("flat_shading", 1.0 if track.ps1_style and track.flat_shading else 0.0)
+	material.set_shader_parameter("vertex_snap", retro_vertex_snap if track.ps1_style else 0.0)
+	material.set_shader_parameter("resolution_y", float(retro_resolution_height))
 	material.set_shader_parameter("wetness", _weather_wetness())
 	material.set_shader_parameter("snow_cover", _weather_snow_cover())
 	return material
@@ -1072,6 +1079,10 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var road_material := ShaderMaterial.new()
 	road_material.shader = RoadShader
 	road_material.set_shader_parameter("gravel_texture", GravelTexture)
+	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
+	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
+	road_material.set_shader_parameter("vertex_snap", retro_vertex_snap if track.ps1_style else 0.0)
+	road_material.set_shader_parameter("resolution_y", float(retro_resolution_height))
 	var road_kind: String = surface_state.surface_kind(track.surface_name, false, _weather_snow_cover())
 	road_material.set_shader_parameter("loose_relief", 0.08 if road_kind == "asphalt" else 1.0)
 	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
@@ -1550,7 +1561,7 @@ func _configure_world() -> void:
 			day_material.sky_horizon_color = sky_horizon
 			day_material.ground_bottom_color = track.ground_color * 0.4
 			day_material.ground_horizon_color = sky_horizon
-			day_material.sky_curve = 0.55 if track.sky_flat else 0.18
+			day_material.sky_curve = 0.55 if track.ps1_style and track.sky_flat else 0.18
 			sky.sky_material = day_material
 		env.background_mode = Environment.BG_SKY
 		env.background_energy_multiplier = 1.0
@@ -1561,12 +1572,13 @@ func _configure_world() -> void:
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
 		env.glow_enabled = true
-		env.glow_intensity = 0.45
-		env.glow_bloom = 0.02
+		env.glow_intensity = 0.20 if track.ps1_style else 0.45
+		env.glow_bloom = 0.005 if track.ps1_style else 0.02
 		env.ssao_enabled = track.screen_space_ao
 		env.ssao_radius = 1.2
 		env.ssao_intensity = 1.0
-		env.volumetric_fog_enabled = volumetric and not track.ps1_style
+		# Лучи фар и погодный объёмный туман остаются доступны и в PS1-режиме.
+		env.volumetric_fog_enabled = volumetric
 		env.volumetric_fog_density = volumetric_density
 		env.volumetric_fog_albedo = Color(0.68, 0.73, 0.82)
 		if weather != null:
@@ -1577,7 +1589,22 @@ func _configure_world() -> void:
 		env.volumetric_fog_length = 90.0
 		env.fog_enabled = fog_density > 0.0
 		env.fog_light_color = fog_color
-		env.fog_density = fog_density
+		if track.ps1_style:
+			# Единый туман по расстоянию для земли, машин и деревьев. В Godot
+			# плотность depth-тумана — максимальная непрозрачность (не экспонента).
+			var fog_begin: float = maxf(0.0, track.fog_near * _weather_visibility_scale())
+			var fog_end: float = maxf(fog_begin + 1.0, track.fog_far * _weather_visibility_scale())
+			env.fog_mode = Environment.FOG_MODE_DEPTH
+			env.fog_depth_end = fog_end
+			env.fog_depth_begin = fog_begin
+			env.fog_depth_curve = 1.0
+			env.fog_density = 1.0 if fog_density > 0.0 else 0.0
+			# Видно небо и луну; в густом тумане горизонт сильнее сливается с ним.
+			env.fog_sky_affect = clampf(1.0 - 0.65 * _weather_visibility_scale(), 0.25, 0.8)
+		else:
+			env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+			env.fog_density = fog_density
+			env.fog_sky_affect = 1.0
 		world_environment.environment = env
 	if sun_light != null:
 		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
@@ -1733,14 +1760,9 @@ func _hud_node(path: String) -> Node:
 	return hud.get_node_or_null(path)
 
 
-func _setup_hud() -> void:
-	if hud == null:
-		return
-	if _hud_ready:
-		return
-	_hud_ready = true
-	hud.process_mode = Node.PROCESS_MODE_ALWAYS
-	# Эффекты мира под HUD: даже при отключённом blur остаётся мягкая стилизация.
+## Постобработка 3D и осадков до отрисовки интерфейса.
+func _setup_world_effects() -> void:
+	# Эффекты мира под HUD: PS1-стилизация и размытие скорости независимы.
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
 	if speed_rect == null:
 		speed_rect = ColorRect.new()
@@ -1756,7 +1778,10 @@ func _setup_hud() -> void:
 		speed_fx_material = speed_rect.material as ShaderMaterial
 	speed_rect.visible = true
 	if speed_fx_material != null:
-		speed_fx_material.set_shader_parameter("retro_strength", retro_style_strength)
+		Ps1Materials.configure_post_effect(
+			speed_fx_material, track.ps1_style, retro_style_strength, float(retro_resolution_height),
+			track.color_banding, track.dither_fog
+		)
 
 	if weather != null and weather.has_precipitation():
 		var weather_rect := ColorRect.new()
@@ -1764,12 +1789,23 @@ func _setup_hud() -> void:
 		weather_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hud.add_child(weather_rect)
 		weather_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		hud.move_child(weather_rect, 1)
+		# Дождь тоже проходит через пиксельную палитру, но HUD рисуется позже.
+		hud.move_child(weather_rect, 0)
 		weather_motion_material = ShaderMaterial.new()
 		weather_motion_material.shader = WeatherMotionShader
 		weather_motion_material.set_shader_parameter("weather_intensity", clampf(weather.precipitation_intensity * weather_motion_strength, 0.0, 1.0))
 		weather_motion_material.set_shader_parameter("is_snow", 1.0 if weather.precipitation == WeatherType.Precipitation.SNOW else 0.0)
 		weather_rect.material = weather_motion_material
+
+
+func _setup_hud() -> void:
+	if hud == null:
+		return
+	if _hud_ready:
+		return
+	_hud_ready = true
+	hud.process_mode = Node.PROCESS_MODE_ALWAYS
+	_setup_world_effects()
 
 	# Панель этапа (название трассы задаётся из конфига).
 	var stage_title := _hud_node("RallyHUD/StagePanel/StageBox/StageTitle") as Label

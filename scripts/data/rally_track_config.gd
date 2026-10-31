@@ -127,9 +127,9 @@ extends Resource
 @export var sky_top_color: Color = Color(0.12, 0.27, 0.48)
 @export var sky_horizon_color: Color = Color(0.65, 0.76, 0.86)
 @export var fog_color: Color = Color(0.72, 0.79, 0.88)
-## Дистанции для опционального PS1-дизер-тумана.
-@export_range(40.0, 600.0, 10.0) var fog_near: float = 140.0
-@export_range(80.0, 900.0, 10.0) var fog_far: float = 360.0
+## Начало и конец единого тумана в PS1-режиме, м. Погода масштабирует оба.
+@export_range(0.0, 600.0, 5.0) var fog_near: float = 65.0
+@export_range(10.0, 900.0, 5.0) var fog_far: float = 300.0
 ## Ночная трасса использует звёздное небо и лунный свет вместо дневного неба.
 @export var night_mode: bool = false
 @export_range(0.0, 2.0, 0.05) var star_intensity: float = 0.8
@@ -151,16 +151,18 @@ extends Resource
 @export_range(0.2, 2.0, 0.01) var grip_scale: float = 1.0
 @export_range(0.2, 4.0, 0.01) var rolling_resistance_scale: float = 1.0
 
-@export_group("PS1-оформление (стиль Colin McRae Rally PS1)")
+@export_group("PS1-оформление")
+## Выключает PS1-палитру, пикселизацию, сетку вершин и point-фильтрацию.
 @export var ps1_style: bool = true
-## Плоские (фасетные) полигоны земли.
+## Фасетное освещение полигонов земли.
 @export var flat_shading: bool = true
-## Жёсткий дизер-туман.
+## Упорядоченный дизер палитры, в том числе на переходах тумана.
 @export var dither_fog: bool = true
-## Постеризация палитры (0 — выкл).
+## Бит на цветовой канал: 5 — классическая RGB555-палитра, 0 — без ограничения.
 @export_range(0, 8, 1) var color_banding: int = 5
-## Плоское небо-градиент.
+## Более плоский дневной градиент неба.
 @export var sky_flat: bool = true
+## Размытие на скорости независимо от PS1-стиля.
 @export var enable_speed_fx: bool = true
 
 

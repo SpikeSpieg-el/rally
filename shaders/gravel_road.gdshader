@@ -1,9 +1,15 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
+#include "res://shaders/ps1_vertex.gdshaderinc"
+
 // Вершинный цвет задаёт покрытие и обочины, UV.x — метры от оси,
 // UV.y — расстояние по дороге. Детали привязаны к миру, не к камере.
-uniform sampler2D gravel_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D gravel_texture : source_color, repeat_enable, filter_nearest_mipmap;
+uniform sampler2D gravel_texture_smooth : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform bool ps1_textures = true;
+uniform float vertex_snap : hint_range(0.0, 1.0) = 0.0;
+uniform float resolution_y : hint_range(180.0, 720.0) = 270.0;
 uniform float loose_relief : hint_range(0.0, 1.0) = 1.0;
 uniform float detail_strength : hint_range(0.0, 0.5) = 0.16;
 uniform float track_strength : hint_range(0.0, 0.4) = 0.12;
@@ -36,17 +42,27 @@ float value_noise(vec2 p) {
 
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	bool main_camera = distance(INV_VIEW_MATRIX[3].xyz, MAIN_CAM_INV_VIEW_MATRIX[3].xyz) < 0.01;
+	POSITION = ps1_snap_vertex(clip, VIEWPORT_SIZE, resolution_y, main_camera ? vertex_snap : 0.0);
 }
 
 void fragment() {
-	float gravel = value_noise(world_position.xz * 3.5) - 0.5;
+	// Мелкий рельеф не должен превращаться в чёрные пятна под фарами,
+	// когда одна экранная точка покрывает несколько камешков.
+	vec2 detail_coord = world_position.xz * 3.5;
+	vec2 detail_footprint = fwidth(detail_coord);
+	float detail_fade = 1.0 - smoothstep(0.3, 1.2, max(detail_footprint.x, detail_footprint.y));
+	float gravel_noise = value_noise(detail_coord) - 0.5;
+	float gravel = gravel_noise * detail_fade;
 	float broad = value_noise(world_position.xz * 0.18) - 0.5;
 	// Две мягкие накатанные колеи без заметного повторяющегося рисунка.
 	float ruts = 1.0 - smoothstep(0.12, 0.40, abs(abs(UV.x) - 0.95));
 	float rut_variation = mix(0.7, 1.0, value_noise(vec2(UV.y * 0.12, UV.x)));
 	float surface = 1.0 + gravel * detail_strength + broad * detail_strength * 0.5;
 	surface *= 1.0 - ruts * rut_variation * track_strength;
-	vec3 gravel_detail = texture(gravel_texture, vec2(UV.x, UV.y) * 0.3).rgb;
+	vec2 gravel_uv = vec2(UV.x, UV.y) * 0.3;
+	vec3 gravel_detail = ps1_textures ? texture(gravel_texture, gravel_uv).rgb : texture(gravel_texture_smooth, gravel_uv).rgb;
 	vec3 albedo = COLOR.rgb * surface * (0.65 + gravel_detail * 1.25);
 	// Дождь: гравий темнеет, колеи блестят. Снег: полотно укрыто почти целиком.
 	albedo *= mix(1.0, 0.62, wetness);
@@ -60,9 +76,10 @@ void fragment() {
 	zone *= 1.0 - smoothstep(0.7, 1.5, abs(UV.x - side * zone_offset));
 	if (UV.y < 150.0 || UV.y > stage_length - 40.0) { zone = 0.0; }
 	albedo = mix(albedo, mix(albedo * 0.38, albedo * 1.28, parity), zone * 0.8);
-	// Освещаемый микрорельеф камешков: рыхлость видна и вне следов.
-	float relief = gravel * loose_relief * (1.0 - snow_cover * 0.65);
-	NORMAL = normalize(NORMAL - 0.65 * (dFdx(relief) * normalize(dFdx(VERTEX)) + dFdy(relief) * normalize(dFdy(VERTEX))));
+	// Рельеф остаётся у машины, но плавно исчезает за пределами частоты
+	// дискретизации; иначе блики фар усиливают алиасинг до чёрных пятен.
+	float relief = gravel_noise * loose_relief * (1.0 - snow_cover * 0.65);
+	NORMAL = normalize(NORMAL - 0.32 * detail_fade * (dFdx(relief) * normalize(dFdx(VERTEX)) + dFdy(relief) * normalize(dFdy(VERTEX))));
 	ALBEDO = albedo;
 	ROUGHNESS = mix(mix(road_roughness, 0.22, wetness), 0.72, snow_cover * 0.85);
 	SPECULAR = mix(mix(0.22, 0.55, wetness), 0.08, snow_cover * 0.85);

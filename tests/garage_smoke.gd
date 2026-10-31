@@ -22,6 +22,18 @@ func _run() -> void:
 	root.add_child(garage)
 	garage.open(Config, 0, game)
 	var ok: bool = garage.setup != original and garage._model != null and garage._wheels.size() == 4
+	# Пикселизируется только витрина, а не меню; выключение PS1 у трассы
+	# возвращает обычный размер и фильтрацию превью.
+	ok = ok and garage._preview_container.stretch_shrink == 3 and garage._retro_rect.visible
+	var ps1_track = game.current_track
+	var normal_track = ps1_track.duplicate()
+	normal_track.ps1_style = false
+	game.current_track = normal_track
+	garage._configure_preview_style()
+	ok = ok and garage._preview_container.stretch_shrink == 1 and not garage._retro_rect.visible
+	game.current_track = ps1_track
+	garage._configure_preview_style()
+	ok = ok and garage._preview_container.stretch_shrink == 3 and garage._retro_rect.visible
 	# Видимые узлы хранятся в сцене, а не создаются в _ready.
 	ok = ok and garage.get_node_or_null("%Turntable") != null
 	ok = ok and garage.get_node_or_null("%TorqueSlider") is HSlider

@@ -48,6 +48,17 @@ func _run() -> void:
 	ok = ok and speed_rect != null and speed_rect.visible and speed_rect.material is ShaderMaterial
 	ok = ok and speed_rect != null and speed_rect.mouse_filter == Control.MOUSE_FILTER_IGNORE
 	ok = ok and speed_rect != null and speed_rect.get_index() < stage.hud.get_node("RallyHUD").get_index()
+	if speed_rect != null and speed_rect.material is ShaderMaterial:
+		var post := speed_rect.material as ShaderMaterial
+		ok = ok and is_equal_approx(float(post.get_shader_parameter("retro_strength")), 1.0)
+		ok = ok and is_equal_approx(float(post.get_shader_parameter("color_levels")), 31.0)
+	var tree := stage.get_node_or_null("Props/Pine_001/Trunk") as MeshInstance3D
+	if tree != null:
+		var tree_material := tree.get_active_material(0) as BaseMaterial3D
+		ok = ok and tree_material != null and tree_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	else:
+		ok = false
+	ok = ok and stage.world_environment.environment.fog_mode == Environment.FOG_MODE_DEPTH
 	if road != null and road.material_override is ShaderMaterial:
 		ok = ok and road.material_override.get_shader_parameter("gravel_texture") != null
 	var ground_material := stage.terrain_mesh.material_override as ShaderMaterial
