@@ -1538,8 +1538,8 @@ func _setup_precipitation() -> void:
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	particles.visibility_aabb = AABB(Vector3(-80.0, -40.0, -80.0), Vector3(160.0, 90.0, 160.0))
-	var particle_material := ParticlesMaterial.new()
-	particle_material.emission_shape = ParticlesMaterial.EMISSION_SHAPE_BOX
+	var particle_material := ParticleProcessMaterial.new()
+	particle_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	particle_material.emission_box_extents = Vector3(48.0, 12.0, 48.0)
 	# Ветер сносит осадки в сторону — дождь идёт «по косой».
 	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
