@@ -6,6 +6,7 @@ class_name RallyCarSetup
 extends Resource
 
 enum Drivetrain { AWD, RWD, FWD }
+enum Transmission { AUTOMATIC, MANUAL, MANUAL_CLUTCH }
 ## Форма кривой момента:
 ## CUSTOM — берётся поле torque_curve этого ресурса;
 ## TURBO_PUNCH — полка с середины и спад к отсечке (турбо);
@@ -48,6 +49,8 @@ var torque_shape: int = TorqueShape.TURBO_PUNCH
 @export_range(-1.0, 4.0, 0.01) var traction_control_max_slip: float = 0.65
 
 @export_group("Привод")
+## В ручном режиме с педалью сцепление управляется водителем.
+@export_enum("Автомат", "Ручная", "Ручная + сцепление") var transmission_mode: int = Transmission.AUTOMATIC
 @export_enum("AWD", "RWD", "FWD") var drivetrain: int = Drivetrain.AWD
 @export_range(0.0, 1.0, 0.01) var awd_front_torque: float = 0.38
 
@@ -136,6 +139,16 @@ func get_drivetrain_name() -> String:
 			return "FWD"
 		_:
 			return "AWD"
+
+
+func get_transmission_name() -> String:
+	match transmission_mode:
+		Transmission.MANUAL:
+			return "РУЧНАЯ"
+		Transmission.MANUAL_CLUTCH:
+			return "РУЧНАЯ + СЦЕПЛЕНИЕ"
+		_:
+			return "АВТОМАТ"
 
 
 func get_power_rating() -> float:

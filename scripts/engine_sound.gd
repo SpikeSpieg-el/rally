@@ -310,6 +310,15 @@ func _mute(muted: bool) -> void:
 
 
 func _update_engine(rpm: float, delta: float) -> void:
+	# Заглохший двигатель больше не звучит как работающий на холостых.
+	# Шум дороги и ветра остаётся слышен, если машина продолжает катиться.
+	if car != null and car.engine_stalled:
+		for bank in _banks:
+			for entry in bank.players:
+				var player := entry as AudioStreamPlayer3D
+				if player != null:
+					player.volume_db = -60.0
+		return
 	if _streams.is_empty():
 		return
 	var index := _grid_index(rpm)

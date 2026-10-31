@@ -128,7 +128,7 @@ func _run() -> void:
 	# 4. Одиночные звуки не зациклены: иначе хлопок в выхлопе превращается
 	#    в непрерывный треск.
 	for name in ONESHOT_NAMES:
-		var path := VEHICLE_DIR + name
+		var path: String = VEHICLE_DIR + str(name)
 		if not FileAccess.file_exists(path):
 			continue
 		var header := _read_wav_header(path)
@@ -170,8 +170,8 @@ func _run() -> void:
 	for i in range(grid.size() - 1):
 		var low := float(grid[i])
 		var high := float(grid[i + 1])
-		var middle := sqrt(low * high)
-		var error := absf(middle - low) / middle
+		var middle_loop := sqrt(low * high)
+		var error := absf(middle_loop - low) / middle_loop
 		_check(error <= 0.055,
 			"питч-коррекция не укладывается в предел между %d и %d об/мин"
 			% [int(low), int(high)])

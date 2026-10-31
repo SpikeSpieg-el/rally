@@ -20,6 +20,7 @@ class_name RallyStage
 extends Node3D
 
 const CarType = preload("res://scripts/rally_car.gd")
+const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
@@ -161,6 +162,8 @@ var pause_panel: Control = null
 var results_panel: Control = null
 var results_label: Label = null
 var hint_label: Label = null
+var clutch_notice: Label = null
+var input_settings = null
 var resume_button: Button = null
 var again_button: Button = null
 var pause_buttons: Array[Button] = []
@@ -1850,6 +1853,7 @@ func _setup_hud() -> void:
 	results_panel = _hud_node("RallyHUD/ResultsPanel") as PanelContainer
 	results_label = _hud_node("RallyHUD/ResultsPanel/Box/ResultsLabel") as Label
 	var buttons := [
+		["RallyHUD/PausePanel/Box/ControlsButton", "controls_pressed"],
 		["RallyHUD/PausePanel/Box/ResumeButton", "resume_pressed"],
 		["RallyHUD/PausePanel/Box/RestartButton", "restart_pressed"],
 		["RallyHUD/PausePanel/Box/MenuButton", "menu_pressed"],
@@ -1879,11 +1883,14 @@ func _setup_hud() -> void:
 				control.focus_mode = Control.FOCUS_ALL
 
 	hint_label = _hud_node("RallyHUD/Hint") as Label
+	clutch_notice = _hud_node("RallyHUD/ClutchNotice") as Label
 	_update_input_hint()
 	var controller := _controller_manager()
 	if controller != null and controller.has_signal("active_device_changed"):
 		if not controller.is_connected("active_device_changed", _on_active_input_device_changed):
 			controller.connect("active_device_changed", _on_active_input_device_changed)
+		if controller.has_signal("bindings_changed") and not controller.is_connected("bindings_changed", _update_input_hint):
+			controller.connect("bindings_changed", _update_input_hint)
 
 
 func _controller_manager() -> Node:
@@ -1894,26 +1901,28 @@ func _on_active_input_device_changed(_gamepad_active: bool) -> void:
 	_update_input_hint()
 
 
-## Подсказка внизу HUD: на геймпаде — его собственные символы кнопок
-## (✕/○/□/△, A/B/X/Y, B/A/Y/X), на клавиатуре — прежняя строка.
+## Подсказка отражает текущие, а не заводские назначения активного устройства.
 func _update_input_hint() -> void:
 	if hint_label == null:
 		return
 	var controller := _controller_manager()
-	if controller != null and bool(controller.get("gamepad_active")) and controller.has_method("get_glyphs"):
-		var glyphs: Dictionary = controller.call("get_glyphs")
-		hint_label.text = "[%s] ГАЗ  •  [%s] ТОРМОЗ  •  [%s] РУЛЬ  •  [%s] РУЧНИК  •  [%s] КАМЕРА  •  [%s/%s] КПП  •  [%s] ПРИВОД  •  [%s] ПАУЗА" % [
-			String(glyphs["r2"]), String(glyphs["l2"]), String(glyphs["stick"]),
-			String(glyphs["cancel"]), String(glyphs["north"]),
-			String(glyphs["r1"]), String(glyphs["l1"]),
-			String(glyphs["l3"]), String(glyphs["start"]),
-		]
-	else:
-		hint_label.text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [ESC] ПАУЗА"
+	if controller == null or not controller.has_method("binding_label"):
+		return
+	var device := "gamepad" if bool(controller.get("gamepad_active")) else "keyboard"
+	var label := func(action: String) -> String: return String(controller.call("binding_label", action, device))
+	hint_label.text = "[%s/%s] ГАЗ/ТОРМОЗ  •  [%s/%s] РУЛЬ  •  [%s] РУЧНИК  •  [%s/%s] КПП" % [
+		label.call("throttle"), label.call("brake"), label.call("steer_left"), label.call("steer_right"),
+		label.call("handbrake"), label.call("shift_down"), label.call("shift_up"),
+	]
+	if car != null and car.manual_clutch_control:
+		hint_label.text += "  •  [%s] СЦЕПЛЕНИЕ" % label.call("clutch")
+	hint_label.text += "  •  [%s] КАМЕРА  •  [%s] ПАУЗА" % [label.call("camera_switch"), label.call("pause")]
 
 
 func _on_button_pressed(action: String) -> void:
 	match action:
+		"controls_pressed":
+			_open_input_settings()
 		"resume_pressed":
 			_on_resume_pressed()
 		"restart_pressed":
@@ -1965,7 +1974,13 @@ func _update_hud() -> void:
 	if speed_label != null:
 		speed_label.text = str(int(round(car.speed_kmh))).lpad(3, "0")
 	if gear_label != null:
-		gear_label.text = "%s  |  %s" % [car.get_gear_label(), car.get_drivetrain_label()]
+		gear_label.text = "%s  |  %s  |  %s" % [car.get_gear_label(), car.get_transmission_label(), car.get_drivetrain_label()]
+	if clutch_notice != null:
+		clutch_notice.visible = car.engine_stalled or car.shift_notice_time > 0.0
+		if car.engine_stalled:
+			clutch_notice.text = "ДВИГАТЕЛЬ ЗАГЛОХ — ВЫЖМИТЕ СЦЕПЛЕНИЕ ДЛЯ ЗАПУСКА"
+		elif car.shift_notice_time > 0.0:
+			clutch_notice.text = car.shift_notice
 	if drivetrain_label != null:
 		drivetrain_label.text = car.get_drivetrain_label()
 	# Телеметрия.
@@ -2050,6 +2065,10 @@ func _process(delta: float) -> void:
 		var lead: Vector3 = car.linear_velocity * 0.35
 		lead.y = 0.0
 		_weather_particles.global_position = car.global_position + lead.limit_length(18.0) + Vector3(0.0, 12.0, 0.0)
+	# Во время переназначения и в кадре закрытия клавиша паузы не должна
+	# закрывать саму паузу или запускать повторно назначенное действие.
+	if input_settings != null and input_settings.blocks_actions():
+		return
 	if Input.is_action_just_pressed("pause"):
 		_set_paused(not is_paused)
 		return
@@ -2187,9 +2206,22 @@ func _set_paused(value: bool) -> void:
 		if resume_button != null:
 			resume_button.grab_focus()
 	else:
+		if input_settings != null and input_settings.visible:
+			input_settings.close()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if car != null and car.mouse_look_enabled else Input.MOUSE_MODE_VISIBLE
 		if not stage_finished and is_inside_tree():
 			get_viewport().gui_release_focus()
+
+
+func _open_input_settings() -> void:
+	var hud_root := _hud_node("RallyHUD") as Control
+	if hud_root == null:
+		return
+	if input_settings == null:
+		input_settings = InputSettings.new()
+		input_settings.name = "InputSettings"
+		hud_root.add_child(input_settings)
+	input_settings.open()
 
 
 func _on_resume_pressed() -> void:

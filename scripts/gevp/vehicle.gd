@@ -140,6 +140,8 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 @export var shift_time := 0.3
 ## Enables automatic gear changes
 @export var automatic_transmission := true
+## В этом режиме водитель сам размыкает сцепление; автомат удержания холостого хода не подменяет педаль.
+@export var manual_clutch_control := false
 ## When enabled, holding the brake at standstill automatically selects reverse.
 ## Disable it if reverse should only be selected by the player (e.g. a manual
 ## shift-down input), so the brake pedal never turns into a throttle.
@@ -388,6 +390,9 @@ var motor_is_redline := false
 var is_shifting := false
 var is_up_shifting := false
 var need_clutch := false
+## Упрощённая остановка двигателя при перегрузке на включённой передаче.
+var engine_stalled := false
+var engine_restart_time := 0.0
 # One automatic D/R direction request per brake press prevents R <-> N oscillation.
 var direction_request_active := false
 var direction_target := 0
@@ -753,17 +758,21 @@ func process_throttle(delta : float) -> void:
 		if (throttle_input < throttle_amount):
 			throttle_amount = throttle_input
 	
-	## Cut throttle at redline and when shifting
-	if motor_is_redline or is_shifting:
+	## Автоматическая коробка/сцепление размыкаются на переключении.
+	## С ручной педалью газ и положение педали остаются под контролем игрока.
+	if motor_is_redline or (is_shifting and not manual_clutch_control):
 		throttle_amount = 0.0
-	
-	## Disengage clutch when shifting or below motor idle
-	if need_clutch or is_shifting:
+	if manual_clutch_control:
+		clutch_amount = clampf(clutch_input, 0.0, 1.0)
+	elif need_clutch or is_shifting:
 		clutch_amount = 1.0
 	else:
-		clutch_amount = clutch_input
+		clutch_amount = clampf(clutch_input, 0.0, 1.0)
 
 func process_motor(delta : float) -> void:
+	if manual_clutch_control:
+		_process_manual_motor(delta)
+		return
 	var drag_torque := motor_rpm * motor_drag
 	torque_output = get_torque_at_rpm(motor_rpm) * throttle_amount
 	## Adjust torque based on throttle input, clutch input, and motor drag
@@ -788,8 +797,39 @@ func process_motor(delta : float) -> void:
 	
 	motor_rpm = maxf(motor_rpm, idle_rpm)
 
+## Двигатель с педалью не поднимается искусственно до холостых оборотов при
+## нагрузке. Небольшой регулятор холостого хода помогает ему работать в N;
+## включённое сцепление и нагрузка колёс могут действительно заглушить мотор.
+func _process_manual_motor(delta: float) -> void:
+	if engine_stalled:
+		torque_output = 0.0
+		motor_rpm = 0.0
+		motor_is_redline = false
+		# Автоматический стартер после освобождения трансмиссии — без отдельной
+		# кнопки зажигания, чтобы не оставлять игрока заблокированным на трассе.
+		if current_gear == 0 or clutch_amount >= 0.8:
+			engine_restart_time += delta
+			if engine_restart_time >= 0.6:
+				engine_stalled = false
+				engine_restart_time = 0.0
+				motor_rpm = idle_rpm
+		else:
+			engine_restart_time = 0.0
+		return
+	var drag_torque := motor_rpm * motor_drag
+	var idle_assist := clampf((idle_rpm * 1.04 - motor_rpm) / maxf(idle_rpm * 0.35, 1.0), 0.0, 1.0) * 0.12
+	var effective_throttle := maxf(throttle_amount, idle_assist)
+	torque_output = get_torque_at_rpm(motor_rpm) * effective_throttle
+	torque_output -= drag_torque * (1.0 + clutch_amount * (1.0 - effective_throttle))
+	motor_is_redline = motor_rpm >= max_rpm * 1.1
+	if motor_is_redline:
+		torque_output = 0.0
+	motor_rpm = clampf(motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment, 0.0, max_rpm * 1.1)
+
+
 func process_clutch(delta : float):
-	if current_gear == 0:
+	if current_gear == 0 or is_shifting or (manual_clutch_control and engine_stalled):
+		clutch_torque = 0.0
 		tcs_active = false
 		return
 	
@@ -827,6 +867,15 @@ func process_clutch(delta : float):
 	
 	var clutch_reaction_torque := clutch_torque + tcs_torque_reduction
 	var new_rpm := motor_rpm - ((ANGULAR_VELOCITY_TO_RPM * delta * clutch_reaction_torque) / motor_moment)
+	if manual_clutch_control:
+		if new_rpm < idle_rpm * 0.45 and clutch_amount < 0.8:
+			engine_stalled = true
+			engine_restart_time = 0.0
+			motor_rpm = 0.0
+			clutch_torque = 0.0
+		else:
+			motor_rpm = clampf(new_rpm, 0.0, max_rpm * 1.1)
+		return
 	if new_rpm < idle_rpm:
 		new_rpm = idle_rpm
 	if new_rpm < idle_rpm + 100:
@@ -1036,7 +1085,7 @@ func complete_shift() -> void:
 	## Called when it is time to complete a shift in progress
 	if current_gear == -1:
 		brake_amount = 0.0
-	if requested_gear > 0 and requested_gear < current_gear:
+	if not manual_clutch_control and requested_gear > 0 and requested_gear < current_gear:
 		var wheel_spin := speed / average_drive_wheel_radius
 		var requested_gear_rpm := gear_ratios[requested_gear - 1] * final_drive * wheel_spin * ANGULAR_VELOCITY_TO_RPM
 		motor_rpm = lerpf(motor_rpm, requested_gear_rpm, 0.5)

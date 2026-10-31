@@ -10,6 +10,7 @@ const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const StagePreviewType = preload("res://scripts/stage_preview.gd")
 const GarageScene = preload("res://scenes/garage_menu.tscn")
+const InputSettings = preload("res://scripts/ui/input_settings.gd")
 
 @export var config: GameConfigType = null
 
@@ -19,6 +20,7 @@ const GarageScene = preload("res://scenes/garage_menu.tscn")
 @onready var setup_list: BoxContainer = get_node_or_null("Content/Body/Left/SetupList") as BoxContainer
 @onready var start_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/StartButton") as Button
 @onready var quit_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/QuitButton") as Button
+@onready var controls_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/ControlsButton") as Button
 @onready var preview: Control = get_node_or_null("Content/Body/Right/Preview") as Control
 @onready var info_label: Label = get_node_or_null("Content/Body/Right/InfoLabel") as Label
 @onready var power_bar: ProgressBar = get_node_or_null("Content/Body/Right/Stats/PowerBar") as ProgressBar
@@ -37,6 +39,7 @@ var selected_weather: int = 0
 var selected_profile: int = 0
 var controller_manager: Node = null
 var garage = null
+var input_settings = null
 
 # Блок условий заезда строится кодом: так меню остаётся одним .tscn,
 # а списки погоды/характеров растут вместе с конфигом.
@@ -258,6 +261,8 @@ func _connect_signals() -> void:
 		start_button.pressed.connect(_on_start_pressed)
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_pressed):
 		quit_button.pressed.connect(_on_quit_pressed)
+	if controls_button != null and not controls_button.pressed.is_connected(_open_input_settings):
+		controls_button.pressed.connect(_open_input_settings)
 	if preview != null and preview.has_signal("track_built"):
 		if not preview.is_connected("track_built", _on_preview_track_built):
 			preview.connect("track_built", _on_preview_track_built)
@@ -288,8 +293,11 @@ func _connect_focus_navigation() -> void:
 			setup_buttons[i - 1] if i > 0 else setup_buttons[setup_buttons.size() - 1],
 			setup_buttons[i + 1] if i + 1 < setup_buttons.size() else setup_buttons[0]
 		)
-	_set_focus_neighbors(start_button, track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null, track_buttons[0] if not track_buttons.is_empty() else null, quit_button, quit_button)
-	_set_focus_neighbors(quit_button, track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null, track_buttons[0] if not track_buttons.is_empty() else null, start_button, start_button)
+	var track_focus: Control = track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null
+	var first_track: Control = track_buttons[0] if not track_buttons.is_empty() else null
+	_set_focus_neighbors(start_button, track_focus, first_track, quit_button, controls_button)
+	_set_focus_neighbors(controls_button, track_focus, first_track, start_button, quit_button)
+	_set_focus_neighbors(quit_button, track_focus, first_track, controls_button, start_button)
 	_update_dynamic_focus()
 
 
@@ -593,6 +601,8 @@ func _on_seed_copy_pressed() -> void:
 ## Горячие клавиши меню: F1–F5 — трассы, F6 — погода, F7 — характер,
 ## F8 — новый сид «Живой ленты». Раньше F1–F5 были только в подписи.
 func _input(event: InputEvent) -> void:
+	if input_settings != null and input_settings.blocks_actions():
+		return
 	if garage != null and garage.visible:
 		return
 	var key := event as InputEventKey
@@ -684,10 +694,21 @@ func _on_start_pressed() -> void:
 		add_child(garage)
 		garage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		garage.back_requested.connect(_on_garage_back)
+		garage.controls_requested.connect(_open_input_settings)
 		garage.setup_saved.connect(_on_garage_saved)
 		garage.start_requested.connect(_on_garage_start)
 	get_node("Content").hide()
 	garage.open(config, selected_setup, _get_game())
+
+
+func _open_input_settings() -> void:
+	if input_settings == null:
+		input_settings = InputSettings.new()
+		input_settings.name = "InputSettings"
+		add_child(input_settings)
+	# Гараж мог быть добавлен позже окна; оно всегда должно лежать поверх.
+	move_child(input_settings, get_child_count() - 1)
+	input_settings.open()
 
 
 func _on_garage_back() -> void:

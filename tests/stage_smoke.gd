@@ -107,6 +107,60 @@ func _run() -> void:
 	var expected_fov: float = target_fov + car.inside_speed_fov_bonus * clampf(car.speed_kmh / 180.0, 0.0, 1.0)
 	ok = ok and is_equal_approx(car.active_camera.fov, expected_fov)
 	print("Проверка паузы: paused=%s, панель=%s, машина=%s, настройки=%s, fov=%.2f/%.2f (ожид. %.2f)" % [paused, stage.pause_panel.visible, car.can_process(), camera_options.can_process(), car.cockpit_fov, car.active_camera.fov, expected_fov])
+	# Окно переназначения доступно на паузе и не пропускает игровые действия.
+	var manager = root.get_node("ControllerManager")
+	var service = manager.bindings
+	var old_bindings_path: String = service.path
+	var test_bindings_path := "user://stage_smoke_bindings.cfg"
+	service.path = test_bindings_path
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_bindings_path))
+	service.load_bindings()
+	stage._on_button_pressed("controls_pressed")
+	var screen = stage.input_settings
+	ok = ok and screen != null and screen.visible and screen.can_process() and paused
+	stage.stage_time = 7.5
+	screen.tabs.current_tab = 2
+	screen._begin_capture("clutch", "keyboard", 1)
+	var captured := InputEventKey.new()
+	captured.keycode = KEY_R
+	captured.physical_keycode = KEY_R
+	captured.pressed = true
+	Input.parse_input_event(captured)
+	await process_frame
+	await process_frame
+	ok = ok and screen.capture_action.is_empty() and service.get_binding("clutch", "keyboard", 1).code == KEY_R
+	ok = ok and paused and is_equal_approx(stage.stage_time, 7.5)
+	captured.pressed = false
+	Input.parse_input_event(captured)
+	await process_frame
+	await process_frame
+	# Первый Esc отменяет захват, второй закрывает только настройки, не паузу.
+	screen._begin_capture("clutch", "keyboard", 1)
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.physical_keycode = KEY_ESCAPE
+	escape.pressed = true
+	Input.parse_input_event(escape)
+	await process_frame
+	await process_frame
+	ok = ok and paused and screen.visible and screen.capture_action.is_empty()
+	escape.pressed = false
+	Input.parse_input_event(escape)
+	await process_frame
+	await process_frame
+	escape.pressed = true
+	Input.parse_input_event(escape)
+	await process_frame
+	await process_frame
+	ok = ok and paused and not screen.visible and stage.pause_panel.visible
+	escape.pressed = false
+	Input.parse_input_event(escape)
+	await process_frame
+	await process_frame
+	print("Настройки на паузе: назначение=R, окно закрыто=%s, пауза сохранена=%s" % [not screen.visible, paused])
+	service.path = old_bindings_path
+	service.load_bindings()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_bindings_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_settings_path))
 	Input.action_press("pause")
 	await process_frame
