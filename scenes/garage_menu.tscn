@@ -237,6 +237,13 @@ custom_minimum_size = Vector2(210, 52)
 layout_mode = 2
 text = "◀  К ТРАССЕ"
 
+[node name="ControlsButton" type="Button" parent="Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 52)
+layout_mode = 2
+text = "УПРАВЛЕНИЕ"
+tooltip_text = "Переназначить клавиатуру или геймпад."
+
 [node name="Spacer" type="Control" parent="Margin/Layout/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 3

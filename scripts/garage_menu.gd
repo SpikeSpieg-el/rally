@@ -3,6 +3,7 @@
 extends Control
 
 signal back_requested
+signal controls_requested
 signal setup_saved(index: int)
 signal start_requested(index: int, setup: RallyCarSetup)
 
@@ -51,6 +52,7 @@ func _ready() -> void:
 	%ResetButton.pressed.connect(_reset_setup)
 	%SaveButton.pressed.connect(_save_button_pressed)
 	%BackButton.pressed.connect(_request_back)
+	%ControlsButton.pressed.connect(func() -> void: controls_requested.emit())
 	_start.pressed.connect(_start_race)
 	_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview_container.gui_input.connect(_on_preview_input)
@@ -252,7 +254,7 @@ func _refresh() -> void:
 	_updating = true
 	_selector.select(selected_index)
 	_description.text = "БАЗОВЫЙ ПРЕСЕТ: " + setup.description
-	_summary.text = "%s\n%s  ·  %d кг" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass)]
+	_summary.text = "%s\n%s  ·  %d кг  ·  %s" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass), setup.get_transmission_name()]
 	for field: Dictionary in Customization.FIELDS:
 		var key: String = field["key"]
 		var kind: String = field["kind"]

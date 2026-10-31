@@ -141,6 +141,12 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_start")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "ДАЛЕЕ · МАШИНА  ▶"
 
+[node name="ControlsButton" type="Button" parent="Content/Body/Left/ButtonRow"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+text = "УПРАВЛЕНИЕ"
+
 [node name="QuitButton" type="Button" parent="Content/Body/Left/ButtonRow" unique_id=1728074163]
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_button")

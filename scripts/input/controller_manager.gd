@@ -12,6 +12,9 @@ extends Node
 signal device_list_changed
 signal active_device_changed(gamepad_active: bool)
 signal settings_changed
+signal bindings_changed
+
+const BindingsScript = preload("res://scripts/input/input_bindings.gd")
 
 const SETTINGS_PATH := "user://rally_controller.cfg"
 const SONY_VENDOR := 0x054C
@@ -34,6 +37,7 @@ var lightbar_enabled: bool = true
 var lightbar_color: Color = Color(0.98, 0.45, 0.06, 1.0)
 
 var gamepad_active: bool = false
+var bindings: RefCounted = null
 
 var _devices: Array[Dictionary] = []
 var _settings_path: String = SETTINGS_PATH
@@ -46,6 +50,9 @@ func _ready() -> void:
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_ensure_ui_bindings()
+	bindings = BindingsScript.new()
+	bindings.changed.connect(_on_bindings_changed)
+	bindings.initialize()
 	apply_settings()
 	apply_lightbar()
 
@@ -340,42 +347,61 @@ func get_glyphs() -> Dictionary:
 	return glyphs_for(get_glyph_family())
 
 
-## Подпись действия для подсказок в интерфейсе.
+## Текущая подпись действия, включая переназначенные клавиши и оси.
 func action_glyph(action: String) -> String:
-	var glyphs := get_glyphs()
-	match action:
-		"throttle":
-			return String(glyphs.r2)
-		"brake":
-			return String(glyphs.l2)
-		"steer_left":
-			return String(glyphs.dpad_left)
-		"steer_right":
-			return String(glyphs.dpad_right)
-		"handbrake":
-			return String(glyphs.cancel)
-		"shift_up":
-			return String(glyphs.r1)
-		"shift_down":
-			return String(glyphs.l1)
-		"camera_switch":
-			return String(glyphs.north)
-		"camera_recenter":
-			return String(glyphs.r3)
-		"reset_car":
-			return String(glyphs.select)
-		"drivetrain_switch":
-			return String(glyphs.l3)
-		"pause":
-			return String(glyphs.start)
-		"ui_accept":
-			return String(glyphs.accept)
-		"ui_cancel":
-			return String(glyphs.cancel)
-		"camera_look":
-			return String(glyphs.right_stick)
-		_:
-			return action
+	if action == "ui_accept":
+		return String(get_glyphs().accept)
+	if action == "ui_cancel":
+		return String(get_glyphs().cancel)
+	if action == "camera_look":
+		return String(get_glyphs().right_stick)
+	return binding_label(action, "gamepad")
+
+
+func binding_label(action: String, device: String, slot: int = -1) -> String:
+	if bindings == null:
+		return "—"
+	if slot >= 0:
+		return _format_binding(bindings.call("get_binding", action, device, slot))
+	for index in range(2):
+		var data: Variant = bindings.call("get_binding", action, device, index)
+		if data != null:
+			return _format_binding(data)
+	return "—"
+
+
+func _format_binding(value: Variant) -> String:
+	if not value is Dictionary:
+		return "—"
+	var data: Dictionary = value
+	match data.get("type"):
+		"key":
+			return OS.get_keycode_string(int(data.code) as Key)
+		"button":
+			return button_glyph(int(data.index))
+		"axis":
+			var axis: int = data.index
+			var positive: bool = int(data.sign) > 0
+			var glyphs := get_glyphs()
+			match axis:
+				JOY_AXIS_LEFT_X:
+					return "%s %s" % [glyphs.stick, "→" if positive else "←"]
+				JOY_AXIS_LEFT_Y:
+					return "%s %s" % [glyphs.stick, "↓" if positive else "↑"]
+				JOY_AXIS_RIGHT_X:
+					return "%s %s" % [glyphs.right_stick, "→" if positive else "←"]
+				JOY_AXIS_RIGHT_Y:
+					return "%s %s" % [glyphs.right_stick, "↓" if positive else "↑"]
+				JOY_AXIS_TRIGGER_LEFT:
+					return String(glyphs.l2) if positive else "%s −" % glyphs.l2
+				JOY_AXIS_TRIGGER_RIGHT:
+					return String(glyphs.r2) if positive else "%s −" % glyphs.r2
+			return "Ось %d %s" % [axis, "+" if positive else "−"]
+	return "—"
+
+
+func _on_bindings_changed() -> void:
+	bindings_changed.emit()
 
 
 func button_glyph(button_index: int) -> String:
@@ -434,6 +460,10 @@ func get_handbrake_input() -> float:
 	return Input.get_action_strength("handbrake")
 
 
+func get_clutch_input() -> float:
+	return _shape_axis(Input.get_action_strength("clutch"), trigger_curve)
+
+
 func get_look_vector() -> Vector2:
 	return Input.get_vector(
 		"camera_look_left", "camera_look_right",
@@ -454,6 +484,7 @@ func apply_settings() -> void:
 	_set_action_deadzone("steer_right", steering_deadzone)
 	_set_action_deadzone("throttle", trigger_deadzone)
 	_set_action_deadzone("brake", trigger_deadzone)
+	_set_action_deadzone("clutch", trigger_deadzone)
 	_set_action_deadzone("camera_look_left", 0.15)
 	_set_action_deadzone("camera_look_right", 0.15)
 	_set_action_deadzone("camera_look_up", 0.15)

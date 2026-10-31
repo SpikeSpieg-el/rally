@@ -566,6 +566,16 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("4_controller_settings")
 
+[node name="ControlsButton" type="Button" parent="PausePanel/Box"]
+custom_minimum_size = Vector2(260, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/hover = SubResource("SB_button_hover")
+theme_override_styles/focus = SubResource("SB_button_focus")
+text = "НАСТРОИТЬ УПРАВЛЕНИЕ"
+
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
@@ -682,21 +692,40 @@ theme_override_styles/hover = SubResource("SB_button_hover")
 theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ГЛАВНОЕ МЕНЮ"
 
+[node name="ClutchNotice" type="Label" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -470.0
+offset_top = 88.0
+offset_right = 470.0
+offset_bottom = 125.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.67, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("SB_hint")
+horizontal_alignment = 1
+
 [node name="Hint" type="Label" parent="." unique_id=116412231]
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
+anchors_preset = 12
 anchor_top = 1.0
-anchor_right = 0.5
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -290.0
-offset_top = -32.0
-offset_right = 290.0
+offset_left = 240.0
+offset_top = -64.0
+offset_right = -240.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 0.55)
-theme_override_font_sizes/font_size = 10
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 0.8)
+theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("SB_hint")
 text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [ESC] ПАУЗА"
 horizontal_alignment = 1
+vertical_alignment = 2
+autowrap_mode = 3

@@ -75,6 +75,8 @@ func _run() -> void:
 	menu.garage._select_setup(2)
 	menu.garage._on_slider_changed(680.0, "max_torque")
 	menu.garage._on_choice_changed(2, "livery")
+	menu.garage._on_choice_changed(RallyCarSetup.Transmission.MANUAL_CLUTCH, "transmission_mode")
+	check(menu.garage._summary.text.contains("РУЧНАЯ + СЦЕПЛЕНИЕ"), "выбранная коробка видна в сводке гаража")
 	menu.garage._on_slider_changed(0.55, "front_brake_bias")
 	menu.garage._save_button_pressed()
 	check(menu.selected_setup == 2 and game.setup_index == 2, "сохранённый пресет выбран в меню и RallyGame")
@@ -82,6 +84,7 @@ func _run() -> void:
 	menu.garage._request_back()
 	menu._on_start_pressed()
 	check(menu.garage.selected_index == 2 and menu.garage.setup.livery == 2, "повторный вход восстанавливает выбранный пресет")
+	check(menu.garage.setup.transmission_mode == RallyCarSetup.Transmission.MANUAL_CLUTCH, "коробка сохраняется вместе с пресетом")
 
 	# При ошибке сохранения старт блокируется, текущая конфигурация не портится.
 	game.fail_writes = true
@@ -104,6 +107,7 @@ func _run() -> void:
 	car.freeze = true
 	root.add_child(stage)
 	check(car.active_setup != null and is_equal_approx(car.max_torque, 705.0), "реальный этап получает момент выбранного пресета")
+	check(car.manual_clutch_control and not car.automatic_transmission and car.current_gear == 0, "выбранная МКПП со сцеплением применяется к машине заезда")
 	check(is_equal_approx(car.front_tire_radius, 0.51) and is_equal_approx(car.front_axle.brake_bias, 0.55), "шины и тормоза доходят до физики этапа")
 	var body := car.get_node("low poly lance evo/Mitsubishi_Body") as MeshInstance3D
 	check((body.material_override as StandardMaterial3D).albedo_texture.resource_path.ends_with("иташа3.jpg"), "выбранная ливрея доходит до машины этапа")

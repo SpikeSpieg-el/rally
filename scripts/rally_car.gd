@@ -102,6 +102,9 @@ var speed_mps: float = 0.0
 var speed_kmh: float = 0.0
 var steer_input: float = 0.0
 var manual_mode: bool = false
+var transmission_mode: int = CarSetupType.Transmission.AUTOMATIC
+var shift_notice: String = ""
+var shift_notice_time: float = 0.0
 var previous_velocity: Vector3 = Vector3.ZERO
 var g_force_offset: Vector3 = Vector3.ZERO
 var camera_yaw: float = 0.0
@@ -161,8 +164,8 @@ func _ready() -> void:
 	_refresh_grip_tuning()
 	motor_rpm = idle_rpm
 	current_rpm = idle_rpm
-	current_gear = 1
-	requested_gear = 1
+	current_gear = 0 if manual_clutch_control else 1
+	requested_gear = current_gear
 	_setup_gravel_particles()
 	_apply_visual_setup()
 	surface_effects = SurfaceEffectsType.new()
@@ -366,6 +369,7 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	if setup_resource == null:
 		return
 	active_setup = setup_resource
+	set_transmission_mode(setup_resource.transmission_mode)
 	drivetrain_mode = clampi(setup_resource.drivetrain, 0, 2)
 	awd_front_torque = setup_resource.awd_front_torque
 	max_torque = setup_resource.max_torque
@@ -570,7 +574,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("drivetrain_switch"):
 		set_drivetrain_mode((drivetrain_mode + 1) % 3)
 
-	_handle_gear_input()
+	shift_notice_time = maxf(0.0, shift_notice_time - delta)
 
 	# W — всегда газ, S — всегда тормоз, в том числе на задней передаче.
 	# На геймпаде триггеры и стик дополнительно проходят через мёртвую зону
@@ -581,11 +585,18 @@ func _physics_process(delta: float) -> void:
 		brake_input = float(controller.call("get_brake_input"))
 		steer_input = float(controller.call("get_steering_input"))
 		handbrake_input = float(controller.call("get_handbrake_input"))
+		clutch_input = float(controller.call("get_clutch_input")) if controller.has_method("get_clutch_input") else Input.get_action_strength("clutch")
 	else:
 		throttle_input = Input.get_action_strength("throttle")
 		brake_input = Input.get_action_strength("brake")
 		steer_input = Input.get_axis("steer_right", "steer_left")
 		handbrake_input = Input.get_action_strength("handbrake")
+		clutch_input = Input.get_action_strength("clutch")
+	if not manual_clutch_control:
+		clutch_input = 0.0
+	# Сначала считываем педаль: одновременное нажатие сцепления и передачи
+	# должно сработать даже в одном и том же физическом кадре.
+	_handle_gear_input()
 	var limit_end: float = maxf(steering_limit_full_kmh, steering_limit_start_kmh + 1.0)
 	var steering_speed_blend: float = smoothstep(steering_limit_start_kmh, limit_end, speed_kmh)
 	steering_input = steer_input * lerpf(1.0, high_speed_steering_scale, steering_speed_blend)
@@ -618,28 +629,51 @@ func _physics_process(delta: float) -> void:
 
 
 func _handle_gear_input() -> void:
+	var direction := 0
 	if Input.is_action_just_pressed("shift_up"):
-		# Из R или N — на первую. Передачи 1–6 остаются автоматическими.
-		if current_gear <= 0:
+		direction = 1
+	elif Input.is_action_just_pressed("shift_down"):
+		direction = -1
+	if direction == 0:
+		return
+	if automatic_transmission:
+		# Сохранён прежний выбор направления в автомате: Q — R, E — D.
+		if direction > 0 and current_gear <= 0:
 			_select_gear(1)
+		elif direction < 0 and (current_gear == 0 or current_gear == 1):
+			_select_gear(-1)
 		return
-	if not Input.is_action_just_pressed("shift_down"):
-		return
-	# Задний ход — только осознанно и только на малой скорости.
-	if current_gear == 0:
-		_select_gear(-1)
-	elif current_gear == 1 and speed_kmh < REVERSE_SHIFT_MAX_KMH:
-		_select_gear(-1)
+	# Секвентальный ряд: R ↔ N ↔ 1 ↔ 2 …; автомат не вмешивается.
+	_select_gear(current_gear + direction)
 
 
 func _select_gear(target_gear: int) -> void:
-	if target_gear == current_gear or is_shifting:
+	if target_gear == current_gear or is_shifting or target_gear < -1 or target_gear > gear_ratios.size():
 		return
+	if target_gear == -1 and speed_kmh >= REVERSE_SHIFT_MAX_KMH:
+		shift_notice = "ОСТАНОВИТЕСЬ ДЛЯ ЗАДНЕГО ХОДА"
+		shift_notice_time = 2.0
+		return
+	if manual_clutch_control and clutch_input < 0.8:
+		shift_notice = "ВЫЖМИТЕ СЦЕПЛЕНИЕ ДЛЯ ПЕРЕКЛЮЧЕНИЯ"
+		shift_notice_time = 2.0
+		return
+	shift_notice_time = 0.0
 	direction_request_active = false
 	direction_target = 0
 	# shift() принимает относительное изменение, поэтому считаем разницу.
 	shift(target_gear - current_gear)
 	_rumble(0.12, gamepad_rumble_on_shift, 0.08)
+
+
+func set_transmission_mode(mode: int) -> void:
+	transmission_mode = clampi(mode, CarSetupType.Transmission.AUTOMATIC, CarSetupType.Transmission.MANUAL_CLUTCH)
+	automatic_transmission = transmission_mode == CarSetupType.Transmission.AUTOMATIC
+	manual_clutch_control = transmission_mode == CarSetupType.Transmission.MANUAL_CLUTCH
+	manual_mode = not automatic_transmission
+	if not manual_clutch_control:
+		engine_stalled = false
+		engine_restart_time = 0.0
 
 
 func set_drivetrain_mode(mode: int) -> void:
@@ -1052,6 +1086,8 @@ func reset_to_spawn() -> void:
 	steering_input = 0.0
 	steer_input = 0.0
 	handbrake_input = 0.0
+	clutch_input = 0.0
+	clutch_amount = 0.0
 	throttle_amount = 0.0
 	brake_amount = 0.0
 	brake_force = 0.0
@@ -1064,10 +1100,12 @@ func reset_to_spawn() -> void:
 	enable_stability = false
 	motor_rpm = idle_rpm
 	current_rpm = idle_rpm
-	current_gear = 1
-	requested_gear = 1
-	automatic_transmission = true
-	manual_mode = false
+	current_gear = 0 if manual_clutch_control else 1
+	requested_gear = current_gear
+	manual_mode = not automatic_transmission
+	engine_stalled = false
+	engine_restart_time = 0.0
+	shift_notice_time = 0.0
 	is_shifting = false
 	need_clutch = true
 	direction_request_active = false
@@ -1140,6 +1178,16 @@ func get_drivetrain_label() -> String:
 		DrivetrainMode.FWD:
 			return "FWD 100:0"
 	return ""
+
+
+func get_transmission_label() -> String:
+	match transmission_mode:
+		CarSetupType.Transmission.MANUAL:
+			return "МКПП"
+		CarSetupType.Transmission.MANUAL_CLUTCH:
+			return "МКПП + СЦ"
+		_:
+			return "АВТО"
 
 
 func get_gear_label() -> String:
