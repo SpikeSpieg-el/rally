@@ -11,6 +11,7 @@ enum DrivetrainMode { AWD, RWD, FWD }
 const MODEL_WHEEL_CENTER_Y: float = 1.4588
 const MODEL_BODY_GROUND_CLEARANCE: float = 0.063
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
@@ -377,6 +378,8 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	if not setup_resource.gear_ratios.is_empty():
 		gear_ratios = setup_resource.gear_ratios.duplicate()
 	traction_control_max_slip = setup_resource.traction_control_max_slip
+	brake_force_multiplier = setup_resource.brake_force_multiplier
+	front_brake_bias = setup_resource.front_brake_bias
 	var engine_curve: Curve = null
 	if setup_resource.torque_curve != null:
 		engine_curve = setup_resource.torque_curve.duplicate() as Curve
@@ -412,6 +415,13 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	_adjust_wheel_mounts()
 
 	if is_ready:
+		# GEVP.initialize() добавляет оси и колёса в массивы; повторное
+		# применение сетапа не должно дублировать их и тормозное усилие.
+		axles.clear()
+		wheel_array.clear()
+		drive_wheels.clear()
+		drive_axles_inertia = 0.0
+		average_drive_wheel_radius = 0.0
 		initialize()
 		_apply_drivetrain()
 		_refresh_grip_tuning()
@@ -517,43 +527,28 @@ func get_spawn_height_offset() -> float:
 
 
 func _apply_visual_setup() -> void:
-	var safe_visual_radius: float = maxf(0.05, wheel_visual_radius)
-	var front_scale: float = front_tire_radius / safe_visual_radius
-	var rear_scale: float = rear_tire_radius / safe_visual_radius
-	for wheel_name in ["Wheel_FL", "Wheel_FR"]:
-		var wheel_node: Node = get_node_or_null(wheel_name)
-		if wheel_node != null:
-			var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
-			if visual != null:
-				visual.scale = Vector3.ONE * front_scale
-	for wheel_name in ["Wheel_RL", "Wheel_RR"]:
-		var wheel_node: Node = get_node_or_null(wheel_name)
-		if wheel_node != null:
-			var visual: Node3D = wheel_node.get_node_or_null("WheelVisual") as Node3D
-			if visual != null:
-				visual.scale = Vector3.ONE * rear_scale
+	for wheel_name in ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]:
+		var wheel_node := get_node_or_null(wheel_name)
+		if wheel_node == null:
+			continue
+		var visual := wheel_node.get_node_or_null("WheelVisual") as Node3D
+		if visual == null:
+			continue
+		var front: bool = wheel_name == "Wheel_FL" or wheel_name == "Wheel_FR"
+		var radius: float = front_tire_radius if front else rear_tire_radius
+		var width: float = front_tire_width if front else rear_tire_width
+		visual.scale = CarVisuals.wheel_scale(radius, width, wheel_visual_radius)
+		if active_setup != null:
+			for child in visual.get_children():
+				if child is MeshInstance3D:
+					CarVisuals.apply_wheel(child, active_setup)
 
-	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
+	var model := get_node_or_null("low poly lance evo") as Node3D
 	if model != null:
 		model.position.y = front_tire_radius - MODEL_BODY_GROUND_CLEARANCE - MODEL_WHEEL_CENTER_Y
-	if active_setup == null or model == null:
-		return
-	for child in model.get_children():
-		if child is MeshInstance3D and String(child.name).begins_with("Mitsubishi_Body"):
-			_tint_body_mesh(child as MeshInstance3D, active_setup.body_color)
-
-
-func _tint_body_mesh(instance: MeshInstance3D, tint: Color) -> void:
-	var source: Material = instance.material_override
-	if source == null and instance.mesh != null and instance.mesh.get_surface_count() > 0:
-		source = instance.mesh.surface_get_material(0)
-	var material: StandardMaterial3D = null
-	if source is StandardMaterial3D:
-		material = source.duplicate() as StandardMaterial3D
-	if material == null:
-		material = StandardMaterial3D.new()
-	material.albedo_color = tint
-	instance.material_override = material
+	if active_setup != null:
+		CarVisuals.apply_body(model, active_setup)
+		CarVisuals.apply_headlights(self, active_setup)
 
 
 func _physics_process(delta: float) -> void:
