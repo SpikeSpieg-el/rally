@@ -4,9 +4,9 @@ extends Node3D
 
 const CHUNK_SIZE := 128
 const CHUNK_COUNT := 16
-const MIN_DISTANCE := 0.28
+const MIN_DISTANCE := 0.18
 const MAX_DISTANCE := 5.0
-const FLUSH_INTERVAL := 0.15
+const FLUSH_INTERVAL := 0.08
 const MarkShader = preload("res://shaders/tire_marks.gdshader")
 
 var road_surface := "Гравий"
@@ -59,25 +59,36 @@ func update_wheels(wheels: Array, speed: float) -> void:
 			continue
 		var surface := _surface_kind(road, grass)
 		var slip: float = maxf(absf(wheel.slip_vector.x), absf(wheel.slip_vector.y))
-		var intensity: float = clampf((slip - 0.12) * 1.5, 0.0, 1.0)
+		var intensity: float = smoothstep(0.18, 0.8, slip)
 		# На рыхлом грунте остаётся слабая колея даже без заноса.
-		var alpha: float = lerpf(0.14, 0.68, intensity) if surface != "asphalt" else intensity * 0.72
-		if alpha < 0.025:
-			_trails.erase(key)
-			continue
-		var point: Vector3 = to_local(wheel.last_collision_point + wheel.last_collision_normal * 0.025)
+		var alpha: float = lerpf(0.07, 0.38, intensity) if surface != "asphalt" else intensity * 0.5
+		var point: Vector3 = to_local(wheel.last_collision_point + wheel.last_collision_normal * 0.012)
 		var normal: Vector3 = (global_basis.inverse() * wheel.last_collision_normal).normalized()
 		var previous: Dictionary = _trails.get(key, {})
-		var current := {"point": point, "normal": normal, "alpha": alpha, "surface": surface, "collider": collider.get_instance_id()}
+		var current := {"point": point, "normal": normal, "alpha": alpha, "surface": surface, "collider": collider.get_instance_id(), "distance": 0.0}
 		if previous.is_empty() or previous.surface != surface or previous.collider != current.collider:
-			_trails[key] = current
+			if alpha >= 0.025:
+				# Плавное начало вместо обрубленного прямоугольника.
+				current.alpha = 0.0
+				_trails[key] = current
+			else:
+				_trails.erase(key)
 			continue
 		var distance: float = point.distance_to(previous.point)
 		if distance < MIN_DISTANCE:
+			if alpha < 0.025:
+				_trails.erase(key)
 			continue
 		if distance <= MAX_DISTANCE:
+			current.distance = previous.distance + distance
 			_add_segment(previous, current, clampf(wheel.tire_width / 1000.0, 0.12, 0.45))
-		_trails[key] = current
+		else:
+			# Телепортация: новый след начинается отдельно.
+			current.alpha = 0.0
+		if alpha < 0.025:
+			_trails.erase(key)
+		else:
+			_trails[key] = current
 
 
 func _surface_kind(road: bool, grass: bool) -> String:
@@ -106,15 +117,17 @@ func _surface_color(surface: String) -> Color:
 
 func _add_segment(a: Dictionary, b: Dictionary, width: float) -> void:
 	var direction: Vector3 = (b.point - a.point).normalized()
-	var side_a: Vector3 = a.normal.cross(direction).normalized() * width * 0.5
 	var side_b: Vector3 = b.normal.cross(direction).normalized() * width * 0.5
+	# Общие вершины соседних отрезков исключают щели и нахлёсты в повороте.
+	var side_a: Vector3 = a.get("side", a.normal.cross(direction).normalized() * width * 0.5)
 	if side_a.length_squared() < 0.00001 or side_b.length_squared() < 0.00001:
 		return
+	b.side = side_b
 	var color_a: Color = _surface_color(a.surface)
 	var color_b: Color = color_a
 	color_a.a = a.alpha
 	color_b.a = b.alpha
-	var segment := {"vertices": [a.point - side_a, a.point + side_a, b.point - side_b, b.point + side_b], "colors": [color_a, color_a, color_b, color_b], "length": a.point.distance_to(b.point)}
+	var segment := {"vertices": [a.point - side_a, a.point + side_a, b.point - side_b, b.point + side_b], "colors": [color_a, color_a, color_b, color_b], "start_distance": a.distance, "end_distance": b.distance}
 	var chunk_index: int = int(_next_segment / CHUNK_SIZE) % CHUNK_COUNT
 	var slot: int = _next_segment % CHUNK_SIZE
 	var chunk: Dictionary = _chunks[chunk_index]
@@ -134,7 +147,7 @@ func _rebuild_chunk(chunk: Dictionary) -> void:
 		var base := vertices.size()
 		vertices.append_array(PackedVector3Array(segment.vertices))
 		colors.append_array(PackedColorArray(segment.colors))
-		uvs.append_array(PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0, segment.length), Vector2(1, segment.length)]))
+		uvs.append_array(PackedVector2Array([Vector2(0, segment.start_distance), Vector2(1, segment.start_distance), Vector2(0, segment.end_distance), Vector2(1, segment.end_distance)]))
 		indices.append_array(PackedInt32Array([base, base + 1, base + 2, base + 1, base + 3, base + 2]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

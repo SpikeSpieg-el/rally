@@ -35,6 +35,21 @@ func _run() -> void:
 	wheel.last_collision_point.z = 2.0
 	marks.update_wheels([wheel], 10.0)
 	ok = ok and marks._next_segment == 1
+	var first: Dictionary = marks._chunks[0].segments[0]
+	ok = ok and first.colors[0].a == 0.0 and first.colors[2].a > 0.0
+	# Поворот: общая кромка и непрерывные координаты текстуры.
+	wheel.last_collision_point = Vector3(0.5, 0.0, 3.0)
+	marks.update_wheels([wheel], 10.0)
+	var second: Dictionary = marks._chunks[0].segments[1]
+	ok = ok and first.vertices[2].is_equal_approx(second.vertices[0])
+	ok = ok and first.vertices[3].is_equal_approx(second.vertices[1])
+	ok = ok and is_equal_approx(first.end_distance, second.start_distance)
+	# При восстановлении сцепления след постепенно заканчивается.
+	wheel.slip_vector = Vector2.ZERO
+	wheel.last_collision_point.z = 4.0
+	marks.update_wheels([wheel], 10.0)
+	var last: Dictionary = marks._chunks[0].segments[2]
+	ok = ok and last.colors[0].a > 0.0 and last.colors[2].a == 0.0
 	marks._process(1.0)
 	ok = ok and marks._chunks[0].visual.mesh.get_surface_count() == 1
 	# Разрыв контакта и телепортация не соединяются длинной полосой.
@@ -43,14 +58,14 @@ func _run() -> void:
 	wheel.contact = true
 	wheel.last_collision_point.z = 30.0
 	marks.update_wheels([wheel], 10.0)
-	ok = ok and marks._next_segment == 1
+	ok = ok and marks._next_segment == 3
 	marks.road_surface = "Грязь"
 	wheel.slip_vector = Vector2.ZERO
 	wheel.last_collision_point.z = 31.0
 	marks.update_wheels([wheel], 10.0)
 	wheel.last_collision_point.z = 32.0
 	marks.update_wheels([wheel], 10.0)
-	ok = ok and marks._next_segment == 2
+	ok = ok and marks._next_segment == 4
 	ok = ok and marks._surface_kind(true, false) == "mud"
 	marks.snow_cover = 1.0
 	ok = ok and marks._surface_kind(false, true) == "snow"
