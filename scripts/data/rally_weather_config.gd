@@ -82,9 +82,9 @@ func get_summary() -> String:
 	var parts := PackedStringArray()
 	if not short_name.is_empty():
 		parts.append(short_name)
-	var precipitation: String = precipitation_name()
-	if has_precipitation() and not precipitation.is_empty() and precipitation != short_name:
-		parts.append(precipitation)
+	var precipitation_label: String = precipitation_name()
+	if has_precipitation() and not precipitation_label.is_empty() and precipitation_label != short_name:
+		parts.append(precipitation_label)
 	if wind_speed >= 6.0:
 		parts.append("ВЕТЕР %d М/С" % int(round(wind_speed)))
 	if parts.is_empty():

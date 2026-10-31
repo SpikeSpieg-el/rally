@@ -193,20 +193,20 @@ func _draw() -> void:
 	var pad: float = 14.0
 	var span_x: float = maxf(1.0, max_x - min_x + pad * 2.0)
 	var span_z: float = maxf(1.0, max_z - min_z + pad * 2.0)
-	var scale: float = minf(usable.size.x / span_x, usable.size.y / span_z)
+	var map_scale: float = minf(usable.size.x / span_x, usable.size.y / span_z)
 	var offset := Vector2(
-		usable.position.x + usable.size.x * 0.5 - (min_x - pad + span_x * 0.5) * scale,
-		usable.position.y + usable.size.y * 0.5 - (min_z - pad + span_z * 0.5) * scale
+		usable.position.x + usable.size.x * 0.5 - (min_x - pad + span_x * 0.5) * map_scale,
+		usable.position.y + usable.size.y * 0.5 - (min_z - pad + span_z * 0.5) * map_scale
 	)
 	var screen := PackedVector2Array()
 	for p in _points:
-		screen.append(Vector2(p.x * scale + offset.x, p.y * scale + offset.y))
+		screen.append(Vector2(p.x * map_scale + offset.x, p.y * map_scale + offset.y))
 
 	draw_polyline(screen, road_color.darkened(0.55), road_line_width + 5.0, true)
 	draw_polyline(screen, road_color, road_line_width, true)
 
 	for cp in _checkpoints:
-		var point := Vector2(cp.x * scale + offset.x, cp.y * scale + offset.y)
+		var point := Vector2(cp.x * map_scale + offset.x, cp.y * map_scale + offset.y)
 		draw_rect(Rect2(point.x - 3.0, point.y - 3.0, 6.0, 6.0), Color(0.95, 0.85, 0.20), true)
 
 	var start: Vector2 = screen[0]
@@ -220,10 +220,25 @@ func _draw() -> void:
 	_draw_status_line()
 
 
+## Цвет неба с поправкой погоды — та же формула, что и в заезде
+## (rally_stage.gd::_weather_sky_color), чтобы фон превью не спорил с небом
+## на старте: подмешать тон пресета и обесцветить.
+func _weather_sky_color(base: Color) -> Color:
+	var result: Color = base.lerp(weather.sky_tint, weather.sky_tint_strength)
+	if weather.sky_desaturation > 0.0:
+		var luminance: float = result.get_luminance()
+		result = result.lerp(
+			Color(luminance, luminance, luminance, result.a), weather.sky_desaturation
+		)
+	return result
+
+
 func _background_color() -> Color:
 	if weather == null or String(weather.id) == "default":
 		return background_color
-	return background_color.lerp(weather.sky_horizon_color, 0.10)
+	# Горизонт неба живёт в конфиге трассы; у погоды есть только её тон.
+	var horizon: Color = track.sky_horizon_color if track != null else weather.sky_tint
+	return background_color.lerp(_weather_sky_color(horizon), 0.10)
 
 
 ## Нижняя «живая лента»: профиль высот по всей длине трассы.
@@ -291,7 +306,7 @@ func _draw_grid(rect: Rect2) -> void:
 	draw_rect(rect, grid_color.lightened(0.25), false, 2.0)
 
 
-func _draw_text(position: Vector2, value: String) -> void:
+func _draw_text(pos: Vector2, value: String) -> void:
 	var font: Font = get_theme_default_font()
 	if font != null:
-		draw_string(font, position + Vector2(0.0, 14.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, accent_color)
+		draw_string(font, pos + Vector2(0.0, 14.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, accent_color)

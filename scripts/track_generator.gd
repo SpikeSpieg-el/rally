@@ -263,8 +263,8 @@ static func select_controls(samples: PackedVector3Array) -> PackedVector3Array:
 
 static func _heading_of(samples: PackedVector3Array, i: int) -> float:
 	if i <= 0:
-		var d := Vector2(samples[1].x - samples[0].x, samples[1].z - samples[0].z)
-		return atan2(d.y, d.x)
+		var first := Vector2(samples[1].x - samples[0].x, samples[1].z - samples[0].z)
+		return atan2(first.y, first.x)
 	var d := Vector2(samples[i].x - samples[i - 1].x, samples[i].z - samples[i - 1].z)
 	if d.length_squared() < 0.000001:
 		return _heading_of(samples, i - 1)
@@ -340,7 +340,7 @@ static func samples_to_curve(samples: PackedVector3Array) -> Curve3D:
 
 ## Финальная проверка: самозазор (по хэшу, O(n)), уклон, мин. радиус.
 ## Шаг проверки 4 м — как в прототипе (прототип валиден по 8 сидам).
-static func validate(samples: PackedVector3Array, min_radius: float) -> Dictionary:
+static func validate(samples: PackedVector3Array, _min_radius: float) -> Dictionary:
 	var acc := xz_distances(samples)
 	var stride: int = 4
 	var buckets := {}
