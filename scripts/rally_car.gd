@@ -129,6 +129,7 @@ var track_offroad_grip: float = 0.6
 ## Необязательный «провайдер» точки сброса: сцена заезда подставляет сюда
 ## поиск ближайшей точки трассы, чтобы R возвращал машину на дорогу,
 ## а не на старт.
+var tire_marks: Node = null
 var reset_provider: Callable = Callable()
 
 ## Нижняя граница падения в мировых координатах. Сцена заезда может
@@ -584,6 +585,8 @@ func _physics_process(delta: float) -> void:
 	current_rpm = motor_rpm
 	manual_mode = not automatic_transmission
 	_update_gravel_particles()
+	if is_instance_valid(tire_marks):
+		tire_marks.call("update_wheels", wheel_array, linear_velocity.length())
 
 	_update_cameras(delta)
 
@@ -1008,6 +1011,8 @@ func recenter_look() -> void:
 
 
 func reset_to_spawn() -> void:
+	if is_instance_valid(tire_marks):
+		tire_marks.call("break_trails")
 	var target: Transform3D = spawn_transform
 	if reset_provider.is_valid():
 		var provided: Variant = reset_provider.call()
