@@ -69,13 +69,34 @@ func _run() -> void:
 	ok = ok and marks._next_segment == 4
 	ok = ok and marks._surface_kind(true, false) == "mud"
 	var mud: Dictionary = marks._chunks[0].segments[3]
-	ok = ok and mud.soil.size() == 24
-	var raised := false
-	for vertex in mud.soil:
-		raised = raised or vertex.y > 0.007
-	ok = ok and raised # настоящие вершины над дорогой, не только цвет
+	# Без пробуксовки одна лента на колесо, никаких боковых «шин».
+	ok = ok and mud.vertices.size() == 4 and mud.soil.is_empty()
 	marks._process(1.0)
-	ok = ok and marks._chunks[0].soil.mesh.get_surface_count() == 1
+	ok = ok and marks._chunks[0].soil.mesh.get_surface_count() == 0
+	# При разрыхлении — редкие замкнутые комочки, не сплошные валики.
+	var soil_a := {"point": Vector3(0, 0.012, 0), "normal": Vector3.UP, "surface": "mud", "distance": 0.0, "looseness": 1.0}
+	var soil_b := {"point": Vector3(0, 0.012, 1), "normal": Vector3.UP, "surface": "mud", "distance": 1.0, "looseness": 1.0}
+	var side := Vector3.RIGHT * 0.1025
+	var clods: PackedVector3Array = marks._soil_vertices(soil_a, soil_b, side, side)
+	ok = ok and clods.size() == 12 # один комочек в интервале 0..1 м
+	var raised := false
+	for vertex in clods:
+		raised = raised or vertex.y > 0.012
+		ok = ok and absf(vertex.x) < 0.15
+	ok = ok and raised
+	var short_b: Dictionary = soil_b.duplicate()
+	short_b.distance = 0.2
+	short_b.point.z = 0.2
+	ok = ok and marks._soil_vertices(soil_a, short_b, side, side).is_empty()
+	# Разбиение пути на кадры не размножает комочки на границе сегментов.
+	var split: Dictionary = soil_b.duplicate()
+	split.distance = 0.35
+	split.point.z = 0.35
+	var before: PackedVector3Array = marks._soil_vertices(soil_a, split, side, side)
+	var after: PackedVector3Array = marks._soil_vertices(split, soil_b, side, side)
+	ok = ok and before.size() + after.size() == clods.size()
+	soil_a.surface = "asphalt"
+	ok = ok and marks._soil_vertices(soil_a, soil_b, side, side).is_empty()
 	marks.snow_cover = 1.0
 	ok = ok and marks._surface_kind(false, true) == "snow"
 	marks.snow_cover = 0.0
