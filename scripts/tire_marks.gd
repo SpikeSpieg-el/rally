@@ -7,6 +7,8 @@ const CHUNK_COUNT := 16
 const MIN_DISTANCE := 0.18
 const MAX_DISTANCE := 5.0
 const FLUSH_INTERVAL := 0.08
+const SOIL_SPACING := 0.7
+const MIN_LOOSENESS := 0.25
 const MarkShader = preload("res://shaders/tire_marks.gdshader")
 
 var road_surface := "Гравий"
@@ -177,27 +179,47 @@ func _rebuild_chunk(chunk: Dictionary) -> void:
 	chunk.dirty = false
 
 
-## Два треугольных валика вытесненного грунта по краям следа.
-## Профиль непрерывен между сегментами; высота зависит от пробуксовки/колеи.
+## Один отпечаток на колесо. Рыхлый грунт — отдельные комочки,
+## а не два непрерывных валика, похожих на дополнительные следы шин.
 func _soil_vertices(a: Dictionary, b: Dictionary, side_a: Vector3, side_b: Vector3) -> PackedVector3Array:
 	var result := PackedVector3Array()
 	if a.surface == "asphalt":
 		return result
-	for sign_side in [-1.0, 1.0]:
-		var profiles: Array = []
-		for endpoint in [a, b]:
-			var side: Vector3 = side_a if endpoint == a else side_b
-			var loose: float = endpoint.get("looseness", 0.0)
-			var wave := 0.8 + 0.2 * sin(endpoint.distance * 19.0 + sign_side * 2.0)
-			var height := (0.008 + loose * 0.055) * wave
-			var center: Vector3 = endpoint.point - endpoint.normal * 0.008
-			profiles.append([
-				center + side * sign_side * 0.88,
-				center + side * sign_side * 1.35 + endpoint.normal * height,
-				center + side * sign_side * (1.9 + loose * 0.4),
-			])
-		for lane in range(2):
-			result.append_array(PackedVector3Array([profiles[0][lane], profiles[0][lane + 1], profiles[1][lane], profiles[0][lane + 1], profiles[1][lane + 1], profiles[1][lane]]))
+	var loose_a: float = a.get("looseness", 0.0)
+	var loose_b: float = b.get("looseness", 0.0)
+	if maxf(loose_a, loose_b) <= MIN_LOOSENESS:
+		return result
+	var length: float = b.distance - a.distance
+	if length <= 0.0:
+		return result
+	# Фиксированный шаг вдоль пути: частота вызовов и длина сегмента
+	# не превращают комочки обратно в сплошную полосу.
+	var first := maxi(0, ceili(a.distance / SOIL_SPACING - 0.5))
+	var last := ceili(b.distance / SOIL_SPACING - 0.5)
+	for index in range(first, last):
+		var along := (float(index) + 0.5) * SOIL_SPACING
+		var t := clampf((along - a.distance) / length, 0.0, 1.0)
+		var loose := lerpf(loose_a, loose_b, t)
+		if loose <= MIN_LOOSENESS:
+			continue
+		var normal: Vector3 = a.normal.lerp(b.normal, t).normalized()
+		var side := side_a.lerp(side_b, t)
+		if side.length_squared() < 0.00001:
+			continue
+		var point: Vector3 = a.point.lerp(b.point, t)
+		var seed_value := sin(point.x * 12.9898 + point.z * 78.233) * 43758.5453
+		var variation := fposmod(seed_value, 1.0)
+		# Только один комочек в сечении, сторона и смещение нерегулярные.
+		var sign_side := -1.0 if variation < 0.5 else 1.0
+		var center := point + side * sign_side * lerpf(0.85, 1.15, variation) - normal * 0.010
+		var radius := lerpf(0.012, 0.028, loose)
+		var across := side.normalized() * radius
+		var forward := normal.cross(side.normalized()) * radius
+		var p0 := center - across - forward * 0.6
+		var p1 := center + across - forward * 0.6
+		var p2 := center + forward
+		var top := center + normal * lerpf(0.008, 0.035, loose) * lerpf(0.7, 1.0, variation)
+		result.append_array(PackedVector3Array([p0, p1, top, p1, p2, top, p2, p0, top, p0, p2, p1]))
 	return result
 
 
