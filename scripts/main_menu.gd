@@ -403,6 +403,9 @@ func _refresh() -> void:
 
 	var track: TrackConfigType = config.get_track(selected_track) as TrackConfigType
 	var setup: CarSetupType = config.get_setup(selected_setup) as CarSetupType
+	var garage_game := _get_game()
+	if garage_game != null and garage_game.has_method("get_custom_setup"):
+		setup = garage_game.call("get_custom_setup", selected_setup) as CarSetupType
 	var weather: WeatherType = config.get_weather(selected_weather) as WeatherType
 	var profile: ProfileType = config.get_profile(selected_profile) as ProfileType
 	if track == null:
@@ -681,6 +684,7 @@ func _on_start_pressed() -> void:
 		add_child(garage)
 		garage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		garage.back_requested.connect(_on_garage_back)
+		garage.setup_saved.connect(_on_garage_saved)
 		garage.start_requested.connect(_on_garage_start)
 	get_node("Content").hide()
 	garage.open(config, selected_setup, _get_game())
@@ -694,12 +698,17 @@ func _on_garage_back() -> void:
 		start_button.grab_focus()
 
 
-func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
+func _on_garage_saved(index: int) -> void:
+	selected_setup = index
+	_sync_game()
+
+
+func _on_garage_start(index: int, _tuned_setup: CarSetupType) -> void:
 	selected_setup = index
 	_sync_game()
 	var game: Node = _get_game()
 	if game != null:
-		game.call("save_custom_setup", index, tuned_setup)
+		# Гараж уже сохранил все черновики до сигнала start_requested.
 		game.call("start_race")
 	else:
 		get_tree().change_scene_to_file(config.stage_scene)

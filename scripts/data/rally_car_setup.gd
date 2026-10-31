@@ -20,6 +20,14 @@ enum TorqueShape { CUSTOM, TURBO_PUNCH, ATMO_LINEAR, HIGH_REV }
 @export var body_color: Color = Color(1, 1, 1, 1)
 @export var accent_color: Color = Color(1, 0.55, 0.05, 1)
 
+@export_group("Внешность")
+@export_enum("Ралли", "Itasha неон", "Itasha зелёная") var livery: int = 0
+@export_enum("Заводское", "Глянец", "Матовый", "Металлик") var paint_finish: int = 0
+## Тонируется общая текстура всего колеса, а не только диска.
+@export var wheel_color: Color = Color.WHITE
+@export var headlight_color: Color = Color(1.0, 0.91, 0.76, 1.0)
+@export_range(0.0, 12.0, 0.25) var headlight_energy: float = 8.0
+
 @export_group("Мотор")
 ## Название мотора для карточки в меню: «4G63T · 2.0 TURBO».
 @export var engine_name: String = ""
@@ -68,6 +76,10 @@ var torque_shape: int = TorqueShape.TURBO_PUNCH
 @export_range(0.3, 2.5, 0.01) var tire_stiffness_scale: float = 1.0
 @export_range(0.3, 3.0, 0.01) var rolling_resistance_scale: float = 1.0
 @export_range(10.0, 50.0, 0.5) var max_steering_angle_deg: float = 35.0
+
+@export_group("Тормоза")
+@export_range(0.4, 1.6, 0.05) var brake_force_multiplier: float = 1.0
+@export_range(0.30, 0.80, 0.01) var front_brake_bias: float = 0.66
 
 @export_group("Камера")
 @export_range(3.0, 12.0, 0.1) var chase_distance: float = 5.8

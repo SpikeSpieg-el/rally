@@ -168,17 +168,23 @@ var speed_rect: ColorRect = null
 
 
 func _enter_tree() -> void:
-	# Родительский _enter_tree выполняется раньше _ready дочерней машины:
-	# успеваем передать конфигурацию, назначенную в инспекторе сцены.
+	# Родитель входит в дерево до _ready дочерней машины. Сценический
+	# setup_override сохраняется при прямом F6, но заезд из меню обязан
+	# использовать выбранную и сохранённую настройку гаража.
 	if Engine.is_editor_hint():
 		return
 	var game: Node = get_node_or_null("/root/RallyGame")
-	if game == null:
-		return
-	if car_setup_override != null:
-		game.set("current_setup", car_setup_override)
-	if track_override != null:
-		game.set("current_track", track_override)
+	var selected_setup: CarSetupType = car_setup_override
+	if game != null:
+		if car_setup_override != null:
+			game.set("current_setup", car_setup_override)
+		elif game.has_method("get_race_setup_override"):
+			selected_setup = game.call("get_race_setup_override") as CarSetupType
+		if track_override != null:
+			game.set("current_track", track_override)
+	var stage_car := get_node_or_null("RallyCar") as CarType
+	if stage_car != null and selected_setup != null:
+		stage_car.setup_override = selected_setup
 
 
 func _ready() -> void:

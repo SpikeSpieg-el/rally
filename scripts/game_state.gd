@@ -12,6 +12,7 @@ extends Node
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const CarCustomization = preload("res://scripts/car_customization.gd")
 
 signal selection_changed
 signal race_started
@@ -37,6 +38,9 @@ var current_weather: Resource = null
 var current_profile: Resource = null
 var last_time: float = 0.0
 var is_new_record: bool = false
+## Только заезд, запущенный из меню, подменяет сценический setup_override.
+## При прямом F6 настройки машины, назначенные в сцене, остаются приоритетными.
+var _race_uses_selected_setup: bool = false
 var _records := ConfigFile.new()
 var _conditions := ConfigFile.new()
 
@@ -91,8 +95,8 @@ func load_conditions() -> void:
 	_conditions.load(conditions_path)
 
 
-func save_conditions() -> void:
-	_conditions.save(conditions_path)
+func save_conditions() -> Error:
+	return _conditions.save(conditions_path)
 
 
 ## Выбор из прошлой сессии (трасса, сетап, погода, профиль) — если он есть.
@@ -256,35 +260,45 @@ func select_setup(index: int) -> void:
 	selection_changed.emit()
 
 
-## Персональная копия пресета; исходные .tres никогда не меняются.
+## Персональная копия пресета; старые ключи читаются по той же схеме,
+## недостающие или некорректные значения берутся из оригинального .tres.
 func get_custom_setup(index: int) -> CarSetupType:
 	var base := get_setup(index) as CarSetupType
 	if base == null:
 		return null
 	var result := base.duplicate(true) as CarSetupType
-	var section := "garage_" + base.id
-	var color: Variant = _conditions.get_value(section, "body_color", base.body_color)
-	if color is Color:
-		result.body_color = Color(color.r, color.g, color.b, 1.0)
-	result.max_torque = clampf(float(_conditions.get_value(section, "max_torque", base.max_torque)), 250.0, 750.0)
-	result.final_drive = clampf(float(_conditions.get_value(section, "final_drive", base.final_drive)), 3.0, 5.5)
-	result.front_spring_length = clampf(float(_conditions.get_value(section, "front_spring_length", base.front_spring_length)), 0.20, 0.45)
-	result.rear_spring_length = clampf(float(_conditions.get_value(section, "rear_spring_length", base.rear_spring_length)), 0.20, 0.45)
-	result.tire_radius = clampf(float(_conditions.get_value(section, "tire_radius", base.tire_radius)), 0.38, 0.50)
+	CarCustomization.read_setup(_conditions, "garage_" + base.id, result, base)
 	return result
 
 
-func save_custom_setup(index: int, setup: CarSetupType) -> void:
-	var base := get_setup(index) as CarSetupType
-	if base == null or setup == null:
-		return
-	var section := "garage_" + base.id
-	for property in ["body_color", "max_torque", "final_drive", "front_spring_length", "rear_spring_length", "tire_radius"]:
-		_conditions.set_value(section, property, setup.get(property))
-	save_conditions()
-	if index == setup_index:
-		current_setup = get_custom_setup(index)
-		selection_changed.emit()
+func save_custom_setup(index: int, setup: CarSetupType) -> bool:
+	return save_custom_setups({index: setup})
+
+
+## Сохраняем все открытые черновики за одну запись, сохраняя условия и рекорды.
+## При ошибке файловой системы рабочий конфиг и текущий сетап не меняются.
+func save_custom_setups(setups: Dictionary) -> bool:
+	var staged := ConfigFile.new()
+	for section in _conditions.get_sections():
+		for key in _conditions.get_section_keys(section):
+			staged.set_value(section, key, _conditions.get_value(section, key))
+	for index in setups:
+		if not index is int or index < 0 or index >= setup_count():
+			return false
+		var base := get_setup(index) as CarSetupType
+		var setup := setups[index] as CarSetupType
+		if base == null or setup == null:
+			return false
+		var safe := CarCustomization.normalized_setup(setup, base)
+		CarCustomization.write_setup(staged, "garage_" + base.id, safe)
+	var error := staged.save(conditions_path)
+	if error != OK:
+		push_warning("Не удалось сохранить настройки гаража: %s" % error_string(error))
+		return false
+	_conditions = staged
+	current_setup = get_custom_setup(setup_index)
+	selection_changed.emit()
+	return true
 
 
 func select_weather(index: int) -> void:
@@ -327,7 +341,14 @@ static func conditions_id(resource: Resource) -> String:
 	return value if not value.is_empty() else "default"
 
 
+func get_race_setup_override() -> CarSetupType:
+	if not _race_uses_selected_setup:
+		return null
+	return current_setup as CarSetupType
+
+
 func start_race() -> void:
+	_race_uses_selected_setup = true
 	last_time = 0.0
 	is_new_record = false
 	get_tree().paused = false
@@ -349,6 +370,7 @@ func restart_race() -> void:
 
 
 func goto_menu() -> void:
+	_race_uses_selected_setup = false
 	get_tree().paused = false
 	finish_loading()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

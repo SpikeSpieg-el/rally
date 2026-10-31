@@ -160,196 +160,72 @@ mouse_filter = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.65, 0.72, 1)
 theme_override_font_sizes/font_size = 14
-text = "ПРЕДПРОСМОТР  /  кузов и колёса"
+text = "ПРЕДПРОСМОТР  /  потяните мышью, чтобы вращать  ·  колесо — масштаб"
 
-[node name="SettingsScroll" type="ScrollContainer" parent="Margin/Layout/Body"]
+[node name="Settings" type="VBoxContainer" parent="Margin/Layout/Body"]
 layout_mode = 2
 size_flags_horizontal = 3
-horizontal_scroll_mode = 0
+theme_override_constants/separation = 10
 
-[node name="Settings" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 12
-
-[node name="ConfigurationTitle" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+[node name="ConfigurationTitle" type="Label" parent="Margin/Layout/Body/Settings"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 16
-text = "КОНФИГУРАЦИЯ"
+text = "КОНФИГУРАЦИЯ  /  НЕЗАВИСИМЫЕ ПРЕСЕТЫ"
 
-[node name="SetupSelector" type="OptionButton" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+[node name="SetupSelector" type="OptionButton" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 
-[node name="Description" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+[node name="Description" type="Label" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.73, 0.78, 1)
-theme_override_font_sizes/font_size = 15
-text = "Описание конфигурации"
+theme_override_font_sizes/font_size = 14
+text = "Описание базового пресета"
 autowrap_mode = 3
 
-[node name="Summary" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+[node name="Summary" type="Label" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.94, 0.96, 1)
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 17
 text = "Характеристики машины"
 autowrap_mode = 3
 
-[node name="SettingsTitle" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings"]
+[node name="SettingsTitle" type="Label" parent="Margin/Layout/Body/Settings"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 16
-text = "НАСТРОЙКИ  /  влияют на заезд"
+text = "КАСТОМИЗАЦИЯ  /  ПРОКРУТИТЕ ДЛЯ ДРУГИХ ПАРАМЕТРОВ"
 
-[node name="Torque" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque/Header"]
+[node name="SettingsTabs" type="TabContainer" parent="Margin/Layout/Body/Settings"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
-theme_override_font_sizes/font_size = 14
-text = "КРУТЯЩИЙ МОМЕНТ"
+size_flags_vertical = 3
+clip_tabs = true
 
-[node name="TorqueValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque/Header"]
+[node name="ResetRow" type="HBoxContainer" parent="Margin/Layout/Body/Settings"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Status" type="Label" parent="Margin/Layout/Body/Settings/ResetRow"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
-theme_override_font_sizes/font_size = 15
-text = "—"
-
-[node name="TorqueSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/Torque"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
-focus_mode = 2
-tooltip_text = "Больше момент — сильнее тяга двигателя."
-min_value = 250
-max_value = 750
-step = 10
-
-[node name="FinalDrive" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
-theme_override_font_sizes/font_size = 14
-text = "ГЛАВНАЯ ПАРА"
+theme_override_colors/font_color = Color(0.63, 0.74, 0.79, 1)
+theme_override_font_sizes/font_size = 13
+text = "Изменения сохраняются кнопкой ниже"
+autowrap_mode = 3
 
-[node name="FinalDriveValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive/Header"]
+[node name="ResetButton" type="Button" parent="Margin/Layout/Body/Settings/ResetRow"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
-theme_override_font_sizes/font_size = 15
-text = "—"
-
-[node name="FinalDriveSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/FinalDrive"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
-focus_mode = 2
-tooltip_text = "Больше число — короче передачи и интенсивнее разгон."
-min_value = 3
-max_value = 5.5
-step = 0.05
-
-[node name="Spring" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
-theme_override_font_sizes/font_size = 14
-text = "ХОД ПОДВЕСКИ"
-
-[node name="SpringValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring/Header"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
-theme_override_font_sizes/font_size = 15
-text = "—"
-
-[node name="SpringSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/Spring"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
-focus_mode = 2
-tooltip_text = "Изменяет ход передней и задней подвески."
-min_value = 0.2
-max_value = 0.45
-step = 0.005
-
-[node name="TireRadius" type="VBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Header" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.75, 0.82, 0.86, 1)
-theme_override_font_sizes/font_size = 14
-text = "РАДИУС КОЛЕСА"
-
-[node name="TireRadiusValue" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius/Header"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
-theme_override_font_sizes/font_size = 15
-text = "—"
-
-[node name="TireRadiusSlider" type="HSlider" parent="Margin/Layout/Body/SettingsScroll/Settings/TireRadius"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
-focus_mode = 2
-tooltip_text = "Меняет размер колёс и физический радиус шины."
-min_value = 0.38
-max_value = 0.5
-step = 0.005
-
-[node name="ColorRow" type="HBoxContainer" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/Layout/Body/SettingsScroll/Settings/ColorRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.78, 0.84, 0.87, 1)
-theme_override_font_sizes/font_size = 15
-text = "ЦВЕТ КУЗОВА"
-
-[node name="BodyColor" type="ColorPickerButton" parent="Margin/Layout/Body/SettingsScroll/Settings/ColorRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 38)
-layout_mode = 2
-edit_alpha = false
-
-[node name="ResetButton" type="Button" parent="Margin/Layout/Body/SettingsScroll/Settings"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(190, 40)
 layout_mode = 2
 text = "СБРОСИТЬ ПРЕСЕТ"
+tooltip_text = "Вернуть текущему пресету заводские настройки. Сохраните сброс или начните заезд."
 
 [node name="Buttons" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2
@@ -364,6 +240,14 @@ text = "◀  К ТРАССЕ"
 [node name="Spacer" type="Control" parent="Margin/Layout/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="SaveButton" type="Button" parent="Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "СОХРАНИТЬ"
+tooltip_text = "Сохранить изменения всех открытых пресетов без запуска заезда."
 
 [node name="StartButton" type="Button" parent="Margin/Layout/Buttons"]
 unique_name_in_owner = true
