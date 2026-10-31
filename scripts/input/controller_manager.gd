@@ -62,7 +62,7 @@ func _input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------ подключение
 
-func _on_joy_connection_changed(device: int, connected: bool) -> void:
+func _on_joy_connection_changed(_device: int, connected: bool) -> void:
 	refresh_devices()
 	if connected:
 		_set_gamepad_active(true)
@@ -473,7 +473,7 @@ func _ensure_ui_bindings() -> void:
 	_ensure_joy_button("ui_focus_prev", JOY_BUTTON_LEFT_SHOULDER)
 
 
-func _ensure_joy_button(action: String, button_index: int) -> void:
+func _ensure_joy_button(action: String, button_index: JoyButton) -> void:
 	if not InputMap.has_action(action):
 		return
 	for event in InputMap.action_get_events(action):
