@@ -151,6 +151,11 @@ func process_torque(drive : float, drive_inertia : float, brake_torque : float, 
 	else:
 		return (spin - previous_spin) * (wheel_moment + drive_inertia) / (drive * delta)
 
+# Значения контакта не накапливаются в базовых коэффициентах шины.
+var surface_grip := 1.0
+var surface_rolling := 1.0
+var surface_depth := 0.0
+
 func process_forces(opposite_compression : float, braking : bool, delta : float) -> float:
 	force_raycast_update()
 	previous_velocity = local_velocity
@@ -179,6 +184,20 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 	else:
 		last_collider = null
 	
+	surface_grip = 1.0
+	surface_rolling = 1.0
+	var target_depth := 0.0
+	if is_colliding() and last_collider != null and vehicle != null and vehicle.has_method("surface_contact"):
+		var grass: bool = last_collider.is_in_group("Grass")
+		var road: bool = last_collider.is_in_group("Dirt") or last_collider.is_in_group("Road")
+		if grass or road:
+			var load_ratio := spring_force / maxf(mass_over_wheel * vehicle.current_gravity.length(), 1.0)
+			var state: Dictionary = vehicle.call("surface_contact", last_collision_point, grass, load_ratio, slip_vector.length(), local_velocity.length(), delta)
+			surface_grip = float(state.get("grip", 1.0))
+			surface_rolling = float(state.get("rolling", 1.0))
+			target_depth = float(state.get("depth", 0.0))
+	# Не вносим удар в демпфер при пересечении края колеи.
+	surface_depth = move_toward(surface_depth, target_depth, delta * 0.12)
 	var compression := process_suspension(opposite_compression, delta)
 	
 	if is_colliding() and last_collider:
@@ -213,7 +232,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 
 func process_suspension(opposite_compression : float, delta : float) -> float:
 	if is_colliding() and last_collider:
-		spring_current_length = last_collision_point.distance_to(global_position) - tire_radius
+		spring_current_length = last_collision_point.distance_to(global_position) - tire_radius + surface_depth
 	else:
 		spring_current_length = spring_length
 	
@@ -303,10 +322,7 @@ func process_tires(braking : bool, delta : float):
 		slip_vector = Vector2(0.0001, 0.0001)
 	
 	var cornering_stiffness := 0.5 * current_tire_stiffness * pow(contact_patch, 2.0)
-	var live_grip := 1.0
-	if last_collider != null and last_collider.name == "RoadSurface" and vehicle != null and vehicle.has_method("live_surface_grip"):
-		live_grip = float(vehicle.call("live_surface_grip", last_collision_point))
-	var friction := current_cof * live_grip * spring_force - (spring_force / (tire_width * contact_patch * 0.2))
+	var friction := maxf(0.0, current_cof * surface_grip * spring_force - (spring_force / (tire_width * contact_patch * 0.2)))
 	var deflect := 1.0 / (sqrt(pow(cornering_stiffness * slip_vector.y, 2.0) + pow(cornering_stiffness * slip_vector.x, 2.0)))
 	
 	## Adds in additional longitudinal grip when braking
@@ -336,7 +352,7 @@ func process_tires(braking : bool, delta : float):
 
 func process_rolling_resistance() -> float:
 	var rolling_resistance_coefficient := 0.005 + (0.5 * (0.01 + (0.0095 * pow(local_velocity.z * 0.036, 2))))
-	return rolling_resistance_coefficient * spring_force * current_rolling_resistance
+	return rolling_resistance_coefficient * spring_force * current_rolling_resistance * surface_rolling
 
 func get_reaction_torque() -> float:
 	return force_vector.y * tire_radius

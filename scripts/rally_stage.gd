@@ -26,6 +26,9 @@ const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const RoadNetworkType = preload("res://scripts/road_network.gd")
+const RoadSurfaceType = preload("res://scripts/road_surface.gd")
+var surface_state = RoadSurfaceType.new()
+
 const TireMarksType = preload("res://scripts/tire_marks.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 const RoadShader = preload("res://shaders/gravel_road.gdshader")
@@ -445,6 +448,7 @@ func _build_world() -> void:
 ## Генерация мира в порциях по кадрам: в игре прогресс и статус «живой»
 ## полосой на экране загрузки (autoload RallyGame), в редакторе — синхронно.
 func _build_world_async() -> void:
+	surface_state.clear()
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	var has_progress: bool = game != null and game.has_method("set_loading_progress")
 	var curve: Curve3D
@@ -1109,6 +1113,19 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	road_body.add_child(collider)
 	if generated != null:
 		generated.add_child(road_body)
+
+
+## Контакт вызывается отдельно для каждого колеса, в локальных координатах этапа.
+func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float, speed: float, delta: float) -> Dictionary:
+	if track == null:
+		return {"grip": 1.0, "rolling": 1.0, "depth": 0.0}
+	var p := to_local(point)
+	var kind: String = surface_state.surface_kind(track.surface_name, grass, _weather_snow_cover())
+	var result: Dictionary = surface_state.sample(p, kind, _weather_wetness())
+	if not grass:
+		result.grip *= live_surface_grip(point)
+	surface_state.imprint(p, kind, load_ratio, slip, speed, delta)
+	return result
 
 
 ## Локальные скользкие полосы: та же формула используется шейдером дороги.
@@ -1901,7 +1918,7 @@ func _update_hud() -> void:
 			split_label.text += "  | cell %.1f" % track.terrain_cell
 	# Спидометр.
 	if speed_label != null:
-		speed_label.text = str(int(round(car.speed_kmh))).rpad(3, "0")
+		speed_label.text = str(int(round(car.speed_kmh))).lpad(3, "0")
 	if gear_label != null:
 		gear_label.text = "%s  |  %s" % [car.get_gear_label(), car.get_drivetrain_label()]
 	if drivetrain_label != null:

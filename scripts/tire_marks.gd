@@ -62,6 +62,10 @@ func update_wheels(wheels: Array, speed: float) -> void:
 		var intensity: float = smoothstep(0.18, 0.8, slip)
 		# На рыхлом грунте остаётся слабая колея даже без заноса.
 		var alpha: float = lerpf(0.07, 0.38, intensity) if surface != "asphalt" else intensity * 0.5
+		# Глубокая колея шире и темнее обычного отпечатка протектора.
+		var rut: float = clampf(float(wheel.get("surface_depth")) / 0.065, 0.0, 1.0) if "surface_depth" in wheel else 0.0
+		if surface != "asphalt":
+			alpha = minf(0.55, alpha + rut * 0.2)
 		var point: Vector3 = to_local(wheel.last_collision_point + wheel.last_collision_normal * 0.012)
 		var normal: Vector3 = (global_basis.inverse() * wheel.last_collision_normal).normalized()
 		var previous: Dictionary = _trails.get(key, {})
@@ -81,7 +85,7 @@ func update_wheels(wheels: Array, speed: float) -> void:
 			continue
 		if distance <= MAX_DISTANCE:
 			current.distance = previous.distance + distance
-			_add_segment(previous, current, clampf(wheel.tire_width / 1000.0, 0.12, 0.45))
+			_add_segment(previous, current, clampf(wheel.tire_width / 1000.0, 0.12, 0.45) * (1.0 + rut * 0.3))
 		else:
 			# Телепортация: новый след начинается отдельно.
 			current.alpha = 0.0

@@ -436,6 +436,14 @@ func apply_track_grip(grip_scale: float, rolling_scale: float, offroad_grip: flo
 	_refresh_grip_tuning()
 
 
+## Единый запрос контакта: накат/колея + существующие локальные скользкие зоны.
+func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float, speed: float, delta: float) -> Dictionary:
+	var stage := get_parent()
+	if stage != null and stage.has_method("surface_contact"):
+		return stage.call("surface_contact", point, grass, load_ratio, slip, speed, delta)
+	return {"grip": 1.0, "rolling": 1.0, "depth": 0.0}
+
+
 ## Вызывается колесом только при контакте с полотном, не с землёй/препятствиями.
 func live_surface_grip(point: Vector3) -> float:
 	var stage := get_parent()
@@ -1073,6 +1081,9 @@ func reset_to_spawn() -> void:
 		axle.suspension_compression_right = 0.0
 
 	for wheel: WheelType in wheel_array:
+		wheel.surface_depth = 0.0
+		wheel.surface_grip = 1.0
+		wheel.surface_rolling = 1.0
 		wheel.spin = 0.0
 		wheel.spin_velocity_diff = 0.0
 		wheel.applied_torque = 0.0
