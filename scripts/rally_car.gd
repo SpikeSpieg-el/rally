@@ -100,6 +100,7 @@ var camera_mode: int = CameraMode.CHASE_3RD
 var current_rpm: float = 900.0
 var speed_mps: float = 0.0
 var speed_kmh: float = 0.0
+var driving_feedback_active: bool = true
 var steer_input: float = 0.0
 var manual_mode: bool = false
 var transmission_mode: int = CarSetupType.Transmission.AUTOMATIC
@@ -610,6 +611,7 @@ func _physics_process(delta: float) -> void:
 	speed_kmh = speed_mps * 3.6
 
 	current_rpm = motor_rpm
+	_update_driving_feedback(controller)
 	manual_mode = not automatic_transmission
 	_update_gravel_particles()
 	if is_instance_valid(tire_marks):
@@ -627,6 +629,32 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < fall_limit:
 		reset_to_spawn()
 
+
+
+func _update_driving_feedback(controller: Node) -> void:
+	if controller == null or not controller.has_method("update_driving_feedback"):
+		return
+	if not driving_feedback_active:
+		return
+	var contacts := 0
+	var roughness := 0.0
+	for wheel: WheelType in wheel_array:
+		if not wheel.is_colliding():
+			continue
+		contacts += 1
+		match wheel.surface_type:
+			"Dirt": roughness += 0.7
+			"Grass": roughness += 1.0
+			_: roughness += 0.15
+	if contacts > 0:
+		roughness /= float(contacts)
+	controller.call("update_driving_feedback", speed_kmh, motor_rpm / maxf(max_rpm, 1.0), get_average_tire_slip(), contacts > 0, roughness, throttle_input, brake_input, gamepad_rumble_enabled)
+
+
+func _exit_tree() -> void:
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("stop_driving_feedback"):
+		controller.call("stop_driving_feedback")
 
 func _handle_gear_input() -> void:
 	var direction := 0

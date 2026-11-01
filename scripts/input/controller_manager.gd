@@ -15,6 +15,8 @@ signal settings_changed
 signal bindings_changed
 
 const BindingsScript = preload("res://scripts/input/input_bindings.gd")
+const DrivingFeedback = preload("res://scripts/input/driving_feedback.gd")
+const TRIGGER_BRIDGE_PATH := "res://tools/dualsense/trigger_bridge.py"
 
 const SETTINGS_PATH := "user://rally_controller.cfg"
 const SONY_VENDOR := 0x054C
@@ -29,6 +31,9 @@ const DUALSENSE_EDGE_PRODUCTS := [0x0DF2]
 ## Настройки, которые меняются в паузе и сохраняются в user://.
 var vibration_enabled: bool = true
 var vibration_strength: float = 0.85
+var driving_vibration_enabled: bool = true
+var adaptive_triggers_enabled: bool = true
+var adaptive_trigger_strength: float = 0.7
 var steering_deadzone: float = 0.12
 var trigger_deadzone: float = 0.08
 var steering_curve: float = 1.25
@@ -41,6 +46,16 @@ var bindings: RefCounted = null
 
 var _devices: Array[Dictionary] = []
 var _settings_path: String = SETTINGS_PATH
+var _bridge_pipe: FileAccess = null
+var _bridge_pid: int = -1
+var _bridge_status_path: String = ""
+var _bridge_status: String = "недоступны"
+var _bridge_generation: int = 0
+var _bridge_check_msec: int = 0
+var _feedback_last_msec: int = 0
+var _feedback_sent_msec: int = 0
+var _rumble_until_msec: int = 0
+var _feedback_running: bool = false
 
 
 func _ready() -> void:
@@ -55,6 +70,7 @@ func _ready() -> void:
 	bindings.initialize()
 	apply_settings()
 	apply_lightbar()
+	_start_trigger_bridge()
 
 
 func _input(event: InputEvent) -> void:
@@ -70,7 +86,11 @@ func _input(event: InputEvent) -> void:
 # ------------------------------------------------------------ подключение
 
 func _on_joy_connection_changed(_device: int, connected: bool) -> void:
+	_stop_trigger_bridge()
+	stop_rumble()
 	refresh_devices()
+	_start_trigger_bridge()
+	settings_changed.emit()
 	if connected:
 		_set_gamepad_active(true)
 		apply_lightbar()
@@ -526,10 +546,11 @@ func _set_gamepad_active(value: bool) -> void:
 
 # ------------------------------------------------------------- вибрация
 
-## Короткий импульс вибрации. weak — левый мотор, strong — правый.
+## Короткий импульс вибрации: weak — высокочастотный, strong — низкочастотный мотор.
 func rumble(weak: float, strong: float, duration: float = 0.15, device: int = -1) -> void:
 	if not vibration_enabled or _devices.is_empty():
 		return
+	_rumble_until_msec = Time.get_ticks_msec() + int(maxf(duration, 0.01) * 1000.0)
 	for info in _devices:
 		var device_id := int(info.device_id)
 		if device >= 0 and device_id != device:
@@ -600,6 +621,9 @@ func load_settings() -> void:
 		return
 	vibration_enabled = bool(config.get_value("controller", "vibration_enabled", vibration_enabled))
 	vibration_strength = clampf(float(config.get_value("controller", "vibration_strength", vibration_strength)), 0.0, 1.0)
+	driving_vibration_enabled = bool(config.get_value("controller", "driving_vibration_enabled", driving_vibration_enabled))
+	adaptive_triggers_enabled = bool(config.get_value("controller", "adaptive_triggers_enabled", adaptive_triggers_enabled))
+	adaptive_trigger_strength = clampf(float(config.get_value("controller", "adaptive_trigger_strength", adaptive_trigger_strength)), 0.0, 1.0)
 	steering_deadzone = clampf(float(config.get_value("controller", "steering_deadzone", steering_deadzone)), 0.0, 0.95)
 	trigger_deadzone = clampf(float(config.get_value("controller", "trigger_deadzone", trigger_deadzone)), 0.0, 0.95)
 	steering_curve = clampf(float(config.get_value("controller", "steering_curve", steering_curve)), 0.5, 3.0)
@@ -614,6 +638,9 @@ func save_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("controller", "vibration_enabled", vibration_enabled)
 	config.set_value("controller", "vibration_strength", vibration_strength)
+	config.set_value("controller", "driving_vibration_enabled", driving_vibration_enabled)
+	config.set_value("controller", "adaptive_triggers_enabled", adaptive_triggers_enabled)
+	config.set_value("controller", "adaptive_trigger_strength", adaptive_trigger_strength)
 	config.set_value("controller", "steering_deadzone", steering_deadzone)
 	config.set_value("controller", "trigger_deadzone", trigger_deadzone)
 	config.set_value("controller", "steering_curve", steering_curve)
@@ -628,6 +655,9 @@ func save_settings() -> void:
 func reset_settings() -> void:
 	vibration_enabled = true
 	vibration_strength = 0.85
+	driving_vibration_enabled = true
+	adaptive_triggers_enabled = true
+	adaptive_trigger_strength = 0.7
 	steering_deadzone = 0.12
 	trigger_deadzone = 0.08
 	steering_curve = 1.25
@@ -636,4 +666,124 @@ func reset_settings() -> void:
 	lightbar_color = Color(0.98, 0.45, 0.06, 1.0)
 	apply_settings()
 	apply_lightbar()
+	_restart_trigger_bridge()
 	save_settings()
+
+
+# ----------------------------------------------------- обратная связь DualSense
+# Адаптивные триггеры доступны только через опциональный Linux USB bridge.
+# Подключаем его лишь при одном геймпаде: Godot не предоставляет hidraw-путь,
+# поэтому при нескольких контроллерах нельзя безопасно сопоставить устройства.
+func _start_trigger_bridge() -> void:
+	_bridge_status = "недоступны (нужен один DualSense по USB в Linux)"
+	if not adaptive_triggers_enabled or OS.get_name() != "Linux" or _devices.size() != 1 or String(_devices[0].family) != "dualsense":
+		return
+	if not FileAccess.file_exists(TRIGGER_BRIDGE_PATH):
+		_bridge_status = "мост триггеров отсутствует в экспорте"
+		return
+	var source := FileAccess.get_file_as_string(TRIGGER_BRIDGE_PATH)
+	var script_path := "user://dualsense_bridge.py"
+	_bridge_generation += 1
+	_bridge_status_path = "user://dualsense_status_%d_%d.txt" % [OS.get_process_id(), _bridge_generation]
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(_bridge_status_path))
+	var script := FileAccess.open(script_path, FileAccess.WRITE)
+	if script == null or source.is_empty():
+		_bridge_status = "не удалось подготовить мост триггеров"
+		return
+	script.store_string(source)
+	script.close()
+	var result := OS.execute_with_pipe("python3", PackedStringArray([ProjectSettings.globalize_path(script_path), ProjectSettings.globalize_path(_bridge_status_path)]), false)
+	if result.is_empty():
+		_bridge_status = "не удалось запустить Python 3"
+		return
+	_bridge_pid = int(result.get("pid", -1))
+	_bridge_pipe = result.get("stdio")
+	_bridge_status = "подключение…"
+
+
+func _stop_trigger_bridge() -> void:
+	# Закрытие stdin вызывает очистку эффектов в мосте. Watchdog делает то же
+	# при зависании игры; принудительно убивать процесс до очистки нельзя.
+	if _bridge_pipe != null:
+		_bridge_pipe.close()
+		_bridge_pipe = null
+	_bridge_pid = -1
+	_bridge_status = "недоступны"
+
+
+func _restart_trigger_bridge() -> void:
+	_stop_trigger_bridge()
+	_start_trigger_bridge()
+	settings_changed.emit()
+
+
+func get_trigger_status() -> String:
+	if not adaptive_triggers_enabled:
+		return "выключены"
+	return _bridge_status
+
+
+func _process(_delta: float) -> void:
+	if _bridge_pid >= 0 and Time.get_ticks_msec() - _bridge_check_msec >= 250:
+		_bridge_check_msec = Time.get_ticks_msec()
+		var next_status := _bridge_status
+		if FileAccess.file_exists(_bridge_status_path):
+			var status := FileAccess.get_file_as_string(_bridge_status_path)
+			if status == "ready":
+				next_status = "доступны (USB)"
+			elif status.begins_with("error:"):
+				next_status = "недоступны: " + status.trim_prefix("error: ").strip_edges()
+		if not OS.is_process_running(_bridge_pid):
+			if next_status == "подключение…" or next_status == "доступны (USB)":
+				next_status = "мост триггеров остановлен"
+			_stop_trigger_bridge()
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(_bridge_status_path))
+		if next_status != _bridge_status:
+			_bridge_status = next_status
+			settings_changed.emit()
+	if _feedback_running and (get_tree().paused or Time.get_ticks_msec() - _feedback_last_msec > 400):
+		stop_driving_feedback()
+
+
+func _exit_tree() -> void:
+	stop_driving_feedback()
+	_stop_trigger_bridge()
+
+
+func _trigger_binding_present(action: String, axis: int) -> bool:
+	if bindings == null:
+		return false
+	for slot in range(2):
+		var entry: Variant = bindings.call("get_binding", action, "gamepad", slot)
+		if entry is Dictionary and entry.get("type") == "axis" and int(entry.get("index", -1)) == axis and int(entry.get("sign", 0)) == 1:
+			return true
+	return false
+
+
+func update_driving_feedback(speed: float, rpm_ratio: float, slip: float, grounded: bool, roughness: float, throttle: float, brake: float, rumble_allowed: bool = true) -> void:
+	if _devices.is_empty() or String(_devices[0].family) != "dualsense":
+		return
+	var now := Time.get_ticks_msec()
+	_feedback_last_msec = now
+	_feedback_running = true
+	if now - _feedback_sent_msec < 100:
+		return
+	_feedback_sent_msec = now
+	var feedback := DrivingFeedback.calculate(speed, rpm_ratio, slip, grounded, roughness, throttle, brake)
+	if vibration_enabled and driving_vibration_enabled and rumble_allowed and now >= _rumble_until_msec:
+		Input.start_joy_vibration(int(_devices[0].device_id), float(feedback.weak) * vibration_strength, float(feedback.strong) * vibration_strength, 0.2)
+	if adaptive_triggers_enabled and _bridge_pipe != null and _bridge_status == "доступны (USB)":
+		var left := roundi(float(feedback.left) * adaptive_trigger_strength * 8.0) if _trigger_binding_present("brake", JOY_AXIS_TRIGGER_LEFT) else 0
+		var right := roundi(float(feedback.right) * adaptive_trigger_strength * 8.0) if _trigger_binding_present("throttle", JOY_AXIS_TRIGGER_RIGHT) else 0
+		_bridge_pipe.store_line("%d %d" % [left, right])
+		_bridge_pipe.flush()
+
+
+func stop_driving_feedback() -> void:
+	if not _feedback_running:
+		return
+	_feedback_running = false
+	stop_rumble()
+	if _bridge_pipe != null and _bridge_status == "доступны (USB)":
+		_bridge_pipe.store_line("0 0")
+		_bridge_pipe.flush()

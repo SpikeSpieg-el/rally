@@ -2081,6 +2081,8 @@ func _process(delta: float) -> void:
 		stage_time = 0.0
 		timer_running = false
 		stage_finished = false
+		if car != null:
+			car.driving_feedback_active = true
 		last_cp_index = -1
 		cp_triggered.fill(false)
 		cp_times.fill(0.0)
@@ -2177,6 +2179,11 @@ func _check_finish() -> void:
 
 func _finish_stage() -> void:
 	stage_finished = true
+	if car != null:
+		car.driving_feedback_active = false
+	var feedback_controller := _controller_manager()
+	if feedback_controller != null and feedback_controller.has_method("stop_driving_feedback"):
+		feedback_controller.call("stop_driving_feedback")
 	timer_running = false
 	var game: Node = get_node_or_null("/root/RallyGame")
 	is_new_record = false
