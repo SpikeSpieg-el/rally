@@ -13,4 +13,4 @@ build/
 Thumbs.db
 
 # Python-кэш инструментов авторинга
-tools/__pycache__/
+__pycache__/

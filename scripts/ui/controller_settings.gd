@@ -14,6 +14,9 @@ const VALUE_COLOR := Color(0.62, 0.76, 0.86, 1.0)
 var controller: Node = null
 var status_label: Label = null
 var vibration_check: CheckBox = null
+var driving_check: CheckBox = null
+var triggers_check: CheckBox = null
+var trigger_slider: HSlider = null
 var strength_slider: HSlider = null
 var deadzone_slider: HSlider = null
 var curve_slider: HSlider = null
@@ -68,6 +71,19 @@ func _build() -> void:
 	test_button.custom_minimum_size = Vector2(86.0, 28.0)
 	test_button.add_theme_font_size_override("font_size", 12)
 	vibration_row.add_child(test_button)
+
+	driving_check = CheckBox.new()
+	driving_check.name = "DrivingVibrationToggle"
+	driving_check.text = "ВИБРАЦИЯ ОТ ДОРОГИ (DUALSENSE)"
+	driving_check.add_theme_font_size_override("font_size", 13)
+	add_child(driving_check)
+
+	triggers_check = CheckBox.new()
+	triggers_check.name = "AdaptiveTriggersToggle"
+	triggers_check.text = "АДАПТИВНЫЕ ТРИГГЕРЫ (DUALSENSE)"
+	triggers_check.add_theme_font_size_override("font_size", 13)
+	add_child(triggers_check)
+	trigger_slider = _add_slider_row("TriggerStrength", "СИЛА ТРИГГЕРОВ", 0.0, 100.0, 1.0, 70.0, "%")
 
 	strength_slider = _add_slider_row("Strength", "СИЛА ВИБРАЦИИ", 0.0, 100.0, 1.0, 85.0, "%")
 	deadzone_slider = _add_slider_row("Deadzone", "МЁРТВАЯ ЗОНА", 3.0, 40.0, 1.0, 12.0, "%")
@@ -125,12 +141,17 @@ func _add_slider_row(row_name: String, caption: String, minimum: float, maximum:
 
 func _connect_signals() -> void:
 	vibration_check.toggled.connect(_on_vibration_toggled)
+	driving_check.toggled.connect(_on_driving_toggled)
+	triggers_check.toggled.connect(_on_triggers_toggled)
+	trigger_slider.value_changed.connect(_on_trigger_strength_changed)
 	strength_slider.value_changed.connect(_on_strength_changed)
 	deadzone_slider.value_changed.connect(_on_deadzone_changed)
 	curve_slider.value_changed.connect(_on_curve_changed)
 	test_button.pressed.connect(_on_test_pressed)
 	lightbar_button.pressed.connect(_on_lightbar_pressed)
 	if controller != null:
+		if controller.has_signal("settings_changed") and not controller.is_connected("settings_changed", _sync):
+			controller.connect("settings_changed", _sync)
 		if controller.has_signal("device_list_changed") and not controller.is_connected("device_list_changed", _sync):
 			controller.connect("device_list_changed", _sync)
 		if controller.has_signal("active_device_changed") and not controller.is_connected("active_device_changed", _on_active_device_changed):
@@ -144,6 +165,9 @@ func _sync() -> void:
 	_loading = true
 	status_label.text = _status_text()
 	vibration_check.set_pressed_no_signal(bool(controller.get("vibration_enabled")))
+	driving_check.set_pressed_no_signal(bool(controller.get("driving_vibration_enabled")))
+	triggers_check.set_pressed_no_signal(bool(controller.get("adaptive_triggers_enabled")))
+	trigger_slider.set_value_no_signal(float(controller.get("adaptive_trigger_strength")) * 100.0)
 	strength_slider.set_value_no_signal(float(controller.get("vibration_strength")) * 100.0)
 	deadzone_slider.set_value_no_signal(float(controller.get("steering_deadzone")) * 100.0)
 	curve_slider.set_value_no_signal(float(controller.get("steering_curve")) * 100.0)
@@ -159,7 +183,7 @@ func _status_text() -> String:
 	var summary: String = String(controller.call("get_device_summary"))
 	var note: String = "Горячее подключение поддерживается"
 	if controller.has_method("is_dualsense") and bool(controller.call("is_dualsense")):
-		note = "DualSense: вибрация, подсветка, стандартная раскладка"
+		note = "DualSense: вибрация совместимости • триггеры: %s" % String(controller.call("get_trigger_status"))
 	return "%s\n%s" % [summary, note]
 
 
@@ -174,6 +198,31 @@ func _on_vibration_toggled(pressed: bool) -> void:
 	controller.set("vibration_enabled", pressed)
 	if not pressed and controller.has_method("stop_rumble"):
 		controller.call("stop_rumble")
+	controller.call("save_settings")
+
+
+func _on_driving_toggled(pressed: bool) -> void:
+	if _loading or controller == null:
+		return
+	controller.set("driving_vibration_enabled", pressed)
+	if not pressed:
+		controller.call("stop_rumble")
+	controller.call("save_settings")
+
+
+func _on_triggers_toggled(pressed: bool) -> void:
+	if _loading or controller == null:
+		return
+	controller.set("adaptive_triggers_enabled", pressed)
+	controller.call("_restart_trigger_bridge")
+	controller.call("save_settings")
+
+
+func _on_trigger_strength_changed(value: float) -> void:
+	_update_label("TriggerStrength", value, "%")
+	if _loading or controller == null:
+		return
+	controller.set("adaptive_trigger_strength", value / 100.0)
 	controller.call("save_settings")
 
 
@@ -227,6 +276,7 @@ func _on_lightbar_pressed() -> void:
 
 func _update_labels() -> void:
 	_update_label("Strength", strength_slider.value, "%")
+	_update_label("TriggerStrength", trigger_slider.value, "%")
 	_update_label("Deadzone", deadzone_slider.value, "%")
 	_update_label("Curve", curve_slider.value / 100.0, "x")
 
