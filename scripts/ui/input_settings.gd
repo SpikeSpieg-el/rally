@@ -6,8 +6,10 @@ signal closed
 
 const Bindings = preload("res://scripts/input/input_bindings.gd")
 const ControllerSettings = preload("res://scripts/ui/controller_settings.gd")
-const ACCENT := Color(1.0, 0.56, 0.17)
-const MUTED := Color(0.65, 0.74, 0.80)
+const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+
+## Палитра/размеры окна. Пусто — res://data/ui/default_ui_theme.tres.
+@export var ui_theme: UiThemeType = null
 
 var manager: Node
 var tabs: TabContainer
@@ -26,6 +28,16 @@ var _overlay_focus: Control
 var _closed_frame := -100
 
 
+## Палитра окна (никогда null).
+func theme_cfg() -> UiThemeType:
+	if ui_theme == null:
+		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
+			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
+		if ui_theme == null:
+			ui_theme = UiThemeType.new()
+	return ui_theme
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -39,8 +51,9 @@ func _ready() -> void:
 
 
 func _build() -> void:
+	var t := theme_cfg()
 	var background := ColorRect.new()
-	background.color = Color(0.005, 0.009, 0.015, 0.88)
+	background.color = t.overlay_backdrop
 	background.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(background)
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -51,11 +64,11 @@ func _build() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(920, 820)
+	panel.custom_minimum_size = Vector2(t.overlay_min_width, t.overlay_min_height)
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.035, 0.055, 0.075, 0.99)
-	panel_style.border_color = Color(0.95, 0.47, 0.11)
-	panel_style.set_border_width_all(1)
+	panel_style.bg_color = t.panel_background
+	panel_style.border_color = t.border_accent
+	panel_style.set_border_width_all(t.border_width)
 	panel_style.border_width_top = 4
 	panel_style.set_corner_radius_all(6)
 	panel_style.content_margin_left = 28.0
@@ -66,16 +79,16 @@ func _build() -> void:
 	center.add_child(panel)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
+	layout.add_theme_constant_override("separation", t.overlay_separation)
 	panel.add_child(layout)
 	var eyebrow := Label.new()
 	eyebrow.text = "НАСТРОЙКИ  /  УПРАВЛЕНИЕ"
-	eyebrow.add_theme_color_override("font_color", ACCENT)
-	eyebrow.add_theme_font_size_override("font_size", 14)
+	eyebrow.add_theme_color_override("font_color", t.accent)
+	eyebrow.add_theme_font_size_override("font_size", t.font_overlay_note)
 	layout.add_child(eyebrow)
 	var title := Label.new()
 	title.text = "КЛАВИАТУРА И ГЕЙМПАД"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", t.font_overlay_title)
 	layout.add_child(title)
 
 	tabs = TabContainer.new()
@@ -93,16 +106,16 @@ func _build() -> void:
 	status.name = "Status"
 	status.text = "Настройки сохраняются автоматически."
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status.add_theme_color_override("font_color", MUTED)
-	status.add_theme_font_size_override("font_size", 14)
+	status.add_theme_color_override("font_color", t.text_secondary)
+	status.add_theme_font_size_override("font_size", t.font_overlay_note)
 	layout.add_child(status)
 	var footer := HBoxContainer.new()
-	footer.add_theme_constant_override("separation", 10)
+	footer.add_theme_constant_override("separation", t.overlay_separation)
 	layout.add_child(footer)
 	reset_button = Button.new()
 	reset_button.name = "ResetBindings"
 	reset_button.text = "СБРОСИТЬ ПРИВЯЗКИ"
-	reset_button.custom_minimum_size = Vector2(230, 44)
+	reset_button.custom_minimum_size = Vector2(t.overlay_reset_button_width, t.overlay_button_height)
 	reset_button.pressed.connect(_reset_current_device)
 	footer.add_child(reset_button)
 	var spacer := Control.new()
@@ -111,13 +124,13 @@ func _build() -> void:
 	cancel_button = Button.new()
 	cancel_button.name = "CancelCapture"
 	cancel_button.text = "ОТМЕНИТЬ ВВОД"
-	cancel_button.custom_minimum_size = Vector2(200, 44)
+	cancel_button.custom_minimum_size = Vector2(t.overlay_button_width, t.overlay_button_height)
 	cancel_button.pressed.connect(_cancel_capture)
 	footer.add_child(cancel_button)
 	close_button = Button.new()
 	close_button.name = "Close"
 	close_button.text = "ГОТОВО"
-	close_button.custom_minimum_size = Vector2(180, 44)
+	close_button.custom_minimum_size = Vector2(t.overlay_close_button_width, t.overlay_button_height)
 	close_button.pressed.connect(close)
 	footer.add_child(close_button)
 	cancel_button.hide()
@@ -135,14 +148,15 @@ func _new_scroll(title: String) -> VBoxContainer:
 	tabs.set_tab_title(tabs.get_tab_count() - 1, title)
 	var margin := MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_bottom", 14)
+	var t := theme_cfg()
+	margin.add_theme_constant_override("margin_left", t.overlay_margin_left)
+	margin.add_theme_constant_override("margin_right", t.overlay_margin_right)
+	margin.add_theme_constant_override("margin_top", t.overlay_margin_vertical)
+	margin.add_theme_constant_override("margin_bottom", t.overlay_margin_vertical)
 	scroll.add_child(margin)
 	var content := VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 7)
+	content.add_theme_constant_override("separation", maxi(1, t.overlay_margin_vertical / 2))
 	margin.add_child(content)
 	return content
 
@@ -152,9 +166,10 @@ func _build_controller_tab() -> void:
 	var note := Label.new()
 	note.text = "Подключите геймпад по USB или Bluetooth. Настройки применяются сразу."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", MUTED)
+	note.add_theme_color_override("font_color", theme_cfg().text_muted)
 	content.add_child(note)
 	controller_options = ControllerSettings.new()
+	controller_options.ui_theme = theme_cfg()
 	content.add_child(controller_options)
 
 
@@ -163,24 +178,24 @@ func _build_bindings_tab(device: String, title: String) -> void:
 	var note := Label.new()
 	note.text = "Два слота на действие. Выберите слот и нажмите клавишу, кнопку или отклоните ось.\nEsc — отменить ввод, Backspace — очистить слот. Конфликтующие назначения меняются местами."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", MUTED)
-	note.add_theme_font_size_override("font_size", 14)
+	note.add_theme_color_override("font_color", theme_cfg().text_muted)
+	note.add_theme_font_size_override("font_size", theme_cfg().font_overlay_note)
 	content.add_child(note)
 	for entry: Dictionary in Bindings.ACTIONS:
 		var action: String = entry.id
 		var row := HBoxContainer.new()
 		row.name = action.to_pascal_case()
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", theme_cfg().row_separation)
 		content.add_child(row)
 		var label := Label.new()
 		label.text = String(entry.label)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_font_size_override("font_size", 16)
+		label.add_theme_font_size_override("font_size", theme_cfg().font_overlay_label)
 		row.add_child(label)
 		for slot in range(Bindings.SLOTS):
 			var button := Button.new()
 			button.name = "Slot%d" % (slot + 1)
-			button.custom_minimum_size = Vector2(170, 38)
+			button.custom_minimum_size = Vector2(theme_cfg().binding_button_width, theme_cfg().binding_button_height)
 			button.focus_mode = Control.FOCUS_ALL
 			button.pressed.connect(_begin_capture.bind(action, device, slot))
 			row.add_child(button)

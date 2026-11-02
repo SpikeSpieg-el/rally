@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="RallyCarFeelConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_car_feel_config.gd" id="1_feel"]
+
+[resource]
+script = ExtResource("1_feel")
+model_wheel_center_y = 1.4588
+model_body_ground_clearance = 0.063
+model_height_offset = 0.0
+speed_response = 10.0
+look_response = 18.0
+inside_fov_response = 6.0
+chase_fov_response = 5.0
+cockpit_motion_response = 8.0
+slope_response = 6.0
+camera_pull_in_speed = 25.0
+camera_push_out_speed = 8.0
+camera_min_distance = 1.2
+camera_pivot_clearance = 0.35
+camera_pitch_min_deg = -10.0
+camera_pitch_max_deg = 75.0
+slope_follow = 0.65
+camera_speed_distance_gain = 0.06
+speed_reference_kmh = 160.0
+inside_fov_speed_reference_kmh = 180.0
+mouse_return_speed = 4.5
+freelook_influence = 1.5
+freelook_focus_min = -0.6
+freelook_focus_max = 1.5
+camera_velocity_follow_start_kmh = 15.0
+camera_velocity_follow_full_kmh = 75.0
+fall_limit_y = -20.0

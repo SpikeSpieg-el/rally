@@ -167,6 +167,31 @@ tools/procedural_route.py            ← числовой эталон гене�
 tools/bake_stage_scene.py            ← пересобрать ассеты в сцене (по желанию)
 ```
 
+## Всё настраивается в инспекторе (data-driven)
+
+Геймплей, эффекты, погода, расстановка, трассы, меню и шейдеры описаны
+`@tool`-ресурсами в `scripts/data/` и файлами в `data/`. Числа и строки
+правятся в инспекторе Godot, а не в коде:
+
+| Ресурс | Файл по умолчанию |
+| --- | --- |
+| `RallyStageSettings` | `data/stage/default_stage_settings.tres` (PS1, эффект скорости, осадки, окружение, материалы, свои uniform'ы шейдеров) |
+| `RallySpawnLayout` | `data/stage/default_spawn_layout.tres` (расстановка КПП, ворот, столбиков, знаков) |
+| `RallySceneryConfig` | `data/stage/default_scenery.tres` (лес, камни, кусты, трава) |
+| `RallyFxProfile` | `data/stage/default_fx_profile.tres` (следы, грязь, пыль, зоны полотна, колеи) |
+| `RallyCarFeelConfig` | `data/car/default_car_feel.tres` (камера, FOV, посадка модели, отклик) |
+| `RallyUiTheme` | `data/ui/default_ui_theme.tres` (палитра, шрифты, отступы, стили) |
+| `RallyMenuLayout` | `data/ui/default_menu_layout.tres` (тексты, подсказки, горячие клавиши) |
+
+У корня `rally_stage.tscn` есть поля `settings`, `spawn_layout`, `fx_profile`,
+`scenery`, а также `ground_material_override` / `road_material_override`:
+пустое поле — берётся `.tres` по умолчанию, заполненное — ваша копия.
+Любой uniform любого материала можно переопределить без кода через
+`RallyShaderParameter` в массивах `*_shader_overrides`.
+
+Правила и чек-лист для дальнейшей разработки —
+[`docs/AGENTS_DATA_DRIVEN_RU.md`](docs/AGENTS_DATA_DRIVEN_RU.md).
+
 ## Быстрый старт
 
 1. Открыть `project.godot` в Godot 4.7+ (проект использует формат сцены 4.7).

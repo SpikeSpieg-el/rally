@@ -25,6 +25,23 @@ signal track_built(track: TrackConfigType)
 ## Высота ленты профиля внизу превью, px. 0 — не рисовать.
 @export_range(0.0, 120.0, 1.0) var profile_tape_height: float = 52.0
 
+@export_group("Оформление (всё видно в инспекторе)")
+@export_range(0.0, 200.0, 1.0) var map_margin: float = 26.0
+@export_range(0.0, 200.0, 1.0) var map_padding: float = 14.0
+@export var checkpoint_color: Color = Color(0.95, 0.85, 0.20, 1.0)
+@export var start_color: Color = Color(0.2, 0.8, 1.0, 1.0)
+@export_range(0.0, 20.0, 0.1) var start_finish_radius: float = 5.5
+@export_range(0.0, 40.0, 0.1) var checkpoint_size: float = 6.0
+## Обводка маршрута — «тень» под цветом полотна.
+@export_range(0.0, 0.9, 0.05) var road_outline_darken: float = 0.55
+@export_range(0.0, 20.0, 0.5) var road_outline_extra: float = 5.0
+@export var tape_background: Color = Color(0.03, 0.06, 0.08, 0.85)
+@export_range(0.0, 0.9, 0.05) var tape_fill_darken: float = 0.45
+@export_range(0.0, 10.0, 0.5) var tape_line_width: float = 2.0
+@export_range(0.0, 200.0, 1.0) var grid_cell_size: float = 32.0
+@export_range(8, 40, 1) var caption_font_size: int = 13
+@export_range(8, 40, 1) var tape_font_size: int = 11
+
 var track: TrackConfigType = null
 var weather: WeatherType = null
 var profile: ProfileType = null
@@ -180,7 +197,7 @@ func _draw() -> void:
 		max_x = maxf(max_x, p.x)
 		min_z = minf(min_z, p.y)
 		max_z = maxf(max_z, p.y)
-	var margin: float = 26.0
+	var margin: float = map_margin
 	var tape_space: float = 0.0
 	if profile_tape_height > 0.0:
 		tape_space = profile_tape_height + 18.0
@@ -190,7 +207,7 @@ func _draw() -> void:
 		maxf(10.0, size.x - margin * 2.0),
 		maxf(10.0, size.y - margin * 2.0 - tape_space)
 	)
-	var pad: float = 14.0
+	var pad: float = map_padding
 	var span_x: float = maxf(1.0, max_x - min_x + pad * 2.0)
 	var span_z: float = maxf(1.0, max_z - min_z + pad * 2.0)
 	var map_scale: float = minf(usable.size.x / span_x, usable.size.y / span_z)
@@ -202,17 +219,18 @@ func _draw() -> void:
 	for p in _points:
 		screen.append(Vector2(p.x * map_scale + offset.x, p.y * map_scale + offset.y))
 
-	draw_polyline(screen, road_color.darkened(0.55), road_line_width + 5.0, true)
+	draw_polyline(screen, road_color.darkened(road_outline_darken), road_line_width + road_outline_extra, true)
 	draw_polyline(screen, road_color, road_line_width, true)
 
 	for cp in _checkpoints:
 		var point := Vector2(cp.x * map_scale + offset.x, cp.y * map_scale + offset.y)
-		draw_rect(Rect2(point.x - 3.0, point.y - 3.0, 6.0, 6.0), Color(0.95, 0.85, 0.20), true)
+		var half: float = checkpoint_size * 0.5
+		draw_rect(Rect2(point.x - half, point.y - half, checkpoint_size, checkpoint_size), checkpoint_color, true)
 
 	var start: Vector2 = screen[0]
 	var finish: Vector2 = screen[screen.size() - 1]
-	draw_circle(start, 5.5, Color(0.2, 0.8, 1.0))
-	draw_circle(finish, 5.5, accent_color)
+	draw_circle(start, start_finish_radius, start_color)
+	draw_circle(finish, start_finish_radius, accent_color)
 	_draw_text(Vector2(margin, margin - 12.0), "СТАРТ / ФИНИШ")
 	if profile_tape_height > 0.0:
 		_draw_height_tape(Rect2(margin, size.y - profile_tape_height - 24.0,
@@ -245,7 +263,7 @@ func _background_color() -> Color:
 func _draw_height_tape(rect: Rect2) -> void:
 	if _heights.size() < 2 or rect.size.x < 40.0:
 		return
-	draw_rect(rect, Color(0.03, 0.06, 0.08, 0.85))
+	draw_rect(rect, tape_background)
 	draw_rect(rect, grid_color.lightened(0.25), false, 1.0)
 	var min_h: float = _heights[0]
 	var max_h: float = _heights[0]
@@ -263,14 +281,14 @@ func _draw_height_tape(rect: Rect2) -> void:
 	var fill := tape_points.duplicate()
 	fill.append(Vector2(rect.end.x - 4.0, rect.end.y - 4.0))
 	fill.append(Vector2(rect.position.x + 4.0, rect.end.y - 4.0))
-	draw_colored_polygon(fill, road_color.darkened(0.45))
-	draw_polyline(tape_points, accent_color, 2.0, true)
+	draw_colored_polygon(fill, road_color.darkened(tape_fill_darken))
+	draw_polyline(tape_points, accent_color, tape_line_width, true)
 	var font: Font = get_theme_default_font()
 	if font != null:
 		var label := "ПЕРЕПАД %.0f М  •  %.0f—%.0f М" % [max_h - min_h, min_h, max_h]
 		draw_string(
 			font, Vector2(rect.position.x + 6.0, rect.position.y - 4.0),
-			label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, accent_color
+			label, HORIZONTAL_ALIGNMENT_LEFT, -1, tape_font_size, accent_color
 		)
 
 
@@ -290,11 +308,11 @@ func _draw_status_line() -> void:
 		parts.append(weather.get_summary())
 	if track.procedural:
 		parts.append("СИД %d" % track.generation_seed)
-	_draw_text(Vector2(26.0, size.y - 20.0), "  •  ".join(parts))
+	_draw_text(Vector2(map_margin, size.y - map_margin * 0.75), "  •  ".join(parts))
 
 
 func _draw_grid(rect: Rect2) -> void:
-	var cell: float = 32.0
+	var cell: float = maxf(4.0, grid_cell_size)
 	var x: float = cell
 	while x < rect.size.x:
 		draw_line(Vector2(x, 0.0), Vector2(x, rect.size.y), grid_color, 1.0)
@@ -309,4 +327,4 @@ func _draw_grid(rect: Rect2) -> void:
 func _draw_text(pos: Vector2, value: String) -> void:
 	var font: Font = get_theme_default_font()
 	if font != null:
-		draw_string(font, pos + Vector2(0.0, 14.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, accent_color)
+		draw_string(font, pos + Vector2(0.0, float(caption_font_size)), value, HORIZONTAL_ALIGNMENT_LEFT, -1, caption_font_size, accent_color)

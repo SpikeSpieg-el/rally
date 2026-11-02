@@ -15,6 +15,20 @@
 ## «Пересобрать трассу» (пересчитать меши по текущей кривой) и «Посадить
 ## ассеты на землю» (поставить ассеты из Props/ManualProps на меш земли).
 ## Свои объекты кладутся руками в ManualProps — генератор их не трогает.
+##
+## ПРАВИЛО РЕДАКТИРУЕМОСТИ (для людей и агентов): этот скрипт НЕ хранит
+## настроек. Числа, цвета, размеры и пороги эффектов берутся из ресурсов,
+## которые видны в инспекторе корня сцены:
+##   settings      — RallyStageSettings (PS1, скорость, осадки, окружение,
+##                   материалы обстановки, редактор);
+##   spawn_layout  — RallySpawnLayout (старт/финиш, столбики, КПП, знаки,
+##                   точка появления и «спасение» машины);
+##   fx_profile    — RallyFxProfile (следы шин, грязь, брызги, пыль,
+##                   скользкие полосы, физика колеи);
+##   scenery       — RallySceneryConfig (какой лес/камни и как часто).
+## Если поле пустое, подставляется файл из res://data/stage/. Меняйте
+## значения в инспекторе — код подхватит их при следующей сборке (кнопка
+## «Пересобрать трассу»).
 @tool
 class_name RallyStage
 extends Node3D
@@ -42,34 +56,41 @@ const SpeedShader = preload("res://shaders/speed_fx.gdshader")
 const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
+const StageSettingsType = preload("res://scripts/data/rally_stage_settings.gd")
+const SpawnLayoutType = preload("res://scripts/data/rally_spawn_layout.gd")
+const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
+const SceneryType = preload("res://scripts/data/rally_scenery_config.gd")
+
+## Файлы-«пульты» по умолчанию (если поле в сцене пустое).
+const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
+const DEFAULT_SPAWN_PATH := "res://data/stage/default_spawn_layout.tres"
+const DEFAULT_FX_PATH := "res://data/stage/default_fx_profile.tres"
+const DEFAULT_SCENERY_PATH := "res://data/stage/default_scenery.tres"
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
 @export var track_override: TrackConfigType = null
 @export var car_setup_override: CarSetupType = null
 
+@export_group("Пульты эффектов (правятся в инспекторе)")
+## PS1/скорость/осадки/окружение/материалы обстановки. Пусто — файл по умолчанию.
+@export var settings: StageSettingsType = null
+## Старт/финиш, столбики, арки КПП, знаки поворотов, спавн и спасение машины.
+@export var spawn_layout: SpawnLayoutType = null
+## Следы шин, грязь на кузове, брызги, пыль, скользкие полосы, физика колеи.
+@export var fx_profile: FxProfileType = null
+## Что и как часто генерируется вдоль трассы (лес, камни, подлесок).
+@export var scenery: SceneryType = null
+
+@export_group("Материалы (правятся прямо в сцене)")
+## Материал земли. Пусто — создаётся из шейдера и настроек (рекомендуется).
+@export var ground_material_override: Material = null
+## Материал полотна. Пусто — создаётся из шейдера и настроек.
+@export var road_material_override: Material = null
+
 @export_group("Редактор")
-## Собирать трассу сразу при открытии сцены в редакторе.
-@export var preview_in_editor: bool = true
 @export_tool_button("Пересобрать трассу") var rebuild_button = rebuild_preview
 @export_tool_button("Посадить ассеты на землю") var snap_button = snap_props_to_ground
-## Автоматически ставить ассеты из Props/ManualProps на землю при сборке.
-@export var snap_props_on_build: bool = true
-
-@export_group("Стилизация и ощущение скорости")
-## Сила экранной PS1-стилизации (0 — без пикселизации и палитры).
-@export_range(0.0, 1.0, 0.05) var retro_style_strength: float = 1.0
-## Высота виртуального изображения мира; ширина следует соотношению сторон.
-@export_range(180, 720, 1, "suffix:px") var retro_resolution_height: int = 270
-## Лёгкая привязка вершин дороги и земли к экранной сетке (0 — без дрожания).
-@export_range(0.0, 1.0, 0.05) var retro_vertex_snap: float = 0.15
-## Общая интенсивность скоростного размытия и виньетки.
-@export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
-## Плотность мировых частиц осадков (относительно пресета погоды).
-@export_range(0.1, 2.0, 0.1) var precipitation_density: float = 1.0
-
-@export_group("Отладка")
-@export var show_debug_info: bool = false
 
 @onready var world_environment: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 @onready var sun_light: DirectionalLight3D = get_node_or_null("SunLight") as DirectionalLight3D
@@ -106,6 +127,11 @@ var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
+## Материал земли живёт столько же, сколько сцена: инспекторские правки
+## не теряются при пересборке трассы.
+var _ground_material: ShaderMaterial = null
+## Материал полотна тоже переиспользуется между пересборками.
+var _road_material: ShaderMaterial = null
 ## Условия уже наложены на копию трассы: повторный _resolve_track не должен
 ## умножать сцепление и кочки второй раз.
 var _track_prepared := false
@@ -117,7 +143,7 @@ var _frame_delta: float = 0.016
 
 # Автопересборка в редакторе: как только правка кривой/настроек затихла,
 # трасса пересобирается сама (кнопка остаётся для ручного пересчёта).
-const REBUILD_DELAY := 0.45
+# Сама задержка — поле settings.auto_rebuild_delay.
 var _rebuild_pending: bool = false
 var _rebuild_timer: float = 0.0
 var _pending_from_track: bool = false
@@ -186,10 +212,70 @@ func _enter_tree() -> void:
 		stage_car.setup_override = selected_setup
 
 
+## Подставить «пульты» из res://data/stage/, если в сцене поле пустое.
+## В редакторе ресурсы читаются напрямую: правка .tres сразу видна на кнопке
+## «Пересобрать трассу», без перезапуска.
+func _load_resources() -> void:
+	if game_config == null and ResourceLoader.exists("res://data/rally_game_config.tres"):
+		game_config = ResourceLoader.load("res://data/rally_game_config.tres") as GameConfigType
+	if settings == null:
+		settings = _load_resource(DEFAULT_SETTINGS_PATH) as StageSettingsType
+	if settings == null:
+		settings = StageSettingsType.new()
+	if spawn_layout == null:
+		spawn_layout = _load_resource(DEFAULT_SPAWN_PATH) as SpawnLayoutType
+	if spawn_layout == null:
+		spawn_layout = SpawnLayoutType.new()
+	if fx_profile == null:
+		fx_profile = _load_resource(DEFAULT_FX_PATH) as FxProfileType
+	if fx_profile == null:
+		fx_profile = FxProfileType.new()
+	if scenery == null:
+		scenery = _load_resource(DEFAULT_SCENERY_PATH) as SceneryType
+	if scenery == null:
+		scenery = SceneryType.new()
+	surface_state.fx = fx_profile
+
+
+func _load_resource(path: String) -> Resource:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	return ResourceLoader.load(path)
+
+
+## Настройки сцены (никогда null после _load_resources).
+func s_settings() -> StageSettingsType:
+	if settings == null:
+		_load_resources()
+	return settings
+
+
+## Раскладка спавнов (никогда null).
+func s_spawn() -> SpawnLayoutType:
+	if spawn_layout == null:
+		_load_resources()
+	return spawn_layout
+
+
+## Профиль эффектов (никогда null).
+func s_fx() -> FxProfileType:
+	if fx_profile == null:
+		_load_resources()
+	return fx_profile
+
+
+## Конфиг обстановки (никогда null).
+func s_scenery() -> SceneryType:
+	if scenery == null:
+		_load_resources()
+	return scenery
+
+
 func _ready() -> void:
+	_load_resources()
 	if Engine.is_editor_hint():
 		set_process(true)
-		if preview_in_editor:
+		if s_settings().preview_in_editor:
 			rebuild_preview()
 		_watch_sources()
 		return
@@ -202,12 +288,13 @@ func _ready() -> void:
 		car_node.freeze = true
 	await _build_world_async()
 	_configure_car()
-	if track != null and track.ps1_style:
+	if track != null and s_settings().is_retro(track) and s_settings().apply_ps1_materials:
 		# Только визуальные копии: настройки краски, слои грязи и ресурсы
 		# редактора остаются нетронутыми.
 		Ps1Materials.apply_nearest(self)
 	var marks = TireMarksType.new()
 	marks.name = "TireMarks"
+	marks.fx = s_fx()
 	marks.road_surface = track.surface_name
 	marks.snow_cover = _weather_snow_cover()
 	marks.wetness = _weather_wetness()
@@ -256,7 +343,7 @@ func rebuild_preview() -> void:
 
 
 ## Следит за кривой дороги и настройками трассы: любое изменение ставит
-## пересборку в очередь (через REBUILD_DELAY после последней правки).
+## пересборку в очередь (через settings.auto_rebuild_delay после правки).
 func _watch_sources() -> void:
 	if not Engine.is_editor_hint():
 		return
@@ -314,13 +401,27 @@ func _snap_prop_nodes(include_manual: bool) -> int:
 		var root := get_node_or_null(node_name) as Node3D
 		if root == null:
 			continue
-		for child in root.get_children():
-			var node3d := child as Node3D
-			if node3d == null:
-				continue
-			var p: Vector3 = node3d.position
-			node3d.position.y = ground_height(p.x, p.z)
-			total += 1
+		total += _snap_children(root)
+	return total
+
+
+## Рекурсивно сажает на землю и вложенные узлы (ветку дерева, щит на столбе),
+## а не только прямых детей корня.
+func _snap_children(root: Node3D) -> int:
+	var total: int = 0
+	for child in root.get_children():
+		var node3d := child as Node3D
+		if node3d == null:
+			continue
+		if node3d is CollisionShape3D or node3d is Marker3D:
+			continue
+		if node3d.get_child_count() > 0 and not (node3d is MeshInstance3D):
+			# Группа объектов — сажаем каждый лист по отдельности.
+			total += _snap_children(node3d)
+			continue
+		var p: Vector3 = node3d.position
+		node3d.position.y = ground_height(p.x, p.z)
+		total += 1
 	return total
 
 
@@ -509,15 +610,15 @@ func _build_world_async() -> void:
 	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
-	if snap_props_on_build and track.use_baked_props:
+	if s_settings().snap_props_on_build and track.use_baked_props:
 		# Только «лес» из Props (запечённая обстановка лесной трассы):
 		# ручные объекты в ManualProps не двигаем, их можно поставить
 		# руками на нужную высоту. У трасс без запечённых пропсов
 		# обстановка генерируется своя.
 		_snap_prop_nodes(false)
-	if track.spawn_route_markers:
+	if s_spawn().spawn_route_markers and track.spawn_route_markers:
 		_spawn_route_markers()
-	if track.spawn_edge_posts:
+	if s_spawn().edge_posts and track.spawn_edge_posts:
 		_spawn_edge_posts()
 	if track.spawn_checkpoints:
 		_spawn_checkpoints()
@@ -945,8 +1046,18 @@ func _limit_terrain_slopes(
 
 
 func _make_ground_material() -> ShaderMaterial:
-	var material := ShaderMaterial.new()
-	material.shader = GroundShader
+	# Свой материал (из сцены или из настроек) главнее сгенерированного:
+	# его шейдер и параметры целиком в инспекторе.
+	if ground_material_override is ShaderMaterial:
+		return ground_material_override as ShaderMaterial
+	if s_settings().ground_material is ShaderMaterial:
+		return s_settings().ground_material as ShaderMaterial
+	# Сгенерированный материал один на сцену: параметры обновляются, а не
+	# создаются заново, поэтому материал не «плодится» при пересборке.
+	if _ground_material == null:
+		_ground_material = ShaderMaterial.new()
+		_ground_material.shader = GroundShader
+	var material := _ground_material
 	material.set_shader_parameter("ground_texture", GroundTexture)
 	material.set_shader_parameter("rock_texture", RockTexture)
 	material.set_shader_parameter("ground_texture_smooth", GroundTexture)
@@ -956,13 +1067,14 @@ func _make_ground_material() -> ShaderMaterial:
 	material.set_shader_parameter("ground_color_2", track.ground_color_2)
 	material.set_shader_parameter("road_edge_color", track.shoulder_color)
 	material.set_shader_parameter("rock_color", track.rock_color)
-	material.set_shader_parameter("surface_roughness", 0.97)
-	material.set_shader_parameter("grain_scale", 2.4)
+	material.set_shader_parameter("surface_roughness", s_settings().ground_surface_roughness)
+	material.set_shader_parameter("grain_scale", s_settings().ground_grain_scale)
 	material.set_shader_parameter("flat_shading", 1.0 if track.ps1_style and track.flat_shading else 0.0)
-	material.set_shader_parameter("vertex_snap", retro_vertex_snap if track.ps1_style else 0.0)
-	material.set_shader_parameter("resolution_y", float(retro_resolution_height))
+	material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if track.ps1_style else 0.0)
+	material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
 	material.set_shader_parameter("wetness", _weather_wetness())
 	material.set_shader_parameter("snow_cover", _weather_snow_cover())
+	s_settings().apply_shader_overrides(material, s_settings().ground_shader_overrides)
 	return material
 
 
@@ -1081,18 +1193,34 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var road_mesh := ArrayMesh.new()
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var road_material := ShaderMaterial.new()
-	road_material.shader = RoadShader
+	# Материал полотна один на сцену: свой (из сцены/настроек) или
+	# сгенерированный — в обоих случаях живёт между пересборками.
+	var road_override: Material = road_material_override if road_material_override != null else s_settings().road_material
+	if road_override is ShaderMaterial:
+		_road_material = road_override as ShaderMaterial
+	elif _road_material == null:
+		_road_material = ShaderMaterial.new()
+	var road_material := _road_material
+	if road_material.shader == null:
+		road_material.shader = RoadShader
 	road_material.set_shader_parameter("gravel_texture", GravelTexture)
 	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
 	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
-	road_material.set_shader_parameter("vertex_snap", retro_vertex_snap if track.ps1_style else 0.0)
-	road_material.set_shader_parameter("resolution_y", float(retro_resolution_height))
+	road_material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if track.ps1_style else 0.0)
+	road_material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
+	road_material.set_shader_parameter("road_roughness", s_settings().road_roughness)
+	road_material.set_shader_parameter("detail_strength", s_settings().road_detail_strength)
+	road_material.set_shader_parameter("track_strength", s_settings().road_track_strength)
 	var road_kind: String = surface_state.surface_kind(track.surface_name, false, _weather_snow_cover())
-	road_material.set_shader_parameter("loose_relief", 0.08 if road_kind == "asphalt" else 1.0)
+	road_material.set_shader_parameter(
+		"loose_relief",
+		s_settings().road_loose_relief_asphalt if road_kind == "asphalt" else s_settings().road_loose_relief
+	)
 	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
 	road_material.set_shader_parameter("stage_length", network.total_length)
-	road_material.set_shader_parameter("zone_offset", minf(track.road_half_width * 0.45, 1.5))
+	road_material.set_shader_parameter("zone_offset", _zone_lateral_offset())
+	_apply_zone_shader_parameters(road_material)
+	s_settings().apply_shader_overrides(road_material, s_settings().road_shader_overrides)
 	road_material.set_shader_parameter("wetness", _weather_wetness())
 	road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
 
@@ -1150,23 +1278,56 @@ func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float
 ## Локальные скользкие полосы: та же формула используется шейдером дороги.
 ## Начало и финиш свободны; полосы чередуются по сторонам и оставляют объезд.
 func live_surface_grip(world_point: Vector3) -> float:
-	if network == null or track == null:
+	var fx := s_fx()
+	if not fx.grip_zones_enabled or network == null or track == null:
 		return 1.0
 	var p: Vector3 = to_local(world_point)
 	var along: float = network.along_road(p.x, p.z)
-	if along < 150.0 or along > network.total_length - 40.0:
+	var start: float = fx.zone_start
+	var limit: float = network.total_length - fx.zone_end_margin
+	if along < start or along > limit:
 		return 1.0
-	var cell_index: int = floori((along - 150.0) / 240.0)
-	var local_along: float = fposmod(along - 150.0, 240.0)
+	var period: float = maxf(1.0, fx.zone_period)
+	var cell_index: int = floori((along - start) / period)
+	var local_along: float = fposmod(along - start, period)
 	var center: Vector3 = network.point_at(along)
 	var dir: Vector3 = network.direction_at(along)
 	var side := Vector3(dir.z, 0.0, -dir.x)
 	var lateral: float = (p - center).dot(side)
-	var offset: float = minf(track.road_half_width * 0.45, 1.5)
 	var zone_side: float = 1.0 if cell_index % 2 == 0 else -1.0
-	var longitudinal: float = smoothstep(0.0, 3.0, local_along) * (1.0 - smoothstep(17.0, 20.0, local_along))
-	var across: float = 1.0 - smoothstep(0.7, 1.5, absf(lateral - zone_side * offset))
-	return 1.0 - longitudinal * across * (0.20 if cell_index % 2 == 0 else 0.13)
+	var fade: float = maxf(0.05, fx.zone_shader_fade)
+	var softness: float = maxf(0.01, fx.zone_shader_softness)
+	var length_scale: float = clampf(fx.zone_length / period, 0.0, 1.0)
+	var longitudinal: float = smoothstep(0.0, fade, local_along) * (1.0 - smoothstep(period * length_scale - fade, period * length_scale, local_along))
+	var across: float = 1.0 - smoothstep(fx.zone_half_width - softness, fx.zone_half_width, absf(lateral - zone_side * _zone_lateral_offset()))
+	var loss: float = fx.zone_grip_loss_strong if cell_index % 2 == 0 else fx.zone_grip_loss_weak
+	return 1.0 - longitudinal * across * loss
+
+
+## Все числа скользких полос — в один материал полотна (шейдер совпадает с
+## физикой live_surface_grip).
+func _apply_zone_shader_parameters(material: ShaderMaterial) -> void:
+	var fx := s_fx()
+	material.set_shader_parameter("zone_period", fx.zone_period)
+	material.set_shader_parameter("zone_start", fx.zone_start)
+	material.set_shader_parameter("zone_end_margin", fx.zone_end_margin)
+	material.set_shader_parameter("zone_length", fx.zone_length)
+	material.set_shader_parameter("zone_half_width", fx.zone_shader_half_width)
+	material.set_shader_parameter("zone_softness", fx.zone_shader_softness)
+	material.set_shader_parameter("zone_fade", fx.zone_shader_fade)
+	material.set_shader_parameter("zone_contrast", fx.zone_shader_contrast)
+	material.set_shader_parameter("zone_wet_darken", fx.zone_wet_darken)
+	material.set_shader_parameter("zone_dry_lighten", fx.zone_dry_lighten)
+	material.set_shader_parameter("puddle_roughness", fx.zone_puddle_roughness)
+	material.set_shader_parameter("puddle_mix", fx.zone_puddle_mix)
+
+
+## Поперечное смещение скользкой полосы от оси дороги, м.
+func _zone_lateral_offset() -> float:
+	var fx := s_fx()
+	if track == null:
+		return 0.0
+	return minf(track.road_half_width * fx.zone_lateral_fraction, fx.zone_lateral_limit)
 
 
 func _set_shape_faces(shape: ConcavePolygonShape3D, faces: PackedVector3Array) -> void:
@@ -1194,6 +1355,7 @@ func _apply_baked_props_visibility() -> void:
 func _spawn_procedural_scenery(light: bool = false) -> void:
 	if generated == null or network == null:
 		return
+	var cfg := s_scenery()
 	var container := Node3D.new()
 	container.name = "Scenery"
 	generated.add_child(container)
@@ -1209,14 +1371,16 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 	var stumps: Array[Transform3D] = []
 	var logs: Array[Transform3D] = []
 	var trunks: Array[Vector3] = []
-	var distance: float = 6.0
+	var distance: float = cfg.start_margin
 	var trunk_since: float = -100.0
 	var step_count: int = 0
-	var total_steps: float = maxf(1.0, (network.total_length - 12.0) / 7.0)
+	var step: float = maxf(1.0, cfg.sample_step)
+	var total_steps: float = maxf(1.0, (network.total_length - cfg.start_margin - cfg.end_margin) / step)
 	var density: float = clampf(track.scenery_density, 0.0, 2.0)
-	var attempt_count: int = ceili(3.0 * density)
-	var attempt_chance: float = 3.0 * density * 0.75 / float(maxi(attempt_count, 1))
-	while distance < network.total_length - 6.0:
+	var attempt_count: int = ceili(float(cfg.attempts_per_step) * density)
+	var attempt_chance: float = float(cfg.attempts_per_step) * density * cfg.success_chance / float(maxi(attempt_count, 1))
+	var minimum_offset: float = cfg.min_offset_baked if track.use_baked_props else cfg.min_offset_plain
+	while distance < network.total_length - cfg.end_margin:
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
@@ -1225,52 +1389,61 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 				if rng.randf() > attempt_chance:
 					continue
 				# На ручной лесной трассе не дублируем запечённые деревья у дороги.
-				var minimum_offset: float = 13.0 if track.use_baked_props else 4.5
-				var lateral: float = corridor + rng.randf_range(minimum_offset, 58.0)
-				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-3.2, 3.2)
-				if not terrain_rect.has_point(Vector2(point.x, point.z)) or network.distance_to_road(point.x, point.z) < corridor + 3.5:
+				var lateral: float = corridor + rng.randf_range(minimum_offset, cfg.max_offset)
+				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-cfg.along_jitter, cfg.along_jitter)
+				if not terrain_rect.has_point(Vector2(point.x, point.z)) or network.distance_to_road(point.x, point.z) < corridor + cfg.road_clearance:
 					continue
 				var ground: float = ground_height(point.x, point.z)
-				var roll: float = rng.randf()
 				var angle: float = rng.randf_range(0.0, TAU)
-				if roll < 0.48:
-					var is_fir: bool = roll < 0.30
-					var size: float = rng.randf_range(0.75, 1.75) if is_fir else rng.randf_range(0.8, 1.85)
-					var tree_basis := Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size)
-					var crown_height: float = 4.0 if is_fir else 5.6
-					var tree_transform := Transform3D(tree_basis, Vector3(point.x, ground + crown_height * size, point.z))
-					if is_fir:
-						firs.append(tree_transform)
-					else:
-						pines.append(tree_transform)
-					trunks_visual.append(Transform3D(tree_basis, Vector3(point.x, ground + 1.15 * size, point.z)))
-					if lateral < corridor + 24.0 and distance - trunk_since > 45.0:
-						trunks.append(Vector3(point.x, ground, point.z))
-						trunk_since = distance
-				elif roll < 0.71:
-					var size: float = rng.randf_range(0.65, 1.6)
-					var scale := Vector3(size * rng.randf_range(0.8, 1.3), size, size * rng.randf_range(0.8, 1.3))
-					bushes.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(scale), Vector3(point.x, ground + 0.45 * size, point.z)))
-				elif roll < 0.84:
-					var size: float = rng.randf_range(0.55, 2.1)
-					var scale := Vector3(size * rng.randf_range(0.7, 1.3), size * rng.randf_range(0.6, 1.0), size)
-					rocks.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(scale), Vector3(point.x, ground + 0.55 * scale.y, point.z)))
-				elif roll < 0.93:
-					var size: float = rng.randf_range(0.6, 1.25)
-					stumps.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size), Vector3(point.x, ground + 0.32 * size, point.z)))
-				else:
-					var size: float = rng.randf_range(0.7, 1.35)
-					var log_basis := Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * size)
-					logs.append(Transform3D(log_basis, Vector3(point.x, ground + 0.18 * size, point.z)))
+				var kind: String = cfg.pick_kind(rng.randf())
+				var size: float = 1.0
+				match kind:
+					"fir", "pine":
+						var range_size: Vector2 = cfg.fir_size if kind == "fir" else cfg.pine_size
+						size = rng.randf_range(range_size.x, range_size.y)
+						var tree_basis := Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size)
+						var crown_height: float = cfg.fir_crown_height if kind == "fir" else cfg.pine_crown_height
+						var tree_transform := Transform3D(tree_basis, Vector3(point.x, ground + crown_height * size, point.z))
+						if kind == "fir":
+							firs.append(tree_transform)
+						else:
+							pines.append(tree_transform)
+						trunks_visual.append(Transform3D(tree_basis, Vector3(point.x, ground + cfg.trunk_height * size, point.z)))
+						if lateral < corridor + cfg.collider_max_offset and distance - trunk_since > cfg.collider_spacing:
+							trunks.append(Vector3(point.x, ground, point.z))
+							trunk_since = distance
+					"bush":
+						size = rng.randf_range(cfg.bush_size.x, cfg.bush_size.y)
+						var bush_scale := Vector3(
+							size * rng.randf_range(cfg.bush_width_jitter.x, cfg.bush_width_jitter.y),
+							size,
+							size * rng.randf_range(cfg.bush_width_jitter.x, cfg.bush_width_jitter.y)
+						)
+						bushes.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(bush_scale), Vector3(point.x, ground + cfg.bush_height_factor * size, point.z)))
+					"boulder":
+						size = rng.randf_range(cfg.boulder_size.x, cfg.boulder_size.y)
+						var rock_scale := Vector3(
+							size * rng.randf_range(cfg.boulder_width_jitter.x, cfg.boulder_width_jitter.y),
+							size * rng.randf_range(cfg.boulder_height_jitter.x, cfg.boulder_height_jitter.y),
+							size
+						)
+						rocks.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(rock_scale), Vector3(point.x, ground + cfg.boulder_height_factor * rock_scale.y, point.z)))
+					"stump":
+						size = rng.randf_range(cfg.stump_size.x, cfg.stump_size.y)
+						stumps.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size), Vector3(point.x, ground + cfg.stump_height_factor * size, point.z)))
+					"log":
+						size = rng.randf_range(cfg.log_size.x, cfg.log_size.y)
+						var log_basis := Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * size)
+						logs.append(Transform3D(log_basis, Vector3(point.x, ground + cfg.log_height_factor * size, point.z)))
 				# Мелкий подлесок не имеет физики и не отбрасывает тень.
-				if roll >= 0.48 and rng.randf() < 0.75:
-					var gs: float = rng.randf_range(0.65, 1.45)
-					grass.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(gs * 1.3, gs, gs)), Vector3(point.x, ground + 0.18 * gs, point.z)))
+				if kind != "fir" and kind != "pine" and rng.randf() < cfg.undergrowth_chance:
+					var gs: float = rng.randf_range(cfg.grass_size.x, cfg.grass_size.y)
+					grass.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(gs * cfg.grass_width_factor, gs, gs)), Vector3(point.x, ground + cfg.grass_height_factor * gs, point.z)))
 		step_count += 1
 		if light and step_count % 64 == 63:
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
 			await get_tree().process_frame
-		distance += 7.0
+		distance += step
 	_add_scenery_multimesh(container, "Firs", _make_scenery_mesh("fir"), firs)
 	_add_scenery_multimesh(container, "Pines", _make_scenery_mesh("pine"), pines)
 	_add_scenery_multimesh(container, "TrunkVisuals", _make_scenery_mesh("trunk"), trunks_visual)
@@ -1283,12 +1456,12 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 	_spawn_corner_signs(container)
 
 
-## Один небольшой StaticBody на ячейку, а не тысячи фигур в одном теле.
 func _add_trunk_colliders(parent: Node3D, trunks: Array[Vector3]) -> void:
+	var cfg := s_scenery()
 	var bodies: Dictionary = {}
 	var shape := CylinderShape3D.new()
-	shape.radius = 0.45
-	shape.height = 9.0
+	shape.radius = cfg.collider_radius
+	shape.height = cfg.collider_height
 	for point in trunks:
 		var key := _scenery_cell(point)
 		if not bodies.has(key):
@@ -1298,77 +1471,79 @@ func _add_trunk_colliders(parent: Node3D, trunks: Array[Vector3]) -> void:
 			bodies[key] = body
 		var collider := CollisionShape3D.new()
 		collider.shape = shape
-		collider.position = point + Vector3(0.0, 4.5, 0.0)
+		collider.position = point + Vector3(0.0, cfg.collider_height * 0.5 + cfg.collider_y_offset, 0.0)
 		(bodies[key] as StaticBody3D).add_child(collider)
 
 
-const SCENERY_CELL_SIZE := 128.0
-
-static func _scenery_cell(point: Vector3) -> Vector2i:
-	return Vector2i(floori(point.x / SCENERY_CELL_SIZE), floori(point.z / SCENERY_CELL_SIZE))
+## Размер ячейки MultiMesh — из настроек сцены (инспектор).
+func _scenery_cell(point: Vector3) -> Vector2i:
+	var size: float = maxf(1.0, s_settings().scenery_cell_size)
+	return Vector2i(floori(point.x / size), floori(point.z / size))
 
 
 func _make_scenery_mesh(kind: String) -> Mesh:
+	var cfg := s_scenery()
 	var material := StandardMaterial3D.new()
-	material.roughness = 0.95
+	material.roughness = cfg.roughness
 	material.vertex_color_use_as_albedo = true
+	if cfg.ps1_filter:
+		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	if kind == "fir" or kind == "pine":
 		material.albedo_texture = NeedleTexture
-		material.albedo_color = Color(0.9, 1.0, 0.9) if kind == "fir" else Color(0.75, 0.85, 0.8)
+		material.albedo_color = cfg.fir_color if kind == "fir" else cfg.pine_color
 		var crown := CylinderMesh.new()
 		crown.top_radius = 0.0
-		crown.bottom_radius = 1.7 if kind == "fir" else 1.35
-		crown.height = 6.5 if kind == "fir" else 9.0
-		crown.radial_segments = 7
+		crown.bottom_radius = cfg.fir_radius if kind == "fir" else cfg.pine_radius
+		crown.height = cfg.fir_mesh_height if kind == "fir" else cfg.pine_mesh_height
+		crown.radial_segments = cfg.crown_segments
 		crown.rings = 1
 		crown.material = material
 		return crown
 	if kind in ["trunk", "stump", "log"]:
 		material.albedo_texture = BarkTexture
-		material.albedo_color = Color(0.78, 0.69, 0.58)
+		material.albedo_color = cfg.trunk_color
 		var wood := CylinderMesh.new()
-		wood.top_radius = 0.22 if kind == "trunk" else 0.3
-		wood.bottom_radius = 0.32 if kind == "trunk" else 0.34
-		wood.height = 2.3 if kind == "trunk" else (2.8 if kind == "log" else 0.65)
-		wood.radial_segments = 6
+		wood.top_radius = cfg.trunk_top_radius if kind == "trunk" else cfg.stump_top_radius
+		wood.bottom_radius = cfg.trunk_bottom_radius if kind == "trunk" else cfg.stump_bottom_radius
+		wood.height = cfg.trunk_mesh_height if kind == "trunk" else (cfg.log_mesh_height if kind == "log" else cfg.stump_mesh_height)
+		wood.radial_segments = cfg.wood_segments
 		wood.material = material
 		return wood
 	if kind == "grass":
 		material.albedo_texture = NeedleTexture
-		material.albedo_color = Color(0.8, 0.95, 0.65)
+		material.albedo_color = cfg.grass_color
 		var tuft := CylinderMesh.new()
 		tuft.top_radius = 0.0
-		tuft.bottom_radius = 0.55
-		tuft.height = 0.55
-		tuft.radial_segments = 5
+		tuft.bottom_radius = cfg.grass_radius
+		tuft.height = cfg.grass_mesh_height
+		tuft.radial_segments = cfg.grass_segments
 		tuft.material = material
 		return tuft
 	if kind == "bush":
 		material.albedo_texture = NeedleTexture
-		material.albedo_color = Color(1.0, 1.0, 0.9)
+		material.albedo_color = cfg.bush_color
 		var mesh_bush := SphereMesh.new()
-		mesh_bush.radius = 0.95
-		mesh_bush.height = 1.5
-		mesh_bush.radial_segments = 6
-		mesh_bush.rings = 2
+		mesh_bush.radius = cfg.bush_radius
+		mesh_bush.height = cfg.bush_mesh_height
+		mesh_bush.radial_segments = cfg.bush_radial_segments
+		mesh_bush.rings = cfg.bush_rings
 		mesh_bush.material = material
 		return mesh_bush
 	material.albedo_texture = RockTexture
-	material.albedo_color = Color(0.85, 0.88, 0.9)
+	material.albedo_color = cfg.boulder_color
 	var mesh_rock := SphereMesh.new()
-	mesh_rock.radius = 1.2
-	mesh_rock.height = 2.1
-	mesh_rock.radial_segments = 7
-	mesh_rock.rings = 3
+	mesh_rock.radius = cfg.boulder_radius
+	mesh_rock.height = cfg.boulder_mesh_height
+	mesh_rock.radial_segments = cfg.boulder_radial_segments
+	mesh_rock.rings = cfg.boulder_rings
 	mesh_rock.material = material
 	return mesh_rock
 
 
-## Отдельная AABB для каждой пространственной ячейки позволяет движку
-## отсекать невидимые участки вместо отрисовки всего леса на 10 км трассы.
 func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D], small: bool = false) -> void:
 	if transforms.is_empty():
 		return
+	var cfg := s_settings()
 	var groups: Dictionary = {}
 	for transform in transforms:
 		var key := _scenery_cell(transform.origin)
@@ -1392,39 +1567,42 @@ func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, trans
 		for i in range(chunk.size()):
 			var transform: Transform3D = chunk[i]
 			multimesh.set_instance_transform(i, Transform3D(transform.basis, transform.origin - chunk_origin))
-			var shade: float = 0.78 + 0.22 * TrackConfigType.hash_noise(transform.origin.x, transform.origin.z)
+			var shade: float = cfg.scenery_shade_base + cfg.scenery_shade_spread * TrackConfigType.hash_noise(transform.origin.x, transform.origin.z)
 			multimesh.set_instance_color(i, Color(shade, shade, shade, 1.0))
 		var instance := MultiMeshInstance3D.new()
 		instance.name = "Cell_%d_%d" % [key.x, key.y]
 		instance.position = chunk_origin
 		instance.multimesh = multimesh
 		# Мелочи исчезают дальше, чем размер ячейки, с запасом на её радиус.
-		instance.visibility_range_end = 240.0 if small else 420.0
-		instance.visibility_range_end_margin = 35.0
+		instance.visibility_range_end = cfg.scenery_range_small if small else cfg.scenery_range_large
+		instance.visibility_range_end_margin = cfg.scenery_range_margin
 		instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		if small:
 			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		group_root.add_child(instance)
 
 
-## Знаки на входах в крутые повороты: смотрим поворот на 55 м вперёд,
-## знак ставим на ВНЕШНЮЮ сторону обочины, лицом к подъезжающей машине.
 func _spawn_corner_signs(parent: Node3D) -> void:
+	var cfg := s_spawn()
+	if not cfg.corner_signs:
+		return
+	var threshold: float = deg_to_rad(cfg.corner_turn_threshold_deg)
 	var last_sign: float = -10000.0
-	var distance: float = 50.0
-	while distance < network.total_length - 90.0:
-		var turn: float = _turn_ahead(distance, 55.0)
-		if absf(turn) > deg_to_rad(58.0) and distance - last_sign > 110.0:
+	var distance: float = cfg.corner_sign_start
+	while distance < network.total_length - cfg.corner_sign_end:
+		var turn: float = _turn_ahead(distance, cfg.corner_lookahead)
+		if absf(turn) > threshold and distance - last_sign > cfg.corner_sign_spacing:
 			var center: Vector3 = network.point_at(distance)
 			var dir: Vector3 = network.direction_at(distance)
 			var side := Vector3(dir.z, 0.0, -dir.x)
 			# side указывает в сторону роста heading, наружу поворота —
 			# противоположная сторона.
 			var outer: float = -1.0 if turn > 0.0 else 1.0
-			var point: Vector3 = center + side * (outer * (corridor_half() + 2.6))
+			var point: Vector3 = center + side * (outer * (corridor_half() + cfg.corner_sign_lateral))
 			var sign_node: Node3D = RoadSignScene.instantiate()
 			sign_node.position = Vector3(point.x, ground_height(point.x, point.z), point.z)
-			sign_node.rotation.y = atan2(-dir.x, -dir.z)
+			sign_node.rotation.y = atan2(-dir.x, -dir.z) + deg_to_rad(cfg.corner_sign_yaw_offset)
+			sign_node.scale = Vector3.ONE * cfg.corner_sign_scale
 			parent.add_child(sign_node)
 			last_sign = distance
 		distance += 12.0
@@ -1444,24 +1622,27 @@ func _turn_ahead(distance: float, lookahead: float) -> float:
 func _spawn_route_markers() -> void:
 	if generated == null:
 		return
+	var cfg := s_spawn()
 	var container := Node3D.new()
 	container.name = "RouteMarkers"
 	generated.add_child(container)
-	_create_gate(container, start_pos, start_dir, Color(0.20, 0.80, 1.0))
-	_create_gate(container, finish_pos, finish_dir, Color(1.0, 0.48, 0.08))
+	var finish_distance: float = maxf(0.0, network.total_length - cfg.finish_margin)
+	_create_gate(container, network.point_at(minf(cfg.start_distance, finish_distance)), network.direction_at(minf(cfg.start_distance, finish_distance)), cfg.start_gate_color)
+	_create_gate(container, network.point_at(finish_distance), network.direction_at(finish_distance), cfg.finish_gate_color)
 
 
 func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -> void:
+	var cfg := s_spawn()
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.emission_enabled = true
-	material.emission = color * 0.35
-	material.emission_energy_multiplier = 0.5
+	material.emission = color * cfg.gate_emission_multiplier
+	material.emission_energy_multiplier = cfg.gate_emission_energy
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.18, 3.2, 0.18)
+	post_mesh.size = cfg.gate_post_size
 	post_mesh.surface_set_material(0, material)
 	var bar_mesh := BoxMesh.new()
-	bar_mesh.size = Vector3(track.road_half_width * 2.0 + 1.0, 0.18, 0.18)
+	bar_mesh.size = Vector3(track.road_half_width * 2.0 + cfg.gate_width_extra, cfg.gate_bar_thickness, cfg.gate_bar_thickness)
 	bar_mesh.surface_set_material(0, material)
 	var gate := Node3D.new()
 	gate.position = Vector3(pos.x, height_at(pos.x, pos.z), pos.z)
@@ -1469,11 +1650,11 @@ func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -
 	for side_sign in [-1.0, 1.0]:
 		var post := MeshInstance3D.new()
 		post.mesh = post_mesh
-		post.position = Vector3(float(side_sign) * (track.road_half_width + 0.35), 1.6, 0.0)
+		post.position = Vector3(float(side_sign) * (track.road_half_width + cfg.gate_post_lateral), cfg.gate_post_size.y * 0.5, 0.0)
 		gate.add_child(post)
 	var bar := MeshInstance3D.new()
 	bar.mesh = bar_mesh
-	bar.position = Vector3(0.0, 3.2, 0.0)
+	bar.position = Vector3(0.0, cfg.gate_bar_height, 0.0)
 	gate.add_child(bar)
 	container.add_child(gate)
 
@@ -1482,28 +1663,24 @@ func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -
 func _spawn_edge_posts() -> void:
 	if generated == null or network == null:
 		return
+	var cfg := s_spawn()
 	var container := Node3D.new()
 	container.name = "EdgePosts"
 	generated.add_child(container)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = track.edge_post_color
-	material.roughness = 0.85
+	material.roughness = cfg.edge_post_roughness
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.12, 1.0, 0.12)
+	post_mesh.size = cfg.edge_post_size
 	post_mesh.surface_set_material(0, material)
 	var white := StandardMaterial3D.new()
-	white.albedo_color = Color(0.92, 0.92, 0.88)
+	white.albedo_color = cfg.edge_post_cap_color
 	var cap_mesh := BoxMesh.new()
-	cap_mesh.size = Vector3(0.13, 0.16, 0.13)
+	cap_mesh.size = cfg.edge_post_cap_size
 	cap_mesh.surface_set_material(0, white)
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = post_mesh
 	var transforms: Array[Transform3D] = []
-	var spacing: float = 26.0
-	var distance: float = 14.0
-	var lateral: float = corridor_half() + 1.8
-	while distance < network.total_length - 8.0:
+	var lateral: float = corridor_half() + cfg.edge_post_lateral
+	for distance in cfg.resolve_edge_post_distances(network.total_length):
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
@@ -1511,7 +1688,9 @@ func _spawn_edge_posts() -> void:
 			var point: Vector3 = center + side * (lateral * float(side_sign))
 			var y: float = ground_height(point.x, point.z)
 			transforms.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z)))
-		distance += spacing
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = post_mesh
 	multimesh.instance_count = transforms.size()
 	for i in range(transforms.size()):
 		multimesh.set_instance_transform(i, transforms[i])
@@ -1526,7 +1705,7 @@ func _spawn_edge_posts() -> void:
 	cap_multimesh.instance_count = transforms.size()
 	for i in range(transforms.size()):
 		var t: Transform3D = transforms[i]
-		cap_multimesh.set_instance_transform(i, Transform3D(t.basis, t.origin + Vector3(0.0, 0.85, 0.0)))
+		cap_multimesh.set_instance_transform(i, Transform3D(t.basis, t.origin + Vector3(0.0, cfg.edge_post_cap_height, 0.0)))
 	var cap_instance := MultiMeshInstance3D.new()
 	cap_instance.name = "EdgePostCaps"
 	cap_instance.multimesh = cap_multimesh
@@ -1535,24 +1714,33 @@ func _spawn_edge_posts() -> void:
 
 func _spawn_checkpoints() -> void:
 	checkpoints.clear()
-	if generated == null or network == null or track.checkpoint_interval <= 0.0:
+	if generated == null or network == null:
+		return
+	var cfg := s_spawn()
+	var distances: PackedFloat32Array = cfg.resolve_checkpoint_distances(
+		network.total_length, track.checkpoint_interval, cfg.start_distance
+	)
+	if distances.is_empty():
 		return
 	var container := Node3D.new()
 	container.name = "Checkpoints"
 	generated.add_child(container)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.95, 0.85, 0.20)
+	material.albedo_color = cfg.checkpoint_color
 	material.emission_enabled = true
-	material.emission = Color(0.35, 0.32, 0.07)
-	material.emission_energy_multiplier = 0.5
+	material.emission = cfg.checkpoint_color * cfg.checkpoint_emission_strength
+	material.emission_energy_multiplier = cfg.checkpoint_emission_energy
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.16, 3.0, 0.16)
+	post_mesh.size = cfg.checkpoint_post_size
 	post_mesh.surface_set_material(0, material)
 	var banner_mesh := BoxMesh.new()
-	banner_mesh.size = Vector3(track.road_half_width * 2.0 + 1.0, 0.22, 0.3)
+	banner_mesh.size = Vector3(
+		track.road_half_width * 2.0 + cfg.checkpoint_width_extra,
+		cfg.checkpoint_bar_thickness,
+		cfg.checkpoint_bar_depth
+	)
 	banner_mesh.surface_set_material(0, material)
-	var distance: float = track.checkpoint_interval
-	while distance < network.total_length - 40.0:
+	for distance in distances:
 		var point: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var gate := Node3D.new()
@@ -1562,11 +1750,11 @@ func _spawn_checkpoints() -> void:
 		for side_sign in [-1.0, 1.0]:
 			var post := MeshInstance3D.new()
 			post.mesh = post_mesh
-			post.position = Vector3(float(side_sign) * (track.road_half_width + 0.35), 1.5, 0.0)
+			post.position = Vector3(float(side_sign) * (track.road_half_width + cfg.checkpoint_post_lateral), cfg.checkpoint_post_size.y * 0.5, 0.0)
 			gate.add_child(post)
 		var banner := MeshInstance3D.new()
 		banner.mesh = banner_mesh
-		banner.position = Vector3(0.0, 3.0, 0.0)
+		banner.position = Vector3(0.0, cfg.checkpoint_bar_height, 0.0)
 		gate.add_child(banner)
 		container.add_child(gate)
 		checkpoints.append({
@@ -1574,7 +1762,6 @@ func _spawn_checkpoints() -> void:
 			"tangent": Vector2(dir.x, dir.z),
 			"distance": distance,
 		})
-		distance += track.checkpoint_interval
 
 
 # ---------------------------------------------------------------- окружение
@@ -1582,6 +1769,8 @@ func _spawn_checkpoints() -> void:
 
 func _configure_world() -> void:
 	# Погода «КАК НА ТРАССЕ» (weather == null) оставляет всё как в .tres.
+	# Все константы постобработки живут в RallyStageSettings (инспектор).
+	var cfg := s_settings()
 	var night: bool = track.night_mode
 	if weather != null:
 		night = weather.resolve_night(track.night_mode)
@@ -1639,21 +1828,21 @@ func _configure_world() -> void:
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
 		env.glow_enabled = true
-		env.glow_intensity = 0.20 if track.ps1_style else 0.45
-		env.glow_bloom = 0.005 if track.ps1_style else 0.02
-		env.ssao_enabled = track.screen_space_ao
-		env.ssao_radius = 1.2
-		env.ssao_intensity = 1.0
+		env.glow_intensity = cfg.glow_intensity_ps1 if track.ps1_style else cfg.glow_intensity_normal
+		env.glow_bloom = cfg.glow_bloom_ps1 if track.ps1_style else cfg.glow_bloom_normal
+		env.ssao_enabled = cfg.ssao_enabled and track.screen_space_ao
+		env.ssao_radius = cfg.ssao_radius
+		env.ssao_intensity = cfg.ssao_intensity
 		# Лучи фар и погодный объёмный туман остаются доступны и в PS1-режиме.
 		env.volumetric_fog_enabled = volumetric
 		env.volumetric_fog_density = volumetric_density
-		env.volumetric_fog_albedo = Color(0.68, 0.73, 0.82)
+		env.volumetric_fog_albedo = cfg.volumetric_fog_albedo
 		if weather != null:
 			env.volumetric_fog_albedo = weather.fog_color.lerp(
-				Color(0.68, 0.73, 0.82), 0.4
+				cfg.volumetric_fog_albedo, 1.0 - cfg.volumetric_weather_tint
 			)
-		env.volumetric_fog_anisotropy = 0.35
-		env.volumetric_fog_length = 90.0
+		env.volumetric_fog_anisotropy = cfg.volumetric_fog_anisotropy
+		env.volumetric_fog_length = cfg.volumetric_fog_length
 		env.fog_enabled = fog_density > 0.0
 		env.fog_light_color = fog_color
 		if track.ps1_style:
@@ -1664,10 +1853,12 @@ func _configure_world() -> void:
 			env.fog_mode = Environment.FOG_MODE_DEPTH
 			env.fog_depth_end = fog_end
 			env.fog_depth_begin = fog_begin
-			env.fog_depth_curve = 1.0
-			env.fog_density = 1.0 if fog_density > 0.0 else 0.0
+			env.fog_depth_curve = cfg.fog_depth_curve
+			env.fog_density = cfg.fog_ps1_opacity if fog_density > 0.0 else 0.0
 			# Видно небо и луну; в густом тумане горизонт сильнее сливается с ним.
-			env.fog_sky_affect = clampf(1.0 - 0.65 * _weather_visibility_scale(), 0.25, 0.8)
+			env.fog_sky_affect = clampf(
+				1.0 - 0.65 * _weather_visibility_scale(), cfg.fog_sky_affect_min, cfg.fog_sky_affect_max
+			)
 		else:
 			env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 			env.fog_density = fog_density
@@ -1679,7 +1870,6 @@ func _configure_world() -> void:
 		sun_light.light_energy = sun_energy
 
 
-## Цвет неба трассы с поправкой погоды (подмешать тон + обесцветить).
 func _weather_sky_color(base: Color) -> Color:
 	if weather == null:
 		return base
@@ -1700,17 +1890,31 @@ func _effective_fog_color() -> Color:
 
 ## Осадки существуют в мире: генератор обновляет только область рождения,
 ## частицы не наследуют движение машины и закрываются геометрией сцены.
+## Все коэффициенты — из RallyStageSettings; статическая точка входа
+## нужна тестам, сцена зовёт _anchor_for() с теми же настройками.
 static func precipitation_anchor(position: Vector3, velocity: Vector3) -> Vector3:
-	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(50.0) * 0.35
+	var cfg: StageSettingsType = null
+	if ResourceLoader.exists(DEFAULT_SETTINGS_PATH):
+		cfg = ResourceLoader.load(DEFAULT_SETTINGS_PATH) as StageSettingsType
+	if cfg == null:
+		cfg = StageSettingsType.new()
+	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(cfg.anchor_velocity_limit) * cfg.anchor_velocity_lead
 	var center := position + lead
 	# Перемещение области порциями не двигает уже существующие частицы.
-	return Vector3(roundf(center.x / 8.0) * 8.0, position.y + 11.0, roundf(center.z / 8.0) * 8.0)
+	var grid: float = maxf(0.5, cfg.anchor_grid)
+	return Vector3(
+		roundf(center.x / grid) * grid,
+		position.y + cfg.anchor_height,
+		roundf(center.z / grid) * grid
+	)
 
 
 func _setup_precipitation() -> void:
 	if _weather_particles != null:
 		_weather_particles.queue_free()
 		_weather_particles = null
+	if not s_settings().precipitation_enabled:
+		return
 	if weather == null or not weather.has_precipitation():
 		return
 	if DisplayServer.get_name() == "headless":
@@ -1718,28 +1922,46 @@ func _setup_precipitation() -> void:
 	var particles := _make_precipitation_particles()
 	add_child(particles)
 	if car != null:
-		particles.global_position = precipitation_anchor(car.global_position, car.linear_velocity)
+		particles.global_position = _anchor_for(car.global_position, car.linear_velocity)
 	particles.emitting = true
 	_weather_particles = particles
 
 
-## Отдельная фабрика позволяет проверять параметры без GPU и headless-рендера.
+## Мировая точка рождения осадков для позиции/скорости машины. Отдельный
+## метод: сцена использует его и в _process, а тесты проверяют без GPU.
+func _anchor_for(position: Vector3, velocity: Vector3) -> Vector3:
+	var cfg := s_settings()
+	if cfg == null:
+		return precipitation_anchor(position, velocity)
+	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(cfg.anchor_velocity_limit) * cfg.anchor_velocity_lead
+	var center := position + lead
+	var grid: float = maxf(0.5, cfg.anchor_grid)
+	return Vector3(
+		roundf(center.x / grid) * grid,
+		position.y + cfg.anchor_height,
+		roundf(center.z / grid) * grid
+	)
+
+
 func _make_precipitation_particles() -> GPUParticles3D:
+	var cfg := s_settings()
 	var intensity: float = clampf(weather.precipitation_intensity, 0.0, 1.0)
 	var is_rain: bool = weather.precipitation == WeatherType.Precipitation.RAIN
 	var particles := GPUParticles3D.new()
 	particles.name = "WeatherParticles"
 	particles.process_mode = Node.PROCESS_MODE_PAUSABLE
 	particles.emitting = false
-	particles.amount = maxi(1, int(lerpf(700.0, 2400.0, intensity) * precipitation_density))
-	particles.lifetime = 1.15 if is_rain else 4.0
+	var amount_min: float = float(cfg.rain_amount_min if is_rain else cfg.snow_amount_min)
+	var amount_max: float = float(cfg.rain_amount_max if is_rain else cfg.snow_amount_max)
+	particles.amount = maxi(1, int(lerpf(amount_min, amount_max, intensity) * cfg.precipitation_density))
+	particles.lifetime = cfg.rain_lifetime if is_rain else cfg.snow_lifetime
 	particles.preprocess = minf(particles.lifetime, 2.0)
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	particles.visibility_aabb = AABB(Vector3(-90.0, -65.0, -90.0), Vector3(180.0, 115.0, 180.0))
+	particles.visibility_aabb = cfg.precipitation_aabb
 	var particle_material := ParticleProcessMaterial.new()
 	particle_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	particle_material.emission_box_extents = Vector3(32.0, 9.0, 32.0)
+	particle_material.emission_box_extents = cfg.rain_box_extents if is_rain else cfg.snow_box_extents
 	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
 	var quad := QuadMesh.new()
 	var material := StandardMaterial3D.new()
@@ -1748,28 +1970,28 @@ func _make_precipitation_particles() -> GPUParticles3D:
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.billboard_keep_scale = true
 	if is_rain:
-		particle_material.direction = (Vector3.DOWN + wind * 0.008).normalized()
-		particle_material.spread = 3.0
-		particle_material.initial_velocity_min = 21.0
-		particle_material.initial_velocity_max = 29.0
-		particle_material.gravity = Vector3(0.0, -12.0, 0.0)
-		particle_material.scale_min = 0.7
-		particle_material.scale_max = 1.25
-		quad.size = Vector2(0.02, 0.4)
+		particle_material.direction = (Vector3.DOWN + wind * cfg.rain_wind_tilt).normalized()
+		particle_material.spread = cfg.rain_spread
+		particle_material.initial_velocity_min = cfg.rain_speed_min
+		particle_material.initial_velocity_max = cfg.rain_speed_max
+		particle_material.gravity = cfg.rain_gravity
+		particle_material.scale_min = cfg.rain_scale_min
+		particle_material.scale_max = cfg.rain_scale_max
+		quad.size = cfg.rain_streak_size
 		# Вертикаль привязана к миру, а не к экрану/наклону камеры.
 		material.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-		material.albedo_color = Color(0.70, 0.79, 0.9, 0.38)
+		material.albedo_color = cfg.rain_color
 	else:
-		particle_material.direction = (Vector3.DOWN + wind * 0.025).normalized()
-		particle_material.spread = 25.0
-		particle_material.initial_velocity_min = 1.2
-		particle_material.initial_velocity_max = 3.0
-		particle_material.gravity = Vector3(wind.x * 0.10, -1.6, wind.z * 0.10)
-		particle_material.scale_min = 0.6
-		particle_material.scale_max = 1.6
-		quad.size = Vector2(0.07, 0.07)
+		particle_material.direction = (Vector3.DOWN + wind * cfg.snow_wind_tilt).normalized()
+		particle_material.spread = cfg.snow_spread
+		particle_material.initial_velocity_min = cfg.snow_speed_min
+		particle_material.initial_velocity_max = cfg.snow_speed_max
+		particle_material.gravity = cfg.snow_gravity + Vector3(wind.x * 0.10, 0.0, wind.z * 0.10)
+		particle_material.scale_min = cfg.snow_scale_min
+		particle_material.scale_max = cfg.snow_scale_max
+		quad.size = cfg.snow_flake_size
 		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		material.albedo_color = Color(0.94, 0.97, 1.0, 0.72)
+		material.albedo_color = cfg.snow_color
 	quad.material = material
 	particles.process_material = particle_material
 	particles.draw_pass_1 = quad
@@ -1817,11 +2039,39 @@ func _configure_car() -> void:
 func _fall_limit_y() -> float:
 	if car == null or network == null:
 		return -1.0e9
-	return height_at(car.global_position.x, car.global_position.z) - 25.0
+	return height_at(car.global_position.x, car.global_position.z) - s_spawn().car_fall_depth
 
 
 ## Точка сброса по клавише R: ближайшая точка дороги впереди/рядом, чтобы
 ## машина, застрявшая на обочине или в кювете, вернулась на трассу.
+func _rescue_transform() -> Transform3D:
+	if network == null:
+		return _make_spawn_transform()
+	var cfg := s_spawn()
+	var here: Vector2 = Vector2(car.global_position.x, car.global_position.z)
+	var margin: float = cfg.car_rescue_margin
+	var along: float = clampf(network.along_road(here.x, here.y), margin, network.total_length - margin)
+	var point: Vector3 = network.point_at(along)
+	var dir: Vector3 = network.direction_at(along)
+	var y: float = height_at(point.x, point.z) + (car.get_spawn_height_offset() + cfg.car_rescue_height_extra)
+	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
+
+
+func _make_spawn_transform() -> Transform3D:
+	var cfg := s_spawn()
+	var start: float = 0.0
+	if network != null:
+		start = clampf(cfg.car_spawn_distance, 0.0, maxf(0.0, network.total_length))
+	var point: Vector3 = network.point_at(start) if network != null else Vector3.ZERO
+	var dir: Vector3 = network.direction_at(start) if network != null else Vector3.FORWARD
+	var height_offset: float = cfg.car_spawn_height_extra
+	if car != null:
+		height_offset = car.get_spawn_height_offset() + cfg.car_spawn_height_extra
+	var y: float = (height_at(point.x, point.z) if network != null else 0.0) + height_offset
+	# В проекте forward машины — basis.z (модель смотрит в +Z).
+	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
+
+
 func _rescue_transform() -> Transform3D:
 	if network == null:
 		return _make_spawn_transform()
@@ -1861,6 +2111,7 @@ func _hud_node(path: String) -> Node:
 ## Постобработка 3D до отрисовки интерфейса.
 func _setup_world_effects() -> void:
 	# Эффекты мира под HUD: PS1-стилизация и размытие скорости независимы.
+	var cfg := s_settings()
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
 	if speed_rect == null:
 		speed_rect = ColorRect.new()
@@ -1877,10 +2128,12 @@ func _setup_world_effects() -> void:
 	speed_rect.visible = true
 	if speed_fx_material != null:
 		Ps1Materials.configure_post_effect(
-			speed_fx_material, track.ps1_style, retro_style_strength, float(retro_resolution_height),
-			track.color_banding, track.dither_fog
+			speed_fx_material, cfg.is_retro(track), cfg.retro_style_strength,
+			float(cfg.retro_resolution_height), cfg.color_bits_for(track), cfg.dither_for(track)
 		)
-
+		speed_fx_material.set_shader_parameter("blur_strength", cfg.speed_blur_strength)
+		speed_fx_material.set_shader_parameter("vignette_strength", cfg.vignette_strength)
+		cfg.apply_shader_overrides(speed_fx_material, cfg.screen_shader_overrides)
 
 
 func _setup_hud() -> void:
@@ -2044,7 +2297,7 @@ func _update_hud() -> void:
 			split_label.text = line
 		else:
 			split_label.text = "ЦЕЛЬ %s" % _format_time(track.target_time)
-		if show_debug_info:
+		if s_settings().show_debug_info:
 			split_label.text += "  | cell %.1f" % track.terrain_cell
 	# Спидометр.
 	if speed_label != null:
@@ -2137,7 +2390,7 @@ func _process(delta: float) -> void:
 	# Меняем только место рождения новых капель. Уже выпавшие частицы
 	# остаются в мировых координатах и не перемещаются вместе с машиной.
 	if _weather_particles != null and car != null and not get_tree().paused:
-		_weather_particles.global_position = precipitation_anchor(car.global_position, car.linear_velocity)
+		_weather_particles.global_position = _anchor_for(car.global_position, car.linear_velocity)
 	# Во время переназначения и в кадре закрытия клавиша паузы не должна
 	# закрывать саму паузу или запускать повторно назначенное действие.
 	if input_settings != null and input_settings.blocks_actions():
@@ -2168,13 +2421,13 @@ func _process(delta: float) -> void:
 		_check_finish()
 	var speed: float = car.speed_kmh if car != null else 0.0
 	if speed_fx_material != null:
-		var intensity: float = clampf((speed - 65.0) / 115.0 * speed_effect_strength, 0.0, 1.0) if track.enable_speed_fx else 0.0
+		var intensity: float = s_settings().speed_fx_amount(speed, track)
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 	_frame_delta = delta
 	_update_hud()
 
 
-## Отложенная пересборка в редакторе (см. REBUILD_DELAY).
+## Отложенная пересборка в редакторе (см. settings.auto_rebuild_delay).
 func _process_editor(delta: float) -> void:
 	if not _rebuild_pending:
 		return
@@ -2184,13 +2437,13 @@ func _process_editor(delta: float) -> void:
 		_rebuild_timer = 0.0
 		return
 	_rebuild_timer += delta
-	if _rebuild_timer < REBUILD_DELAY:
+	if _rebuild_timer < s_settings().auto_rebuild_delay:
 		return
 	_rebuild_pending = false
 	_rebuild_timer = 0.0
 	var from_track: bool = _pending_from_track
 	_pending_from_track = false
-	if not preview_in_editor or not is_inside_tree():
+	if not s_settings().preview_in_editor or not is_inside_tree():
 		return
 	# Кривая могла «измениться» без реального сдвига точек (выделение,
 	# повторный клик) — тогда тяжёлый пересчёт не нужен.

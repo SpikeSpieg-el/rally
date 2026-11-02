@@ -34,7 +34,9 @@ func _initialize() -> void:
 	check(anchor.distance_to(Vector3(0, 11, 0)) < 24.0, "смещение ограничено и камера остаётся внутри области осадков")
 	check(Stage.precipitation_anchor(Vector3(0.5, 0, 0.5), Vector3.ZERO) == Vector3(0, 11, 0), "небольшие перемещения не двигают источник")
 	var baseline_amount: int = rain.amount
-	stage.precipitation_density = 0.5
+	# Плотность осадков — ресурс из инспектора, а не поле скрипта.
+	stage.settings = (stage.s_settings() as RallyStageSettings).duplicate()
+	stage.settings.precipitation_density = 0.5
 	var sparse: GPUParticles3D = stage._make_precipitation_particles()
 	check(sparse.amount < baseline_amount, "плотность осадков настраивается")
 	stage.weather = Snow
