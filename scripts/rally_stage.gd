@@ -37,6 +37,7 @@ const GroundTexture = preload("res://textures/environment/forest_floor.png")
 const GravelTexture = preload("res://textures/environment/gravel.png")
 const NeedleTexture = preload("res://textures/environment/needles.png")
 const RockTexture = preload("res://textures/environment/rock.png")
+const BarkTexture = preload("res://textures/environment/bark.png")
 const SpeedShader = preload("res://shaders/speed_fx.gdshader")
 const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const WeatherMotionShader = preload("res://shaders/weather_motion.gdshader")
@@ -1192,9 +1193,9 @@ func _apply_baked_props_visibility() -> void:
 			root.visible = track.use_baked_props
 
 
-## Живая обстановка вдоль трассы: ели, сосны, кусты, валуны (MultiMesh),
-## коллизия стволов у самых обочин и знаки на входах в крутые повороты.
-## Всё детерминировано terrain_seed: один и тот же сид — один и тот же лес.
+## Дополнительный лес и мелкие объекты расставляются по обе стороны маршрута.
+## Все позиции детерминированы сидом; ближайший виток дороги всегда остаётся
+## свободным. Визуальные объекты разбиты на пространственные MultiMesh-ячейки.
 func _spawn_procedural_scenery(light: bool = false) -> void:
 	if generated == null or network == null:
 		return
@@ -1206,112 +1207,147 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 	var corridor: float = corridor_half()
 	var firs: Array[Transform3D] = []
 	var pines: Array[Transform3D] = []
+	var trunks_visual: Array[Transform3D] = []
 	var bushes: Array[Transform3D] = []
 	var rocks: Array[Transform3D] = []
+	var grass: Array[Transform3D] = []
+	var stumps: Array[Transform3D] = []
+	var logs: Array[Transform3D] = []
 	var trunks: Array[Vector3] = []
 	var distance: float = 6.0
 	var trunk_since: float = -100.0
 	var step_count: int = 0
-	var total_steps: float = maxf(1.0, (network.total_length - 12.0) / 8.0)
+	var total_steps: float = maxf(1.0, (network.total_length - 12.0) / 7.0)
+	var density: float = clampf(track.scenery_density, 0.0, 2.0)
+	var attempt_count: int = ceili(3.0 * density)
+	var attempt_chance: float = 3.0 * density * 0.75 / float(maxi(attempt_count, 1))
 	while distance < network.total_length - 6.0:
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
 		for side_sign in [-1.0, 1.0]:
-			for _attempt in range(2):
-				if rng.randf() > track.scenery_density * 0.62:
+			for _attempt in range(attempt_count):
+				if rng.randf() > attempt_chance:
 					continue
-				var lateral: float = corridor + rng.randf_range(4.0, 56.0)
-				var point: Vector3 = center + side * (lateral * side_sign)
-				# Виток своей трассы рядом: не сажаем ничего на чужое полотно.
-				if network.distance_to_road(point.x, point.z) < corridor + 3.0:
+				# На ручной лесной трассе не дублируем запечённые деревья у дороги.
+				var minimum_offset: float = 13.0 if track.use_baked_props else 4.5
+				var lateral: float = corridor + rng.randf_range(minimum_offset, 58.0)
+				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-3.2, 3.2)
+				if not terrain_rect.has_point(Vector2(point.x, point.z)) or network.distance_to_road(point.x, point.z) < corridor + 3.5:
 					continue
 				var ground: float = ground_height(point.x, point.z)
 				var roll: float = rng.randf()
 				var angle: float = rng.randf_range(0.0, TAU)
-				if roll < 0.46:
-					# ель
-					var s_fir: float = rng.randf_range(0.8, 1.8)
-					firs.append(Transform3D(
-						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_fir),
-						Vector3(point.x, ground + 3.25 * s_fir, point.z)
-					))
-					if lateral < corridor + 24.0 and distance - trunk_since > 38.0:
+				if roll < 0.48:
+					var is_fir: bool = roll < 0.30
+					var size: float = rng.randf_range(0.75, 1.75) if is_fir else rng.randf_range(0.8, 1.85)
+					var tree_basis := Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size)
+					var crown_height: float = 4.0 if is_fir else 5.6
+					var tree_transform := Transform3D(tree_basis, Vector3(point.x, ground + crown_height * size, point.z))
+					if is_fir:
+						firs.append(tree_transform)
+					else:
+						pines.append(tree_transform)
+					trunks_visual.append(Transform3D(tree_basis, Vector3(point.x, ground + 1.15 * size, point.z)))
+					if lateral < corridor + 24.0 and distance - trunk_since > 45.0:
 						trunks.append(Vector3(point.x, ground, point.z))
 						trunk_since = distance
-				elif roll < 0.70:
-					# сосна
-					var s_pine: float = rng.randf_range(0.9, 2.0)
-					pines.append(Transform3D(
-						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_pine),
-						Vector3(point.x, ground + 4.5 * s_pine, point.z)
-					))
-					if lateral < corridor + 24.0 and distance - trunk_since > 38.0:
-						trunks.append(Vector3(point.x, ground, point.z))
-						trunk_since = distance
-				elif roll < 0.85:
-					# куст
-					var s_bush: float = rng.randf_range(0.7, 1.4)
-					bushes.append(Transform3D(
-						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_bush),
-						Vector3(point.x, ground + 0.45 * s_bush, point.z)
-					))
+				elif roll < 0.71:
+					var size: float = rng.randf_range(0.65, 1.6)
+					var scale := Vector3(size * rng.randf_range(0.8, 1.3), size, size * rng.randf_range(0.8, 1.3))
+					bushes.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(scale), Vector3(point.x, ground + 0.45 * size, point.z)))
+				elif roll < 0.84:
+					var size: float = rng.randf_range(0.55, 2.1)
+					var scale := Vector3(size * rng.randf_range(0.7, 1.3), size * rng.randf_range(0.6, 1.0), size)
+					rocks.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(scale), Vector3(point.x, ground + 0.55 * scale.y, point.z)))
+				elif roll < 0.93:
+					var size: float = rng.randf_range(0.6, 1.25)
+					stumps.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size), Vector3(point.x, ground + 0.32 * size, point.z)))
 				else:
-					# валун (чуть врастает в землю)
-					var s_rock: float = rng.randf_range(0.8, 2.4)
-					rocks.append(Transform3D(
-						Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * s_rock),
-						Vector3(point.x, ground + 0.75 * s_rock, point.z)
-					))
+					var size: float = rng.randf_range(0.7, 1.35)
+					var log_basis := Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * size)
+					logs.append(Transform3D(log_basis, Vector3(point.x, ground + 0.18 * size, point.z)))
+				# Мелкий подлесок не имеет физики и не отбрасывает тень.
+				if roll >= 0.48 and rng.randf() < 0.75:
+					var gs: float = rng.randf_range(0.65, 1.45)
+					grass.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(gs * 1.3, gs, gs)), Vector3(point.x, ground + 0.18 * gs, point.z)))
 		step_count += 1
 		if light and step_count % 64 == 63:
-			_report_progress(lerpf(0.90, 0.97, float(step_count) / total_steps), "Лес, камни и знаки…")
+			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
 			await get_tree().process_frame
-		distance += 8.0
+		distance += 7.0
 	_add_scenery_multimesh(container, "Firs", _make_scenery_mesh("fir"), firs)
 	_add_scenery_multimesh(container, "Pines", _make_scenery_mesh("pine"), pines)
+	_add_scenery_multimesh(container, "TrunkVisuals", _make_scenery_mesh("trunk"), trunks_visual)
 	_add_scenery_multimesh(container, "Bushes", _make_scenery_mesh("bush"), bushes)
 	_add_scenery_multimesh(container, "Boulders", _make_scenery_mesh("boulder"), rocks)
-	if not trunks.is_empty():
-		var body := StaticBody3D.new()
-		body.name = "TreeTrunks"
-		var shape := CylinderShape3D.new()
-		shape.radius = 0.45
-		shape.height = 9.0
-		for t in trunks:
-			var collider := CollisionShape3D.new()
-			collider.shape = shape
-			collider.position = Vector3(t.x, t.y + 4.5, t.z)
-			body.add_child(collider)
-		container.add_child(body)
+	_add_scenery_multimesh(container, "Grass", _make_scenery_mesh("grass"), grass, true)
+	_add_scenery_multimesh(container, "Stumps", _make_scenery_mesh("stump"), stumps, true)
+	_add_scenery_multimesh(container, "Logs", _make_scenery_mesh("log"), logs, true)
+	_add_trunk_colliders(container, trunks)
 	_spawn_corner_signs(container)
+
+
+## Один небольшой StaticBody на ячейку, а не тысячи фигур в одном теле.
+func _add_trunk_colliders(parent: Node3D, trunks: Array[Vector3]) -> void:
+	var bodies: Dictionary = {}
+	var shape := CylinderShape3D.new()
+	shape.radius = 0.45
+	shape.height = 9.0
+	for point in trunks:
+		var key := _scenery_cell(point)
+		if not bodies.has(key):
+			var body := StaticBody3D.new()
+			body.name = "TreeTrunks_%d_%d" % [key.x, key.y]
+			parent.add_child(body)
+			bodies[key] = body
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.position = point + Vector3(0.0, 4.5, 0.0)
+		(bodies[key] as StaticBody3D).add_child(collider)
+
+
+const SCENERY_CELL_SIZE := 128.0
+
+static func _scenery_cell(point: Vector3) -> Vector2i:
+	return Vector2i(floori(point.x / SCENERY_CELL_SIZE), floori(point.z / SCENERY_CELL_SIZE))
 
 
 func _make_scenery_mesh(kind: String) -> Mesh:
 	var material := StandardMaterial3D.new()
 	material.roughness = 0.95
-	if kind == "fir":
+	material.vertex_color_use_as_albedo = true
+	if kind == "fir" or kind == "pine":
 		material.albedo_texture = NeedleTexture
-		material.albedo_color = Color(0.9, 1.0, 0.9)
-		var mesh_fir := CylinderMesh.new()
-		mesh_fir.top_radius = 0.0
-		mesh_fir.bottom_radius = 1.7
-		mesh_fir.height = 6.5
-		mesh_fir.radial_segments = 7
-		mesh_fir.rings = 1
-		mesh_fir.material = material
-		return mesh_fir
-	if kind == "pine":
+		material.albedo_color = Color(0.9, 1.0, 0.9) if kind == "fir" else Color(0.75, 0.85, 0.8)
+		var crown := CylinderMesh.new()
+		crown.top_radius = 0.0
+		crown.bottom_radius = 1.7 if kind == "fir" else 1.35
+		crown.height = 6.5 if kind == "fir" else 9.0
+		crown.radial_segments = 7
+		crown.rings = 1
+		crown.material = material
+		return crown
+	if kind in ["trunk", "stump", "log"]:
+		material.albedo_texture = BarkTexture
+		material.albedo_color = Color(0.78, 0.69, 0.58)
+		var wood := CylinderMesh.new()
+		wood.top_radius = 0.22 if kind == "trunk" else 0.3
+		wood.bottom_radius = 0.32 if kind == "trunk" else 0.34
+		wood.height = 2.3 if kind == "trunk" else (2.8 if kind == "log" else 0.65)
+		wood.radial_segments = 6
+		wood.material = material
+		return wood
+	if kind == "grass":
 		material.albedo_texture = NeedleTexture
-		material.albedo_color = Color(0.75, 0.85, 0.8)
-		var mesh_pine := CylinderMesh.new()
-		mesh_pine.top_radius = 0.0
-		mesh_pine.bottom_radius = 1.35
-		mesh_pine.height = 9.0
-		mesh_pine.radial_segments = 7
-		mesh_pine.rings = 1
-		mesh_pine.material = material
-		return mesh_pine
+		material.albedo_color = Color(0.8, 0.95, 0.65)
+		var tuft := CylinderMesh.new()
+		tuft.top_radius = 0.0
+		tuft.bottom_radius = 0.55
+		tuft.height = 0.55
+		tuft.radial_segments = 5
+		tuft.material = material
+		return tuft
 	if kind == "bush":
 		material.albedo_texture = NeedleTexture
 		material.albedo_color = Color(1.0, 1.0, 0.9)
@@ -1324,7 +1360,6 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 		return mesh_bush
 	material.albedo_texture = RockTexture
 	material.albedo_color = Color(0.85, 0.88, 0.9)
-	material.roughness = 0.98
 	var mesh_rock := SphereMesh.new()
 	mesh_rock.radius = 1.2
 	mesh_rock.height = 2.1
@@ -1334,19 +1369,47 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 	return mesh_rock
 
 
-func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D]) -> void:
+## Отдельная AABB для каждой пространственной ячейки позволяет движку
+## отсекать невидимые участки вместо отрисовки всего леса на 10 км трассы.
+func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D], small: bool = false) -> void:
 	if transforms.is_empty():
 		return
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = mesh
-	multimesh.instance_count = transforms.size()
-	for i in range(transforms.size()):
-		multimesh.set_instance_transform(i, transforms[i])
-	var instance := MultiMeshInstance3D.new()
-	instance.name = node_name
-	instance.multimesh = multimesh
-	parent.add_child(instance)
+	var groups: Dictionary = {}
+	for transform in transforms:
+		var key := _scenery_cell(transform.origin)
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append(transform)
+	var group_root := Node3D.new()
+	group_root.name = node_name
+	parent.add_child(group_root)
+	for key in groups:
+		var chunk: Array = groups[key]
+		var chunk_origin := Vector3.ZERO
+		for transform: Transform3D in chunk:
+			chunk_origin += transform.origin
+		chunk_origin /= float(chunk.size())
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.use_colors = true
+		multimesh.mesh = mesh
+		multimesh.instance_count = chunk.size()
+		for i in range(chunk.size()):
+			var transform: Transform3D = chunk[i]
+			multimesh.set_instance_transform(i, Transform3D(transform.basis, transform.origin - chunk_origin))
+			var shade: float = 0.78 + 0.22 * TrackConfigType.hash_noise(transform.origin.x, transform.origin.z)
+			multimesh.set_instance_color(i, Color(shade, shade, shade, 1.0))
+		var instance := MultiMeshInstance3D.new()
+		instance.name = "Cell_%d_%d" % [key.x, key.y]
+		instance.position = chunk_origin
+		instance.multimesh = multimesh
+		# Мелочи исчезают дальше, чем размер ячейки, с запасом на её радиус.
+		instance.visibility_range_end = 240.0 if small else 420.0
+		instance.visibility_range_end_margin = 35.0
+		instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		if small:
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		group_root.add_child(instance)
 
 
 ## Знаки на входах в крутые повороты: смотрим поворот на 55 м вперёд,

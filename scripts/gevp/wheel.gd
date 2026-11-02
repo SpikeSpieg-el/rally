@@ -40,6 +40,8 @@ var fast_damp_threshold := 127.0
 var antiroll := 0.0
 var toe := 0.0
 var bump_stop_multiplier := 1.0
+## Ограничение пикового импульса в долях статического веса колеса.
+var max_suspension_load_g := 6.0
 var wheel_to_body_torque_multiplier := 0.0
 var mass_over_wheel := 0.0
 
@@ -279,7 +281,12 @@ func process_suspension(opposite_compression : float, delta : float) -> float:
 	
 	spring_force += damping_force
 	
-	spring_force = maxf(0, spring_force + bottom_out_force)
+	# Скачок высоты между двумя дискретными raycast-кадрами прежде давал
+	# bottom_out_force ~ mass * speed / delta, вплоть до сотен тысяч ньютонов.
+	# Ограничиваем полный пик, а не вертикальную скорость кузова: настоящие
+	# гребни и отрывы колёс остаются возможными.
+	var load_limit := mass_over_wheel * maxf(vehicle.current_gravity.length(), 1.0) * maxf(max_suspension_load_g, 1.0)
+	spring_force = clampf(spring_force + bottom_out_force, 0.0, load_limit)
 	
 	max_spring_length = clampf((((spring_force / wheel_mass) - spring_speed_mm_per_seconds) * delta * 0.001) + spring_current_length, 0.0, spring_length)
 

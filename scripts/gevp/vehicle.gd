@@ -187,6 +187,9 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 
 
 @export_group("Suspension")
+## Верхний предел нагрузки колеса в долях статического веса. Ограничивает
+## численный удар от дискретного raycast на неровности, но не запрещает прыжки.
+@export_range(2.0, 12.0, 0.5) var max_suspension_load_g := 6.0
 ## Vehicle mass in kilograms.
 @export var vehicle_mass := 1500.0
 ## The percentage of the vehicle mass over the front axle.
@@ -525,6 +528,7 @@ func initialize():
 		wheel.lateral_grip_assist = lateral_grip_assist
 		wheel.longitudinal_grip_ratio = longitudinal_grip_ratio
 		wheel.wheel_to_body_torque_multiplier = wheel_to_body_torque_multiplier
+		wheel.max_suspension_load_g = max_suspension_load_g
 	
 	var front_weight_per_wheel := vehicle_mass * front_weight_distribution * 4.9
 	var front_spring_rate := calculate_spring_rate(front_weight_per_wheel, front_spring_length, front_resting_ratio)
