@@ -8,9 +8,13 @@ enum CameraMode { CHASE_3RD, HOOD, COCKPIT_1ST }
 enum DrivetrainMode { AWD, RWD, FWD }
 
 # Геометрия импортированной модели Lancer Evo: центр колеса и клиренс кузова.
+# Значения по умолчанию; действующие числа берутся из RallyCarFeelConfig
+# (data/car/default_car_feel.tres) — правятся в инспекторе.
 const MODEL_WHEEL_CENTER_Y: float = 1.4588
 const MODEL_BODY_GROUND_CLEARANCE: float = 0.063
+const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 
@@ -26,6 +30,12 @@ const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
 const REVERSE_SHIFT_MAX_KMH: float = 15.0
 ## Базовое торможение двигателем. Сетап задаёт множитель к нему.
 const BASE_MOTOR_BRAKE: float = 10.0
+
+@export_group("Инспектор: ощущение машины")
+## Сглаживание, камера, геометрия модели. Пусто — res://data/car/default_car_feel.tres.
+@export var feel: FeelConfigType = null
+## Профиль эффектов (пыль, грязь, брызги). Пусто — res://data/stage/default_fx_profile.tres.
+@export var fx: RallyFxProfile = null
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -155,6 +165,7 @@ func _ready() -> void:
 	if spawn_transform == Transform3D.IDENTITY:
 		spawn_transform = global_transform
 
+	_load_feel()
 	_configure_gevp()
 	_resolve_setup()
 	if active_setup != null:
@@ -172,6 +183,8 @@ func _ready() -> void:
 	_setup_gravel_particles()
 	_apply_visual_setup()
 	surface_effects = SurfaceEffectsType.new()
+	surface_effects.fx = fx_config()
+	surface_effects.name = "SurfaceEffects"
 	add_child(surface_effects)
 	surface_effects.install(self)
 
@@ -195,7 +208,7 @@ func _ready() -> void:
 func _capture_scene_camera_setup() -> void:
 	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
 	if model != null:
-		_scene_pivot_height = model.position.y + MODEL_WHEEL_CENTER_Y + 0.35
+		_scene_pivot_height = model.position.y + f().model_wheel_center_y + f().camera_pivot_clearance
 	else:
 		_scene_pivot_height = chase_target_height
 
@@ -249,6 +262,33 @@ func _unhandled_input(event: InputEvent) -> void:
 			var max_yaw: float = deg_to_rad(inside_max_yaw_deg)
 			mouse_yaw = clampf(mouse_yaw, -max_yaw, max_yaw)
 			mouse_pitch = clampf(mouse_pitch, deg_to_rad(inside_min_pitch_deg), deg_to_rad(inside_max_pitch_deg))
+
+
+## Подставить настройки ощущения (из сцены или из файла по умолчанию).
+func _load_feel() -> void:
+	if feel != null:
+		return
+	if ResourceLoader.exists(DEFAULT_FEEL_PATH):
+		feel = ResourceLoader.load(DEFAULT_FEEL_PATH) as FeelConfigType
+	if feel == null:
+		feel = FeelConfigType.new()
+
+
+## Настройки ощущения (никогда null).
+func f() -> FeelConfigType:
+	if feel == null:
+		_load_feel()
+	return feel
+
+
+## Профиль эффектов (никогда null).
+func fx_config() -> RallyFxProfile:
+	if fx == null:
+		if ResourceLoader.exists("res://data/stage/default_fx_profile.tres"):
+			fx = ResourceLoader.load("res://data/stage/default_fx_profile.tres") as RallyFxProfile
+		if fx == null:
+			fx = RallyFxProfile.new()
+	return fx
 
 
 func _configure_gevp() -> void:
@@ -441,8 +481,8 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 func _adjust_wheel_mounts() -> void:
 	var front_rest: float = front_spring_length * (1.0 - front_resting_ratio)
 	var rear_rest: float = rear_spring_length * (1.0 - rear_resting_ratio)
-	var front_y: float = front_tire_radius + front_rest - MODEL_BODY_GROUND_CLEARANCE
-	var rear_y: float = rear_tire_radius + rear_rest - MODEL_BODY_GROUND_CLEARANCE
+	var front_y: float = front_tire_radius + front_rest - f().model_body_ground_clearance
+	var rear_y: float = rear_tire_radius + rear_rest - f().model_body_ground_clearance
 	for node in [front_left_wheel, front_right_wheel]:
 		if node is Node3D:
 			(node as Node3D).position.y = front_y
@@ -552,7 +592,7 @@ func _apply_visual_setup() -> void:
 
 	var model := get_node_or_null("low poly lance evo") as Node3D
 	if model != null:
-		model.position.y = front_tire_radius - MODEL_BODY_GROUND_CLEARANCE - MODEL_WHEEL_CENTER_Y
+		model.position.y = front_tire_radius - f().model_body_ground_clearance - f().model_wheel_center_y + f().model_height_offset
 	if active_setup != null:
 		CarVisuals.apply_body(model, active_setup)
 		CarVisuals.apply_headlights(self, active_setup)
@@ -609,7 +649,7 @@ func _physics_process(delta: float) -> void:
 	_update_handbrake_grip(delta)
 
 	var raw_speed_mps: float = Vector2(linear_velocity.x, linear_velocity.z).length()
-	speed_mps = lerpf(speed_mps, raw_speed_mps, _response_weight(10.0, delta))
+	speed_mps = lerpf(speed_mps, raw_speed_mps, _response_weight(f().speed_response, delta))
 	speed_kmh = speed_mps * 3.6
 
 	current_rpm = motor_rpm
@@ -766,36 +806,46 @@ func _update_handbrake_grip(delta: float) -> void:
 func _setup_gravel_particles() -> void:
 	if gravel_particles == null:
 		return
+	var cfg := fx_config()
+	if not cfg.dust_enabled:
+		gravel_particles.emitting = false
+		return
+	gravel_particles.amount = cfg.dust_amount
+	gravel_particles.lifetime = cfg.dust_lifetime
 	var process_material := ParticleProcessMaterial.new()
 	process_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	process_material.emission_box_extents = Vector3(0.78, 0.05, 0.24)
-	process_material.direction = Vector3(0.0, 0.42, -1.0)
-	process_material.spread = 32.0
-	process_material.initial_velocity_min = 1.2
-	process_material.initial_velocity_max = 4.2
-	process_material.gravity = Vector3(0.0, -4.5, 0.0)
-	process_material.scale_min = 0.45
-	process_material.scale_max = 1.65
-	process_material.color = Color(0.43, 0.35, 0.25, 0.48)
+	process_material.emission_box_extents = cfg.dust_emission_extents
+	process_material.direction = cfg.dust_direction
+	process_material.spread = cfg.dust_spread
+	process_material.initial_velocity_min = cfg.dust_speed_min
+	process_material.initial_velocity_max = cfg.dust_speed_max
+	process_material.gravity = cfg.dust_gravity
+	process_material.scale_min = cfg.dust_scale_min
+	process_material.scale_max = cfg.dust_scale_max
+	process_material.color = cfg.dust_color
 	gravel_particles.process_material = process_material
 
 	var dust_material := StandardMaterial3D.new()
 	dust_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dust_material.albedo_color = Color(0.48, 0.39, 0.29, 0.48)
+	dust_material.albedo_color = cfg.dust_color
 	dust_material.roughness = 1.0
 	var dust_mesh := SphereMesh.new()
-	dust_mesh.radius = 0.11
-	dust_mesh.height = 0.22
-	dust_mesh.radial_segments = 6
-	dust_mesh.rings = 3
+	dust_mesh.radius = cfg.dust_radius
+	dust_mesh.height = cfg.dust_height
+	dust_mesh.radial_segments = cfg.dust_segments
+	dust_mesh.rings = cfg.dust_rings
 	dust_mesh.surface_set_material(0, dust_material)
 	gravel_particles.draw_pass_1 = dust_mesh
-	gravel_particles.visibility_aabb = AABB(Vector3(-30.0, -15.0, -30.0), Vector3(60.0, 60.0, 60.0))
+	gravel_particles.visibility_aabb = cfg.dust_aabb
 	gravel_particles.emitting = false
 
 
 func _update_gravel_particles() -> void:
 	if gravel_particles == null or rear_axle == null:
+		return
+	var cfg := fx_config()
+	if not cfg.dust_enabled:
+		gravel_particles.emitting = false
 		return
 	var rear_slip: float = 0.0
 	var rear_contact: bool = false
@@ -803,21 +853,21 @@ func _update_gravel_particles() -> void:
 		rear_contact = rear_contact or wheel.is_colliding()
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
 	if handbrake_input > 0.1:
-		rear_slip = maxf(rear_slip, 0.85)
-	gravel_particles.emitting = rear_contact and speed_kmh > 8.0 and rear_slip > 0.32
+		rear_slip = maxf(rear_slip, cfg.dust_handbrake_slip)
+	gravel_particles.emitting = rear_contact and speed_kmh > cfg.dust_min_speed_kmh and rear_slip > cfg.dust_slip_threshold
 
 
 func _apply_initial_camera_fov() -> void:
 	if active_camera == null:
 		return
-	var speed_factor: float = clampf(speed_kmh / 160.0, 0.0, 1.0)
+	var speed_factor: float = clampf(speed_kmh / maxf(1.0, f().speed_reference_kmh), 0.0, 1.0)
 	match camera_mode:
 		CameraMode.CHASE_3RD:
 			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, speed_factor)
 		CameraMode.HOOD:
-			active_camera.fov = hood_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
+			active_camera.fov = hood_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 		CameraMode.COCKPIT_1ST:
-			active_camera.fov = cockpit_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
+			active_camera.fov = cockpit_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 
 
 func _update_cameras(delta: float) -> void:
@@ -826,11 +876,11 @@ func _update_cameras(delta: float) -> void:
 
 	mouse_idle_timer += delta
 	if mouse_auto_return_delay > 0.0 and mouse_idle_timer >= mouse_auto_return_delay:
-		var return_weight: float = _response_weight(mouse_return_speed, delta)
+		var return_weight: float = _response_weight(f().mouse_return_speed, delta)
 		mouse_yaw = lerp_angle(mouse_yaw, 0.0, return_weight)
 		mouse_pitch = lerpf(mouse_pitch, 0.0, return_weight)
 
-	var look_smooth: float = 1.0 if delta <= 0.0 else _response_weight(18.0, delta)
+	var look_smooth: float = 1.0 if delta <= 0.0 else _response_weight(f().look_response, delta)
 	smoothed_mouse_yaw = lerp_angle(smoothed_mouse_yaw, mouse_yaw, look_smooth)
 	smoothed_mouse_pitch = lerpf(smoothed_mouse_pitch, mouse_pitch, look_smooth)
 
@@ -848,8 +898,8 @@ func _update_cameras(delta: float) -> void:
 
 	if camera_mode != CameraMode.CHASE_3RD:
 		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
-		var target_fov: float = base_fov + inside_speed_fov_bonus * clampf(speed_kmh / 180.0, 0.0, 1.0)
-		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(6.0, delta)
+		var target_fov: float = base_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
+		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().inside_fov_response, delta)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 	previous_velocity = linear_velocity
 
@@ -866,7 +916,9 @@ func _update_action_camera(delta: float) -> void:
 
 	if planar_speed > 4.0 and planar_velocity.normalized().dot(car_forward) > 0.0:
 		var velocity_yaw: float = atan2(planar_velocity.x, planar_velocity.z)
-		var follow_amount: float = chase_velocity_follow * clampf((speed_kmh - 15.0) / 60.0, 0.0, 1.0)
+		var follow_start: float = f().camera_velocity_follow_start_kmh
+		var follow_span: float = maxf(1.0, f().camera_velocity_follow_full_kmh - follow_start)
+		var follow_amount: float = chase_velocity_follow * clampf((speed_kmh - follow_start) / follow_span, 0.0, 1.0)
 		desired_yaw = lerp_angle(car_yaw, velocity_yaw, follow_amount)
 
 	if not camera_initialized or delta <= 0.0:
@@ -880,14 +932,18 @@ func _update_action_camera(delta: float) -> void:
 	var pivot: Vector3 = global_position + Vector3(0.0, _scene_pivot_height, 0.0)
 
 	var effective_yaw: float = camera_yaw + smoothed_mouse_yaw
-	var is_freelooking: float = clampf(absf(smoothed_mouse_yaw) * 1.5 + absf(smoothed_mouse_pitch) * 1.5, 0.0, 1.0)
+	var is_freelooking: float = clampf(
+		absf(smoothed_mouse_yaw) * f().freelook_influence + absf(smoothed_mouse_pitch) * f().freelook_influence,
+		0.0,
+		1.0
+	)
 
 	var camera_forward := Vector3(sin(effective_yaw), 0.0, cos(effective_yaw))
 	# camera_local_x соответствует +basis.x машины (Vector3.UP x forward),
 	# а camera_right — визуальному правому боку при взгляде вдоль camera_forward.
 	var camera_local_x: Vector3 = Vector3.UP.cross(camera_forward).normalized()
 	var camera_right: Vector3 = -camera_local_x
-	var speed_factor: float = clampf(speed_kmh / 160.0, 0.0, 1.0)
+	var speed_factor: float = clampf(speed_kmh / maxf(1.0, f().speed_reference_kmh), 0.0, 1.0)
 
 	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
 	var base_height_diff: float = (_scene_chase_local_pos.y - _scene_pivot_height) if use_cam_chase_from_scene else (chase_height - _scene_pivot_height)
@@ -895,11 +951,11 @@ func _update_action_camera(delta: float) -> void:
 
 	var base_elevation: float = atan2(base_height_diff, base_back_dist)
 	var base_radius: float = Vector2(base_back_dist, base_height_diff).length()
-	var desired_dist: float = base_radius * lerpf(1.0, 1.06, speed_factor)
+	var desired_dist: float = base_radius * lerpf(1.0, 1.0 + f().camera_speed_distance_gain, speed_factor)
 	var total_pitch: float = clampf(
 		base_elevation + smoothed_mouse_pitch,
-		deg_to_rad(-10.0),
-		deg_to_rad(75.0)
+		deg_to_rad(f().camera_pitch_min_deg),
+		deg_to_rad(f().camera_pitch_max_deg)
 	)
 
 	var orbit_dir: Vector3 = (-camera_forward * cos(total_pitch) + Vector3.UP * sin(total_pitch)).normalized()
@@ -919,26 +975,26 @@ func _update_action_camera(delta: float) -> void:
 	var target_dist: float = desired_dist
 	if not hit.is_empty():
 		var hit_dist: float = pivot.distance_to(hit["position"]) - chase_collision_radius
-		target_dist = clampf(hit_dist, 1.2, desired_dist)
+		target_dist = clampf(hit_dist, f().camera_min_distance, desired_dist)
 
 	if delta <= 0.0:
 		_smoothed_cam_dist = target_dist
 	else:
-		var dist_speed: float = 25.0 if target_dist < _smoothed_cam_dist else 8.0
+		var dist_speed: float = f().camera_pull_in_speed if target_dist < _smoothed_cam_dist else f().camera_push_out_speed
 		_smoothed_cam_dist = lerpf(_smoothed_cam_dist, target_dist, _response_weight(dist_speed, delta))
 
 	camera_position = pivot + orbit_dir * _smoothed_cam_dist + side_vec
 
-	var min_cam_y: float = pivot.y - 0.35
+	var min_cam_y: float = pivot.y - f().camera_pivot_clearance
 	if camera_position.y < min_cam_y:
 		camera_position.y = min_cam_y
 
 	# Плавный учёт наклона машины на горках
-	var target_slope_y: float = car_forward.y * 0.65
+	var target_slope_y: float = car_forward.y * f().slope_follow
 	if delta <= 0.0:
 		_smoothed_slope_y = target_slope_y
 	else:
-		_smoothed_slope_y = lerpf(_smoothed_slope_y, target_slope_y, _response_weight(6.0, delta))
+		_smoothed_slope_y = lerpf(_smoothed_slope_y, target_slope_y, _response_weight(f().slope_response, delta))
 
 	# Точка взгляда всегда отсчитывается от стабильного центра (pivot),
 	# а точка фокуса при обзоре мышью лежит ровно на пересечении луча взгляда CamChase
@@ -960,8 +1016,8 @@ func _update_action_camera(delta: float) -> void:
 	var ray_to_center_dist: float = base_back_dist / maxf(0.15, default_look_dir_world.dot(camera_forward))
 	var freelook_focus_y: float = clampf(
 		base_height_diff + default_look_dir_world.y * ray_to_center_dist,
-		-0.6,
-		1.5
+		f().freelook_focus_min,
+		f().freelook_focus_max
 	)
 	var freelook_target: Vector3 = pivot + Vector3(0.0, freelook_focus_y, 0.0)
 	var look_target: Vector3 = default_look_target.lerp(freelook_target, is_freelooking)
@@ -971,7 +1027,7 @@ func _update_action_camera(delta: float) -> void:
 		active_camera.look_at(look_target, Vector3.UP)
 
 	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, speed_factor)
-	var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(5.0, delta)
+	var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().chase_fov_response, delta)
 	active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 
 
@@ -990,7 +1046,7 @@ func _update_cockpit_camera(delta: float) -> void:
 			clampf(-local_accel.y * 0.0015, -0.04, 0.04),
 			clampf(-local_accel.z * 0.003, -0.12, 0.12)
 		)
-		g_force_offset = g_force_offset.lerp(desired_offset * cockpit_motion_strength, _response_weight(8.0, delta))
+		g_force_offset = g_force_offset.lerp(desired_offset * cockpit_motion_strength, _response_weight(f().cockpit_motion_response, delta))
 
 	# Маркер — источник истины: ни переключение вида, ни тряска его не двигают.
 	# Смещение ускорения применяется только к камере в координатах кузова.

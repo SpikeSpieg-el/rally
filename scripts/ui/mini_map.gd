@@ -19,6 +19,18 @@ extends Control
 @export var show_checkpoints: bool = true
 @export var show_car: bool = true
 @export_range(0.5, 4.0, 0.1) var route_line_width: float = 2.2
+@export_group("Геометрия и тени")
+## Скругление карточки, px.
+@export_range(0, 40, 1) var corner_radius: int = 10
+@export_range(0, 4, 1) var border_width: int = 1
+@export var shadow_color: Color = Color(0, 0, 0, 0.28)
+@export_range(0, 32, 1) var shadow_size: int = 8
+@export var shadow_offset: Vector2 = Vector2(0, 3)
+## Подложка под маркерами старта/финиша и машины.
+@export var marker_outline_color: Color = Color(0, 0, 0, 0.6)
+@export_range(0.0, 20.0, 0.1) var start_marker_radius: float = 3.8
+@export_range(0.0, 20.0, 0.1) var checkpoint_radius: float = 2.5
+@export_range(0.0, 40.0, 0.1) var car_marker_size: float = 7.5
 
 var route: PackedVector2Array = PackedVector2Array()
 var checkpoints: PackedVector2Array = PackedVector2Array()
@@ -104,11 +116,11 @@ func _draw() -> void:
 	var panel := StyleBoxFlat.new()
 	panel.bg_color = background_color
 	panel.border_color = border_color
-	panel.set_border_width_all(1)
-	panel.set_corner_radius_all(10)
-	panel.shadow_color = Color(0, 0, 0, 0.28)
-	panel.shadow_size = 8
-	panel.shadow_offset = Vector2(0, 3)
+	panel.set_border_width_all(border_width)
+	panel.set_corner_radius_all(corner_radius)
+	panel.shadow_color = shadow_color
+	panel.shadow_size = shadow_size
+	panel.shadow_offset = shadow_offset
 	draw_style_box(panel, rect)
 
 	if show_grid:
@@ -135,20 +147,20 @@ func _draw() -> void:
 	if show_checkpoints:
 		for cp in checkpoints:
 			var point := _to_screen(cp)
-			draw_circle(point, 2.5, checkpoint_color)
+			draw_circle(point, checkpoint_radius, checkpoint_color)
 
 	# Старт и финиш с аккуратным темным контуром
 	var sp := _to_screen(start_point)
 	var fp := _to_screen(finish_point)
-	draw_circle(sp, 5.0, Color(0, 0, 0, 0.6))
-	draw_circle(sp, 3.8, start_color)
-	draw_circle(fp, 5.0, Color(0, 0, 0, 0.6))
-	draw_circle(fp, 3.8, finish_color)
+	draw_circle(sp, start_marker_radius + 1.2, marker_outline_color)
+	draw_circle(sp, start_marker_radius, start_color)
+	draw_circle(fp, start_marker_radius + 1.2, marker_outline_color)
+	draw_circle(fp, start_marker_radius, finish_color)
 
 	# Курсор машины
 	if show_car and has_car:
 		var car_screen := _to_screen(car_position)
-		var s: float = 7.5
+		var s: float = car_marker_size
 		var pts := PackedVector2Array([
 			Vector2(0.0, -s),
 			Vector2(s * 0.65, s * 0.65),
@@ -158,7 +170,7 @@ func _draw() -> void:
 		var rotated := PackedVector2Array()
 		for p in pts:
 			rotated.append(car_screen + p.rotated(-car_heading))
-		draw_circle(car_screen, s * 0.85, Color(0, 0, 0, 0.45))
+		draw_circle(car_screen, s * 0.85, marker_outline_color)
 		draw_colored_polygon(rotated, car_color)
 
 

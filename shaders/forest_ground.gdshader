@@ -22,6 +22,27 @@ uniform float resolution_y : hint_range(180.0, 720.0) = 270.0;
 // Погода: сырая земля темнее, снег ложится на пологие места.
 uniform float wetness : hint_range(0.0, 1.0) = 0.0;
 uniform float snow_cover : hint_range(0.0, 1.0) = 0.0;
+// Настройки вида земли (RallyStageSettings / материал в инспекторе).
+uniform float broad_scale : hint_range(0.001, 1.0) = 0.05;
+uniform float ground_uv_scale : hint_range(0.01, 2.0) = 0.25;
+uniform float rock_uv_scale : hint_range(0.01, 2.0) = 0.22;
+uniform float shade_min : hint_range(0.0, 2.0) = 0.80;
+uniform float shade_max : hint_range(0.0, 2.0) = 1.14;
+uniform float ground_detail_base : hint_range(0.0, 2.0) = 0.65;
+uniform float ground_detail_gain : hint_range(0.0, 3.0) = 1.5;
+uniform float rock_detail_base : hint_range(0.0, 2.0) = 0.65;
+uniform float rock_detail_gain : hint_range(0.0, 3.0) = 1.3;
+uniform float shoulder_blend : hint_range(0.0, 1.0) = 0.3;
+uniform float rock_slope_inner : hint_range(0.0, 1.0) = 0.55;
+uniform float rock_slope_outer : hint_range(0.0, 1.0) = 0.85;
+uniform float wet_darken : hint_range(0.0, 1.0) = 0.78;
+uniform float snow_slope_inner : hint_range(0.0, 1.0) = 0.15;
+uniform float snow_slope_outer : hint_range(0.0, 1.0) = 0.65;
+uniform vec3 snow_color : source_color = vec3(0.88, 0.91, 0.96);
+uniform float snow_roughness : hint_range(0.0, 1.0) = 0.62;
+uniform float snow_specular : hint_range(0.0, 1.0) = 0.10;
+uniform float wet_specular : hint_range(0.0, 1.0) = 0.42;
+uniform float dry_specular : hint_range(0.0, 1.0) = 0.16;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -69,26 +90,26 @@ void fragment() {
 		}
 	}
 	float slope = clamp(1.0 - normal.y, 0.0, 1.0);
-	float broad_noise = value_noise(world_pos.xz * 0.05);
+	float broad_noise = value_noise(world_pos.xz * broad_scale);
 	float fine_noise = value_noise(world_pos.xz * grain_scale);
 
 	vec3 ground = mix(ground_color, ground_color_2, broad_noise);
-	ground *= mix(0.80, 1.14, fine_noise);
-	vec2 ground_uv = world_pos.xz * 0.25;
+	ground *= mix(shade_min, shade_max, fine_noise);
+	vec2 ground_uv = world_pos.xz * ground_uv_scale;
 	vec3 ground_detail = ps1_textures ? texture(ground_texture, ground_uv).rgb : texture(ground_texture_smooth, ground_uv).rgb;
-	ground *= 0.65 + ground_detail * 1.5;
+	ground *= ground_detail_base + ground_detail * ground_detail_gain;
 
-	float shoulder = smoothstep(0.0, 0.3, vertex_info.r);
+	float shoulder = smoothstep(0.0, max(0.001, shoulder_blend), vertex_info.r);
 	vec3 albedo = mix(road_edge_color, ground, shoulder);
-	float rock_amt = smoothstep(0.55, 0.85, slope) * vertex_info.g;
-	vec2 rock_uv = world_pos.xz * 0.22;
+	float rock_amt = smoothstep(rock_slope_inner, max(rock_slope_inner + 0.001, rock_slope_outer), slope) * vertex_info.g;
+	vec2 rock_uv = world_pos.xz * rock_uv_scale;
 	vec3 rock_detail = ps1_textures ? texture(rock_texture, rock_uv).rgb : texture(rock_texture_smooth, rock_uv).rgb;
-	albedo = mix(albedo, rock_color * (0.65 + rock_detail * 1.3) * mix(0.80, 1.15, vertex_info.b), rock_amt);
+	albedo = mix(albedo, rock_color * (rock_detail_base + rock_detail * rock_detail_gain) * mix(shade_min, shade_max, vertex_info.b), rock_amt);
 
-	albedo *= mix(1.0, 0.78, wetness);
-	float snow_amount = snow_cover * (1.0 - smoothstep(0.15, 0.65, slope));
-	albedo = mix(albedo, vec3(0.88, 0.91, 0.96) * mix(0.92, 1.04, fine_noise), snow_amount);
+	albedo *= mix(1.0, wet_darken, wetness);
+	float snow_amount = snow_cover * (1.0 - smoothstep(snow_slope_inner, max(snow_slope_inner + 0.001, snow_slope_outer), slope));
+	albedo = mix(albedo, snow_color * mix(0.92, 1.04, fine_noise), snow_amount);
 	ALBEDO = albedo;
-	ROUGHNESS = mix(surface_roughness, 0.62, snow_amount);
-	SPECULAR = mix(mix(0.16, 0.42, wetness), 0.10, snow_amount);
+	ROUGHNESS = mix(surface_roughness, snow_roughness, snow_amount);
+	SPECULAR = mix(mix(dry_specular, wet_specular, wetness), snow_specular, snow_amount);
 }

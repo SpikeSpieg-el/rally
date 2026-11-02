@@ -84,7 +84,7 @@ func _check_fog_and_ground() -> void:
 	var material: ShaderMaterial = stage._make_ground_material()
 	_check(bool(material.get_shader_parameter("ps1_textures")), "земля должна использовать point-фильтрацию")
 	_check(float(material.get_shader_parameter("flat_shading")) == 1.0, "фасетное освещение земли должно быть включено")
-	_check(is_equal_approx(float(material.get_shader_parameter("vertex_snap")), stage.retro_vertex_snap), "сетка вершин должна настраиваться")
+	_check(is_equal_approx(float(material.get_shader_parameter("vertex_snap")), stage.s_settings().retro_vertex_snap), "сетка вершин должна настраиваться из ресурса настроек")
 
 	stage.weather = Fog
 	stage._configure_world()

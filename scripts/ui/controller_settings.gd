@@ -7,9 +7,10 @@
 extends VBoxContainer
 
 const CONTROLLER_PATH := "/root/ControllerManager"
-const TITLE_COLOR := Color(1.0, 0.55, 0.15, 1.0)
-const LABEL_COLOR := Color(0.82, 0.88, 0.94, 1.0)
-const VALUE_COLOR := Color(0.62, 0.76, 0.86, 1.0)
+const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+
+## Палитра и размеры строк. Пусто — res://data/ui/default_ui_theme.tres.
+@export var ui_theme: UiThemeType = null
 
 var controller: Node = null
 var status_label: Label = null
@@ -25,6 +26,16 @@ var lightbar_button: Button = null
 var _loading: bool = false
 
 
+## Палитра (никогда null): сцена может подставить свою.
+func theme_cfg() -> UiThemeType:
+	if ui_theme == null:
+		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
+			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
+		if ui_theme == null:
+			ui_theme = UiThemeType.new()
+	return ui_theme
+
+
 func _ready() -> void:
 	controller = get_node_or_null(CONTROLLER_PATH)
 	_build()
@@ -33,26 +44,27 @@ func _ready() -> void:
 
 
 func _build() -> void:
-	add_theme_constant_override("separation", 4)
+	var t := theme_cfg()
+	add_theme_constant_override("separation", t.controller_separation)
 
 	var title := Label.new()
 	title.name = "Title"
 	title.text = "КОНТРОЛЛЕР"
-	title.add_theme_color_override("font_color", TITLE_COLOR)
-	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", t.accent_soft)
+	title.add_theme_font_size_override("font_size", t.font_hud_label)
 	add_child(title)
 
 	status_label = Label.new()
 	status_label.name = "Status"
 	status_label.text = "ПОИСК ГЕЙМПАДА…"
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.add_theme_color_override("font_color", VALUE_COLOR)
-	status_label.add_theme_font_size_override("font_size", 12)
+	status_label.add_theme_color_override("font_color", t.text_secondary)
+	status_label.add_theme_font_size_override("font_size", t.font_hud_small)
 	add_child(status_label)
 
 	var vibration_row := HBoxContainer.new()
 	vibration_row.name = "VibrationRow"
-	vibration_row.add_theme_constant_override("separation", 8)
+	vibration_row.add_theme_constant_override("separation", t.row_separation)
 	add_child(vibration_row)
 
 	vibration_check = CheckBox.new()
@@ -60,28 +72,28 @@ func _build() -> void:
 	vibration_check.text = "ВИБРАЦИЯ"
 	vibration_check.focus_mode = Control.FOCUS_ALL
 	vibration_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vibration_check.add_theme_color_override("font_color", LABEL_COLOR)
-	vibration_check.add_theme_font_size_override("font_size", 13)
+	vibration_check.add_theme_color_override("font_color", t.text_primary)
+	vibration_check.add_theme_font_size_override("font_size", t.font_hud_label)
 	vibration_row.add_child(vibration_check)
 
 	test_button = Button.new()
 	test_button.name = "TestButton"
 	test_button.text = "ТЕСТ"
 	test_button.focus_mode = Control.FOCUS_ALL
-	test_button.custom_minimum_size = Vector2(86.0, 28.0)
-	test_button.add_theme_font_size_override("font_size", 12)
+	test_button.custom_minimum_size = Vector2(t.controller_button_width, t.controller_button_height)
+	test_button.add_theme_font_size_override("font_size", t.font_hud_small)
 	vibration_row.add_child(test_button)
 
 	driving_check = CheckBox.new()
 	driving_check.name = "DrivingVibrationToggle"
 	driving_check.text = "ВИБРАЦИЯ ОТ ДОРОГИ (DUALSENSE)"
-	driving_check.add_theme_font_size_override("font_size", 13)
+	driving_check.add_theme_font_size_override("font_size", t.font_hud_label)
 	add_child(driving_check)
 
 	triggers_check = CheckBox.new()
 	triggers_check.name = "AdaptiveTriggersToggle"
 	triggers_check.text = "АДАПТИВНЫЕ ТРИГГЕРЫ (DUALSENSE)"
-	triggers_check.add_theme_font_size_override("font_size", 13)
+	triggers_check.add_theme_font_size_override("font_size", t.font_hud_label)
 	add_child(triggers_check)
 	trigger_slider = _add_slider_row("TriggerStrength", "СИЛА ТРИГГЕРОВ", 0.0, 100.0, 1.0, 70.0, "%")
 
@@ -91,31 +103,31 @@ func _build() -> void:
 
 	var actions_row := HBoxContainer.new()
 	actions_row.name = "ActionsRow"
-	actions_row.add_theme_constant_override("separation", 8)
+	actions_row.add_theme_constant_override("separation", t.row_separation)
 	add_child(actions_row)
 
 	lightbar_button = Button.new()
 	lightbar_button.name = "LightbarButton"
 	lightbar_button.text = "ЦВЕТ ПОДСВЕТКИ"
 	lightbar_button.focus_mode = Control.FOCUS_ALL
-	lightbar_button.custom_minimum_size = Vector2(0.0, 30.0)
+	lightbar_button.custom_minimum_size = Vector2(0.0, t.controller_lightbar_height)
 	lightbar_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lightbar_button.add_theme_font_size_override("font_size", 12)
+	lightbar_button.add_theme_font_size_override("font_size", t.font_hud_small)
 	actions_row.add_child(lightbar_button)
 
 
 func _add_slider_row(row_name: String, caption: String, minimum: float, maximum: float, step: float, value: float, suffix: String) -> HSlider:
 	var row := HBoxContainer.new()
 	row.name = row_name
-	row.custom_minimum_size = Vector2(0.0, 24.0)
-	row.add_theme_constant_override("separation", 8)
+	row.custom_minimum_size = Vector2(0.0, t.controller_row_height)
+	row.add_theme_constant_override("separation", t.row_separation)
 	add_child(row)
 
 	var label := Label.new()
 	label.text = caption
-	label.custom_minimum_size = Vector2(175.0, 0.0)
-	label.add_theme_color_override("font_color", LABEL_COLOR)
-	label.add_theme_font_size_override("font_size", 13)
+	label.custom_minimum_size = Vector2(t.controller_label_width, 0.0)
+	label.add_theme_color_override("font_color", t.text_primary)
+	label.add_theme_font_size_override("font_size", t.font_hud_label)
 	row.add_child(label)
 
 	var slider := HSlider.new()
@@ -130,10 +142,10 @@ func _add_slider_row(row_name: String, caption: String, minimum: float, maximum:
 
 	var value_label := Label.new()
 	value_label.name = "Value"
-	value_label.custom_minimum_size = Vector2(48.0, 0.0)
+	value_label.custom_minimum_size = Vector2(t.controller_value_width, 0.0)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.add_theme_color_override("font_color", VALUE_COLOR)
-	value_label.add_theme_font_size_override("font_size", 12)
+	value_label.add_theme_color_override("font_color", t.text_secondary)
+	value_label.add_theme_font_size_override("font_size", t.font_hud_small)
 	value_label.set_meta("suffix", suffix)
 	row.add_child(value_label)
 	return slider

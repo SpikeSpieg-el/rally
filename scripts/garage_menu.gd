@@ -12,9 +12,16 @@ const TrackType = preload("res://scripts/data/rally_track_config.gd")
 const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const Customization = preload("res://scripts/car_customization.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
+const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 
-## Скорость вращения витрины, радиан/сек. 0 — остановить модель.
-@export_range(0.0, 1.0, 0.01) var turntable_speed: float = 0.16
+@export_group("Инспектор: витрина")
+## Скорость вращения витрины, радиан/сек. Берётся из layout, если не задана.
+@export_range(0.0, 1.0, 0.01) var turntable_speed_override: float = -1.0
+## Цвета и размеры шрифтов. Пусто — res://data/ui/default_ui_theme.tres.
+@export var ui_theme: UiThemeType = null
+## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.
+@export var menu_layout: MenuLayoutType = null
 
 var config: RallyGameConfig
 var game: Node
@@ -32,6 +39,31 @@ var _fields: Dictionary = {}
 var _wheel_visuals: Array[MeshInstance3D] = []
 var _wheel_bases: Array[Basis] = []
 var _model_default_y: float = 0.0
+
+
+func theme_cfg() -> UiThemeType:
+	if ui_theme == null:
+		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
+			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
+		if ui_theme == null:
+			ui_theme = UiThemeType.new()
+	return ui_theme
+
+
+func layout() -> MenuLayoutType:
+	if menu_layout == null:
+		if ResourceLoader.exists("res://data/ui/default_menu_layout.tres"):
+			menu_layout = ResourceLoader.load("res://data/ui/default_menu_layout.tres") as MenuLayoutType
+		if menu_layout == null:
+			menu_layout = MenuLayoutType.new()
+	return menu_layout
+
+
+## Скорость витрины: явное значение сцены главнее ресурса.
+func turntable_speed() -> float:
+	if turntable_speed_override >= 0.0:
+		return turntable_speed_override
+	return layout().garage_turntable_speed
 
 @onready var _selector: OptionButton = %SetupSelector
 @onready var _summary: Label = %Summary
@@ -82,13 +114,13 @@ func _build_settings() -> void:
 		scroll.add_child(margin)
 		var box := VBoxContainer.new()
 		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		box.add_theme_constant_override("separation", 11)
+		box.add_theme_constant_override("separation", theme_cfg().garage_group_separation)
 		margin.add_child(box)
 		var note := Label.new()
 		note.text = String(group["note"])
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		note.add_theme_font_size_override("font_size", 13)
-		note.add_theme_color_override("font_color", Color(0.55, 0.67, 0.73))
+		note.add_theme_font_size_override("font_size", theme_cfg().garage_note_size)
+		note.add_theme_color_override("font_color", theme_cfg().text_muted)
 		box.add_child(note)
 		for field: Dictionary in Customization.FIELDS:
 			if field["group"] == group["id"]:
@@ -112,15 +144,15 @@ func _build_field(parent: VBoxContainer, field: Dictionary) -> void:
 	title.text = String(field["label"])
 	title.tooltip_text = String(field.get("tip", ""))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 15)
-	title.add_theme_color_override("font_color", Color(0.79, 0.85, 0.89))
+	title.add_theme_font_size_override("font_size", theme_cfg().font_button_small)
+	title.add_theme_color_override("font_color", theme_cfg().text_primary)
 	header.add_child(title)
 
 	if kind == "number" or kind == "gear":
 		var value_label := Label.new()
 		value_label.name = prefix + "Value"
-		value_label.add_theme_font_size_override("font_size", 15)
-		value_label.add_theme_color_override("font_color", Color(1.0, 0.68, 0.28))
+		value_label.add_theme_font_size_override("font_size", theme_cfg().font_hud_value)
+		value_label.add_theme_color_override("font_color", theme_cfg().text_value)
 		header.add_child(value_label)
 		_register_unique(value_label)
 		_values[key] = value_label
@@ -129,7 +161,7 @@ func _build_field(parent: VBoxContainer, field: Dictionary) -> void:
 		slider.min_value = float(field["min"])
 		slider.max_value = float(field["max"])
 		slider.step = float(field["step"])
-		slider.custom_minimum_size = Vector2(0, 26)
+		slider.custom_minimum_size = Vector2(0, theme_cfg().garage_slider_height)
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.focus_mode = Control.FOCUS_ALL
 		slider.tooltip_text = String(field.get("tip", ""))
@@ -141,7 +173,7 @@ func _build_field(parent: VBoxContainer, field: Dictionary) -> void:
 	elif kind == "color":
 		var picker := ColorPickerButton.new()
 		picker.name = "BodyColor" if key == "body_color" else prefix + "Color"
-		picker.custom_minimum_size = Vector2(140, 36)
+		picker.custom_minimum_size = Vector2(theme_cfg().garage_picker_width, theme_cfg().garage_picker_height)
 		picker.edit_alpha = false
 		picker.tooltip_text = String(field.get("tip", ""))
 		header.add_child(picker)
@@ -151,7 +183,7 @@ func _build_field(parent: VBoxContainer, field: Dictionary) -> void:
 	elif kind == "choice":
 		var choice := OptionButton.new()
 		choice.name = prefix + "Choice"
-		choice.custom_minimum_size = Vector2(215, 36)
+		choice.custom_minimum_size = Vector2(theme_cfg().garage_choice_width, theme_cfg().garage_picker_height)
 		choice.tooltip_text = String(field.get("tip", ""))
 		for option in field["options"]:
 			choice.add_item(String(option))
@@ -185,7 +217,7 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	_configure_preview_style()
 	drafts.clear()
 	_dirty.clear()
-	_status.text = "Сохраните изменения или нажмите «На старт»."
+	_status.text = layout().garage_status_ready
 	_selector.clear()
 	for i in range(config.setup_count()):
 		var preset := config.get_setup(i) as SetupType
@@ -203,17 +235,21 @@ func _configure_preview_style() -> void:
 		selected_track = config.get_track(config.default_track_index) as TrackType
 	var enabled: bool = selected_track != null and selected_track.ps1_style
 	# Уменьшаем только 3D-превью; элементы меню остаются чёткими.
-	_preview_container.stretch_shrink = 3 if enabled else 1
+	_preview_container.stretch_shrink = layout().garage_retro_shrink if enabled else 1
 	_preview_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if enabled else CanvasItem.TEXTURE_FILTER_PARENT_NODE
 	_retro_rect.visible = enabled
 	var material := _retro_rect.material as ShaderMaterial
 	if material != null and selected_track != null:
-		Ps1Materials.configure_post_effect(material, enabled, 1.0, 270.0, selected_track.color_banding, selected_track.dither_fog)
+		var cfg := layout()
+		Ps1Materials.configure_post_effect(
+			material, enabled, cfg.garage_retro_strength, float(cfg.garage_retro_resolution_y),
+			selected_track.color_banding, selected_track.dither_fog
+		)
 
 
 func _process(delta: float) -> void:
 	if visible and _turntable != null and not _dragging:
-		_turntable.rotate_y(delta * turntable_speed)
+		_turntable.rotate_y(delta * turntable_speed())
 
 
 func _on_preview_input(event: InputEvent) -> void:
@@ -222,13 +258,13 @@ func _on_preview_input(event: InputEvent) -> void:
 			_dragging = event.pressed
 			_preview_container.accept_event()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_preview_camera.fov = maxf(24.0, _preview_camera.fov - 2.0)
+			_preview_camera.fov = maxf(layout().garage_preview_fov_min, _preview_camera.fov - layout().garage_preview_fov_step)
 			_preview_container.accept_event()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_preview_camera.fov = minf(60.0, _preview_camera.fov + 2.0)
+			_preview_camera.fov = minf(layout().garage_preview_fov_max, _preview_camera.fov + layout().garage_preview_fov_step)
 			_preview_container.accept_event()
 	elif event is InputEventMouseMotion and _dragging:
-		_turntable.rotate_y(-event.relative.x * 0.008)
+		_turntable.rotate_y(-event.relative.x * layout().garage_mouse_rotate_speed)
 		_preview_container.accept_event()
 
 
@@ -253,7 +289,7 @@ func _refresh() -> void:
 		return
 	_updating = true
 	_selector.select(selected_index)
-	_description.text = "БАЗОВЫЙ ПРЕСЕТ: " + setup.description
+	_description.text = layout().garage_preset_prefix + setup.description
 	_summary.text = "%s\n%s  ·  %d кг  ·  %s" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass), setup.get_transmission_name()]
 	for field: Dictionary in Customization.FIELDS:
 		var key: String = field["key"]
@@ -303,7 +339,7 @@ func _format_number(value: float, field: Dictionary) -> String:
 func _update_preview() -> void:
 	if _model == null or setup == null:
 		return
-	_model.position.y = _model_default_y + setup.tire_radius - 0.438
+	_model.position.y = _model_default_y + setup.tire_radius - layout().garage_reference_tire_radius
 	CarVisuals.apply_body(_model, setup)
 	var wheel_scale: Vector3 = CarVisuals.wheel_scale(setup.tire_radius, setup.tire_width)
 	for i in range(_wheel_visuals.size()):
@@ -313,7 +349,7 @@ func _update_preview() -> void:
 
 func _mark_changed() -> void:
 	_dirty[selected_index] = true
-	_status.text = "Есть несохранённые изменения."
+	_status.text = layout().garage_status_unsaved
 
 
 func _on_slider_changed(value: float, key: String) -> void:
@@ -374,13 +410,13 @@ func _on_color_changed(color: Color) -> void:
 
 func _save_drafts() -> bool:
 	if game == null or not game.has_method("save_custom_setups"):
-		_status.text = "Не удалось сохранить: хранилище недоступно."
+		_status.text = layout().garage_status_storage_missing
 		return false
 	if not bool(game.call("save_custom_setups", drafts)):
-		_status.text = "Не удалось сохранить. Проверьте доступ к файлу настроек."
+		_status.text = layout().garage_status_save_failed
 		return false
 	_dirty.clear()
-	_status.text = "Все открытые пресеты сохранены."
+	_status.text = layout().garage_status_saved
 	setup_saved.emit(selected_index)
 	return true
 
@@ -404,7 +440,7 @@ func _reset_setup() -> void:
 	setup = base.duplicate(true) as SetupType
 	drafts[selected_index] = setup
 	_mark_changed()
-	_status.text = "Пресет сброшен. Сохраните изменения или начните заезд."
+	_status.text = layout().garage_status_reset
 	_refresh()
 
 

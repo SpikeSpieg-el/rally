@@ -11,8 +11,15 @@ const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const StagePreviewType = preload("res://scripts/stage_preview.gd")
 const GarageScene = preload("res://scenes/garage_menu.tscn")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
+const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 
+@export_group("Данные (инспектор)")
 @export var config: GameConfigType = null
+## Цвета и размеры шрифтов меню. Пусто — res://data/ui/default_ui_theme.tres.
+@export var ui_theme: UiThemeType = null
+## Тексты, подсказки и горячие клавиши меню. Пусто — default_menu_layout.tres.
+@export var menu_layout: MenuLayoutType = null
 
 @onready var title_label: Label = get_node_or_null("Content/Header/Title") as Label
 @onready var subtitle_label: Label = get_node_or_null("Content/Header/Subtitle") as Label
@@ -51,11 +58,74 @@ var _weather_flow: HFlowContainer = null
 var _profile_flow: HFlowContainer = null
 
 
+func theme_cfg() -> UiThemeType:
+	if ui_theme == null:
+		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
+			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
+		if theme == null:
+			ui_theme = UiThemeType.new()
+	return ui_theme
+
+
+func layout() -> MenuLayoutType:
+	if menu_layout == null:
+		if ResourceLoader.exists("res://data/ui/default_menu_layout.tres"):
+			menu_layout = ResourceLoader.load("res://data/ui/default_menu_layout.tres") as MenuLayoutType
+		if menu_layout == null:
+			menu_layout = MenuLayoutType.new()
+	return menu_layout
+
+
+## Применить палитру и шрифты меню к настоящей сцене (а не копии стилей):
+## заголовки, акцентная полоса, подписи и кнопки остаются узлами.
+func _apply_theme() -> void:
+	var t := theme_cfg()
+	var background := get_node_or_null("Background") as ColorRect
+	if background != null:
+		background.color = t.background
+	var bar := get_node_or_null("AccentBar") as ColorRect
+	if bar != null:
+		bar.color = t.accent
+		bar.offset_bottom = float(t.accent_bar_height)
+	var content := get_node_or_null("Content") as Control
+	if content != null:
+		content.offset_left = float(t.content_margin_horizontal)
+		content.offset_top = float(t.content_margin_vertical)
+		content.offset_right = -float(t.content_margin_horizontal)
+		content.offset_bottom = -float(t.content_margin_bottom)
+		content.add_theme_constant_override("separation", t.block_separation)
+	if title_label != null:
+		title_label.add_theme_font_size_override("font_size", t.font_title)
+		title_label.add_theme_color_override("font_color", t.accent_alt)
+	if subtitle_label != null:
+		subtitle_label.add_theme_font_size_override("font_size", t.font_subtitle)
+		subtitle_label.add_theme_color_override("font_color", t.text_secondary)
+	for heading in ["TracksLabel", "SetupsLabel"]:
+		var label := get_node_or_null("Content/Body/Left/" + heading) as Label
+		if label != null:
+			label.add_theme_font_size_override("font_size", t.font_section)
+			label.add_theme_color_override("font_color", t.accent_soft)
+	for button in [start_button, quit_button, controls_button]:
+		if button != null:
+			button.add_theme_font_size_override("font_size", t.font_button_small)
+	if start_button != null:
+		start_button.add_theme_stylebox_override("normal", t.start_button_style())
+		start_button.add_theme_stylebox_override("hover", t.start_button_style())
+		start_button.add_theme_stylebox_override("pressed", t.start_button_style())
+	if footer_label != null:
+		footer_label.add_theme_color_override("font_color", t.text_muted)
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_resolve_config()
+	_apply_theme()
+	# Тема Godot: базовые цвета/шрифты для всех вложенных контролов.
+	var native: Theme = Theme.new()
+	theme_cfg().apply_to(native)
+	theme = native
 	_restore_selection()
 	_build_buttons()
 	_build_conditions_ui()
@@ -110,14 +180,15 @@ func _build_buttons() -> void:
 			var track: TrackConfigType = config.get_track(i) as TrackConfigType
 			if track == null:
 				continue
+			var t := theme_cfg()
 			var button := Button.new()
 			button.name = "TrackButton_%d" % i
-			button.text = "F%d   %s" % [i + 1, track.display_name]
+			button.text = layout().track_button_format % [i + 1, track.display_name]
 			button.tooltip_text = track.description
 			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			button.custom_minimum_size = Vector2(0, 38)
+			button.custom_minimum_size = Vector2(0, t.track_button_height)
 			button.focus_mode = Control.FOCUS_ALL
-			button.add_theme_font_size_override("font_size", 17)
+			button.add_theme_font_size_override("font_size", t.font_button)
 			button.pressed.connect(_on_track_pressed.bind(i))
 			track_list.add_child(button)
 			track_buttons.append(button)
@@ -129,13 +200,14 @@ func _build_buttons() -> void:
 			var setup: CarSetupType = config.get_setup(i) as CarSetupType
 			if setup == null:
 				continue
+			var t := theme_cfg()
 			var button := Button.new()
 			button.name = "SetupButton_%d" % i
 			button.text = setup.display_name
 			button.tooltip_text = setup.description
-			button.custom_minimum_size = Vector2(0, 34)
+			button.custom_minimum_size = Vector2(0, t.setup_button_height)
 			button.focus_mode = Control.FOCUS_ALL
-			button.add_theme_font_size_override("font_size", 15)
+			button.add_theme_font_size_override("font_size", t.font_button_small)
 			button.pressed.connect(_on_setup_pressed.bind(i))
 			setup_list.add_child(button)
 			setup_buttons.append(button)
@@ -144,12 +216,13 @@ func _build_buttons() -> void:
 ## Кнопка-«чип» для погоды, профиля и сида: мышью и с клавиатуры
 ## (фокус кликом), а для геймпада есть горячие клавиши F6/F7/F8.
 func _make_choice_button(text: String, tip: String, action: Callable) -> Button:
+	var t := theme_cfg()
 	var button := Button.new()
 	button.text = text
 	button.tooltip_text = tip
-	button.custom_minimum_size = Vector2(0.0, 28.0)
+	button.custom_minimum_size = Vector2(0.0, t.chip_height)
 	button.focus_mode = Control.FOCUS_CLICK
-	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_font_size_override("font_size", t.font_chip)
 	button.pressed.connect(action)
 	return button
 
@@ -164,9 +237,11 @@ func _build_conditions_ui() -> void:
 	if _conditions_box != null:
 		_conditions_box.queue_free()
 		_conditions_box = null
+	var cfg := layout()
+	var t := theme_cfg()
 	var box := VBoxContainer.new()
 	box.name = "ConditionsBox"
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", t.chip_separation)
 	left.add_child(box)
 	var button_row := left.get_node_or_null("ButtonRow")
 	if button_row != null:
@@ -179,47 +254,39 @@ func _build_conditions_ui() -> void:
 	_seed_box.add_theme_constant_override("separation", 2)
 	box.add_child(_seed_box)
 	var seed_title := Label.new()
-	seed_title.text = "ЖИВАЯ ЛЕНТА · СИД ГЕНЕРАЦИИ"
-	seed_title.add_theme_color_override("font_color", Color(1.0, 0.62, 0.12, 1.0))
-	seed_title.add_theme_font_size_override("font_size", 15)
+	seed_title.text = cfg.seed_heading
+	seed_title.add_theme_color_override("font_color", t.accent_soft)
+	seed_title.add_theme_font_size_override("font_size", t.font_group)
 	_seed_box.add_child(seed_title)
 	var seed_row := HBoxContainer.new()
-	seed_row.add_theme_constant_override("separation", 6)
+	seed_row.add_theme_constant_override("separation", t.chip_separation + 2)
 	_seed_box.add_child(seed_row)
 	_seed_edit = LineEdit.new()
-	_seed_edit.custom_minimum_size = Vector2(104.0, 28.0)
+	_seed_edit.custom_minimum_size = Vector2(float(t.seed_field_width), float(t.chip_height))
 	_seed_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_seed_edit.tooltip_text = "Введите сид и нажмите «ПРИМЕНИТЬ» — трасса соберётся ровно по нему."
+	_seed_edit.tooltip_text = cfg.seed_field_tip
 	_seed_edit.text_submitted.connect(_on_seed_submitted)
 	seed_row.add_child(_seed_edit)
-	seed_row.add_child(_make_choice_button(
-		"ПРИМЕНИТЬ", "Собрать трассу по введённому сиду", _on_seed_apply_pressed
-	))
-	var reroll := _make_choice_button(
-		"ПЕРЕГЕНЕРИРОВАТЬ",
-		"Новая случайная трасса. Сид сохраняется — карту всегда можно вернуть.",
-		_on_seed_reroll_pressed
-	)
+	seed_row.add_child(_make_choice_button(cfg.apply_button, cfg.seed_apply_tip, _on_seed_apply_pressed))
+	var reroll := _make_choice_button(cfg.reroll_button, cfg.seed_reroll_tip, _on_seed_reroll_pressed)
 	reroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seed_row.add_child(reroll)
-	seed_row.add_child(_make_choice_button(
-		"КОПИЯ", "Скопировать сид в буфер обмена", _on_seed_copy_pressed
-	))
+	seed_row.add_child(_make_choice_button(cfg.copy_button, cfg.seed_copy_tip, _on_seed_copy_pressed))
 	_seed_status = Label.new()
-	_seed_status.add_theme_color_override("font_color", Color(0.55, 0.68, 0.78, 1.0))
-	_seed_status.add_theme_font_size_override("font_size", 11)
-	_seed_status.text = "Сид сохраняется в user://rally_conditions.cfg"
+	_seed_status.add_theme_color_override("font_color", t.text_muted)
+	_seed_status.add_theme_font_size_override("font_size", t.font_caption)
+	_seed_status.text = cfg.seed_hint
 	_seed_box.add_child(_seed_status)
 
 	# --- Погода ------------------------------------------------------------
 	var weather_title := Label.new()
-	weather_title.text = "ПОГОДА"
-	weather_title.add_theme_color_override("font_color", Color(1.0, 0.62, 0.12, 1.0))
-	weather_title.add_theme_font_size_override("font_size", 15)
+	weather_title.text = cfg.weather_heading
+	weather_title.add_theme_color_override("font_color", t.accent_soft)
+	weather_title.add_theme_font_size_override("font_size", t.font_group)
 	box.add_child(weather_title)
 	_weather_flow = HFlowContainer.new()
-	_weather_flow.add_theme_constant_override("h_separation", 4)
-	_weather_flow.add_theme_constant_override("v_separation", 4)
+	_weather_flow.add_theme_constant_override("h_separation", t.chip_separation)
+	_weather_flow.add_theme_constant_override("v_separation", t.chip_separation)
 	box.add_child(_weather_flow)
 	weather_buttons.clear()
 	for i in range(config.weather_count()):
@@ -234,13 +301,13 @@ func _build_conditions_ui() -> void:
 
 	# --- Характер трассы ---------------------------------------------------
 	var profile_title := Label.new()
-	profile_title.text = "ХАРАКТЕР ТРАССЫ"
-	profile_title.add_theme_color_override("font_color", Color(1.0, 0.62, 0.12, 1.0))
-	profile_title.add_theme_font_size_override("font_size", 15)
+	profile_title.text = cfg.profile_heading
+	profile_title.add_theme_color_override("font_color", t.accent_soft)
+	profile_title.add_theme_font_size_override("font_size", t.font_group)
 	box.add_child(profile_title)
 	_profile_flow = HFlowContainer.new()
-	_profile_flow.add_theme_constant_override("h_separation", 4)
-	_profile_flow.add_theme_constant_override("v_separation", 4)
+	_profile_flow.add_theme_constant_override("h_separation", t.chip_separation)
+	_profile_flow.add_theme_constant_override("v_separation", t.chip_separation)
 	box.add_child(_profile_flow)
 	profile_buttons.clear()
 	for i in range(config.profile_count()):
@@ -369,12 +436,12 @@ func _update_footer() -> void:
 		return
 	if controller_manager != null and bool(controller_manager.get("gamepad_active")) and controller_manager.has_method("get_glyphs"):
 		var glyphs: Dictionary = controller_manager.call("get_glyphs")
-		footer_label.text = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  погода и сид — мышью" % [
+		footer_label.text = layout().footer_gamepad % [
 			String(glyphs["dpad_up"]), String(glyphs["dpad_down"]),
 			String(glyphs["accept"]), String(glyphs["cancel"]),
 		]
 	else:
-		footer_label.text = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты».  Выбор сохраняется между заездами."
+		footer_label.text = layout().footer_keyboard
 
 
 ## Превью закончило плести процедурную трассу — длина стала точной.
@@ -392,22 +459,15 @@ func _refresh() -> void:
 	if subtitle_label != null:
 		subtitle_label.text = config.subtitle
 
+	var t := theme_cfg()
 	for i in range(track_buttons.size()):
-		track_buttons[i].modulate = (
-			Color(1.0, 0.62, 0.12) if i == selected_track else Color(0.86, 0.90, 0.94)
-		)
+		track_buttons[i].modulate = t.selection_color if i == selected_track else t.idle_color
 	for i in range(setup_buttons.size()):
-		setup_buttons[i].modulate = (
-			Color(1.0, 0.62, 0.12) if i == selected_setup else Color(0.86, 0.90, 0.94)
-		)
+		setup_buttons[i].modulate = t.selection_color if i == selected_setup else t.idle_color
 	for i in range(weather_buttons.size()):
-		weather_buttons[i].modulate = (
-			Color(1.0, 0.75, 0.25) if i == selected_weather else Color(0.82, 0.86, 0.90)
-		)
+		weather_buttons[i].modulate = t.condition_selected_color if i == selected_weather else t.condition_idle_color
 	for i in range(profile_buttons.size()):
-		profile_buttons[i].modulate = (
-			Color(1.0, 0.75, 0.25) if i == selected_profile else Color(0.82, 0.86, 0.90)
-		)
+		profile_buttons[i].modulate = t.condition_selected_color if i == selected_profile else t.condition_idle_color
 
 	var track: TrackConfigType = config.get_track(selected_track) as TrackConfigType
 	var setup: CarSetupType = config.get_setup(selected_setup) as CarSetupType
@@ -441,11 +501,11 @@ func _refresh() -> void:
 			var note: String = ""
 			if _is_conditions_modified(weather, profile):
 				note = "  •  %s" % _conditions_short(weather, profile)
-			best_label.text = "ЛУЧШЕЕ ВРЕМЯ%s:  %s" % [
+			best_label.text = layout().best_time_label % [
 				note, _format_time(best) if best > 0.0 else "—"
 			]
 		else:
-			best_label.text = "ЛУЧШЕЕ ВРЕМЯ:  —"
+			best_label.text = layout().best_time_empty
 	_update_dynamic_focus()
 
 
@@ -556,9 +616,9 @@ func _on_seed_reroll_pressed() -> void:
 	else:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
-		track.generation_seed = rng.randi_range(1, 999999999)
+		track.generation_seed = rng.randi_range(layout().seed_min_value, layout().seed_max_value)
 	if _seed_status != null:
-		_seed_status.text = "Новый сид %d сохранён — трасса переплетается" % track.generation_seed
+		_seed_status.text = layout().seed_status_new % track.generation_seed
 	_refresh()
 
 
@@ -573,19 +633,19 @@ func _on_seed_apply_pressed() -> void:
 	var text: String = _seed_edit.text.strip_edges()
 	if not text.is_valid_int():
 		if _seed_status != null:
-			_seed_status.text = "Сид — целое число от 1 до 999 999 999"
+			_seed_status.text = layout().seed_status_invalid
 		return
-	var value: int = clampi(text.to_int(), 1, 999999999)
+	var value: int = clampi(text.to_int(), layout().seed_min_value, layout().seed_max_value)
 	if value == track.generation_seed:
 		if _seed_status != null:
-			_seed_status.text = "Этот сид уже активен"
+			_seed_status.text = layout().seed_status_same
 		return
 	track.generation_seed = value
 	var game: Node = _get_game()
 	if game != null and game.has_method("remember_live_seed"):
 		game.call("remember_live_seed", track.id, value)
 	if _seed_status != null:
-		_seed_status.text = "Сид %d сохранён — эта трасса соберётся заново" % value
+		_seed_status.text = layout().seed_status_applied % value
 	_refresh()
 
 
@@ -595,7 +655,7 @@ func _on_seed_copy_pressed() -> void:
 		return
 	DisplayServer.clipboard_set(str(track.generation_seed))
 	if _seed_status != null:
-		_seed_status.text = "Сид %d скопирован" % track.generation_seed
+		_seed_status.text = layout().seed_status_copied % track.generation_seed
 
 
 ## Горячие клавиши меню: F1–F5 — трассы, F6 — погода, F7 — характер,
@@ -608,25 +668,21 @@ func _input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	match key.keycode:
-		KEY_F1:
-			_select_track_shortcut(0)
-		KEY_F2:
-			_select_track_shortcut(1)
-		KEY_F3:
-			_select_track_shortcut(2)
-		KEY_F4:
-			_select_track_shortcut(3)
-		KEY_F5:
-			_select_track_shortcut(4)
-		KEY_F6:
-			_cycle_choice(true)
-		KEY_F7:
-			_cycle_choice(false)
-		KEY_F8:
-			_on_seed_reroll_pressed()
-		_:
-			return
+	var cfg := layout()
+	var code: int = key.keycode
+	# Горячие клавиши трасс: F1..F1+track_hotkey_count (число — из инспектора).
+	if code >= KEY_F1 and code < KEY_F1 + cfg.track_hotkey_count:
+		_select_track_shortcut(code - KEY_F1)
+		get_viewport().set_input_as_handled()
+		return
+	if code == cfg.hotkey_weather:
+		_cycle_choice(true)
+	elif code == cfg.hotkey_profile:
+		_cycle_choice(false)
+	elif code == cfg.hotkey_reroll:
+		_on_seed_reroll_pressed()
+	else:
+		return
 	get_viewport().set_input_as_handled()
 
 
