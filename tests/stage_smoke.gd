@@ -3,6 +3,8 @@
 extends SceneTree
 
 const CarScript = preload("res://scripts/rally_car.gd")
+const Rain = preload("res://data/weather/weather_rain.tres")
+const Snow = preload("res://data/weather/weather_snow.tres")
 
 
 func _initialize() -> void:
@@ -29,6 +31,27 @@ func _run() -> void:
 
 	var road := stage.get_node_or_null("Generated/RoadMesh") as MeshInstance3D
 	var car = stage.get_node("RallyCar")
+	var precipitation: Vector2 = stage._precipitation_levels()
+	if not is_equal_approx(car.precipitation_rain, precipitation.x) or not is_equal_approx(car.precipitation_snow, precipitation.y):
+		printerr("FAIL: интенсивность погоды не передана машине")
+		stage.queue_free()
+		await process_frame
+		quit(1)
+		return
+	# Настоящая конфигурация этапа должна передавать каждый тип осадков машине.
+	var original_weather = stage.weather
+	for preset in [Rain, Snow]:
+		stage.weather = preset
+		stage._configure_car()
+		var levels: Vector2 = stage._precipitation_levels()
+		if not is_equal_approx(car.precipitation_rain, levels.x) or not is_equal_approx(car.precipitation_snow, levels.y):
+			printerr("FAIL: этап не передал машине тип и интенсивность осадков")
+			stage.queue_free()
+			await process_frame
+			quit(1)
+			return
+	stage.weather = original_weather
+	stage._configure_car()
 	# Видимые полосы и физика привязаны к километражу и стороне дороги.
 	var offset: float = minf(stage.track.road_half_width * 0.45, 1.5)
 	var d := 160.0

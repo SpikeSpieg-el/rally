@@ -120,12 +120,13 @@ func _check_effect_order() -> void:
 	stage.track.enable_speed_fx = false
 	stage.weather = Rain
 	stage._setup_world_effects()
-	var weather_rect := hud.get_node_or_null("WeatherMotionRect") as ColorRect
+	var weather_rect := hud.get_node_or_null("WeatherMotionRect")
 	var effect_rect := hud.get_node_or_null("SpeedShaderRect") as ColorRect
-	_check(weather_rect != null and effect_rect != null, "дождь и экранный эффект должны создаваться")
-	if weather_rect != null and effect_rect != null:
-		_check(weather_rect.get_index() < effect_rect.get_index() and effect_rect.get_index() < ui.get_index(), "осадки должны быть под PS1-эффектом, HUD — над ним")
-		_check(weather_rect.mouse_filter == Control.MOUSE_FILTER_IGNORE and effect_rect.mouse_filter == Control.MOUSE_FILTER_IGNORE, "эффекты не должны перехватывать мышь")
+	_check(weather_rect == null, "осадки не должны рисоваться поверх экрана")
+	_check(effect_rect != null, "экранный PS1-эффект должен создаваться")
+	if effect_rect != null:
+		_check(effect_rect.get_index() < ui.get_index(), "HUD должен находиться над PS1-эффектом")
+		_check(effect_rect.mouse_filter == Control.MOUSE_FILTER_IGNORE, "эффект не должен перехватывать мышь")
 		_check(is_equal_approx(float(stage.speed_fx_material.get_shader_parameter("retro_strength")), 1.0), "выключение скорости не должно выключать PS1")
 	stage.free()
 	hud.free()

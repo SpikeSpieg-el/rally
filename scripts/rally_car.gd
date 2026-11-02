@@ -137,6 +137,8 @@ var track_offroad_grip: float = 0.6
 var tire_marks: Node = null
 const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
 var surface_effects: SurfaceEffectsType = null
+var precipitation_rain: float = 0.0
+var precipitation_snow: float = 0.0
 var reset_provider: Callable = Callable()
 
 ## Нижняя граница падения в мировых координатах. Сцена заезда может
@@ -617,7 +619,7 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(tire_marks):
 		tire_marks.call("update_wheels", wheel_array, linear_velocity.length())
 		if is_instance_valid(surface_effects):
-			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta)
+			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta, precipitation_rain, precipitation_snow)
 
 	_update_cameras(delta)
 
@@ -629,6 +631,12 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < fall_limit:
 		reset_to_spawn()
 
+
+
+## Интенсивность осадков отдельно от влажности/покрова дороги.
+func set_precipitation(rain: float, snow: float) -> void:
+	precipitation_rain = clampf(rain, 0.0, 1.0)
+	precipitation_snow = clampf(snow, 0.0, 1.0)
 
 
 func _update_driving_feedback(controller: Node) -> void:
