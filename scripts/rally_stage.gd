@@ -40,7 +40,6 @@ const RockTexture = preload("res://textures/environment/rock.png")
 const BarkTexture = preload("res://textures/environment/bark.png")
 const SpeedShader = preload("res://shaders/speed_fx.gdshader")
 const Ps1Materials = preload("res://scripts/ps1_materials.gd")
-const WeatherMotionShader = preload("res://shaders/weather_motion.gdshader")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 
@@ -66,8 +65,6 @@ const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 @export_range(0.0, 1.0, 0.05) var retro_vertex_snap: float = 0.15
 ## Общая интенсивность скоростного размытия и виньетки.
 @export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
-## Насыщенность ближнего слоя дождя/снега на скорости.
-@export_range(0.0, 2.0, 0.05) var weather_motion_strength: float = 1.0
 ## Плотность мировых частиц осадков (относительно пресета погоды).
 @export_range(0.1, 2.0, 0.1) var precipitation_density: float = 1.0
 
@@ -107,8 +104,6 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
-var weather_motion_material: ShaderMaterial = null
-var _weather_phase: float = 0.0
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
 ## Условия уже наложены на копию трассы: повторный _resolve_track не должен
@@ -1703,68 +1698,97 @@ func _effective_fog_color() -> Color:
 	return track.fog_color.lerp(weather.fog_color, weather.fog_color_strength)
 
 
-## Осадки — настоящие частицы вокруг машины, а не «плёночный» фильтр:
-## кубик эмиссии едет за автомобилем, сами частицы живут в мировых
-## координатах, поэтому дождь не «прилипает» к камере.
+## Осадки существуют в мире: генератор обновляет только область рождения,
+## частицы не наследуют движение машины и закрываются геометрией сцены.
+static func precipitation_anchor(position: Vector3, velocity: Vector3) -> Vector3:
+	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(50.0) * 0.35
+	var center := position + lead
+	# Перемещение области порциями не двигает уже существующие частицы.
+	return Vector3(roundf(center.x / 8.0) * 8.0, position.y + 11.0, roundf(center.z / 8.0) * 8.0)
+
+
 func _setup_precipitation() -> void:
 	if _weather_particles != null:
 		_weather_particles.queue_free()
 		_weather_particles = null
 	if weather == null or not weather.has_precipitation():
 		return
-	# В headless (тесты, выделенный сервер) частицы не нужны.
 	if DisplayServer.get_name() == "headless":
 		return
+	var particles := _make_precipitation_particles()
+	add_child(particles)
+	if car != null:
+		particles.global_position = precipitation_anchor(car.global_position, car.linear_velocity)
+	particles.emitting = true
+	_weather_particles = particles
+
+
+## Отдельная фабрика позволяет проверять параметры без GPU и headless-рендера.
+func _make_precipitation_particles() -> GPUParticles3D:
 	var intensity: float = clampf(weather.precipitation_intensity, 0.0, 1.0)
+	var is_rain: bool = weather.precipitation == WeatherType.Precipitation.RAIN
 	var particles := GPUParticles3D.new()
 	particles.name = "WeatherParticles"
-	# Пауза останавливает и дождь: иначе капли «висят» над машиной в паузе.
 	particles.process_mode = Node.PROCESS_MODE_PAUSABLE
-	particles.amount = maxi(1, int(lerpf(700.0, 2600.0, intensity) * precipitation_density))
-	particles.lifetime = 2.4
-	particles.preprocess = 2.0
+	particles.emitting = false
+	particles.amount = maxi(1, int(lerpf(700.0, 2400.0, intensity) * precipitation_density))
+	particles.lifetime = 1.15 if is_rain else 4.0
+	particles.preprocess = minf(particles.lifetime, 2.0)
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	particles.visibility_aabb = AABB(Vector3(-80.0, -40.0, -80.0), Vector3(160.0, 90.0, 160.0))
+	particles.visibility_aabb = AABB(Vector3(-90.0, -65.0, -90.0), Vector3(180.0, 115.0, 180.0))
 	var particle_material := ParticleProcessMaterial.new()
 	particle_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	particle_material.emission_box_extents = Vector3(28.0, 10.0, 28.0)
-	# Ветер сносит осадки в сторону — дождь идёт «по косой».
+	particle_material.emission_box_extents = Vector3(32.0, 9.0, 32.0)
 	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
 	var quad := QuadMesh.new()
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if weather.precipitation == WeatherType.Precipitation.RAIN:
-		particle_material.direction = (Vector3.DOWN + wind.normalized() * 0.15).normalized()
+	material.billboard_keep_scale = true
+	if is_rain:
+		particle_material.direction = (Vector3.DOWN + wind * 0.008).normalized()
 		particle_material.spread = 3.0
-		particle_material.initial_velocity_min = 26.0
-		particle_material.initial_velocity_max = 34.0
-		particle_material.gravity = Vector3(0.0, -30.0, 0.0)
+		particle_material.initial_velocity_min = 21.0
+		particle_material.initial_velocity_max = 29.0
+		particle_material.gravity = Vector3(0.0, -12.0, 0.0)
 		particle_material.scale_min = 0.7
-		particle_material.scale_max = 1.3
-		quad.size = Vector2(0.028, 0.55)
-		material.albedo_color = Color(0.72, 0.82, 0.95, 0.45)
+		particle_material.scale_max = 1.25
+		quad.size = Vector2(0.02, 0.4)
+		# Вертикаль привязана к миру, а не к экрану/наклону камеры.
+		material.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		material.albedo_color = Color(0.70, 0.79, 0.9, 0.38)
 	else:
-		particle_material.direction = (Vector3.DOWN + wind.normalized() * 0.4).normalized()
+		particle_material.direction = (Vector3.DOWN + wind * 0.025).normalized()
 		particle_material.spread = 25.0
 		particle_material.initial_velocity_min = 1.2
 		particle_material.initial_velocity_max = 3.0
-		particle_material.gravity = Vector3(wind.x * 0.25, -1.6, wind.z * 0.25)
+		particle_material.gravity = Vector3(wind.x * 0.10, -1.6, wind.z * 0.10)
 		particle_material.scale_min = 0.6
-		particle_material.scale_max = 1.8
-		quad.size = Vector2(0.09, 0.09)
-		material.albedo_color = Color(0.96, 0.98, 1.0, 0.85)
+		particle_material.scale_max = 1.6
+		quad.size = Vector2(0.07, 0.07)
+		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		material.albedo_color = Color(0.94, 0.97, 1.0, 0.72)
 	quad.material = material
 	particles.process_material = particle_material
 	particles.draw_pass_1 = quad
-	add_child(particles)
-	_weather_particles = particles
+	return particles
 
 
 # ---------------------------------------------------------------- машина
+
+
+## Отдельно от мокрой или заснеженной дороги: осадки могут уже закончиться.
+func _precipitation_levels() -> Vector2:
+	if weather == null or not weather.has_precipitation():
+		return Vector2.ZERO
+	var intensity: float = clampf(weather.precipitation_intensity, 0.0, 1.0)
+	if weather.precipitation == WeatherType.Precipitation.RAIN:
+		return Vector2(intensity, 0.0)
+	if weather.precipitation == WeatherType.Precipitation.SNOW:
+		return Vector2(0.0, intensity)
+	return Vector2.ZERO
 
 
 func _configure_car() -> void:
@@ -1773,6 +1797,8 @@ func _configure_car() -> void:
 		push_warning("RallyStage: узел RallyCar не найден.")
 		return
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
+	var precipitation := _precipitation_levels()
+	car.set_precipitation(precipitation.x, precipitation.y)
 	car.apply_track_grip(track.grip_scale, track.rolling_resistance_scale, track.offroad_grip)
 	car.spawn_transform = _make_spawn_transform()
 	car.reset_to_spawn()
@@ -1832,7 +1858,7 @@ func _hud_node(path: String) -> Node:
 	return hud.get_node_or_null(path)
 
 
-## Постобработка 3D и осадков до отрисовки интерфейса.
+## Постобработка 3D до отрисовки интерфейса.
 func _setup_world_effects() -> void:
 	# Эффекты мира под HUD: PS1-стилизация и размытие скорости независимы.
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
@@ -1855,19 +1881,6 @@ func _setup_world_effects() -> void:
 			track.color_banding, track.dither_fog
 		)
 
-	if weather != null and weather.has_precipitation():
-		var weather_rect := ColorRect.new()
-		weather_rect.name = "WeatherMotionRect"
-		weather_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		hud.add_child(weather_rect)
-		weather_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		# Дождь тоже проходит через пиксельную палитру, но HUD рисуется позже.
-		hud.move_child(weather_rect, 0)
-		weather_motion_material = ShaderMaterial.new()
-		weather_motion_material.shader = WeatherMotionShader
-		weather_motion_material.set_shader_parameter("weather_intensity", clampf(weather.precipitation_intensity * weather_motion_strength, 0.0, 1.0))
-		weather_motion_material.set_shader_parameter("is_snow", 1.0 if weather.precipitation == WeatherType.Precipitation.SNOW else 0.0)
-		weather_rect.material = weather_motion_material
 
 
 func _setup_hud() -> void:
@@ -2121,13 +2134,10 @@ func _process(delta: float) -> void:
 	if not _stage_live:
 		# Идёт генерация мира (экран загрузки): машину и HUD не трогаем.
 		return
-	# Осадки летят вокруг машины: эмиттер над капотом, частицы — в мире.
-	if _weather_particles != null and car != null:
-		# На скорости генератор смотрит вперёд по фактической скорости, а не
-		# по направлению кузова: во время заноса перед камерой нет пустоты.
-		var lead: Vector3 = car.linear_velocity * 0.35
-		lead.y = 0.0
-		_weather_particles.global_position = car.global_position + lead.limit_length(18.0) + Vector3(0.0, 12.0, 0.0)
+	# Меняем только место рождения новых капель. Уже выпавшие частицы
+	# остаются в мировых координатах и не перемещаются вместе с машиной.
+	if _weather_particles != null and car != null and not get_tree().paused:
+		_weather_particles.global_position = precipitation_anchor(car.global_position, car.linear_velocity)
 	# Во время переназначения и в кадре закрытия клавиша паузы не должна
 	# закрывать саму паузу или запускать повторно назначенное действие.
 	if input_settings != null and input_settings.blocks_actions():
@@ -2160,19 +2170,6 @@ func _process(delta: float) -> void:
 	if speed_fx_material != null:
 		var intensity: float = clampf((speed - 65.0) / 115.0 * speed_effect_strength, 0.0, 1.0) if track.enable_speed_fx else 0.0
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
-	if weather_motion_material != null and car != null:
-		var motion: float = smoothstep(20.0, 120.0, speed)
-		_weather_phase += delta * lerpf(2.0, 13.0, motion)
-		# Скорость проецируем в систему активной камеры: вид с капота,
-		# кабины, камеры сзади и боковой занос работают одинаково.
-		var camera: Camera3D = car.active_camera
-		var sideways: float = 0.0
-		if camera != null:
-			var camera_velocity: Vector3 = camera.global_basis.inverse() * car.linear_velocity
-			sideways = clampf(-camera_velocity.x / 25.0, -1.5, 1.5)
-		weather_motion_material.set_shader_parameter("flow", Vector2(sideways, 1.0))
-		weather_motion_material.set_shader_parameter("phase", _weather_phase)
-		weather_motion_material.set_shader_parameter("speed_intensity", motion)
 	_frame_delta = delta
 	_update_hud()
 
