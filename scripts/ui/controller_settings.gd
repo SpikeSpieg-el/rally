@@ -117,6 +117,7 @@ func _build() -> void:
 
 
 func _add_slider_row(row_name: String, caption: String, minimum: float, maximum: float, step: float, value: float, suffix: String) -> HSlider:
+	var t := theme_cfg()
 	var row := HBoxContainer.new()
 	row.name = row_name
 	row.custom_minimum_size = Vector2(0.0, t.controller_row_height)
