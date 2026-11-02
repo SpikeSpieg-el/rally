@@ -18,7 +18,7 @@
 friction = 0.05
 
 [sub_resource type="ConvexPolygonShape3D" id="ChassisShape"]
-points = PackedVector3Array(-0.82, 0.38, -2.15, 0.82, 0.38, -2.15, -0.82, 0.38, 2.32, 0.82, 0.38, 2.32, -1.16, 0.60, -2.48, 1.16, 0.60, -2.48, -1.18, 0.60, 2.84, 1.18, 0.60, 2.84, -1.16, 1.15, -2.48, 1.16, 1.15, -2.48, -1.18, 1.15, 2.84, 1.18, 1.15, 2.84, -1.05, 1.82, -1.05, 1.05, 1.82, -1.05, -1.05, 1.82, 1.35, 1.05, 1.82, 1.35)
+points = PackedVector3Array(-0.82, 0.38, -2.15, 0.82, 0.38, -2.15, -0.82, 0.38, 2.32, 0.82, 0.38, 2.32, -1.16, 0.6, -2.48, 1.16, 0.6, -2.48, -1.13, 0.6, 2.84, 1.18, 0.6, 2.84, -1.16, 1.15, -2.48, 1.16, 1.15, -2.48, -1.025, 1.15, 2.84, 1.085, 1.03, 2.84, -0.805, 1.82, -1.05, 0.775, 1.82, -1.05, -0.71, 1.82, 0.625, 0.71, 1.82, 0.61)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cavtd"]
 albedo_texture = ExtResource("4_finkb")
@@ -1004,8 +1004,10 @@ front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
 rear_right_wheel = NodePath("Wheel_RR")
 
-[node name="BodyCollider" type="CollisionShape3D" parent="."]
+[node name="BodyCollider" type="CollisionShape3D" parent="." unique_id=1939036507]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.034230113, -0.002810359, -0.15010941)
 shape = SubResource("ChassisShape")
+debug_color = Color(0.6124948, 0.9217684, 0.9999996, 0.41960785)
 
 [node name="Wheel_FL" type="RayCast3D" parent="." unique_id=1481303125 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.51, 1.905)
