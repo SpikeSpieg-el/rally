@@ -62,7 +62,7 @@ func theme_cfg() -> UiThemeType:
 	if ui_theme == null:
 		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
 			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
-		if theme == null:
+		if ui_theme == null:
 			ui_theme = UiThemeType.new()
 	return ui_theme
 
@@ -79,7 +79,7 @@ func layout() -> MenuLayoutType:
 ## Применить палитру и шрифты меню к настоящей сцене (а не копии стилей):
 ## заголовки, акцентная полоса, подписи и кнопки остаются узлами.
 func _apply_theme() -> void:
-	var t := theme_cfg()
+	var t: UiThemeType = theme_cfg()
 	var background := get_node_or_null("Background") as ColorRect
 	if background != null:
 		background.color = t.background

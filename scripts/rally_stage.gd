@@ -2072,28 +2072,6 @@ func _make_spawn_transform() -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
 
 
-func _rescue_transform() -> Transform3D:
-	if network == null:
-		return _make_spawn_transform()
-	var here: Vector2 = Vector2(car.global_position.x, car.global_position.z)
-	var along: float = clampf(network.along_road(here.x, here.y), 8.0, network.total_length - 8.0)
-	var point: Vector3 = network.point_at(along)
-	var dir: Vector3 = network.direction_at(along)
-	var y: float = height_at(point.x, point.z) + (car.get_spawn_height_offset() + 0.12)
-	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
-
-
-func _make_spawn_transform() -> Transform3D:
-	var point: Vector3 = network.point_at(14.0)
-	var dir: Vector3 = network.direction_at(14.0)
-	var height_offset: float = 0.15
-	if car != null:
-		height_offset = car.get_spawn_height_offset() + 0.12
-	var y: float = height_at(point.x, point.z) + height_offset
-	# В проекте forward машины — basis.z (модель смотрит в +Z).
-	return Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z))
-
-
 # ---------------------------------------------------------------- HUD
 # Разметка HUD живёт в scenes/ui/rally_hud.tscn (инстанс «RallyHUD» внутри
 # CanvasLayer «HUD» в rally_stage.tscn). Панели, подписи, шкалы, модалки и
