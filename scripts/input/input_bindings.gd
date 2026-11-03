@@ -24,6 +24,8 @@ const ACTIONS := [
 	{"id":"camera_look_down", "label":"Взгляд вниз"},
 	{"id":"drivetrain_switch", "label":"Сменить привод"},
 	{"id":"reset_car", "label":"Вернуть машину"},
+	{"id":"radio_next", "label":"Следующий трек"},
+	{"id":"radio_toggle", "label":"Радио вкл/выкл"},
 	{"id":"pause", "label":"Пауза"},
 ]
 

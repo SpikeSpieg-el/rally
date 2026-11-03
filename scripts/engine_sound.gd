@@ -49,6 +49,9 @@ const MIN_SWITCH_INTERVAL := 0.12
 const PITCH_SLEW := 1.2
 ## На сколько дБ приглушается двигатель при переключении передачи.
 const SHIFT_DUCK_DB := 2.5
+## Как быстро машина уступает место музыке и возвращает громкость, когда
+## радио выключено. Плавно, без «дыхания» ограничителя на каждом треке.
+const MUSIC_DUCK_RESPONSE := 3.0
 ## Сколько одновременных одиночных звуков (хлопки, сброс турбины, передача).
 const EVENT_SLOTS := 8
 ## Пауза перед повторным хлопком в выхлопе, с.
@@ -73,20 +76,24 @@ class EngineBank:
 
 @export_group("Громкость")
 @export var enabled: bool = true
-## Общая громкость звука машины, дБ.
-@export var master_volume_db: float = -2.0
-@export var engine_volume_db: float = -3.0
-@export var road_volume_db: float = -14.0
-@export var wind_volume_db: float = -23.0
-@export var events_volume_db: float = -2.0
+## Общая громкость звука машины, дБ. Запас до 0 dBFS оставлен под музыку:
+## в кабине двигатель, гравий, ветер и радио больше не складываются в пики.
+@export var master_volume_db: float = -3.0
+@export var engine_volume_db: float = -5.0
+@export var road_volume_db: float = -16.0
+@export var wind_volume_db: float = -24.0
+@export var events_volume_db: float = -4.0
+## Мягкий ducking машины, пока играет радио. Ноль — выключить подавление.
+@export_range(-8.0, 0.0, 0.1) var music_duck_db: float = -3.0
 
 @export_group("Вид камеры")
-## В кабине двигатель слышно ближе и громче.
-@export var cockpit_engine_boost_db: float = 0.0
-@export var cockpit_road_boost_db: float = 5.0
-@export var cockpit_wind_boost_db: float = 4.0
-## Вид сзади — наоборот, двигатель приглушён.
-@export var chase_engine_boost_db: float = 0.0
+## В кабине мотор рядом, поэтому усиление больше не нужно: избыточный
+## «близкий» звук был главной причиной перегруза и хрипа от первого лица.
+@export var cockpit_engine_boost_db: float = -1.0
+@export var cockpit_road_boost_db: float = 1.0
+@export var cockpit_wind_boost_db: float = 0.0
+## Вид сзади компенсирует общий запас громкости, оставаясь тише кабины.
+@export var chase_engine_boost_db: float = 1.0
 
 @export_group("Расстояние")
 ## Радиус источника звука, м. Меньше — тише на расстоянии.
@@ -120,12 +127,15 @@ var _boost: float = 0.0
 var _pop_cooldown: float = 0.0
 var _bov_cooldown: float = 0.0
 var _duck: float = 0.0
+var _music_duck: float = 0.0
 var _muted: bool = false
+var _radio_node: Node = null
 
 @onready var car: CarType = get_parent() as CarType
 
 
 func _ready() -> void:
+	_radio_node = get_node_or_null("/root/RallyRadio")
 	# Без звукового устройства (headless, CI) игра работает, но молчит.
 	if DisplayServer.get_name() == "headless" or AudioServer.get_driver_name() == "Dummy":
 		return
@@ -246,6 +256,8 @@ func _build_players() -> void:
 func _make_player(node_name: String) -> AudioStreamPlayer3D:
 	var player := AudioStreamPlayer3D.new()
 	player.name = node_name
+	# Шина Vehicle отделена от Music: свой лимитер и запас по громкости.
+	player.bus = "Vehicle" if AudioServer.get_bus_index("Vehicle") >= 0 else "Master"
 	player.unit_size = unit_size
 	player.max_distance = max_distance
 	# Затухание по квадрату расстояния: из кабины мотор слышно близко,
@@ -273,6 +285,12 @@ func _process(delta: float) -> void:
 		return
 	_mute(false)
 
+	# Пока звучит радио, машина чуть уступает ему место в середине микса.
+	# Переход плавный: никакого резкого провала при включении трека.
+	var duck_target := music_duck_db if _radio_is_playing() else 0.0
+	_music_duck = lerpf(_music_duck, duck_target,
+		clampf(delta * MUSIC_DUCK_RESPONSE, 0.0, 1.0))
+
 	var rpm: float = clampf(car.current_rpm, 0.0, 9000.0)
 	var throttle: float = clampf(car.throttle_input, 0.0, 1.0)
 	var speed: float = maxf(car.speed_kmh, 0.0)
@@ -292,6 +310,11 @@ func _process(delta: float) -> void:
 	_update_road(speed)
 	_update_wind(speed)
 	_update_events(rpm, throttle, delta)
+
+
+func _radio_is_playing() -> bool:
+	return (_radio_node != null and _radio_node.has_method("is_playing")
+		and bool(_radio_node.call("is_playing")))
 
 
 func _mute(muted: bool) -> void:
@@ -327,7 +350,8 @@ func _update_engine(rpm: float, delta: float) -> void:
 	var gains := {"light": sqrt(1.0 - _load), "full": sqrt(_load)}
 	# Правка камеры задана в децибелах, поэтому её нельзя умножать на
 	# линейную громкость — только складывать.
-	var camera_db := _camera_engine_gain() - SHIFT_DUCK_DB * _duck
+	var camera_db := (_camera_engine_gain() + _music_duck
+		- SHIFT_DUCK_DB * _duck)
 	for bank in _banks:
 		var gain: float = float(gains.get(bank.bank_name, 0.0))
 		_update_bank(bank, index, rpm, gain, camera_db, delta)
@@ -480,7 +504,7 @@ func _update_road(speed: float) -> void:
 		amount = 0.0
 	var gain: float = amount * amount * (0.45 + 0.55 * clampf(speed / 120.0, 0.0, 1.0))
 	_road_player.volume_db = (_to_db(gain) + master_volume_db + road_volume_db
-		+ _camera_road_gain())
+		+ _camera_road_gain() + _music_duck * 0.55)
 	_road_player.pitch_scale = clampf(0.75 + speed / 110.0, 0.6, 2.2)
 
 
@@ -490,7 +514,7 @@ func _update_wind(speed: float) -> void:
 	var amount: float = clampf(speed / 130.0, 0.0, 1.0)
 	var gain: float = amount * amount
 	_wind_player.volume_db = (_to_db(gain) + master_volume_db + wind_volume_db
-		+ _camera_wind_gain())
+		+ _camera_wind_gain() + _music_duck * 0.45)
 	_wind_player.pitch_scale = clampf(0.8 + speed / 160.0, 0.6, 2.2)
 
 
@@ -545,7 +569,8 @@ func _play_event(stream: AudioStream, volume: float, pitch_jitter: float = 0.0) 
 		if player == null or player.playing:
 			continue
 		player.stream = stream
-		player.volume_db = master_volume_db + events_volume_db + _to_db(volume)
+		player.volume_db = (master_volume_db + events_volume_db + _to_db(volume)
+			+ _music_duck * 0.25)
 		player.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
 		player.play()
 		return

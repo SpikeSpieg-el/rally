@@ -357,9 +357,12 @@ func start_race() -> void:
 	if current_track != null:
 		track_name = current_track.get("display_name")
 	begin_loading(track_name)
-	# Пара кадров, чтобы экран загрузки успел отрисоваться ПЕРЕД тяжёлым
-	# _ready() сцены этапа: иначе пользователь видел бы застывшее меню.
-	await get_tree().process_frame
+	# Ждём, пока затемнение полностью перекроет меню: сцена этапа не должна
+	# «протекать» сквозь старый экран во время генерации трассы.
+	var token := _loading_fade_token
+	await get_tree().create_timer(0.22, true).timeout
+	if token != _loading_fade_token:
+		return
 	await get_tree().process_frame
 	var scene_path: String = config.stage_scene if config != null and not config.stage_scene.is_empty() else "res://scenes/rally_stage.tscn"
 	call_deferred("_change_scene", scene_path)
@@ -395,10 +398,14 @@ func _change_scene(scene_path: String) -> void:
 ## Экран загрузки живёт на этом autoload, поэтому переживает смену сцены:
 ## его видно и между меню и заездом, пока мир этапа генерируется по кадрам.
 var _loading_root: CanvasLayer = null
+var _loading_backdrop: ColorRect = null
+var _loading_center: CenterContainer = null
 var _loading_title: Label = null
 var _loading_track: Label = null
 var _loading_status: Label = null
 var _loading_bar: ProgressBar = null
+var _loading_tween: Tween = null
+var _loading_fade_token: int = 0
 
 
 func _build_loading_screen() -> void:
@@ -410,10 +417,12 @@ func _build_loading_screen() -> void:
 	backdrop.color = Color(0.012, 0.022, 0.032, 1.0)
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(backdrop)
+	_loading_backdrop = backdrop
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(center)
+	_loading_center = center
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
@@ -488,14 +497,30 @@ func _build_loading_screen() -> void:
 	add_child(_loading_root)
 
 
+func _kill_loading_tween() -> void:
+	if _loading_tween != null and _loading_tween.is_running():
+		_loading_tween.kill()
+	_loading_tween = null
+
+
 func begin_loading(track_name: String = "") -> void:
 	if _loading_root == null:
 		_build_loading_screen()
+	_kill_loading_tween()
+	_loading_fade_token += 1
 	get_tree().paused = false
 	_loading_root.visible = true
+	if _loading_backdrop != null:
+		_loading_backdrop.modulate.a = 0.0
+	if _loading_center != null:
+		_loading_center.modulate.a = 0.0
 	if _loading_track != null:
 		_loading_track.text = String(track_name).to_upper()
 	set_loading_progress(0.0, "Подготовка данных трассы…")
+	if _loading_backdrop != null and _loading_center != null:
+		_loading_tween = create_tween().set_parallel(true)
+		_loading_tween.tween_property(_loading_backdrop, "modulate:a", 1.0, 0.22)
+		_loading_tween.tween_property(_loading_center, "modulate:a", 1.0, 0.22)
 
 
 func set_loading_progress(value: float, status: String) -> void:
@@ -511,5 +536,22 @@ func set_loading_progress(value: float, status: String) -> void:
 
 
 func finish_loading() -> void:
+	if _loading_root == null or not _loading_root.visible:
+		return
+	_kill_loading_tween()
+	_loading_fade_token += 1
+	var token := _loading_fade_token
+	if _loading_backdrop != null and _loading_center != null:
+		_loading_tween = create_tween().set_parallel(true)
+		_loading_tween.tween_property(_loading_backdrop, "modulate:a", 0.0, 0.24)
+		_loading_tween.tween_property(_loading_center, "modulate:a", 0.0, 0.24)
+		await get_tree().create_timer(0.24, true).timeout
+		# Пока экран угасал, мог начаться новый заезд: не гасим свежий слой.
+		if token != _loading_fade_token or _loading_root == null:
+			return
 	if _loading_root != null:
 		_loading_root.visible = false
+		if _loading_backdrop != null:
+			_loading_backdrop.modulate.a = 1.0
+		if _loading_center != null:
+			_loading_center.modulate.a = 1.0

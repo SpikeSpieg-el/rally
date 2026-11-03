@@ -219,6 +219,23 @@ func _run() -> void:
 	_check(bus_text.contains("AudioEffectLimiter"),
 		"в раскладке шины должен быть AudioEffectLimiter")
 
+	# 9а. Радио и машина сведены раздельно: в кабине нет прежнего перегруза,
+	#     а при звучащей музыке двигатель мягко уступает ей место.
+	_check(float(sound.master_volume_db) + float(sound.engine_volume_db) <= -6.0,
+		"общий запас громкости двигателя должен быть не менее 6 дБ")
+	_check(float(sound.cockpit_road_boost_db) <= 2.0,
+		"буст гравия в кабине больше не должен забивать микс")
+	_check(float(sound.cockpit_wind_boost_db) <= 1.0,
+		"буст ветра в кабине больше не должен забивать микс")
+	_check(float(sound.music_duck_db) < 0.0,
+		"двигатель должен мягко уступать место радио")
+	_check(sound.has_method("_radio_is_playing"),
+		"нет проверки активности радио для ducking")
+	_check(bus_text.contains("bus/1/name = &\"Music\""),
+		"музыка должна идти через отдельную шину Music")
+	_check(bus_text.contains("bus/2/name = &\"Vehicle\""),
+		"звуки машины должны идти через отдельную шину Vehicle")
+
 	# 10. Машина содержит узел звука с нужным скриптом.
 	var car := CarScene.instantiate()
 	var audio_node := car.get_node_or_null("EngineAudio")

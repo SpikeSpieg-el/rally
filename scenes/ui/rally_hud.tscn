@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://cjphdxoxbefkd" path="res://scripts/ui/gauge_bar.gd" id="2_gauge"]
 [ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 [ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
+[ext_resource type="Script" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 14.0
@@ -186,6 +187,18 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.78, 0.88, 0.85)
 theme_override_font_sizes/font_size = 11
 text = "СУ-1 • ГРАВИЙ"
+
+[node name="RadioCard" type="PanelContainer" parent="." unique_id=1918032755]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 84.0
+offset_right = 360.0
+offset_bottom = 184.0
+mouse_filter = 2
+script = ExtResource("5_radio")
+compact = true
+show_controls = false
+station_override = ""
 
 [node name="TimerPanel" type="PanelContainer" parent="." unique_id=766970301]
 layout_mode = 1
@@ -725,7 +738,7 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 0.8)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("SB_hint")
-text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [ESC] ПАУЗА"
+text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИК  •  [C] КАМЕРА  •  [V] ПРИВОД  •  [R] СБРОС  •  [N] ТРЕК  •  [M] RADIO  •  [ESC] ПАУЗА"
 horizontal_alignment = 1
 vertical_alignment = 2
 autowrap_mode = 3

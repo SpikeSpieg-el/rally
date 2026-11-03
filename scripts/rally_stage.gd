@@ -2250,6 +2250,10 @@ func _update_input_hint() -> void:
 	if car != null and car.manual_clutch_control:
 		hint_label.text += "  •  [%s] СЦЕПЛЕНИЕ" % label.call("clutch")
 	hint_label.text += "  •  [%s] КАМЕРА  •  [%s] ПАУЗА" % [label.call("camera_switch"), label.call("pause")]
+	if device == "keyboard":
+		hint_label.text += "  •  [%s] ТРЕК  •  [%s] RADIO" % [
+			label.call("radio_next"), label.call("radio_toggle")
+		]
 
 
 func _on_button_pressed(action: String) -> void:
@@ -2547,6 +2551,8 @@ func _open_input_settings() -> void:
 		input_settings = InputSettings.new()
 		input_settings.name = "InputSettings"
 		hud_root.add_child(input_settings)
+	# Окно настроек всегда выше карточки радио, панели паузы и HUD.
+	hud_root.move_child(input_settings, hud_root.get_child_count() - 1)
 	input_settings.open()
 
 

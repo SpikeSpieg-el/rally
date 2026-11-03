@@ -28,8 +28,8 @@ extends Resource
 @export var quit_button_text: String = "ВЫХОД"
 ## Горячие клавиши быстрого выбора и текст подсказки внизу.
 @export var track_hotkey_count: int = 5
-@export var footer_keyboard: String = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты».  Выбор сохраняется между заездами."
-@export var footer_gamepad: String = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  погода и сид — мышью"
+@export var footer_keyboard: String = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты»  •  N — трек  •  M — радио.  Выбор сохраняется между заездами."
+@export var footer_gamepad: String = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  радио — кнопки карточки  •  погода и сид — мышью"
 @export var hotkey_weather: Key = KEY_F6
 @export var hotkey_profile: Key = KEY_F7
 @export var hotkey_reroll: Key = KEY_F8
