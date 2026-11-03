@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c3mb5nbtvrry5"
+path="res://.godot/imported/CLOUDER - I NEED YOUR LOVE (SPOTISAVER).ogg-542756b71d802a562202031dc3a86514.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - I NEED YOUR LOVE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - I NEED YOUR LOVE (SPOTISAVER).ogg-542756b71d802a562202031dc3a86514.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://hxhn68l3hif"
+path="res://.godot/imported/NIKO A. - DREAM OF YOU (SPOTISAVER).ogg-80e8e6c94e68f0677446f3b39f0bbc17.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NIKO A. - DREAM OF YOU (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NIKO A. - DREAM OF YOU (SPOTISAVER).ogg-80e8e6c94e68f0677446f3b39f0bbc17.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://7g4coi70q3le"
+path="res://.godot/imported/MXLAN - Everything U Promised (SPOTISAVER).ogg-0d9ab2d005ee30b21029b6ab17cf8002.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/MXLAN - Everything U Promised (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/MXLAN - Everything U Promised (SPOTISAVER).ogg-0d9ab2d005ee30b21029b6ab17cf8002.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

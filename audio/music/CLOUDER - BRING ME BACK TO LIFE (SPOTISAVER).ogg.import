@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c882gy7q3yfih"
+path="res://.godot/imported/CLOUDER - BRING ME BACK TO LIFE (SPOTISAVER).ogg-6036eefb5259731614f9f6f10cd9778e.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - BRING ME BACK TO LIFE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - BRING ME BACK TO LIFE (SPOTISAVER).ogg-6036eefb5259731614f9f6f10cd9778e.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

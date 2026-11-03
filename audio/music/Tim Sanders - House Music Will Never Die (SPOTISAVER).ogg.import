@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d20q7vs2k2g2p"
+path="res://.godot/imported/Tim Sanders - House Music Will Never Die (SPOTISAVER).ogg-530effd60cf23af3af6ba67ca7efc95a.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Tim Sanders - House Music Will Never Die (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Tim Sanders - House Music Will Never Die (SPOTISAVER).ogg-530effd60cf23af3af6ba67ca7efc95a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

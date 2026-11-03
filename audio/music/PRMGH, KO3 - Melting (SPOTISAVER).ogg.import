@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dmk2pxjk1crge"
+path="res://.godot/imported/PRMGH, KO3 - Melting (SPOTISAVER).ogg-f4f85f2facf176aa9a7aa50e6d058a9b.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/PRMGH, KO3 - Melting (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/PRMGH, KO3 - Melting (SPOTISAVER).ogg-f4f85f2facf176aa9a7aa50e6d058a9b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://de63gy7v7tes0"
+path="res://.godot/imported/Carlo Giannico, NIKO A. - RUDE BOYZ (SPOTISAVER).ogg-694d1679c31c9d99833f7298eb0db738.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Carlo Giannico, NIKO A. - RUDE BOYZ (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Carlo Giannico, NIKO A. - RUDE BOYZ (SPOTISAVER).ogg-694d1679c31c9d99833f7298eb0db738.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

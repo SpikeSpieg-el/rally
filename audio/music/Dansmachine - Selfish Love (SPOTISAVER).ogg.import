@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ndvf3a4kbqyq"
+path="res://.godot/imported/Dansmachine - Selfish Love (SPOTISAVER).ogg-2ab752f90fa29142ae2966ce9315d987.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Dansmachine - Selfish Love (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Dansmachine - Selfish Love (SPOTISAVER).ogg-2ab752f90fa29142ae2966ce9315d987.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://efn7cha2ol15"
+path="res://.godot/imported/zaichkou888, IVOXYGEN, HXPETRAIN - AURA WORLD (SPOTISAVER).ogg-9a5dcf8ffcdd3a7978b9f535a6bbecaf.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/zaichkou888, IVOXYGEN, HXPETRAIN - AURA WORLD (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/zaichkou888, IVOXYGEN, HXPETRAIN - AURA WORLD (SPOTISAVER).ogg-9a5dcf8ffcdd3a7978b9f535a6bbecaf.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

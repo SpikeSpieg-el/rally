@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://fnhsgv5io3lf"
+path="res://.godot/imported/Montri, Gissin, Oksana Kolee - I'm With U (feat. Oksana Kolee) (SPOTISAVER).ogg-1c9762d7d89a9e33a05349e6124a916d.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Montri, Gissin, Oksana Kolee - I'm With U (feat. Oksana Kolee) (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Montri, Gissin, Oksana Kolee - I'm With U (feat. Oksana Kolee) (SPOTISAVER).ogg-1c9762d7d89a9e33a05349e6124a916d.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

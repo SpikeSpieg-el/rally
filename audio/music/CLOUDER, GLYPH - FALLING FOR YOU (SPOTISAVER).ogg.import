@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dltdy84ns0pmi"
+path="res://.godot/imported/CLOUDER, GLYPH - FALLING FOR YOU (SPOTISAVER).ogg-f570fa18d1b23d879f0090681f71da77.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER, GLYPH - FALLING FOR YOU (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER, GLYPH - FALLING FOR YOU (SPOTISAVER).ogg-f570fa18d1b23d879f0090681f71da77.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

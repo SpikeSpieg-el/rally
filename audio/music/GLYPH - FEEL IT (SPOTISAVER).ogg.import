@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ic4dxb0iyc5u"
+path="res://.godot/imported/GLYPH - FEEL IT (SPOTISAVER).ogg-217e82a4cfdeb41217bbdc1463651405.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/GLYPH - FEEL IT (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/GLYPH - FEEL IT (SPOTISAVER).ogg-217e82a4cfdeb41217bbdc1463651405.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

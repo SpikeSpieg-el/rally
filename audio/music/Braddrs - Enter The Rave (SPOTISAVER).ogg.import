@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dlx7j8ettddw"
+path="res://.godot/imported/Braddrs - Enter The Rave (SPOTISAVER).ogg-98dbbe0639e35e0430274b06f6c2f0ed.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Braddrs - Enter The Rave (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Braddrs - Enter The Rave (SPOTISAVER).ogg-98dbbe0639e35e0430274b06f6c2f0ed.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

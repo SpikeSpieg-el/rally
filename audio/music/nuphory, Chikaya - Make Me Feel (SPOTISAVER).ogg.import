@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c8fr5k2fm1kdx"
+path="res://.godot/imported/nuphory, Chikaya - Make Me Feel (SPOTISAVER).ogg-debae1d902b404538abc20ce1c1dcf44.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/nuphory, Chikaya - Make Me Feel (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/nuphory, Chikaya - Make Me Feel (SPOTISAVER).ogg-debae1d902b404538abc20ce1c1dcf44.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

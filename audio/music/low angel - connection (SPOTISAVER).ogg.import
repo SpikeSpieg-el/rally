@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dhrtaj1okrykd"
+path="res://.godot/imported/low angel - connection (SPOTISAVER).ogg-6c20d08ca78de17d58ce873616dafa89.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/low angel - connection (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/low angel - connection (SPOTISAVER).ogg-6c20d08ca78de17d58ce873616dafa89.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c4wtq4q2d0imr"
+path="res://.godot/imported/ruindkid - Bumpy Circuit (SPOTISAVER).ogg-d8572e28e4d08a452e65242c2314b652.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/ruindkid - Bumpy Circuit (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/ruindkid - Bumpy Circuit (SPOTISAVER).ogg-d8572e28e4d08a452e65242c2314b652.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d1evr2ign3b3f"
+path="res://.godot/imported/NIKO A. - MARY JANE CIRCUIT (SPOTISAVER).ogg-d005ab31d39d5318970f1c188babca1f.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NIKO A. - MARY JANE CIRCUIT (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NIKO A. - MARY JANE CIRCUIT (SPOTISAVER).ogg-d005ab31d39d5318970f1c188babca1f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

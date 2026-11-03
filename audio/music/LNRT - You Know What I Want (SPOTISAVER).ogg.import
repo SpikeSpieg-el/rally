@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c5kkrxd32n0wb"
+path="res://.godot/imported/LNRT - You Know What I Want (SPOTISAVER).ogg-57b7b2de38a89ebfbe3354251026ee93.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/LNRT - You Know What I Want (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/LNRT - You Know What I Want (SPOTISAVER).ogg-57b7b2de38a89ebfbe3354251026ee93.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

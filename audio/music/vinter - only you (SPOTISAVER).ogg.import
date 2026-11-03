@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c52l4sw3w38i6"
+path="res://.godot/imported/vinter - only you (SPOTISAVER).ogg-5a7599930819c5735ddd1232f72e0bf4.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/vinter - only you (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/vinter - only you (SPOTISAVER).ogg-5a7599930819c5735ddd1232f72e0bf4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

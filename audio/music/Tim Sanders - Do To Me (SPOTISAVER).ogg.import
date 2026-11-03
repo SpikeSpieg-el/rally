@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://wxg4vpxnwvlk"
+path="res://.godot/imported/Tim Sanders - Do To Me (SPOTISAVER).ogg-3c261fa4143a52f8fe093586bea675ea.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Tim Sanders - Do To Me (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Tim Sanders - Do To Me (SPOTISAVER).ogg-3c261fa4143a52f8fe093586bea675ea.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

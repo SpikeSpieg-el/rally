@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://egppyugwhaof"
+path="res://.godot/imported/MPH - Spend The Night (SPOTISAVER).ogg-1a6bb555792f54ff3de64913e81d0301.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/MPH - Spend The Night (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/MPH - Spend The Night (SPOTISAVER).ogg-1a6bb555792f54ff3de64913e81d0301.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

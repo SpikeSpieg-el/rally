@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://r6ly0d14nqxc"
+path="res://.godot/imported/CLOUDER, GLYPH - This Time (I Realize) (SPOTISAVER).ogg-31a7729274dea010bc4a23258805abfb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER, GLYPH - This Time (I Realize) (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER, GLYPH - This Time (I Realize) (SPOTISAVER).ogg-31a7729274dea010bc4a23258805abfb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

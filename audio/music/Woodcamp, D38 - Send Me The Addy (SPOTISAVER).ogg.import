@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ti6jc1twllwb"
+path="res://.godot/imported/Woodcamp, D38 - Send Me The Addy (SPOTISAVER).ogg-b5e4fa7730fd261b53a25ca795708396.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Woodcamp, D38 - Send Me The Addy (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Woodcamp, D38 - Send Me The Addy (SPOTISAVER).ogg-b5e4fa7730fd261b53a25ca795708396.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

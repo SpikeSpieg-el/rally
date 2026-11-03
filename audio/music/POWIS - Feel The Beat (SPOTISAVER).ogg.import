@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://hryoq22ke0bt"
+path="res://.godot/imported/POWIS - Feel The Beat (SPOTISAVER).ogg-2078ab01bb212659959bae9182ddd2c1.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/POWIS - Feel The Beat (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/POWIS - Feel The Beat (SPOTISAVER).ogg-2078ab01bb212659959bae9182ddd2c1.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

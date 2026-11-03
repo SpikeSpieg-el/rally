@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://nylou5tggakr"
+path="res://.godot/imported/LNRT - Players Only (SPOTISAVER).ogg-abc496c34edc523b0649cecbcc54bfd7.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/LNRT - Players Only (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/LNRT - Players Only (SPOTISAVER).ogg-abc496c34edc523b0649cecbcc54bfd7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

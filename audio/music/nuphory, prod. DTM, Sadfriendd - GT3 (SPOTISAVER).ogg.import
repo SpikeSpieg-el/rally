@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://10rpup0ysx36"
+path="res://.godot/imported/nuphory, prod. DTM, Sadfriendd - GT3 (SPOTISAVER).ogg-81dd9d84e1b97482aa82f9b3f5a76fee.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/nuphory, prod. DTM, Sadfriendd - GT3 (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/nuphory, prod. DTM, Sadfriendd - GT3 (SPOTISAVER).ogg-81dd9d84e1b97482aa82f9b3f5a76fee.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

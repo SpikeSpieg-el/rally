@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://desgn36y12jak"
+path="res://.godot/imported/Yere - Special (SPOTISAVER).ogg-66baaf3e1b767be50a1687e11bc22ffd.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Yere - Special (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Yere - Special (SPOTISAVER).ogg-66baaf3e1b767be50a1687e11bc22ffd.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

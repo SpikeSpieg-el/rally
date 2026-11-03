@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://oruywsrn53vv"
+path="res://.godot/imported/CLOUDER, GLYPH - HOW TO MOVE (SPOTISAVER).ogg-2d40a05e3bd825eb56d4410ff3155319.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER, GLYPH - HOW TO MOVE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER, GLYPH - HOW TO MOVE (SPOTISAVER).ogg-2d40a05e3bd825eb56d4410ff3155319.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

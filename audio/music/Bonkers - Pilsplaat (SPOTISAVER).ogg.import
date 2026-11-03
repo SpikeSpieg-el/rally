@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dn2k5g2yngjc2"
+path="res://.godot/imported/Bonkers - Pilsplaat (SPOTISAVER).ogg-f982b28a2012c1e370597b65186e05ad.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Bonkers - Pilsplaat (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Bonkers - Pilsplaat (SPOTISAVER).ogg-f982b28a2012c1e370597b65186e05ad.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dfqnw7xdit8xv"
+path="res://.godot/imported/4KPLAYA - Take Me Higher (SPOTISAVER).ogg-e8774ed7d9d681391eab83feb6e5b44a.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/4KPLAYA - Take Me Higher (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/4KPLAYA - Take Me Higher (SPOTISAVER).ogg-e8774ed7d9d681391eab83feb6e5b44a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

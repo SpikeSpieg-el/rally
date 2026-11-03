@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cq1jj0ocl0u0"
+path="res://.godot/imported/nuphory - LOVE & DEVOTION (SPOTISAVER).ogg-973da60e57d854a860a5c2770e3f04a0.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/nuphory - LOVE & DEVOTION (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/nuphory - LOVE & DEVOTION (SPOTISAVER).ogg-973da60e57d854a860a5c2770e3f04a0.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

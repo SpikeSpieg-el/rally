@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://t0mv6wjeryrp"
+path="res://.godot/imported/ostaprod - Make It Smooth (SPOTISAVER).ogg-b5011028ae4362c572a8b3cee6ef0abb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/ostaprod - Make It Smooth (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/ostaprod - Make It Smooth (SPOTISAVER).ogg-b5011028ae4362c572a8b3cee6ef0abb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

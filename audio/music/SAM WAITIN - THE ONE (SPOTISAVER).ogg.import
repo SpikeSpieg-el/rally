@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dxla7k3busu2c"
+path="res://.godot/imported/SAM WAITIN - THE ONE (SPOTISAVER).ogg-c924529c52764a147efed8f64c246dac.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/SAM WAITIN - THE ONE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/SAM WAITIN - THE ONE (SPOTISAVER).ogg-c924529c52764a147efed8f64c246dac.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

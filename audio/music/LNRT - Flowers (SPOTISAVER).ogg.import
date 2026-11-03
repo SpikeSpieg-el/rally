@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://r2mxi5p0y605"
+path="res://.godot/imported/LNRT - Flowers (SPOTISAVER).ogg-3173d61f19e72bd1d62758485f019bd4.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/LNRT - Flowers (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/LNRT - Flowers (SPOTISAVER).ogg-3173d61f19e72bd1d62758485f019bd4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://01v1f8hqtc2y"
+path="res://.godot/imported/Royal Intention - Running Back To You (SPOTISAVER).ogg-4006afcdc75f606a0c9c256fdd909b2a.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Royal Intention - Running Back To You (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Royal Intention - Running Back To You (SPOTISAVER).ogg-4006afcdc75f606a0c9c256fdd909b2a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

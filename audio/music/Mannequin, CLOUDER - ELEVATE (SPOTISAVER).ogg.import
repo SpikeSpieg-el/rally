@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://xua0myd6swcy"
+path="res://.godot/imported/Mannequin, CLOUDER - ELEVATE (SPOTISAVER).ogg-bdc3366405564cd297fc49ac777c55b3.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Mannequin, CLOUDER - ELEVATE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Mannequin, CLOUDER - ELEVATE (SPOTISAVER).ogg-bdc3366405564cd297fc49ac777c55b3.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

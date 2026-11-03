@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://db28t5g4tw1sg"
+path="res://.godot/imported/NJRSS - Stand Up (SPOTISAVER).ogg-e3a03e6c22c5a7a1f75334c612c30c24.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NJRSS - Stand Up (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NJRSS - Stand Up (SPOTISAVER).ogg-e3a03e6c22c5a7a1f75334c612c30c24.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

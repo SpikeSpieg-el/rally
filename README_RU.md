@@ -166,9 +166,11 @@ scripts/road_network.gd              ← расстояние до дороги 
 scripts/track_generator.gd           ← генератор «Живой ленты» (сид → Curve3D)
 audio/engine/*.wav                   ← лупы двигателя (58 шт., сгенерированы моделью)
 audio/vehicle/*.wav                  ← гравий, ветер, хлопки, сброс турбины, старт
+audio/music/*.ogg                    ← музыка (100 треков, OGG Vorbis)
 tools/engine_audio_model.py          ← физическая модель звука ДВС (Python)
 tools/render_engine_audio.py         ← запекание всех звуковых ассетов
 tools/godot_import.py                ← .import-файлы для Godot (точки зацикливания)
+tools/optimize_music.py              ← MP3 → OGG, нормализация громкости, .import
 tools/audio_qc.py                    ← метрики и спектрограммы для проверки звука
 tools/sim_engine_runtime.py          ← симуляция проигрывателя звука (без Godot)
 tools/author_route.py                ← генератор кривой из отрезков (по желанию)
@@ -390,6 +392,16 @@ python3 tools/render_engine_audio.py
 
 Подробности, рецепт записи через Engine Simulator и разбор по поводу чужих
 модов из Assetto Corsa / BeamNG — в [`docs/ENGINE_AUDIO_RU.md`](docs/ENGINE_AUDIO_RU.md).
+
+## Музыка
+
+100 треков из `audio/music` переведены из MP3 320 кбит/с в **Ogg Vorbis
+q5** и нормализованы до −14 LUFS: 616 МБ → 266 МБ, а громкость больше не
+прыгает между композициями. Godot импортирует их как
+`AudioStreamOggVorbis`; исходники лежат в `source/music_src` (папка
+`source/` игнорируется Godot и исключена из git). Перекодировать или
+добавить треки — `python3 tools/optimize_music.py`, подробности в
+[`docs/MUSIC_RU.md`](docs/MUSIC_RU.md).
 
 ## 1. Как устроена трасса
 

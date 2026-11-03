@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ocwenesilu36"
+path="res://.godot/imported/freddz808 - Back It Up (SPOTISAVER).ogg-ac7e4e44d1ff6d9276e547975f5bc570.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/freddz808 - Back It Up (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/freddz808 - Back It Up (SPOTISAVER).ogg-ac7e4e44d1ff6d9276e547975f5bc570.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

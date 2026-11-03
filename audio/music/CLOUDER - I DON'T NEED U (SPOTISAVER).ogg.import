@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://t0ur3awh3ers"
+path="res://.godot/imported/CLOUDER - I DON'T NEED U (SPOTISAVER).ogg-b503e895c66efe885168910cb1df4371.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - I DON'T NEED U (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - I DON'T NEED U (SPOTISAVER).ogg-b503e895c66efe885168910cb1df4371.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

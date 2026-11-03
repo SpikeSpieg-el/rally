@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c6614g6tyxldl"
+path="res://.godot/imported/vinter - you're mine (SPOTISAVER).ogg-dc75f622a11e3772811778c0339191ea.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/vinter - you're mine (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/vinter - you're mine (SPOTISAVER).ogg-dc75f622a11e3772811778c0339191ea.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

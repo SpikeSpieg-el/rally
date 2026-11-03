@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dc06vs58y7jlf"
+path="res://.godot/imported/NOIT - Vent (SPOTISAVER).ogg-e5592a1b12bd1100246e497fb00db849.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NOIT - Vent (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NOIT - Vent (SPOTISAVER).ogg-e5592a1b12bd1100246e497fb00db849.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

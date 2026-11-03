@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://kddoiryhgi3h"
+path="res://.godot/imported/CLOUDER - PLACEBO (SPOTISAVER).ogg-a53614e32acc689d3189e2a9cf99ce35.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - PLACEBO (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - PLACEBO (SPOTISAVER).ogg-a53614e32acc689d3189e2a9cf99ce35.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

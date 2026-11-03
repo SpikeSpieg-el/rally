@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://l1eqamcimcwr"
+path="res://.godot/imported/SOLAR, CLOUDER - WEATHER (SPOTISAVER).ogg-266e315492f98cdb10214a703db4a89c.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/SOLAR, CLOUDER - WEATHER (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/SOLAR, CLOUDER - WEATHER (SPOTISAVER).ogg-266e315492f98cdb10214a703db4a89c.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

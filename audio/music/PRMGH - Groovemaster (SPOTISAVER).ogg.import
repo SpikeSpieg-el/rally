@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://f0c50n7kvri7"
+path="res://.godot/imported/PRMGH - Groovemaster (SPOTISAVER).ogg-9d313a6878c3dcffaa84c7c88a39e85b.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/PRMGH - Groovemaster (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/PRMGH - Groovemaster (SPOTISAVER).ogg-9d313a6878c3dcffaa84c7c88a39e85b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

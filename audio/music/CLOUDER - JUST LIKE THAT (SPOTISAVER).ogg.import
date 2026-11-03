@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://5u4tqwhnx2ys"
+path="res://.godot/imported/CLOUDER - JUST LIKE THAT (SPOTISAVER).ogg-0aa97db6202b684414015a9001f84350.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - JUST LIKE THAT (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - JUST LIKE THAT (SPOTISAVER).ogg-0aa97db6202b684414015a9001f84350.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

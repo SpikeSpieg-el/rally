@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c4tujilib41kj"
+path="res://.godot/imported/MXRCURY, Pharmagut, devvnzr - Addicted (SPOTISAVER).ogg-58302023465de200780ab0a12b61144d.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/MXRCURY, Pharmagut, devvnzr - Addicted (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/MXRCURY, Pharmagut, devvnzr - Addicted (SPOTISAVER).ogg-58302023465de200780ab0a12b61144d.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dpjss8s7bd8cy"
+path="res://.godot/imported/KARMA - SPRINTER (SPOTISAVER).ogg-fc1c4935041169c088c7fad976a545fa.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/KARMA - SPRINTER (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/KARMA - SPRINTER (SPOTISAVER).ogg-fc1c4935041169c088c7fad976a545fa.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

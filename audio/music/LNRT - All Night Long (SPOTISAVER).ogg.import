@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bkc5ah6bff8g"
+path="res://.godot/imported/LNRT - All Night Long (SPOTISAVER).ogg-951feccb55184de03f4070f6d169feb4.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/LNRT - All Night Long (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/LNRT - All Night Long (SPOTISAVER).ogg-951feccb55184de03f4070f6d169feb4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

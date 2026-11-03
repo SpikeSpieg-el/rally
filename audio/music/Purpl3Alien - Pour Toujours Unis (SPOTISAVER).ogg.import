@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://w60kb4vv67bg"
+path="res://.godot/imported/Purpl3Alien - Pour Toujours Unis (SPOTISAVER).ogg-3ac1cb671cd5c58c53de47cf70f8f29c.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Purpl3Alien - Pour Toujours Unis (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Purpl3Alien - Pour Toujours Unis (SPOTISAVER).ogg-3ac1cb671cd5c58c53de47cf70f8f29c.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

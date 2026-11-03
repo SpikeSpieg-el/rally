@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dqfhqex3ewqdk"
+path="res://.godot/imported/CLOUDER - NEEDED U (SPOTISAVER).ogg-fdc433feb4328881def4bd355415e596.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - NEEDED U (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - NEEDED U (SPOTISAVER).ogg-fdc433feb4328881def4bd355415e596.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

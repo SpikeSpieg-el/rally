@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d1l7g2jia81bf"
+path="res://.godot/imported/POWIS - Let It Go (SPOTISAVER).ogg-ceab28426c5d6517d4f05054a4f53629.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/POWIS - Let It Go (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/POWIS - Let It Go (SPOTISAVER).ogg-ceab28426c5d6517d4f05054a4f53629.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

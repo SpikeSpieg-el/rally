@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dneotq8dqa20i"
+path="res://.godot/imported/MAKS (FR), JHOS - Deep In Passion (SPOTISAVER).ogg-f83f4a9976722befc3e8c0273f5b0ace.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/MAKS (FR), JHOS - Deep In Passion (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/MAKS (FR), JHOS - Deep In Passion (SPOTISAVER).ogg-f83f4a9976722befc3e8c0273f5b0ace.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

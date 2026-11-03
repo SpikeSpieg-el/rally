@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dquppgo5exsw"
+path="res://.godot/imported/NØCTRIS, techcorporal - Deeper (SPOTISAVER).ogg-191bc9d4d32067a05134d06619e82ccb.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NØCTRIS, techcorporal - Deeper (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NØCTRIS, techcorporal - Deeper (SPOTISAVER).ogg-191bc9d4d32067a05134d06619e82ccb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

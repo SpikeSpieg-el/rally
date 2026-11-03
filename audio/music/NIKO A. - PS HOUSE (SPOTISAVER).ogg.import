@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c3wyhvem1u0nx"
+path="res://.godot/imported/NIKO A. - PS HOUSE (SPOTISAVER).ogg-d6853f4c1a08e90fdc9d3893f93dc586.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/NIKO A. - PS HOUSE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/NIKO A. - PS HOUSE (SPOTISAVER).ogg-d6853f4c1a08e90fdc9d3893f93dc586.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

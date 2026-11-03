@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://oyfxjdk3b46p"
+path="res://.godot/imported/LOSTBOYJAY - COULD BE WRONG (SPOTISAVER).ogg-2d96201e80392cf1341bdf61c4fbad55.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/LOSTBOYJAY - COULD BE WRONG (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/LOSTBOYJAY - COULD BE WRONG (SPOTISAVER).ogg-2d96201e80392cf1341bdf61c4fbad55.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

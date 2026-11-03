@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://di1c0gfe56w53"
+path="res://.godot/imported/ZARG - Sway (SPOTISAVER).ogg-f050b33f76a4ed7c5be45422910fc096.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/ZARG - Sway (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/ZARG - Sway (SPOTISAVER).ogg-f050b33f76a4ed7c5be45422910fc096.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

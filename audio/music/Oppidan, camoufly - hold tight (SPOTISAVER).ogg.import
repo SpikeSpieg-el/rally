@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://eh5ua4k20p81"
+path="res://.godot/imported/Oppidan, camoufly - hold tight (SPOTISAVER).ogg-1a7183a7e2cefc71351499b147d6bbc0.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Oppidan, camoufly - hold tight (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Oppidan, camoufly - hold tight (SPOTISAVER).ogg-1a7183a7e2cefc71351499b147d6bbc0.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

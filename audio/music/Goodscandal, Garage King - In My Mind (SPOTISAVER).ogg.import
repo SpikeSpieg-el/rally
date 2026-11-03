@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://ix4awbxa3100"
+path="res://.godot/imported/Goodscandal, Garage King - In My Mind (SPOTISAVER).ogg-228ee255933445d0433e42b651c78b5a.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Goodscandal, Garage King - In My Mind (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Goodscandal, Garage King - In My Mind (SPOTISAVER).ogg-228ee255933445d0433e42b651c78b5a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

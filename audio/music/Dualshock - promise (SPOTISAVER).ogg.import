@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d26deks4vnk8f"
+path="res://.godot/imported/Dualshock - promise (SPOTISAVER).ogg-d357f3539447b81c7cbe152e668069db.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Dualshock - promise (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Dualshock - promise (SPOTISAVER).ogg-d357f3539447b81c7cbe152e668069db.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

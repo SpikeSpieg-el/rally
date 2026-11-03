@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://qa2jfu8b2xn0"
+path="res://.godot/imported/CLOUDER - DO IT LIKE (SPOTISAVER).ogg-2e202cfba345c1ccb290d1d77dae8cd5.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/CLOUDER - DO IT LIKE (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/CLOUDER - DO IT LIKE (SPOTISAVER).ogg-2e202cfba345c1ccb290d1d77dae8cd5.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

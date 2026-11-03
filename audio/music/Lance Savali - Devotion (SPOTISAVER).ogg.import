@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://3o1g0nrv0m00"
+path="res://.godot/imported/Lance Savali - Devotion (SPOTISAVER).ogg-86b31dd9ca6b6a6088c3526a6e56f3b7.oggvorbisstr"
+
+[deps]
+
+source_file="res://audio/music/Lance Savali - Devotion (SPOTISAVER).ogg"
+dest_files=["res://.godot/imported/Lance Savali - Devotion (SPOTISAVER).ogg-86b31dd9ca6b6a6088c3526a6e56f3b7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
