@@ -1,0 +1,153 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/editor/visual_effects_lab.gd" id="1_lab"]
+[ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="2_effects"]
+[ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="3_screen"]
+[ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="4_tree"]
+[ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="5_rock"]
+[ext_resource type="PackedScene" path="res://low_poly_lance_evo.tscn" id="6_car"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_lab"]
+sky_top_color = Color(0.22, 0.34, 0.5, 1)
+sky_horizon_color = Color(0.65, 0.7, 0.74, 1)
+ground_bottom_color = Color(0.12, 0.15, 0.1, 1)
+ground_horizon_color = Color(0.55, 0.58, 0.52, 1)
+
+[sub_resource type="Sky" id="Sky_lab"]
+sky_material = SubResource("SkyMaterial_lab")
+
+[sub_resource type="Environment" id="Environment_lab"]
+background_mode = 2
+sky = SubResource("Sky_lab")
+ambient_light_source = 3
+ambient_light_color = Color(0.75, 0.8, 0.9, 1)
+ambient_light_energy = 0.7
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.65, 0.7, 0.74, 1)
+fog_density = 0.006
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(60, 80)
+subdivide_width = 20
+subdivide_depth = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.035, 0.045, 0.065, 0.92)
+border_width_left = 3
+border_color = Color(1, 0.52, 0.12, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="VisualEffectsLab" type="Node3D"]
+script = ExtResource("1_lab")
+editor_description = "F6 — живой предпросмотр. Постоянные настройки меняются в узлах VisualEffects и RetroScreen, затем сохраняются в сцене."
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lab")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 12, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="Road" type="MeshInstance3D" parent="."]
+
+[node name="Car" parent="." instance=ExtResource("6_car")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.45, 3)
+
+[node name="TreeLeft" parent="." instance=ExtResource("4_tree")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, -9, 0, -6)
+
+[node name="TreeRight" parent="." instance=ExtResource("4_tree")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 10, 0, -14)
+
+[node name="Rock" parent="." instance=ExtResource("5_rock")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 1)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.936, -0.124, 0.329, 0, 0.936, 0.353, -0.351, -0.331, 0.876, 7, 4.5, 11)
+current = true
+fov = 65.0
+
+[node name="VisualEffects" parent="." instance=ExtResource("2_effects")]
+screen_path = NodePath("../PreviewCanvas/RetroScreen")
+
+[node name="PreviewCanvas" type="CanvasLayer" parent="."]
+
+[node name="RetroScreen" parent="PreviewCanvas" instance=ExtResource("3_screen")]
+
+[node name="Panel" type="PanelContainer" parent="PreviewCanvas"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 470.0
+offset_bottom = 610.0
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="Box" type="VBoxContainer" parent="PreviewCanvas/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "ЛАБОРАТОРИЯ ЭФФЕКТОВ"
+
+[node name="Help" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Сравнивайте готовые варианты на одной сцене. Постоянная настройка — в узлах VisualEffects и RetroScreen. Этот экран ничего не сохраняет."
+
+[node name="Status" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Предпросмотр"
+
+[node name="WeatherLabel" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+text = "Погода для проверки"
+
+[node name="Weather" type="OptionButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+
+[node name="RainPreset" type="OptionButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+
+[node name="ScreenLabel" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+text = "Ретро-экран"
+
+[node name="Screen" type="OptionButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+
+[node name="FeelLabel" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+text = "Ощущение скорости"
+
+[node name="Feel" type="OptionButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+
+[node name="Speed" type="OptionButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+
+[node name="SpeedValue" type="Label" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+text = "Скорость для проверки: 120 км/ч"
+
+[node name="SpeedSlider" type="HSlider" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+max_value = 240.0
+value = 120.0
+
+[node name="Compare" type="CheckButton" parent="PreviewCanvas/Panel/Box"]
+layout_mode = 2
+text = "Показать оригинал (без экранного фильтра)"

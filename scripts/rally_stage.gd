@@ -60,6 +60,8 @@ const StageSettingsType = preload("res://scripts/data/rally_stage_settings.gd")
 const SpawnLayoutType = preload("res://scripts/data/rally_spawn_layout.gd")
 const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SceneryType = preload("res://scripts/data/rally_scenery_config.gd")
+const VisualEffectsType = preload("res://scripts/effects/rally_visual_effects.gd")
+const VisualEffectsScene = preload("res://scenes/effects/visual_effects.tscn")
 
 ## Файлы-«пульты» по умолчанию (если поле в сцене пустое).
 const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
@@ -72,9 +74,11 @@ const DEFAULT_SCENERY_PATH := "res://data/stage/default_scenery.tres"
 @export var track_override: TrackConfigType = null
 @export var car_setup_override: CarSetupType = null
 
-@export_group("Пульты эффектов (правятся в инспекторе)")
-## PS1/скорость/осадки/окружение/материалы обстановки. Пусто — файл по умолчанию.
+@export_group("Совместимость со старыми настройками")
+## Старый общий ресурс. Новые визуальные настройки живут в VisualEffects и HUD/RetroScreen.
 @export var settings: StageSettingsType = null
+@export_storage var legacy_effects_imported: bool = false
+@export_tool_button("Перенести старый ресурс в эффекты сцены") var import_legacy_button = import_legacy_effects
 ## Старт/финиш, столбики, арки КПП, знаки поворотов, спавн и спасение машины.
 @export var spawn_layout: SpawnLayoutType = null
 ## Следы шин, грязь на кузове, брызги, пыль, скользкие полосы, физика колеи.
@@ -125,6 +129,7 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
+var fx_nodes: VisualEffectsType = null
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
 ## Материал земли живёт столько же, сколько сцена: инспекторские правки
@@ -216,12 +221,23 @@ func _enter_tree() -> void:
 ## В редакторе ресурсы читаются напрямую: правка .tres сразу видна на кнопке
 ## «Пересобрать трассу», без перезапуска.
 func _load_resources() -> void:
+	var has_explicit_settings := settings != null
 	if game_config == null and ResourceLoader.exists("res://data/rally_game_config.tres"):
 		game_config = ResourceLoader.load("res://data/rally_game_config.tres") as GameConfigType
 	if settings == null:
 		settings = _load_resource(DEFAULT_SETTINGS_PATH) as StageSettingsType
+	if settings != null:
+		settings = settings.duplicate() as StageSettingsType
 	if settings == null:
 		settings = StageSettingsType.new()
+	_bind_visual_effects()
+	if fx_nodes != null:
+		# Явно назначенный старый ресурс переносим один раз. Обычный дефолтный
+		# .tres не имеет права затирать художественные правки новых узлов сцены.
+		if has_explicit_settings and not legacy_effects_imported:
+			fx_nodes.adopt_from_settings(settings)
+			legacy_effects_imported = true
+		fx_nodes.sync_to_settings(settings)
 	if spawn_layout == null:
 		spawn_layout = _load_resource(DEFAULT_SPAWN_PATH) as SpawnLayoutType
 	if spawn_layout == null:
@@ -235,6 +251,35 @@ func _load_resources() -> void:
 	if scenery == null:
 		scenery = SceneryType.new()
 	surface_state.fx = fx_profile
+
+
+func _bind_visual_effects() -> void:
+	if fx_nodes == null:
+		fx_nodes = get_node_or_null("VisualEffects") as VisualEffectsType
+
+
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "settings":
+		property.usage = PROPERTY_USAGE_STORAGE
+
+
+func import_legacy_effects() -> void:
+	_bind_visual_effects()
+	if fx_nodes == null:
+		push_warning("В сцене нет узла VisualEffects: переносить настройки некуда.")
+		return
+	fx_nodes.adopt_from_settings(s_settings())
+	fx_nodes.sync_to_settings(settings)
+	legacy_effects_imported = true
+	fx_nodes.configure_screen(track)
+	print("Визуальные настройки перенесены в узлы сцены. Сохраните сцену (Ctrl+S).")
+
+
+func _sync_visual_settings() -> void:
+	_bind_visual_effects()
+	if fx_nodes != null and settings != null:
+		fx_nodes.sync_to_settings(settings)
+		fx_nodes.configure_screen(track)
 
 
 func _load_resource(path: String) -> Resource:
@@ -565,6 +610,7 @@ func _build_world() -> void:
 ## полосой на экране загрузки (autoload RallyGame), в редакторе — синхронно.
 func _build_world_async() -> void:
 	surface_state.clear()
+	_sync_visual_settings()
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	var has_progress: bool = game != null and game.has_method("set_loading_progress")
 	var curve: Curve3D
@@ -1050,7 +1096,10 @@ func _make_ground_material() -> ShaderMaterial:
 	# его шейдер и параметры целиком в инспекторе.
 	if ground_material_override is ShaderMaterial:
 		return ground_material_override as ShaderMaterial
-	if s_settings().ground_material is ShaderMaterial:
+	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
+	if surfaces != null and surfaces.ground_material != null:
+		_ground_material = surfaces.ground_material
+	elif s_settings().ground_material is ShaderMaterial:
 		return s_settings().ground_material as ShaderMaterial
 	# Сгенерированный материал один на сцену: параметры обновляются, а не
 	# создаются заново, поэтому материал не «плодится» при пересборке.
@@ -1070,7 +1119,7 @@ func _make_ground_material() -> ShaderMaterial:
 	material.set_shader_parameter("surface_roughness", s_settings().ground_surface_roughness)
 	material.set_shader_parameter("grain_scale", s_settings().ground_grain_scale)
 	material.set_shader_parameter("flat_shading", 1.0 if track.ps1_style and track.flat_shading else 0.0)
-	material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if track.ps1_style else 0.0)
+	material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if s_settings().is_retro(track) else 0.0)
 	material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
 	material.set_shader_parameter("wetness", _weather_wetness())
 	material.set_shader_parameter("snow_cover", _weather_snow_cover())
@@ -1195,7 +1244,12 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 
 	# Материал полотна один на сцену: свой (из сцены/настроек) или
 	# сгенерированный — в обоих случаях живёт между пересборками.
-	var road_override: Material = road_material_override if road_material_override != null else s_settings().road_material
+	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
+	var road_override: Material = road_material_override
+	if road_override == null and surfaces != null:
+		road_override = surfaces.road_material
+	if road_override == null:
+		road_override = s_settings().road_material
 	if road_override is ShaderMaterial:
 		_road_material = road_override as ShaderMaterial
 	elif _road_material == null:
@@ -1206,7 +1260,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	road_material.set_shader_parameter("gravel_texture", GravelTexture)
 	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
 	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
-	road_material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if track.ps1_style else 0.0)
+	road_material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if s_settings().is_retro(track) else 0.0)
 	road_material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
 	road_material.set_shader_parameter("road_roughness", s_settings().road_roughness)
 	road_material.set_shader_parameter("detail_strength", s_settings().road_detail_strength)
@@ -1920,6 +1974,8 @@ func _setup_precipitation() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var particles := _make_precipitation_particles()
+	if particles == null:
+		return
 	add_child(particles)
 	if car != null:
 		particles.global_position = _anchor_for(car.global_position, car.linear_velocity)
@@ -1930,6 +1986,9 @@ func _setup_precipitation() -> void:
 ## Мировая точка рождения осадков для позиции/скорости машины. Отдельный
 ## метод: сцена использует его и в _process, а тесты проверяют без GPU.
 func _anchor_for(position: Vector3, velocity: Vector3) -> Vector3:
+	_bind_visual_effects()
+	if fx_nodes != null:
+		return fx_nodes.anchor_for(position, velocity)
 	var cfg := s_settings()
 	if cfg == null:
 		return precipitation_anchor(position, velocity)
@@ -1944,57 +2003,15 @@ func _anchor_for(position: Vector3, velocity: Vector3) -> Vector3:
 
 
 func _make_precipitation_particles() -> GPUParticles3D:
-	var cfg := s_settings()
-	var intensity: float = clampf(weather.precipitation_intensity, 0.0, 1.0)
-	var is_rain: bool = weather.precipitation == WeatherType.Precipitation.RAIN
-	var particles := GPUParticles3D.new()
-	particles.name = "WeatherParticles"
-	particles.process_mode = Node.PROCESS_MODE_PAUSABLE
-	particles.emitting = false
-	var amount_min: float = float(cfg.rain_amount_min if is_rain else cfg.snow_amount_min)
-	var amount_max: float = float(cfg.rain_amount_max if is_rain else cfg.snow_amount_max)
-	particles.amount = maxi(1, int(lerpf(amount_min, amount_max, intensity) * cfg.precipitation_density))
-	particles.lifetime = cfg.rain_lifetime if is_rain else cfg.snow_lifetime
-	particles.preprocess = minf(particles.lifetime, 2.0)
-	particles.local_coords = false
-	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	particles.visibility_aabb = cfg.precipitation_aabb
-	var particle_material := ParticleProcessMaterial.new()
-	particle_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	particle_material.emission_box_extents = cfg.rain_box_extents if is_rain else cfg.snow_box_extents
-	var wind := Vector3(weather.wind_speed, 0.0, weather.wind_speed * 0.35)
-	var quad := QuadMesh.new()
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.billboard_keep_scale = true
-	if is_rain:
-		particle_material.direction = (Vector3.DOWN + wind * cfg.rain_wind_tilt).normalized()
-		particle_material.spread = cfg.rain_spread
-		particle_material.initial_velocity_min = cfg.rain_speed_min
-		particle_material.initial_velocity_max = cfg.rain_speed_max
-		particle_material.gravity = cfg.rain_gravity
-		particle_material.scale_min = cfg.rain_scale_min
-		particle_material.scale_max = cfg.rain_scale_max
-		quad.size = cfg.rain_streak_size
-		# Вертикаль привязана к миру, а не к экрану/наклону камеры.
-		material.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-		material.albedo_color = cfg.rain_color
-	else:
-		particle_material.direction = (Vector3.DOWN + wind * cfg.snow_wind_tilt).normalized()
-		particle_material.spread = cfg.snow_spread
-		particle_material.initial_velocity_min = cfg.snow_speed_min
-		particle_material.initial_velocity_max = cfg.snow_speed_max
-		particle_material.gravity = cfg.snow_gravity + Vector3(wind.x * 0.10, 0.0, wind.z * 0.10)
-		particle_material.scale_min = cfg.snow_scale_min
-		particle_material.scale_max = cfg.snow_scale_max
-		quad.size = cfg.snow_flake_size
-		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		material.albedo_color = cfg.snow_color
-	quad.material = material
-	particles.process_material = particle_material
-	particles.draw_pass_1 = quad
+	_bind_visual_effects()
+	if fx_nodes != null:
+		return fx_nodes.make_weather_particles(weather)
+	# Совместимость с тестами/старым кодом без дерева сцены: временный владелец
+	# использует те же сцены эффектов и переносит значения старого ресурса.
+	var owner_node := VisualEffectsScene.instantiate() as VisualEffectsType
+	owner_node.adopt_from_settings(s_settings())
+	var particles := owner_node.make_weather_particles(weather)
+	owner_node.free()
 	return particles
 
 
@@ -2088,7 +2105,16 @@ func _hud_node(path: String) -> Node:
 
 ## Постобработка 3D до отрисовки интерфейса.
 func _setup_world_effects() -> void:
-	# Эффекты мира под HUD: PS1-стилизация и размытие скорости независимы.
+	_bind_visual_effects()
+	if fx_nodes != null and fx_nodes.screen() != null:
+		speed_rect = fx_nodes.screen()
+		speed_fx_material = speed_rect.material as ShaderMaterial
+		speed_rect.visible = true
+		fx_nodes.configure_screen(track)
+		if speed_rect.get_parent() == hud and hud.get_node_or_null("RallyHUD") != null:
+			hud.move_child(speed_rect, 0)
+		return
+	# Старые сцены без VisualEffects продолжают работать.
 	var cfg := s_settings()
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
 	if speed_rect == null:
@@ -2398,7 +2424,9 @@ func _process(delta: float) -> void:
 		_check_checkpoints()
 		_check_finish()
 	var speed: float = car.speed_kmh if car != null else 0.0
-	if speed_fx_material != null:
+	if fx_nodes != null:
+		fx_nodes.update_speed(speed, track)
+	elif speed_fx_material != null:
 		var intensity: float = s_settings().speed_fx_amount(speed, track)
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 	_frame_delta = delta

@@ -15,6 +15,8 @@
 [ext_resource type="Environment" uid="uid://bb8gswph2upes" path="res://data/tracks/night_environment.tres" id="night_environment"]
 [ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="pine_tree"]
 [ext_resource type="PackedScene" uid="uid://dblndqw45wkp4" path="res://scenes/props/road_sign.tscn" id="road_sign"]
+[ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="visual_effects"]
+[ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="retro_screen"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
 
@@ -59,6 +61,9 @@ backface_collision = true
 script = ExtResource("1_stage")
 game_config = ExtResource("2_way4p")
 
+[node name="VisualEffects" parent="." instance=ExtResource("visual_effects")]
+editor_description = "Визуальные настройки: скорость, дождь, снег и материалы. Ретро-экран — под HUD."
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=905732852]
 environment = ExtResource("night_environment")
 
@@ -100,6 +105,9 @@ mass = 648.405
 setup_override = ExtResource("6_fxige")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=2049044365]
+
+[node name="SpeedShaderRect" parent="HUD" instance=ExtResource("retro_screen")]
+editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
 
 [node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("hud_layout")]
 

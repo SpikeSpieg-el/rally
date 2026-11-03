@@ -1,0 +1,19 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/rally_visual_effects.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/effects/speed_effect.tscn" id="2_speed"]
+[ext_resource type="PackedScene" path="res://scenes/effects/rain.tscn" id="3_rain"]
+[ext_resource type="PackedScene" path="res://scenes/effects/snow.tscn" id="4_snow"]
+[ext_resource type="PackedScene" path="res://scenes/effects/surface_looks.tscn" id="5_surfaces"]
+
+[node name="VisualEffects" type="Node"]
+script = ExtResource("1_script")
+editor_description = "Визуальные настройки сцены. Выберите дочерний эффект; ретро-экран находится под HUD."
+
+[node name="Speed" parent="." instance=ExtResource("2_speed")]
+
+[node name="Rain" parent="." instance=ExtResource("3_rain")]
+
+[node name="Snow" parent="." instance=ExtResource("4_snow")]
+
+[node name="Surfaces" parent="." instance=ExtResource("5_surfaces")]
