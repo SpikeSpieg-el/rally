@@ -5,6 +5,4 @@
 
 [resource]
 script = ExtResource("1_settings")
-preview_in_editor = false
-show_debug_info = true
 ps1_enabled = false
