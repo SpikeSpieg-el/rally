@@ -1,0 +1,34 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/rally_surface_looks.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/forest_ground.gdshader" id="2_ground"]
+[ext_resource type="Shader" path="res://shaders/gravel_road.gdshader" id="3_road"]
+[ext_resource type="Texture2D" path="res://textures/environment/forest_floor.png" id="4_ground_tex"]
+[ext_resource type="Texture2D" path="res://textures/environment/rock.png" id="5_rock"]
+[ext_resource type="Texture2D" path="res://textures/environment/gravel.png" id="6_gravel"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ground"]
+resource_local_to_scene = true
+shader = ExtResource("2_ground")
+shader_parameter/ground_texture = ExtResource("4_ground_tex")
+shader_parameter/rock_texture = ExtResource("5_rock")
+shader_parameter/ground_texture_smooth = ExtResource("4_ground_tex")
+shader_parameter/rock_texture_smooth = ExtResource("5_rock")
+shader_parameter/surface_roughness = 0.97
+shader_parameter/grain_scale = 2.4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_road"]
+resource_local_to_scene = true
+shader = ExtResource("3_road")
+shader_parameter/gravel_texture = ExtResource("6_gravel")
+shader_parameter/gravel_texture_smooth = ExtResource("6_gravel")
+shader_parameter/road_roughness = 0.92
+shader_parameter/detail_strength = 0.16
+shader_parameter/track_strength = 0.12
+shader_parameter/loose_relief = 1.0
+
+[node name="Surfaces" type="Node"]
+script = ExtResource("1_script")
+ground_material = SubResource("ShaderMaterial_ground")
+road_material = SubResource("ShaderMaterial_road")
+editor_description = "Материалы земли и дороги. Откройте Shader Parameters; погода и цвета трассы применятся при заезде."

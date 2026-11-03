@@ -36,10 +36,20 @@ Speed`). Поля вкладок создаются при запуске из �
 `RallyCarSetup` и в применение машины (`scripts/rally_car.gd`), иначе он не
 повлияет на заезд.
 
-В `scenes/rally_stage.tscn` у корня в инспекторе доступны сила ретро-стиля,
-эффектов скорости, ближних осадков и плотность частиц. Сами шейдеры и текстуры
-лежат в папках `shaders/` и `textures/environment/`. Дорога, осадки и процедурная
-растительность по-прежнему создаются при запуске из параметров трассы и погоды.
+Визуальные эффекты настраиваются **через сцены**, а не через один большой
+список ползунков у корня. В `scenes/rally_stage.tscn` есть отдельные узлы:
+`HUD/SpeedShaderRect` (ретро-экран), `VisualEffects/Speed` (ощущение скорости),
+`VisualEffects/Rain`, `VisualEffects/Snow` и `VisualEffects/Surfaces`
+(материалы земли и дороги). У каждого узла свой `@tool`-скрипт с готовыми
+вариантами и понятными подписями. Точные числа открываются только в режиме
+«Свой вид». Для сравнения вариантов откройте
+`scenes/editor/visual_effects_lab.tscn` и нажмите **F6**.
+Подробно: [`docs/SCENE_EFFECTS_RU.md`](docs/SCENE_EFFECTS_RU.md).
+
+Сами шейдеры и текстуры лежат в папках `shaders/` и `textures/environment/`.
+Дорога, осадки и процедурная растительность по-прежнему создаются при запуске
+из параметров трассы и погоды, но внешний вид осадков и экранного фильтра
+берётся из узлов сцены.
 
 ### Гараж и настройка машины
 
@@ -88,12 +98,12 @@ Speed`). Поля вкладок создаются при запуске из �
 окружения скрывает вдалеке и землю, и дорогу, и объекты; его дальность и цвет
 учитывают погоду. Ночь, лучи фар, дождь, снег и различия покрытий сохраняются.
 
-Настройки в инспекторе:
+Настройки в сцене:
 
-* У корня `scenes/rally_stage.tscn`: `retro_style_strength` — сила экранного
-  эффекта; `retro_resolution_height` — размер пикселя; `retro_vertex_snap` —
-  дрожание вершин дороги и земли (0 отключает). `retro_style_strength = 0`
-  отключает только экранную часть, а не материалы и туман.
+* `HUD/SpeedShaderRect` (`RallyScreenLook`): готовый вид ретро-экрана —
+  «Чистая картинка», «Мягкий PS1», «Классический PS1». В режиме «Свой вид»
+  доступны сила эффекта, высота пиксельной сетки, палитра, дизер и дрожание
+  вершин. Выключение экранного фильтра не выключает материалы и туман.
 * В `data/tracks/*.tres`: `ps1_style` выключает PS1-оформление для трассы и её
   превью в гараже. `color_banding` задаёт число бит на канал (5 — RGB555,
   0 — без ограничения), `dither_fog` включает дизер палитры, `flat_shading`
@@ -167,15 +177,19 @@ tools/procedural_route.py            ← числовой эталон гене�
 tools/bake_stage_scene.py            ← пересобрать ассеты в сцене (по желанию)
 ```
 
-## Всё настраивается в инспекторе (data-driven)
+## Настройка через сцены и инспектор (data-driven)
 
-Геймплей, эффекты, погода, расстановка, трассы, меню и шейдеры описаны
+Визуальные эффекты живут на узлах сцены с `@tool`-скриптами и готовыми
+пресетами. Общие данные геймплея, погоды, трасс, меню и расстановки описаны
 `@tool`-ресурсами в `scripts/data/` и файлами в `data/`. Числа и строки
 правятся в инспекторе Godot, а не в коде:
 
 | Ресурс | Файл по умолчанию |
 | --- | --- |
-| `RallyStageSettings` | `data/stage/default_stage_settings.tres` (PS1, эффект скорости, осадки, окружение, материалы, свои uniform'ы шейдеров) |
+| `RallyStageSettings` | `data/stage/default_stage_settings.tres` (совместимость и общие настройки этапа: окружение, туман, солнце, обстановка) |
+| `RallyScreenLook` / `RallySpeedFeel` | `scenes/effects/retro_screen.tscn`, `speed_effect.tscn` (ретро-экран и ощущение скорости) |
+| `RallyPrecipitationEffect` | `scenes/effects/rain.tscn`, `snow.tscn` (дождь и снег) |
+| `RallySurfaceLooks` | `scenes/effects/surface_looks.tscn` (материалы земли и дороги) |
 | `RallySpawnLayout` | `data/stage/default_spawn_layout.tres` (расстановка КПП, ворот, столбиков, знаков) |
 | `RallySceneryConfig` | `data/stage/default_scenery.tres` (лес, камни, кусты, трава) |
 | `RallyFxProfile` | `data/stage/default_fx_profile.tres` (следы, грязь, пыль, зоны полотна, колеи) |
@@ -183,11 +197,13 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 | `RallyUiTheme` | `data/ui/default_ui_theme.tres` (палитра, шрифты, отступы, стили) |
 | `RallyMenuLayout` | `data/ui/default_menu_layout.tres` (тексты, подсказки, горячие клавиши) |
 
-У корня `rally_stage.tscn` есть поля `settings`, `spawn_layout`, `fx_profile`,
-`scenery`, а также `ground_material_override` / `road_material_override`:
-пустое поле — берётся `.tres` по умолчанию, заполненное — ваша копия.
-Любой uniform любого материала можно переопределить без кода через
-`RallyShaderParameter` в массивах `*_shader_overrides`.
+У корня `rally_stage.tscn` остались общие данные `spawn_layout`, `fx_profile`,
+`scenery` и совместимые переопределения материалов. Визуальные эффекты
+выбираются в дочерних узлах `VisualEffects` и `HUD/SpeedShaderRect`.
+Старый ресурс `settings` скрыт из инспектора как главный пульт; при необходимости
+его можно перенести в узлы кнопкой **«Перенести старый ресурс в эффекты сцены»**.
+Любой uniform материала можно переопределить через `RallyShaderParameter`
+на узле `Surfaces` или прямо в `Shader Parameters` материала.
 
 Правила и чек-лист для дальнейшей разработки —
 [`docs/AGENTS_DATA_DRIVEN_RU.md`](docs/AGENTS_DATA_DRIVEN_RU.md).
