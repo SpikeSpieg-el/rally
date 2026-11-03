@@ -1,10 +1,37 @@
-[gd_resource type="AudioBusLayout" format=3 uid="uid://jpnmn3nh2ywt"]
+[gd_resource type="AudioBusLayout" format=3]
 
 [sub_resource type="AudioEffectLimiter" id="AudioEffectLimiter_master"]
 resource_name = "Limiter"
 ceiling_db = -1.0
 threshold_db = -8.0
 
+[sub_resource type="AudioEffectLimiter" id="AudioEffectLimiter_music"]
+resource_name = "Music Limiter"
+ceiling_db = -2.0
+threshold_db = -10.0
+
+[sub_resource type="AudioEffectLimiter" id="AudioEffectLimiter_vehicle"]
+resource_name = "Vehicle Limiter"
+ceiling_db = -3.0
+threshold_db = -10.0
+
 [resource]
+bus/0/volume_db = 0.0
 bus/0/effect/0/effect = SubResource("AudioEffectLimiter_master")
 bus/0/effect/0/enabled = true
+bus/1/name = &"Music"
+bus/1/solo = false
+bus/1/mute = false
+bus/1/bypass_fx = false
+bus/1/volume_db = -1.0
+bus/1/send = &"Master"
+bus/1/effect/0/effect = SubResource("AudioEffectLimiter_music")
+bus/1/effect/0/enabled = true
+bus/2/name = &"Vehicle"
+bus/2/solo = false
+bus/2/mute = false
+bus/2/bypass_fx = false
+bus/2/volume_db = -1.0
+bus/2/send = &"Master"
+bus/2/effect/0/effect = SubResource("AudioEffectLimiter_vehicle")
+bus/2/effect/0/enabled = true

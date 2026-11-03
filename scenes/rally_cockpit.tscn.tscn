@@ -1,5 +1,7 @@
 [gd_scene format=3 uid="uid://c8rq7m4yak2p1"]
 
+[ext_resource type="Script" path="res://scripts/ui/rally_cockpit_radio.gd" id="1_radio"]
+
 [sub_resource type="GDScript" id="GDScript_cockpit"]
 script/source = "extends Node3D
 
@@ -518,6 +520,10 @@ mesh = SubResource("BoxMesh_center_console")
 [node name="StartButton" type="MeshInstance3D" parent="Dashboard/CenterConsole" unique_id=1397498896]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0.06, 0.1, -0.112)
 mesh = SubResource("Cyl_horn_btn")
+
+[node name="RadioHeadUnit" type="Node3D" parent="Dashboard/CenterConsole" unique_id=891024377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.118)
+script = ExtResource("1_radio")
 
 [node name="CoDriverTripmaster" type="MeshInstance3D" parent="Dashboard" unique_id=1218140770]
 transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, -0.38, 0.22, 0.68)

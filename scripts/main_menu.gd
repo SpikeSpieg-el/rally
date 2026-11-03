@@ -35,6 +35,7 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @onready var suspension_bar: ProgressBar = get_node_or_null("Content/Body/Right/Stats/SuspensionBar") as ProgressBar
 @onready var best_label: Label = get_node_or_null("Content/Body/Right/BestLabel") as Label
 @onready var footer_label: Label = get_node_or_null("Content/Footer") as Label
+@onready var content: Control = get_node_or_null("Content") as Control
 
 var track_buttons: Array[Button] = []
 var setup_buttons: Array[Button] = []
@@ -47,6 +48,10 @@ var selected_profile: int = 0
 var controller_manager: Node = null
 var garage = null
 var input_settings = null
+var _transitioning: bool = false
+var _screen_tween: Tween = null
+var _content_base_x: float = 0.0
+var _garage_base_x: float = 0.0
 
 # Блок условий заезда строится кодом: так меню остаётся одним .tscn,
 # а списки погоды/характеров растут вместе с конфигом.
@@ -122,6 +127,8 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_resolve_config()
 	_apply_theme()
+	if content != null:
+		_content_base_x = content.position.x
 	# Тема Godot: базовые цвета/шрифты для всех вложенных контролов.
 	var native: Theme = Theme.new()
 	theme_cfg().apply_to(native)
@@ -661,6 +668,8 @@ func _on_seed_copy_pressed() -> void:
 ## Горячие клавиши меню: F1–F5 — трассы, F6 — погода, F7 — характер,
 ## F8 — новый сид «Живой ленты». Раньше F1–F5 были только в подписи.
 func _input(event: InputEvent) -> void:
+	if _transitioning:
+		return
 	if input_settings != null and input_settings.blocks_actions():
 		return
 	if garage != null and garage.visible:
@@ -742,22 +751,49 @@ func _on_setup_pressed(index: int) -> void:
 	_refresh()
 
 
+func _kill_screen_tween() -> void:
+	if _screen_tween != null and _screen_tween.is_running():
+		_screen_tween.kill()
+	_screen_tween = null
+
+
 func _on_start_pressed() -> void:
+	if _transitioning:
+		return
+	_transitioning = true
 	_sync_game()
 	if garage == null:
 		garage = GarageScene.instantiate()
 		garage.name = "Garage"
 		add_child(garage)
 		garage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_garage_base_x = garage.position.x
 		garage.back_requested.connect(_on_garage_back)
 		garage.controls_requested.connect(_open_input_settings)
 		garage.setup_saved.connect(_on_garage_saved)
 		garage.start_requested.connect(_on_garage_start)
-	get_node("Content").hide()
+	# Гараж не «всплывает» поверх меню: старый экран уходит по прозрачности
+	# и легкому сдвигу, новый приходит ему на смену. Радио при этом не рвётся.
+	_kill_screen_tween()
+	garage.modulate.a = 0.0
+	garage.position.x = _garage_base_x + 34.0
+	content.visible = true
+	content.modulate.a = 1.0
+	content.position.x = _content_base_x
 	garage.open(config, selected_setup, _get_game())
+	_screen_tween = create_tween().set_parallel(true)
+	_screen_tween.tween_property(content, "modulate:a", 0.0, 0.24)
+	_screen_tween.tween_property(content, "position:x", _content_base_x - 24.0, 0.24)
+	_screen_tween.tween_property(garage, "modulate:a", 1.0, 0.32)
+	_screen_tween.tween_property(garage, "position:x", _garage_base_x, 0.32)
+	await _screen_tween.finished
+	content.visible = false
+	_transitioning = false
 
 
 func _open_input_settings() -> void:
+	if _transitioning:
+		return
 	if input_settings == null:
 		input_settings = InputSettings.new()
 		input_settings.name = "InputSettings"
@@ -768,19 +804,39 @@ func _open_input_settings() -> void:
 
 
 func _on_garage_back() -> void:
-	garage.hide()
-	get_node("Content").show()
+	if _transitioning or garage == null:
+		return
+	_transitioning = true
+	_kill_screen_tween()
+	content.visible = true
+	content.modulate.a = 0.0
+	content.position.x = _content_base_x - 24.0
+	garage.visible = true
+	garage.modulate.a = 1.0
+	garage.position.x = _garage_base_x
+	_screen_tween = create_tween().set_parallel(true)
+	_screen_tween.tween_property(content, "modulate:a", 1.0, 0.30)
+	_screen_tween.tween_property(content, "position:x", _content_base_x, 0.30)
+	_screen_tween.tween_property(garage, "modulate:a", 0.0, 0.24)
+	_screen_tween.tween_property(garage, "position:x", _garage_base_x + 34.0, 0.24)
+	await _screen_tween.finished
+	garage.visible = false
 	_refresh()
 	if start_button != null:
 		start_button.grab_focus()
+	_transitioning = false
 
 
 func _on_garage_saved(index: int) -> void:
+	if _transitioning:
+		return
 	selected_setup = index
 	_sync_game()
 
 
 func _on_garage_start(index: int, _tuned_setup: CarSetupType) -> void:
+	if _transitioning:
+		return
 	selected_setup = index
 	_sync_game()
 	var game: Node = _get_game()

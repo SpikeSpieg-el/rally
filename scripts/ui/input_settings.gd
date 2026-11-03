@@ -26,6 +26,8 @@ var blocked_axes: Dictionary = {}
 var _previous_focus: Control
 var _overlay_focus: Control
 var _closed_frame := -100
+var _closing := false
+var _fade_tween: Tween = null
 
 
 ## Палитра окна (никогда null).
@@ -206,9 +208,21 @@ func _button_key(action: String, device: String, slot: int) -> String:
 	return "%s:%s:%d" % [device, action, slot]
 
 
+func _kill_fade() -> void:
+	if _fade_tween != null and _fade_tween.is_running():
+		_fade_tween.kill()
+	_fade_tween = null
+
+
 func open() -> void:
+	if visible and not _closing:
+		return
+	_kill_fade()
+	_closing = false
 	_previous_focus = get_viewport().gui_get_focus_owner()
 	show()
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	modulate.a = 0.0
 	_on_tab_changed(tabs.current_tab)
 	_refresh_buttons()
 	if tabs.current_tab == 0 and controller_options != null:
@@ -217,6 +231,8 @@ func open() -> void:
 			first.grab_focus()
 	else:
 		close_button.grab_focus()
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(self, "modulate:a", 1.0, 0.20)
 
 
 # При навигации клавиатурой/геймпадом фокус не должен уходить под модальное
@@ -234,10 +250,25 @@ func _on_gui_focus_changed(focus: Control) -> void:
 
 
 func close() -> void:
-	if not visible:
+	if not visible or _closing:
 		return
+	_closing = true
 	_cancel_capture()
+	_kill_fade()
+	# Окно уходит плавно, но сразу перестаёт перехватывать мышь. Флаг
+	# _closing сохраняет блокировку действий до конца анимации.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(self, "modulate:a", 0.0, 0.16)
+	await get_tree().create_timer(0.16, true).timeout
+	# За время fade-out окно могли открыть заново: тогда старый close()
+	# больше не должен его прятать.
+	if not _closing:
+		return
 	hide()
+	modulate.a = 1.0
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	_closing = false
 	_closed_frame = Engine.get_process_frames() + 1
 	if is_instance_valid(_previous_focus) and _previous_focus.is_visible_in_tree():
 		_previous_focus.grab_focus()
@@ -245,7 +276,7 @@ func close() -> void:
 
 
 func blocks_actions() -> bool:
-	return visible or Engine.get_process_frames() <= _closed_frame
+	return visible or _closing or Engine.get_process_frames() <= _closed_frame
 
 
 func _on_tab_changed(index: int) -> void:

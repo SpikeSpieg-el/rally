@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="RallyRadioConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_radio_config.gd" id="1_radio"]
+
+[resource]
+script = ExtResource("1_radio")
+station_name = "RALLY FM"
+station_tagline = "СПЕЦУЧАСТОК · НОН-СТОП МИКС"
+music_dir = "res://audio/music"
+cover_paths = Array[String](["res://textures/radio/night_stage.png", "res://textures/radio/gravel_ghost.png", "res://textures/radio/red_mist.png", "res://textures/radio/snow_line.png"])
+crossfade_seconds = 6.0
+music_volume_db = -7.0
+music_bus_db = -1.0
+vehicle_bus_db = -1.0
+stream_cache_size = 4

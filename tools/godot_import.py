@@ -17,6 +17,10 @@ edit/loop_end), а не только блоком smpl внутри WAV:
   force/8_bit, force/mono, force/max_rate, force/max_rate_hz,
   edit/trim, edit/normalize, edit/loop_mode, edit/loop_begin, edit/loop_end,
   compress/mode.
+
+Отдельно поддерживаются обложки радио `textures/radio/*.png`: для них
+пишется `.import` импортёра текстур в lossless-режиме, чтобы PNG не
+пережимались в платформо-зависимый VRAM-формат.
 """
 from __future__ import annotations
 
@@ -128,6 +132,56 @@ compress/mode=0
     return path + ".import"
 
 
+def write_texture_import_file(path: str, root: str = ROOT) -> str:
+    """Создаёт `.import` для 2D-текстуры Godot 4 без VRAM-сжатия.
+
+    Обложки радио нужны и в меню, и на 3D-магнитоле, поэтому оставляем
+    lossless PNG: один и тот же файл корректно откроется на любой платформе.
+    """
+    res_path = "res://" + os.path.relpath(path, root).replace(os.sep, "/")
+    digest = hashlib.md5(res_path.encode("utf-8")).hexdigest()
+    base = os.path.basename(path)
+    imported = "res://.godot/imported/%s-%s.ctex" % (base, digest)
+    body = """[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="%s"
+path="%s"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="%s"
+dest_files=["%s"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=false
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0
+""" % (uid_for(res_path), imported, res_path, imported)
+    with open(path + ".import", "w", encoding="utf-8", newline="\n") as f:
+        f.write(body)
+    return path + ".import"
+
+
 def _uid_for(res_path: str) -> str:
     """Совместимость со старым именем в render_engine_audio.py."""
     return uid_for(res_path)
@@ -138,16 +192,25 @@ def main(argv: list) -> int:
         targets = [os.path.abspath(p) for p in argv[1:]]
     else:
         targets = []
-        for folder in ("audio/engine", "audio/vehicle"):
+        for folder, extension in (
+            ("audio/engine", ".wav"),
+            ("audio/vehicle", ".wav"),
+            ("textures/radio", ".png"),
+        ):
             base = os.path.join(ROOT, folder)
             if not os.path.isdir(base):
                 continue
             for name in sorted(os.listdir(base)):
-                if name.endswith(".wav"):
+                if name.endswith(extension):
                     targets.append(os.path.join(base, name))
     for path in targets:
+        if path.endswith(".png"):
+            out = write_texture_import_file(path)
+            print("%-52s текстура       -> %s" % (os.path.relpath(path, ROOT),
+                                                  os.path.basename(out)))
+            continue
         if not path.endswith(".wav"):
-            print("Пропущено (не WAV): %s" % path)
+            print("Пропущено (не WAV/PNG): %s" % path)
             continue
         frames = wav_frames(path)
         loop = is_loop_asset(path)

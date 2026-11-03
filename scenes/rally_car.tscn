@@ -13,6 +13,7 @@
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
+[ext_resource type="Script" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.05
@@ -1305,6 +1306,10 @@ mesh = SubResource("BoxMesh_center_console")
 [node name="StartButton" type="MeshInstance3D" parent="RallyCockpit/Dashboard/CenterConsole" unique_id=640103094]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0.06, 0.1, -0.112)
 mesh = SubResource("Cyl_horn_btn")
+
+[node name="RadioHeadUnit" type="Node3D" parent="RallyCockpit/Dashboard/CenterConsole" unique_id=733527449]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.118)
+script = ExtResource("14_radio")
 
 [node name="CoDriverTripmaster" type="MeshInstance3D" parent="RallyCockpit/Dashboard" unique_id=1972177773]
 transform = Transform3D(0.9920019, 0.0032762692, -0.12618063, 0, 0.9996632, 0.025956167, 0.12622313, -0.025748568, 0.99166775, -0.38, 0.2301774, 0.67999995)

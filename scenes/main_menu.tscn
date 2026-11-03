@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b8wa4bs684dnw" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Script" uid="uid://cri301mtntwul" path="res://scripts/stage_preview.gd" id="2_preview"]
+[ext_resource type="Script" path="res://scripts/ui/rally_radio_card.gd" id="16_radio"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start"]
 content_margin_left = 16.0
@@ -201,8 +202,18 @@ theme_override_colors/font_color = Color(0.5, 0.95, 0.55, 1)
 theme_override_font_sizes/font_size = 17
 text = "ЛУЧШЕЕ ВРЕМЯ: —"
 
+[node name="RadioCard" type="PanelContainer" parent="Content/Body/Right" unique_id=451940233]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+mouse_filter = 2
+script = ExtResource("16_radio")
+compact = false
+show_controls = true
+station_override = ""
+
 [node name="Footer" type="Label" parent="Content" unique_id=413435507]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 15
-text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, ESC — пауза, C — камера, V — привод."
+text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, N — трек, M — радио, ESC — пауза, C — камера, V — привод."
