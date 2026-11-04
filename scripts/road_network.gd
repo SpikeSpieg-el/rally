@@ -62,10 +62,15 @@ static func build(curve: Curve3D, area: Rect2, cell_size: float) -> RoadNetwork:
 
 # Long stages do not allocate a distance field covering the whole rectangle.
 const SPARSE_CELL := 64.0
+const SPARSE_FAR_CELL := 1024.0
 const SPARSE_STRIDE := 8
+const REGIONAL_NODE_LIMIT := 2048
 var sparse: bool = false
 var _segments: Dictionary = {}
+var _far_segments: Dictionary = {}
 var _regional_nodes: Dictionary = {}
+var _regional_order: Array[Vector2i] = []
+var _regional_next: int = 0
 var _last_query := Vector2(INF, INF)
 var _last_result := Vector2(FAR, 0.0)
 
@@ -81,16 +86,39 @@ static func build_sparse(curve: Curve3D) -> RoadNetwork:
 		if not net._segments.has(key):
 			net._segments[key] = []
 		net._segments[key].append(i)
+		var far_key := Vector2i(floori(mid.x / SPARSE_FAR_CELL), floori(mid.z / SPARSE_FAR_CELL))
+		if not net._far_segments.has(far_key):
+			net._far_segments[far_key] = []
+		net._far_segments[far_key].append(i)
 	return net
+
+# Each terrain worker needs its own query/regional caches. The route arrays and
+# bucket index are built once and are immutable afterwards; sharing them avoids
+# copying the 100 km route or mutating the main thread's caches.
+func sparse_reader() -> RoadNetwork:
+	var reader := RoadNetwork.new()
+	reader.sparse = sparse
+	reader.samples = samples
+	reader.sample_dists = sample_dists
+	reader.sample_dirs = sample_dirs
+	reader.total_length = total_length
+	reader.bounds = bounds
+	reader._segments = _segments
+	reader._far_segments = _far_segments
+	return reader
+
 
 func _sparse_sample(x: float, z: float) -> Vector2:
 	var p := Vector2(x, z)
 	if p == _last_query:
 		return _last_result
+	if samples.size() < 2:
+		return Vector2(p.distance_to(Vector2(samples[0].x, samples[0].z)), 0.0) if not samples.is_empty() else Vector2(FAR, 0.0)
 	var key := Vector2i(floori(x / SPARSE_CELL), floori(z / SPARSE_CELL))
-	var best := Vector2(FAR, 0.0)
+	var best_squared: float = INF
 	var best_index: int = -1
-	# Search rings, stopping only when no unvisited bucket can be nearer.
+	# Compare squared distances in the hot loop; sqrt and interpolation are
+	# needed only for the winning metre-scale segment, not every candidate.
 	for ring in range(0, 17):
 		for dz in range(-ring, ring + 1):
 			for dx in range(-ring, ring + 1):
@@ -98,38 +126,103 @@ func _sparse_sample(x: float, z: float) -> Vector2:
 					continue
 				for index in _segments.get(key + Vector2i(dx, dz), []):
 					var i: int = int(index)
-					var j: int = mini(i + SPARSE_STRIDE, samples.size() - 1)
-					var a := Vector2(samples[i].x, samples[i].z)
-					var b := Vector2(samples[j].x, samples[j].z)
-					var hit: Vector3 = _nearest_on_segment(p, a, b, sample_dists[i], sample_dists[j])
-					if hit.x < best.x:
-						best = Vector2(hit.x, hit.y)
+					var a: Vector3 = samples[i]
+					var b: Vector3 = samples[mini(i + SPARSE_STRIDE, samples.size() - 1)]
+					var sx: float = b.x - a.x
+					var sz: float = b.z - a.z
+					var length_squared: float = sx * sx + sz * sz
+					var t: float = clampf(((x - a.x) * sx + (z - a.z) * sz) / length_squared, 0.0, 1.0) if length_squared > 0.000001 else 0.0
+					var ex: float = x - (a.x + sx * t)
+					var ez: float = z - (a.z + sz * t)
+					var squared: float = ex * ex + ez * ez
+					if squared < best_squared:
+						best_squared = squared
 						best_index = i
-		if best_index >= 0 and best.x + 8.0 < float(ring) * SPARSE_CELL:
+		if best_index >= 0 and sqrt(best_squared) + 8.0 < float(ring) * SPARSE_CELL:
 			break
-	# Far-off teleports: bounded-memory fallback, never return along=0 blindly.
-	if best_index < 0:
-		for i in range(0, samples.size(), SPARSE_STRIDE):
-			var distance: float = p.distance_to(Vector2(samples[i].x, samples[i].z))
-			if distance < best.x:
-				best = Vector2(distance, sample_dists[i])
-				best_index = i
+		if best_index < 0 and ring >= 4:
+			# A teleport away from the route used to scan all 100 km of
+			# samples for every terrain vertex. Use the coarse occupied-cell
+			# index instead, with bounding-box pruning.
+			best_index = _far_nearest_segment(x, z)
+			break
 	# Refine against the original metre-spaced segments, not an 8 m chord.
-	best.x = FAR
+	best_squared = INF
+	var best_along: float = 0.0
 	for i in range(maxi(0, best_index - SPARSE_STRIDE), mini(samples.size() - 1, best_index + SPARSE_STRIDE * 2)):
-		var hit: Vector3 = _nearest_on_segment(p, Vector2(samples[i].x, samples[i].z),
-			Vector2(samples[i + 1].x, samples[i + 1].z), sample_dists[i], sample_dists[i + 1])
-		if hit.x < best.x:
-			best = Vector2(hit.x, hit.y)
+		var a: Vector3 = samples[i]
+		var b: Vector3 = samples[i + 1]
+		var sx: float = b.x - a.x
+		var sz: float = b.z - a.z
+		var length_squared: float = sx * sx + sz * sz
+		var t: float = clampf(((x - a.x) * sx + (z - a.z) * sz) / length_squared, 0.0, 1.0) if length_squared > 0.000001 else 0.0
+		var ex: float = x - (a.x + sx * t)
+		var ez: float = z - (a.z + sz * t)
+		var squared: float = ex * ex + ez * ez
+		if squared < best_squared:
+			best_squared = squared
+			best_along = lerpf(sample_dists[i], sample_dists[i + 1], t)
 	_last_query = p
-	_last_result = best
-	return best
+	_last_result = Vector2(sqrt(best_squared), best_along)
+	return _last_result
+
+
+func _far_cell_distance_squared(key: Vector2i, x: float, z: float) -> float:
+	# Chords are indexed by midpoint; the extra stride covers both endpoints.
+	var min_x: float = float(key.x) * SPARSE_FAR_CELL - SPARSE_STRIDE
+	var min_z: float = float(key.y) * SPARSE_FAR_CELL - SPARSE_STRIDE
+	var dx: float = x - clampf(x, min_x, min_x + SPARSE_FAR_CELL + SPARSE_STRIDE * 2.0)
+	var dz: float = z - clampf(z, min_z, min_z + SPARSE_FAR_CELL + SPARSE_STRIDE * 2.0)
+	return dx * dx + dz * dz
+
+
+func _far_bucket_nearest(key: Vector2i, x: float, z: float, current: Vector2) -> Vector2:
+	var best_squared: float = current.x
+	var best_index: int = int(current.y)
+	for index in _far_segments.get(key, []):
+		var i: int = int(index)
+		var a: Vector3 = samples[i]
+		var b: Vector3 = samples[mini(i + SPARSE_STRIDE, samples.size() - 1)]
+		var sx: float = b.x - a.x
+		var sz: float = b.z - a.z
+		var length_squared: float = sx * sx + sz * sz
+		var t: float = clampf(((x - a.x) * sx + (z - a.z) * sz) / length_squared, 0.0, 1.0) if length_squared > 0.000001 else 0.0
+		var dx: float = x - (a.x + sx * t)
+		var dz: float = z - (a.z + sz * t)
+		var squared: float = dx * dx + dz * dz
+		if squared < best_squared:
+			best_squared = squared
+			best_index = i
+	return Vector2(best_squared, float(best_index))
+
+
+func _far_nearest_segment(x: float, z: float) -> int:
+	if _far_segments.is_empty():
+		return 0
+	var nearest_key := Vector2i.ZERO
+	var nearest_squared: float = INF
+	for key in _far_segments:
+		var lower_bound: float = _far_cell_distance_squared(key, x, z)
+		if lower_bound < nearest_squared:
+			nearest_squared = lower_bound
+			nearest_key = key
+	var best := _far_bucket_nearest(nearest_key, x, z, Vector2(INF, -1))
+	for key in _far_segments:
+		if key != nearest_key and _far_cell_distance_squared(key, x, z) <= best.x:
+			best = _far_bucket_nearest(key, x, z, best)
+	return maxi(0, int(best.y))
 
 func _regional_node(key: Vector2i) -> float:
 	if not _regional_nodes.has(key):
-		if _regional_nodes.size() > 2048:
-			_regional_nodes.clear()
 		var hit: Vector2 = _sparse_sample(float(key.x) * 96.0, float(key.y) * 96.0)
+		# Evict one entry instead of clearing the whole cache while driving;
+		# a full clear both stalls and makes all the nearby samples cold again.
+		if _regional_order.size() < REGIONAL_NODE_LIMIT:
+			_regional_order.append(key)
+		else:
+			_regional_nodes.erase(_regional_order[_regional_next])
+			_regional_order[_regional_next] = key
+			_regional_next = (_regional_next + 1) % REGIONAL_NODE_LIMIT
 		_regional_nodes[key] = height_at_along(hit.y)
 	return float(_regional_nodes[key])
 

@@ -116,6 +116,7 @@ var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
 const WorldStreamer = preload("res://scripts/world_streamer.gd")
+const STREAM_SLICE_USEC := 1800
 var world_streamer: WorldStreamer = null
 var terrain_rect: Rect2 = Rect2()
 var start_pos: Vector3 = Vector3.ZERO
@@ -143,6 +144,9 @@ var _weather_particles: GPUParticles3D = null
 var _ground_material: ShaderMaterial = null
 ## Материал полотна тоже переиспользуется между пересборками.
 var _road_material: ShaderMaterial = null
+var _stream_road_material_ready: bool = false
+var _edge_post_mesh: Mesh = null
+var _edge_cap_mesh: Mesh = null
 ## Условия уже наложены на копию трассы: повторный _resolve_track не должен
 ## умножать сцепление и кочки второй раз.
 var _track_prepared := false
@@ -758,6 +762,9 @@ func _make_noise(seed_value: int, frequency: float, octaves: int) -> FastNoiseLi
 
 func _clear_generated() -> void:
 	world_streamer = null
+	_stream_road_material_ready = false
+	_edge_post_mesh = null
+	_edge_cap_mesh = null
 	if generated == null:
 		return
 	for child in generated.get_children():
@@ -785,9 +792,26 @@ func height_at(x: float, z: float) -> float:
 
 
 func _height_with_distance(x: float, z: float, distance: float) -> float:
-	var along: float = network.along_road(x, z)
+	return _height_with_sample(x, z, distance, network.along_road(x, z))
+
+
+## Terrain streaming already found both values. Reusing them avoids repeating
+## the spatial search for each vertex, even when regional-height queries have
+## changed the network's one-entry query cache in the meantime.
+func _height_with_sample(x: float, z: float, distance: float, along: float) -> float:
 	var road_y: float = network.height_at_along(along)
 	return _blend_height(road_y, _base_height(x, z, distance), distance, along)
+
+
+## Called on the main thread, before streaming starts. Only this detached
+## sampler is used by the worker; its noise, track and mutable query caches are
+## private. No worker may access the live stage or scene tree.
+func _make_streaming_terrain_sampler() -> RallyStage:
+	var sampler := RallyStage.new()
+	sampler.track = track.duplicate(true) as TrackConfigType
+	sampler.network = network.sparse_reader()
+	sampler._setup_noise()
+	return sampler
 
 
 ## «Свой» рельеф точки без влияния полотна: региональный уровень + холмы,
@@ -1331,6 +1355,10 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var span: float = end - distance_start
 	var rows: int = maxi(2, ceili(span / step) + 1)
 	var destination: Node3D = generated if chunk_parent == null else chunk_parent
+	var streamed: bool = light and chunk_parent != null
+	var stream_clock = chunk_parent.get_parent()._clock if streamed else null
+	var slice_usec: int = 6000 if not _stage_live else STREAM_SLICE_USEC
+	var slice_deadline: int = Time.get_ticks_usec() + slice_usec
 	var half: float = track.road_half_width
 	var corridor: float = half + track.road_shoulder
 	var outer: float = corridor + 1.5
@@ -1390,9 +1418,13 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			if section != null:
 				base_color.a = 0.0 if section.surface_name == "Асфальт" else 1.0
 			colors[row * lanes + lane] = base_color
-		if light and row % (32 if chunk_parent != null else 200) == (31 if chunk_parent != null else 199):
-			if chunk_parent == null:
-				_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(destination) or not destination.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + slice_usec
+		elif light and not streamed and row % 200 == 199:
+			_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
 			await get_tree().process_frame
 
 	for row in range(rows):
@@ -1407,6 +1439,11 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			if normal.y < 0.0:
 				normal = -normal
 			normals[here] = normal.normalized() if normal.length() > 0.0001 else Vector3.UP
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(destination) or not destination.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + slice_usec
 
 	var indices := PackedInt32Array()
 	for row in range(rows - 1):
@@ -1421,6 +1458,11 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			indices.append(i1)
 			indices.append(i3)
 			indices.append(i2)
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(destination) or not destination.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + slice_usec
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -1429,45 +1471,22 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
+	if streamed:
+		await stream_clock.tick
+		if not is_instance_valid(destination) or not destination.is_inside_tree():
+			return
 	var road_mesh := ArrayMesh.new()
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	# Материал полотна один на сцену: свой (из сцены/настроек) или
-	# сгенерированный — в обоих случаях живёт между пересборками.
-	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
-	var road_override: Material = road_material_override
-	if road_override == null and surfaces != null:
-		road_override = surfaces.road_material
-	if road_override == null:
-		road_override = s_settings().road_material
-	if road_override is ShaderMaterial:
-		_road_material = road_override as ShaderMaterial
-	elif _road_material == null:
-		_road_material = ShaderMaterial.new()
-	var road_material := _road_material
-	if road_material.shader == null:
-		road_material.shader = RoadShader
-	road_material.set_shader_parameter("section_surfaces", not track.route_sections.is_empty())
-	road_material.set_shader_parameter("gravel_texture", GravelTexture)
-	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
-	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
-	road_material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if s_settings().is_retro(track) else 0.0)
-	road_material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
-	road_material.set_shader_parameter("road_roughness", s_settings().road_roughness)
-	road_material.set_shader_parameter("detail_strength", s_settings().road_detail_strength)
-	road_material.set_shader_parameter("track_strength", s_settings().road_track_strength)
-	var road_kind: String = surface_state.surface_kind(track.surface_name, false, _weather_snow_cover())
-	road_material.set_shader_parameter(
-		"loose_relief",
-		s_settings().road_loose_relief_asphalt if road_kind == "asphalt" else s_settings().road_loose_relief
-	)
-	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
-	road_material.set_shader_parameter("stage_length", network.total_length)
-	road_material.set_shader_parameter("zone_offset", _zone_lateral_offset())
-	_apply_zone_shader_parameters(road_material)
-	s_settings().apply_shader_overrides(road_material, s_settings().road_shader_overrides)
-	road_material.set_shader_parameter("wetness", _weather_wetness())
-	road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+	# Configure the shared material only once per streamed world. Rewriting all
+	# shader uniforms for every chunk causes unnecessary renderer work.
+	var road_material: ShaderMaterial
+	if streamed and _stream_road_material_ready:
+		road_material = _road_material
+	else:
+		road_material = _make_road_material()
+		if streamed:
+			_stream_road_material_ready = true
 
 	var road_visual := MeshInstance3D.new()
 	road_visual.name = "RoadMesh"
@@ -1477,6 +1496,10 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	if destination != null:
 		destination.add_child(road_visual)
 
+	if streamed:
+		await stream_clock.tick
+		if not is_instance_valid(destination) or not destination.is_inside_tree():
+			return
 	# Коллизия — по всей видимой ленте, включая внешнюю «юбку» (outer):
 	# она ложится на землю и плавно уводит край полотна в кювет. Если
 	# обрывать коллизию на обочине, под видимым краем остаётся невидимая
@@ -1518,6 +1541,47 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	road_body.add_child(collider)
 	if destination != null:
 		destination.add_child(road_body)
+
+
+func _make_road_material() -> ShaderMaterial:
+	# Материал полотна один на сцену: свой (из сцены/настроек) или
+	# сгенерированный — в обоих случаях живёт между пересборками.
+	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
+	var road_override: Material = road_material_override
+	if road_override == null and surfaces != null:
+		road_override = surfaces.road_material
+	if road_override == null:
+		road_override = s_settings().road_material
+	if road_override is ShaderMaterial:
+		_road_material = road_override as ShaderMaterial
+	elif _road_material == null:
+		_road_material = ShaderMaterial.new()
+	var road_material := _road_material
+	if road_material.shader == null:
+		road_material.shader = RoadShader
+	road_material.set_shader_parameter("section_surfaces", not track.route_sections.is_empty())
+	road_material.set_shader_parameter("gravel_texture", GravelTexture)
+	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
+	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
+	road_material.set_shader_parameter("vertex_snap", s_settings().retro_vertex_snap if s_settings().is_retro(track) else 0.0)
+	road_material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
+	road_material.set_shader_parameter("road_roughness", s_settings().road_roughness)
+	road_material.set_shader_parameter("detail_strength", s_settings().road_detail_strength)
+	road_material.set_shader_parameter("track_strength", s_settings().road_track_strength)
+	var road_kind: String = surface_state.surface_kind(track.surface_name, false, _weather_snow_cover())
+	road_material.set_shader_parameter(
+		"loose_relief",
+		s_settings().road_loose_relief_asphalt if road_kind == "asphalt" else s_settings().road_loose_relief
+	)
+	# Мокрое полотно темнее и глянцевее, снег — светлее и матовее.
+	road_material.set_shader_parameter("stage_length", network.total_length)
+	road_material.set_shader_parameter("zone_offset", _zone_lateral_offset())
+	_apply_zone_shader_parameters(road_material)
+	s_settings().apply_shader_overrides(road_material, s_settings().road_shader_overrides)
+	road_material.set_shader_parameter("wetness", _weather_wetness())
+	road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+
+	return road_material
 
 
 ## Контакт вызывается отдельно для каждого колеса, в локальных координатах этапа.
@@ -1694,6 +1758,9 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	if generated == null or network == null:
 		return
 	var cfg := s_scenery()
+	var streamed: bool = light and chunk_parent != null
+	var stream_clock = chunk_parent.get_parent()._clock if streamed else null
+	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	var library := s_props()
 	var pickable := library.active_props()
 	if pickable.is_empty():
@@ -1757,6 +1824,11 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 			var zone: int = SceneryPlacement.zone_at(distance, side_sign, track.terrain_seed)
 			var pool: Array[RallyProp] = zone_pools[zone]
 			for _attempt in range(attempt_count):
+				if streamed and Time.get_ticks_usec() >= slice_deadline:
+					await stream_clock.tick
+					if not is_instance_valid(container) or not container.is_inside_tree():
+						return
+					slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 				if full:
 					break
 				if rng.randf() > attempt_chance:
@@ -1843,16 +1915,28 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 			break
 		step_count += 1
 		attempts_since_yield += attempt_count * 2
-		if light and attempts_since_yield >= cfg.progress_attempts_per_frame:
+		if light and not streamed and attempts_since_yield >= cfg.progress_attempts_per_frame:
 			attempts_since_yield = 0
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
 			await get_tree().process_frame
 		distance += step
 	if chunk_parent == null:
 		_prop_mesh_cache.clear()
-	_build_scenery_multimeshes(container, buffer, kinds, cell_size, corridor)
-	_add_prop_colliders(container, trunks, cell_size)
-	_spawn_corner_signs(container, distance_start, distance_end)
+	if streamed:
+		await stream_clock.tick
+		if not is_instance_valid(container) or not container.is_inside_tree():
+			return
+	await _build_scenery_multimeshes(container, buffer, kinds, cell_size, corridor, streamed, stream_clock)
+	if streamed:
+		await stream_clock.tick
+		if not is_instance_valid(container) or not container.is_inside_tree():
+			return
+	await _add_prop_colliders(container, trunks, cell_size, streamed, stream_clock)
+	if streamed:
+		await stream_clock.tick
+		if not is_instance_valid(container) or not container.is_inside_tree():
+			return
+	await _spawn_corner_signs(container, distance_start, distance_end, streamed, stream_clock)
 
 
 ## Номер пространственной ячейки MultiMesh (часть ключа группы).
@@ -1868,23 +1952,36 @@ func _build_scenery_multimeshes(
 	buffer: SceneryBuffer,
 	kinds: Array[RallyProp],
 	cell_size: float,
-	corridor: float
+	corridor: float,
+	streamed: bool = false,
+	stream_clock = null
 ) -> void:
 	if buffer == null or buffer.count <= 0:
 		return
 	var cfg := s_settings()
 	var shadow_limit: float = corridor + cfg.scenery_shadow_max_offset
+	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	var groups: Dictionary = {}
 	for i in range(buffer.count):
 		var key: int = buffer.keys[i]
 		if not groups.has(key):
 			groups[key] = []
 		(groups[key] as Array).append(i)
+		if streamed and i % 32 == 31 and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(container) or not container.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	var meshes: Array = []
 	meshes.resize(kinds.size())
 	var roots: Array = []
 	roots.resize(kinds.size())
 	for key in groups:
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(container) or not container.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 		var prop_index: int = int(key) / SCENERY_CELL_SPAN
 		var cell: int = int(key) % SCENERY_CELL_SPAN
 		if prop_index < 0 or prop_index >= kinds.size():
@@ -1921,6 +2018,11 @@ func _build_scenery_multimeshes(
 			multimesh.set_instance_transform(n, Transform3D(basis, world - chunk_origin))
 			var shade: float = cfg.scenery_shade_base + cfg.scenery_shade_spread * TrackConfigType.hash_noise(world.x, world.z)
 			multimesh.set_instance_color(n, Color(shade, shade, shade, 1.0))
+			if streamed and n % 16 == 15 and Time.get_ticks_usec() >= slice_deadline:
+				await stream_clock.tick
+				if not is_instance_valid(container) or not container.is_inside_tree():
+					return
+				slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 		var instance := MultiMeshInstance3D.new()
 		var cell_x: int = (cell % SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
 		var cell_z: int = (cell / SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
@@ -1943,11 +2045,17 @@ func _build_scenery_multimeshes(
 
 ## Физические стволы там, где вид это разрешил: по цилиндру на ствол, тела
 ## сгруппированы по ячейкам, чтобы физика не держала тысячи отдельных узлов.
-func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: float) -> void:
+func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: float, streamed: bool = false, stream_clock = null) -> void:
 	if trunks.is_empty():
 		return
 	var bodies: Dictionary = {}
+	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	for i in range(trunks.size() / 5):
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(parent) or not parent.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 		var o: int = i * 5
 		var x: float = trunks[o]
 		var z: float = trunks[o + 1]
@@ -2080,7 +2188,7 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 	return _bake_prop_mesh(s_props().by_id(kind))
 
 
-func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_end: float = -1.0) -> void:
+func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_end: float = -1.0, streamed: bool = false, stream_clock = null) -> void:
 	var cfg := s_spawn()
 	if not cfg.corner_signs:
 		return
@@ -2088,7 +2196,13 @@ func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_e
 	var last_sign: float = -10000.0
 	var distance: float = maxf(cfg.corner_sign_start, ceilf(distance_start / 12.0) * 12.0)
 	var end: float = network.total_length - cfg.corner_sign_end if distance_end < 0.0 else minf(distance_end, network.total_length - cfg.corner_sign_end)
+	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	while distance < end:
+		if streamed and Time.get_ticks_usec() >= slice_deadline:
+			await stream_clock.tick
+			if not is_instance_valid(parent) or not parent.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 		var turn: float = _turn_ahead(distance, cfg.corner_lookahead)
 		if absf(turn) > threshold and distance - last_sign > cfg.corner_sign_spacing:
 			var center: Vector3 = network.point_at(distance)
@@ -2166,17 +2280,21 @@ func _spawn_edge_posts(distance_start: float = 0.0, distance_end: float = -1.0, 
 	var container := Node3D.new()
 	container.name = "EdgePosts"
 	(generated if chunk_parent == null else chunk_parent).add_child(container)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = track.edge_post_color
-	material.roughness = cfg.edge_post_roughness
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = cfg.edge_post_size
-	post_mesh.surface_set_material(0, material)
-	var white := StandardMaterial3D.new()
-	white.albedo_color = cfg.edge_post_cap_color
-	var cap_mesh := BoxMesh.new()
-	cap_mesh.size = cfg.edge_post_cap_size
-	cap_mesh.surface_set_material(0, white)
+	# The same post geometry/material is shared by every road chunk.
+	if _edge_post_mesh == null or _edge_cap_mesh == null:
+		var material := StandardMaterial3D.new()
+		material.albedo_color = track.edge_post_color
+		material.roughness = cfg.edge_post_roughness
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = cfg.edge_post_size
+		post_mesh.surface_set_material(0, material)
+		_edge_post_mesh = post_mesh
+		var white := StandardMaterial3D.new()
+		white.albedo_color = cfg.edge_post_cap_color
+		var cap_mesh := BoxMesh.new()
+		cap_mesh.size = cfg.edge_post_cap_size
+		cap_mesh.surface_set_material(0, white)
+		_edge_cap_mesh = cap_mesh
 	var transforms: Array[Transform3D] = []
 	var lateral: float = corridor_half() + cfg.edge_post_lateral
 	var post_distances: PackedFloat32Array
@@ -2201,7 +2319,7 @@ func _spawn_edge_posts(distance_start: float = 0.0, distance_end: float = -1.0, 
 			transforms.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z)))
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = post_mesh
+	multimesh.mesh = _edge_post_mesh
 	multimesh.instance_count = transforms.size()
 	for i in range(transforms.size()):
 		multimesh.set_instance_transform(i, transforms[i])
@@ -2212,7 +2330,7 @@ func _spawn_edge_posts(distance_start: float = 0.0, distance_end: float = -1.0, 
 	# Белые «шапки» — второй MultiMesh со сдвигом по высоте.
 	var cap_multimesh := MultiMesh.new()
 	cap_multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	cap_multimesh.mesh = cap_mesh
+	cap_multimesh.mesh = _edge_cap_mesh
 	cap_multimesh.instance_count = transforms.size()
 	for i in range(transforms.size()):
 		var t: Transform3D = transforms[i]
