@@ -3,6 +3,8 @@ extends SceneTree
 
 const Stage = preload("res://scripts/rally_stage.gd")
 const Track = preload("res://scripts/data/rally_track_config.gd")
+const Placement = preload("res://scripts/data/rally_scenery_placement.gd")
+const Prop = preload("res://scripts/data/rally_prop.gd")
 const Network = preload("res://scripts/road_network.gd")
 
 var failures: Array[String] = []
@@ -54,6 +56,12 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	var placement := Placement.new()
+	placement.reserve(Vector3.ZERO, 2.0)
+	check(not placement.has_space(Vector3(3, 0, 0), 2.0), "пересекающиеся пропсы отклоняются")
+	check(placement.has_space(Vector3(5, 0, 0), 2.0), "свободная позиция доступна")
+	placement.reserve(Vector3(-12, 0, -12), 2.0)
+	check(not placement.has_space(Vector3(-11, 0, -11), 1.0), "сетка работает на отрицательных координатах")
 	var stage = Stage.new()
 	stage.track = Track.new()
 	stage.track.use_baked_props = false
@@ -68,11 +76,20 @@ func _run() -> void:
 	stage.generated = Node3D.new()
 	stage.add_child(stage.generated)
 	check(stage.s_props().active_props().size() >= 10, "в библиотеке должно быть хотя бы десять расставляемых видов")
+	for prop in stage.s_props().spawnable_props():
+		for zone in range(4):
+			if prop.category == Prop.Category.FENCE or prop.category == Prop.Category.FIELD:
+				check(Placement.allows(prop, zone) == (zone == 2), "сено и заборы только на полевых участках")
+			if prop.category == Prop.Category.ROCKS:
+				check(Placement.allows(prop, zone) == (zone == 1), "камни отдельно от полевого реквизита")
+		if prop.category == Prop.Category.FENCE:
+			check(prop.align_to_road and not prop.random_yaw, "забор ориентирован вдоль дороги")
 	await stage._spawn_procedural_scenery(false)
 	var first := snapshot(stage)
 	var total := total_of(first)
-	# 30-кратный множитель плотности: на 600 м прямой должно быть тысячи объектов.
-	check(total > 3000, "сцена должна быть плотнее прежней: %d" % total)
+	# Плотность ограничена свободным местом, а не числом успешных бросков.
+	check(total > 300, "обстановка не должна исчезать после разделения зон: %d" % total)
+	check(total < 10000, "генерация не должна забивать сцену объектами: %d" % total)
 	check(group_names(stage).size() >= 8, "видов обстановки должно быть много")
 	var cells := 0
 	for key in first:
@@ -86,7 +103,7 @@ func _run() -> void:
 	stage.track.scenery_density = 2.0
 	await stage._spawn_procedural_scenery(false)
 	var dense_total := total_of(snapshot(stage))
-	check(dense_total > total * 1.5, "увеличение плотности должно заметно добавлять объекты")
+	check(dense_total > 300 and dense_total < 15000, "высокая плотность также ограничена свободным местом")
 	stage.generated.get_node("Scenery").free()
 	stage.track.scenery_density = 0.0
 	await stage._spawn_procedural_scenery(false)

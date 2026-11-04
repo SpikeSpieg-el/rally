@@ -10,6 +10,7 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 		printerr("FAIL: " + message)
 
+# Синтетическая стиральная доска — стресс-тест подвески, не профиль трасс.
 func height(z: float) -> float:
 	return 0.05 * sin((z - 12.0) * TAU / 9.0) * smoothstep(10.0, 14.0, z)
 

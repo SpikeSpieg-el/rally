@@ -13,7 +13,7 @@ extends Resource
 @export var surface_name: String = "Гравий"
 @export_range(1, 5, 1) var difficulty: int = 3
 ## Эталонное время прохождения — для HUD и таблицы рекордов.
-@export_range(20.0, 2400.0, 1.0) var target_time: float = 150.0
+@export_range(20.0, 14400.0, 1.0) var target_time: float = 150.0
 
 @export_group("Дорога")
 ## Осевая линия трассы. Точки: X/Z — план, Y — высота.
@@ -32,6 +32,31 @@ extends Resource
 @export_range(0.0, 0.4, 0.01) var road_camber: float = 0.07
 ## Сцепление травы относительно гравийного полотна: 0.9 = 90 % сцепления дороги.
 @export_range(0.05, 1.0, 0.01) var offroad_grip: float = 0.6
+
+@export_group("Участки по километражу")
+## По возрастанию start_distance. Пустой массив сохраняет старое поведение.
+@export var route_sections: Array[RallyRouteSection] = []
+
+func section_at(distance: float) -> RallyRouteSection:
+	var result: RallyRouteSection = null
+	for section in route_sections:
+		if section != null and section.start_distance <= distance:
+			result = section
+	return result
+
+func half_width_at(distance: float) -> float:
+	var previous: float = road_half_width
+	for section in route_sections:
+		if section == null:
+			continue
+		if section.start_distance > distance:
+			break
+		var blend: float = smoothstep(section.start_distance, section.start_distance + maxf(20.0, section.transition_length), distance)
+		var width: float = lerpf(previous, section.half_width, blend)
+		if distance < section.start_distance + section.transition_length:
+			return width
+		previous = section.half_width
+	return previous
 
 @export_group("Рельеф")
 ## Сколько метров земли генерировать вокруг трассы с каждой стороны.
@@ -64,16 +89,22 @@ extends Resource
 @export_range(1.0, 40.0, 0.5) var embankment_min_width: float = 4.0
 @export_range(4.0, 120.0, 1.0) var embankment_max_width: float = 34.0
 
-@export_group("Неровности полотна (кочки/стиральная доска)")
-## Амплитуда продольных неровностей полотна, м. 0 — идеально ровный асфальт.
+@export_group("Профиль дороги: гребни, просадки, полки")
+## Крупный непериодический профиль: отдельные формы, а не постоянная тряска.
+@export_range(0.0, 2.0, 0.05) var road_feature_height: float = 0.9
+## Средний масштаб участков; большая часть дороги между событиями ровная.
+@export_range(240.0, 900.0, 10.0) var road_feature_spacing: float = 320.0
+
+@export_group("Локальные неровности полотна")
+## Амплитуда редких локальных неровностей, м. 0 — без мелких кочек.
 ## Держите её небольшой (5–6 см): это профиль дороги, а не трамплин.
 @export_range(0.0, 0.6, 0.01) var bumps_amplitude: float = 0.05
-## Длина волны неровностей (м). Меньше ~8 м на низкополигональном полотне
-## читается как «гармошка», поэтому по умолчанию — длинные мягкие волны.
+## Базовый размер локальной неровности. Реальное пятно имеет длину 18–38 м.
 @export_range(4.0, 30.0, 0.1) var bumps_wavelength: float = 9.0
-## Глубина «ямочной» тряски поверх волн, м (тоже низкочастотной, ~10 м).
+## Дополнительная глубина локальной компрессии, м (не непрерывный шум).
 @export_range(0.0, 0.4, 0.01) var bumps_roughness: float = 0.015
-## Насколько шершавость гасит волну (0 — ровные полосы по всей ширине).
+## Устаревшее поле: сохранено для чтения старых ресурсов. Новый профиль
+## не использует бесконечную волну и её гашение.
 @export_range(0.0, 1.0, 0.01) var bumps_cross: float = 0.25
 
 @export_group("Ассеты")

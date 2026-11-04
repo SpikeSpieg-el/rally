@@ -175,7 +175,6 @@ var _hills_rows: int = 0
 var _noise_hills: FastNoiseLite = null
 var _noise_ridge: FastNoiseLite = null
 var _noise_detail: FastNoiseLite = null
-var _noise_bumps: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
 ## Запечённые меши ассетов обстановки на время одной сборки (по пути сцены).
 var _prop_mesh_cache: Dictionary = {}
@@ -571,8 +570,13 @@ func _resolve_conditions(game: Node) -> void:
 func _apply_conditions_to_track() -> void:
 	if track == null:
 		return
-	if track_profile != null:
+	if track_profile != null and track.route_sections.is_empty():
 		track_profile.apply_to(track)
+	# Маршрут со сценарием сам управляет погодой; без накопления множителей.
+	if not track.route_sections.is_empty():
+		var first_section = track.section_at(0.0)
+		weather = first_section.weather.duplicate() if first_section != null and first_section.weather != null else WeatherType.new()
+		return
 	if weather == null:
 		return
 	track.grip_scale = clampf(track.grip_scale * weather.grip_scale, 0.2, 2.0)
@@ -719,9 +723,6 @@ func _setup_noise() -> void:
 	_noise_hills = _make_noise(track.terrain_seed, track.hills_frequency, 3)
 	_noise_ridge = _make_noise(track.terrain_seed + 91, track.ridge_frequency, 4)
 	_noise_detail = _make_noise(track.terrain_seed + 173, track.detail_frequency, 2)
-	# Низкая частота: «шершавость» полотна должна быть длиной в метры, а не
-	# в полметра — иначе на шаге строк меша она читается как рёбра.
-	_noise_bumps = _make_noise(track.terrain_seed + 257, 0.08, 1)
 	_rng.seed = track.terrain_seed
 
 
@@ -785,7 +786,7 @@ func _base_height(x: float, z: float, distance: float) -> float:
 ## Вынесено отдельно, чтобы сборка рельефа могла переиспользовать уже
 ## посчитанные along/road_y/base, а не считать их второй и третий раз.
 func _blend_height(road_y: float, base: float, distance: float, along: float) -> float:
-	var corridor: float = track.road_half_width + track.road_shoulder
+	var corridor: float = track.half_width_at(along) + track.road_shoulder
 	var max_slope: float = tan(deg_to_rad(maxf(6.0, track.embankment_slope_deg)))
 	var blend_width: float = clampf(
 		absf(road_y - base) / maxf(max_slope, 0.05),
@@ -916,18 +917,20 @@ func _sample_hills_cache(x: float, z: float) -> float:
 	return lerpf(top, bottom, tz)
 
 
+const RoadProfile = preload("res://scripts/road_profile.gd")
+
 func _surface_bumps_along(along: float) -> float:
-	if track.bumps_amplitude <= 0.0 and track.bumps_roughness <= 0.0:
-		return 0.0
-	# Волна длиной в несколько метров: короткую синусоиду шаг строк полотна
-	# (1.5–2 м) превращает в пилу — та самая «гармошка» поперёк дороги.
-	var wavelength: float = maxf(track.bumps_wavelength, 4.0)
-	var wave: float = sin(along * TAU / wavelength)
-	# «Шершавость» тоже низкочастотная (≈10 м): крупные мягкие волны,
-	# а не случайный сдвиг каждой поперечной полосы меша на ±5 см.
-	var roughness: float = _noise_bumps.get_noise_1d(along)
-	var cross: float = 1.0 - track.bumps_cross * 0.5 * (roughness * 0.5 + 0.5)
-	return (track.bumps_amplitude * wave + track.bumps_roughness * roughness) * cross
+	var micro_scale: float = 1.0
+	var section = track.section_at(along)
+	if section != null:
+		if section.surface_name == "Асфальт":
+			micro_scale = 0.12
+		elif section.surface_name == "Снег":
+			micro_scale = 0.4
+	var length: float = network.total_length if network != null else INF
+	return RoadProfile.sample(along, track.terrain_seed, track.road_feature_height,
+		track.road_feature_spacing, track.bumps_amplitude * micro_scale,
+		track.bumps_roughness * micro_scale, track.bumps_wavelength, length)
 
 
 ## Нормаль поверхности по нарисованному мешу (для наклона ассетов).
@@ -1076,6 +1079,10 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	indices.resize((rows - 1) * (cols - 1) * 6)
 	var index_count := 0
 	var hole_distance: float = corridor * 0.92
+	# Дыра в земле не может быть шире самого узкого участка ленты.
+	for section in track.route_sections:
+		if section != null:
+			hole_distance = minf(hole_distance, (section.half_width + track.road_shoulder) * 0.92)
 	for gz in range(rows - 1):
 		for gx in range(cols - 1):
 			var i00: int = gz * cols + gx
@@ -1296,9 +1303,9 @@ func _weather_snow_cover() -> float:
 func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
 	var step: float = maxf(0.5, track.road_step)
 	if track.bumps_amplitude > 0.0 or track.bumps_roughness > 0.0:
-		# Волну кочек рисуем плотнее, чем шаг из конфига: минимум ~10 строк
-		# на длину волны, иначе синус превращается в треугольные рёбра.
-		step = minf(step, maxf(0.6, track.bumps_wavelength / 10.0))
+		# Самое короткое локальное пятно — 18 м; больше нет синусоиды,
+		# ради которой всё полотно приходилось дробить каждые 0.9 м.
+		step = minf(step, 1.5)
 	var length: float = network.total_length
 	var rows: int = maxi(2, ceili(length / step) + 1)
 	var half: float = track.road_half_width
@@ -1320,10 +1327,16 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 
 	for row in range(rows):
 		var distance: float = minf(length, float(row) * step)
+		half = track.half_width_at(distance)
+		corridor = half + track.road_shoulder
+		outer = corridor + 1.5
+		lateral = [-outer, -corridor, -half, -half * 0.5, 0.0, half * 0.5, half, corridor, outer]
+		var section = track.section_at(distance)
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
 		var shade: float = color_rng.randf_range(0.9, 1.1)
+		var surface_height: float = center.y + _surface_bumps_along(distance)
 		for lane in range(lanes):
 			var lat: float = lateral[lane]
 			var point: Vector3 = center + side * lat
@@ -1332,7 +1345,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 				# Полотно: высота осевой линии + крен + кочки (та же формула,
 				# что и у земли, поэтому стык не просвечивает).
 				var crown: float = track.road_camber * pow(absf(lat) / maxf(corridor, 0.01), 2.0)
-				y = center.y + _surface_bumps_along(distance) - crown
+				y = surface_height - crown
 			elif absf(lat) <= corridor:
 				# Обочина: ровно та же функция, что и у земли в коридоре.
 				y = height_at(point.x, point.z)
@@ -1346,12 +1359,16 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 
 			var base_color: Color = track.road_color * shade
 			base_color = base_color.lerp(track.road_color_2, color_rng.randf() * 0.45)
+			if section != null:
+				base_color = section.road_color * shade
 			var edge_factor: float = clampf((absf(lat) - half * 0.75) / maxf(half * 0.5, 0.01), 0.0, 1.0)
 			if absf(lat) > half:
 				base_color = base_color.lerp(track.shoulder_color, edge_factor)
 			elif absf(lat) > half * 0.62:
 				# Светлая кромка — «накатанная» полоса, по ней видно траекторию.
 				base_color = base_color.lightened(0.08 * edge_factor)
+			if section != null:
+				base_color.a = 0.0 if section.surface_name == "Асфальт" else 1.0
 			colors[row * lanes + lane] = base_color
 		if light and row % 200 == 199:
 			_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
@@ -1406,6 +1423,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var road_material := _road_material
 	if road_material.shader == null:
 		road_material.shader = RoadShader
+	road_material.set_shader_parameter("section_surfaces", not track.route_sections.is_empty())
 	road_material.set_shader_parameter("gravel_texture", GravelTexture)
 	road_material.set_shader_parameter("gravel_texture_smooth", GravelTexture)
 	road_material.set_shader_parameter("ps1_textures", track.ps1_style)
@@ -1484,8 +1502,19 @@ func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float
 	if track == null:
 		return {"grip": 1.0, "rolling": 1.0, "depth": 0.0}
 	var p := to_local(point)
-	var kind: String = surface_state.surface_kind(track.surface_name, grass, _weather_snow_cover())
+	var section = track.section_at(network.along_road(p.x, p.z)) if network != null else null
+	var surface_name: String = section.surface_name if section != null else track.surface_name
+	if section != null:
+		grass = network.distance_to_road(p.x, p.z) > track.half_width_at(network.along_road(p.x, p.z)) + track.road_shoulder
+	var kind: String = surface_state.surface_kind(surface_name, grass, _weather_snow_cover())
 	var result: Dictionary = surface_state.sample(p, kind, _weather_wetness())
+	if section != null:
+		if not grass:
+			result.grip *= section.grip
+			result.rolling *= section.rolling
+		if weather != null:
+			result.grip *= weather.offroad_grip_scale if grass else weather.grip_scale
+			result.rolling *= weather.rolling_resistance_scale
 	if not grass:
 		result.grip *= live_surface_grip(point)
 	surface_state.imprint(p, kind, load_ratio, slip, speed, delta)
@@ -1629,6 +1658,9 @@ class SceneryBuffer:
 		return true
 
 
+const SceneryPlacement = preload("res://scripts/data/rally_scenery_placement.gd")
+
+
 func _spawn_procedural_scenery(light: bool = false) -> void:
 	if generated == null or network == null:
 		return
@@ -1662,6 +1694,14 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 	var minimum_offset: float = cfg.min_offset_baked if track.use_baked_props else cfg.min_offset_plain
 	var jitter: float = step * 0.5 if cfg.along_jitter_full_step else cfg.along_jitter
 	var cell_size: float = maxf(1.0, s_settings().scenery_cell_size)
+	var placement := SceneryPlacement.new()
+	var zone_pools: Array = []
+	for zone in range(4):
+		var pool: Array[RallyProp] = []
+		for candidate in pickable:
+			if SceneryPlacement.allows(candidate, zone):
+				pool.append(candidate)
+		zone_pools.append(pool)
 	var buffer := SceneryBuffer.new()
 	buffer.limit = cfg.max_instances
 	var trunks := PackedFloat32Array()
@@ -1683,20 +1723,31 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 		for side_sign in [-1.0, 1.0]:
 			if full:
 				break
+			var zone: int = SceneryPlacement.zone_at(distance, side_sign, track.terrain_seed)
+			var pool: Array[RallyProp] = zone_pools[zone]
 			for _attempt in range(attempt_count):
 				if full:
 					break
 				if rng.randf() > attempt_chance:
 					continue
-				var prop_index: int = library.pick_index(pickable, rng.randf())
-				if prop_index < 0:
+				var prop: RallyProp = library.pick(pool, rng.randf())
+				if prop == null:
 					continue
-				var prop: RallyProp = pickable[prop_index]
+				# Между тематическими участками оставляем переход без крупных
+				# объектов: jitter не смешивает камни, поле и лес на границе.
+				var block_position: float = fposmod(distance, 120.0)
+				if prop.category != RallyProp.Category.VEGETATION and (block_position < 8.0 or block_position > 112.0):
+					continue
+				var prop_index: int = pickable.find(prop)
 				var far: float = cfg.max_offset
 				if prop.max_offset > 0.0:
 					far = minf(far, prop.max_offset)
 				# На лесной трассе не дублируем запечённые деревья у дороги.
-				var lateral: float = corridor + rng.randf_range(minimum_offset, maxf(minimum_offset, far))
+				var near: float = minimum_offset if prop.min_offset < 0.0 else prop.min_offset
+				near = maxf(near, cfg.road_clearance)
+				if far < near:
+					continue
+				var lateral: float = corridor + rng.randf_range(near, far)
 				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-jitter, jitter)
 				if not terrain_rect.has_point(Vector2(point.x, point.z)):
 					continue
@@ -1706,7 +1757,12 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 				var size: float = rng.randf_range(prop.size.x, prop.size.y)
 				var width: float = size * rng.randf_range(prop.width_jitter.x, prop.width_jitter.y)
 				var height: float = size * rng.randf_range(prop.height_jitter.x, prop.height_jitter.y)
+				var radius: float = clampf(prop.placement_radius * maxf(width, height), 0.2, 12.0)
+				if not placement.has_space(point, radius):
+					continue
 				var yaw: float = rng.randf_range(0.0, TAU) if prop.random_yaw else 0.0
+				if prop.align_to_road:
+					yaw = atan2(-dir.z, dir.x)
 				if not buffer.push(
 					prop_index,
 					point.x,
@@ -1721,6 +1777,7 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 				):
 					full = true
 					break
+				placement.reserve(point, radius)
 				if prop.has_collider() and lateral < corridor + prop.collider_max_offset:
 					if distance - last_collider[prop_index] > prop.collider_spacing:
 						last_collider[prop_index] = distance
@@ -1735,7 +1792,7 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 					var uz: float = point.z + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
 					# Сдвиг не должен выносить спутника на полотно или на соседний
 					# виток трассы — иначе трава торчит из дороги.
-					if network.distance_to_road(ux, uz) < corridor + cfg.road_clearance:
+					if not terrain_rect.has_point(Vector2(ux, uz)) or network.distance_to_road(ux, uz) < corridor + cfg.road_clearance:
 						ux = point.x
 						uz = point.z
 					var gs: float = rng.randf_range(cfg.undergrowth_size.x, cfg.undergrowth_size.y)
@@ -2090,6 +2147,7 @@ func _spawn_edge_posts() -> void:
 	var transforms: Array[Transform3D] = []
 	var lateral: float = corridor_half() + cfg.edge_post_lateral
 	for distance in cfg.resolve_edge_post_distances(network.total_length):
+		lateral = track.half_width_at(distance) + track.road_shoulder + cfg.edge_post_lateral
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
@@ -2637,12 +2695,19 @@ func _update_hud() -> void:
 		var conditions: String = ""
 		if weather != null:
 			conditions += "  |  %s" % weather.display_name
-		if track_profile != null:
+		if track_profile != null and track.route_sections.is_empty():
 			conditions += "  |  %s" % track_profile.display_name
+		var surface_label: String = track.surface_name
+		if network != null and not track.route_sections.is_empty():
+			var p: Vector3 = to_local(car.global_position)
+			var along: float = network.along_road(p.x, p.z)
+			var section = track.section_at(along)
+			if section != null:
+				surface_label = "%s · %.1f м · %.1f км · %s" % [section.surface_name, track.half_width_at(along) * 2.0, along / 1000.0, section.title]
 		stage_label.text = "%s  |  %.0f м  |  %s  |  УРОВЕНЬ %d/5%s" % [
 			track.display_name,
 			network.total_length if network != null else 0.0,
-			track.surface_name,
+			surface_label,
 			track.difficulty,
 			conditions
 		]
@@ -2743,6 +2808,62 @@ func _format_time(seconds: float) -> String:
 # ---------------------------------------------------------------- цикл
 
 
+var _route_weather_clock: float = 0.0
+var _route_particles_intensity: float = -1.0
+var _route_weather_complete: WeatherType = null
+
+func _update_route_weather(delta: float) -> void:
+	if car == null or network == null or track.route_sections.is_empty():
+		return
+	_route_weather_clock += delta
+	if _route_weather_clock < 1.0:
+		return
+	_route_weather_clock = 0.0
+	var p: Vector3 = to_local(car.global_position)
+	var along: float = network.along_road(p.x, p.z)
+	var section = track.section_at(along)
+	if section == null or section.weather == null:
+		return
+	var previous = track.route_sections[0].weather
+	for candidate in track.route_sections:
+		if candidate == section:
+			break
+		if candidate != null and candidate.weather != null:
+			previous = candidate.weather
+	if previous == null:
+		previous = section.weather
+	var blend: float = smoothstep(section.start_distance, section.start_distance + section.transition_length, along)
+	if blend >= 1.0 and _route_weather_complete == section.weather:
+		return
+	_route_weather_complete = section.weather if blend >= 1.0 else null
+	var next_weather: WeatherType = section.weather.duplicate() as WeatherType
+	for property in section.weather.get_property_list():
+		var key: String = property.name
+		if (int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0:
+			continue
+		if property.type == TYPE_FLOAT:
+			next_weather.set(key, lerpf(float(previous.get(key)), float(section.weather.get(key)), blend))
+		elif property.type == TYPE_COLOR:
+			var from_color: Color = previous.get(key)
+			next_weather.set(key, from_color.lerp(section.weather.get(key), blend))
+	if blend < 0.5:
+		next_weather.precipitation = previous.precipitation
+	var previous_precipitation: int = weather.precipitation if weather != null else -1
+	var previous_intensity: float = _route_particles_intensity
+	weather = next_weather
+	_configure_world()
+	# Частицы пересоздаются только при заметном изменении, не каждый кадр.
+	if previous_precipitation != weather.precipitation or absf(previous_intensity - weather.precipitation_intensity) > 0.02:
+		_setup_precipitation()
+		_route_particles_intensity = weather.precipitation_intensity
+	if _road_material != null:
+		_road_material.set_shader_parameter("wetness", _weather_wetness())
+		_road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+	if _ground_material != null:
+		_ground_material.set_shader_parameter("wetness", _weather_wetness())
+		_ground_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+
+
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		_process_editor(delta)
@@ -2775,6 +2896,7 @@ func _process(delta: float) -> void:
 		last_cp_index = -1
 		cp_triggered.fill(false)
 		cp_times.fill(0.0)
+	_update_route_weather(delta)
 	if not stage_finished:
 		if Input.get_action_strength("throttle") > 0.05:
 			timer_running = true

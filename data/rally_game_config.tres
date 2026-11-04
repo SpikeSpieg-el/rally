@@ -20,11 +20,13 @@
 [ext_resource type="Resource" uid="uid://m9utmglh9ca4q" path="res://data/profiles/profile_asphalt.tres" id="p3"]
 [ext_resource type="Resource" uid="uid://r3vd0ie37kjdz" path="res://data/profiles/profile_snow_ceil.tres" id="p4"]
 
+[ext_resource type="Resource" path="res://data/tracks/stage_mountain_100.tres" id="mountain100"]
+
 [resource]
 script = ExtResource("1_script")
 title = "RALLY"
 subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 3 МОТОРА"
-tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t")])
+tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("mountain100")])
 car_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup")])
 weather_presets = Array[Resource]([ExtResource("w1"), ExtResource("w2"), ExtResource("w3"), ExtResource("w4"), ExtResource("w5"), ExtResource("w6"), ExtResource("w7")])
 track_profiles = Array[Resource]([ExtResource("p1"), ExtResource("p2"), ExtResource("p3"), ExtResource("p4")])

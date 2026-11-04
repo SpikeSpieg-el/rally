@@ -39,8 +39,18 @@ extends Resource
 ## Случайный поворот вокруг вертикали (у заборов и щитов имеет смысл выключить).
 @export var random_yaw: bool = true
 
+enum Category { FOREST, VEGETATION, ROCKS, FIELD, FENCE, RALLY }
+
 @export_group("Где растёт")
-## Предельный отступ от осевой линии, м. 0 — как у остальных (cfg.max_offset).
+## Категория определяет совместимые участки, а не только имя группы.
+@export var category: Category = Category.FOREST
+## Отступ от кромки дороги. -1 — общий минимум обстановки.
+@export_range(-1.0, 100.0, 0.5) var min_offset: float = -1.0
+## Радиус свободного места при единичном масштабе (без пересечений с соседями).
+@export_range(0.2, 6.0, 0.1) var placement_radius: float = 1.8
+## Локальная ось X ассета направлена вдоль дороги (забор, щит, барьер).
+@export var align_to_road: bool = false
+## Предельный отступ от кромки дорожного коридора, м. 0 — как у остальных (cfg.max_offset).
 ## Маленькое значение сажает «реквизит» (мешки, покрышки, щиты) ближе к дороге.
 @export_range(0.0, 400.0, 1.0) var max_offset: float = 0.0
 

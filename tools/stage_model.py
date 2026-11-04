@@ -8,6 +8,7 @@
 """
 import math
 import re
+import road_profile
 
 ROOT = "/home/user/rally"
 CURVE = ROOT + "/data/tracks/stage_forest_route.tres"
@@ -17,7 +18,8 @@ FAR = 100000.0
 
 # ---------------------------------------------------------------- конфиг
 def read_track(path=TRACK):
-    text = open(path).read()
+    with open(path, encoding="utf-8") as handle:
+        text = handle.read()
     cfg = {}
 
     def num(key, default):
@@ -41,6 +43,9 @@ def read_track(path=TRACK):
     cfg["bump_wl"] = num("bumps_wavelength", 12.0)
     cfg["bump_rough"] = num("bumps_roughness", 0.0)
     cfg["bump_cross"] = num("bumps_cross", 0.0)
+    cfg["seed"] = int(num("terrain_seed", 2024))
+    cfg["feature_height"] = num("road_feature_height", .9)
+    cfg["feature_spacing"] = num("road_feature_spacing", 320)
     cfg["corridor"] = cfg["half"] + cfg["shoulder"]
     return cfg
 
@@ -48,7 +53,8 @@ def read_track(path=TRACK):
 # ---------------------------------------------------------------- кривая
 def load_curve(path=CURVE):
     """Точки Curve3D: (point_in, point_out, position) в мировых координатах."""
-    text = open(path).read()
+    with open(path, encoding="utf-8") as handle:
+        text = handle.read()
     pts = re.search(r'"points": PackedVector3Array\(([^)]*)\)', text, re.S).group(1)
     nums = [float(v) for v in pts.replace("\n", " ").split(",") if v.strip()]
     out = []
@@ -291,12 +297,10 @@ def hills(x, z):
 
 
 def bumps(along, cfg):
-    if cfg["bump_amp"] <= 0.0 and cfg["bump_rough"] <= 0.0:
-        return 0.0
-    wave = math.sin(along * math.tau / max(cfg["bump_wl"], 0.5))
-    rough = 0.6 * math.sin(along * 5.0 * 0.9) + 0.4 * math.sin(along * 5.0 * 1.7)
-    cross = 1.0 - cfg["bump_cross"] * 0.5 * (rough * 0.5 + 0.5)
-    return (cfg["bump_amp"] * wave + cfg["bump_rough"] * rough) * cross
+    return road_profile.sample(along, cfg.get("seed", 2024),
+                              cfg.get("feature_height", .9), cfg.get("feature_spacing", 320),
+                              cfg["bump_amp"], cfg["bump_rough"], cfg["bump_wl"],
+                              cfg.get("route_length", math.inf))
 
 
 def height(net, cfg, x, z):
@@ -330,6 +334,7 @@ class Stage:
         self.cfg = cfg or read_track()
         ctrl = load_curve(curve_path or CURVE)
         self.samples = samples or sample_curve(ctrl, 1.0)
+        self.cfg["route_length"] = sum(math.dist(a, b) for a, b in zip(self.samples, self.samples[1:]))
         xs = [p[0] for p in self.samples]
         zs = [p[2] for p in self.samples]
         m = self.cfg["margin"]
