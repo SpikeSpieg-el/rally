@@ -67,7 +67,9 @@ class Material(object):
     def text(self):
         return (
             '[sub_resource type="StandardMaterial3D" id="%s"]\n'
-            'albedo_color = Color(%s)\n'
+            # ВАЖНО: в текстовом формате Color ждёт ЧЕТЫРЕ аргумента.
+            # Color(r, g, b) движок не читает: «Expected 4 arguments».
+            'albedo_color = Color(%s, 1)\n'
             'albedo_texture = ExtResource("%s")\n'
             'roughness = %s\n'
             'specular = %s\n'

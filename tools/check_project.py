@@ -8,7 +8,11 @@
      сверяется с полями и методами соответствующего класса-ресурса
      (RallyStageSettings, RallySpawnLayout, RallySceneryConfig, …);
   2) ресурсы — во всех .tscn/.tres проверяется, что каждый ExtResource/
-     SubResource объявлен, а каждый `path="res://…"` существует на диске.
+     SubResource объявлен, а каждый `path="res://…"` существует на диске;
+  3) конструкторы — у `Color()`, `Vector3()`, `Transform3D()` и прочих
+     проверяется число аргументов. Текстовый формат строгий: `Color(r, g, b)`
+     не читается, нужен четвёртый аргумент — альфа. Именно так однажды
+     посыпались все сцены пропсов ("Expected 4 arguments for constructor").
 
 Запуск:  python3 tools/check_project.py
 Код выхода: 0 — чисто, 1 — есть проблемы.
@@ -155,8 +159,70 @@ def check_resources():
     return errors
 
 
+# Сколько аргументов ждёт конструктор в текстовом формате Godot. Множества —
+# на случай перегруженных конструкторов (Basis из 9 чисел или из оси и угла).
+ARITY = {
+    "Vector2": {2}, "Vector2i": {2}, "Vector3": {3}, "Vector3i": {3},
+    "Vector4": {4}, "Vector4i": {4},
+    "Color": {4},               # Color(r, g, b) движок НЕ примет
+    "Quaternion": {4}, "Rect2": {4}, "Rect2i": {4}, "Plane": {4},
+    "Transform2D": {6}, "Transform3D": {12, 6, 2}, "Basis": {9, 4},
+    "AABB": {6, 2}, "Projection": {16},
+}
+
+
+def count_top_args(text, open_idx):
+    """Число аргументов верхнего уровня: запятые внутри вложенных скобок не в счёт."""
+    depth, args, seen = 0, 0, False
+    i = open_idx
+    while i < len(text):
+        char = text[i]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+            if depth == 0:
+                return args + (1 if seen else 0)
+        elif char == '"':
+            i += 1
+            while i < len(text) and text[i] != '"':
+                i += 1
+        elif char == "," and depth == 1:
+            args += 1
+            seen = False
+        elif not char.isspace() and depth == 1:
+            seen = True
+        i += 1
+    return None
+
+
+def check_constructors():
+    """Число аргументов у конструкторов вариантов в .tscn/.tres."""
+    errors = []
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in (".git", ".godot", "__pycache__")]
+        for name in files:
+            if not name.endswith((".tscn", ".tres")):
+                continue
+            path = os.path.join(base, name)
+            rel = os.path.relpath(path, ROOT)
+            with open(path, encoding="utf-8") as handle:
+                for lineno, line in enumerate(handle, 1):
+                    for hit in re.finditer(r"\b(\w+)\s*\(", line):
+                        ctor = hit.group(1)
+                        if ctor not in ARITY:
+                            continue
+                        found = count_top_args(line, hit.end() - 1)
+                        if found is not None and found not in ARITY[ctor]:
+                            expected = "/".join(str(a) for a in sorted(ARITY[ctor]))
+                            errors.append(
+                                "%s:%d: %s(%d арг.) — текстовый формат ждёт %s\n    %s"
+                                % (rel, lineno, ctor, found, expected, line.strip()))
+    return errors
+
+
 def main():
-    errors = check_pulpits() + check_resources()
+    errors = check_pulpits() + check_resources() + check_constructors()
     if errors:
         for item in errors:
             print(item)

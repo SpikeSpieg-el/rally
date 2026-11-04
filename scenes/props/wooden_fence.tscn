@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/plank.png" id="tex_plank"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_plank"]
-albedo_color = Color(1, 0.96, 0.9)
+albedo_color = Color(1, 0.96, 0.9, 1)
 albedo_texture = ExtResource("tex_plank")
 roughness = 0.97
 specular = 0.28

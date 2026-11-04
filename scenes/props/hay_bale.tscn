@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/straw.png" id="tex_straw"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_straw"]
-albedo_color = Color(1, 0.96, 0.88)
+albedo_color = Color(1, 0.96, 0.88, 1)
 albedo_texture = ExtResource("tex_straw")
 roughness = 1
 specular = 0.28

@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/needles.png" id="tex_needles"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_needles"]
-albedo_color = Color(0.9, 1, 0.9)
+albedo_color = Color(0.9, 1, 0.9, 1)
 albedo_texture = ExtResource("tex_needles")
 roughness = 0.95
 specular = 0.28
