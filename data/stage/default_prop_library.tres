@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" uid="uid://d26nm0fevmqui" path="res://scenes/props/fern.tscn" id="scene_fern"]
 [ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="scene_fir_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/grass.tscn" id="scene_grass"]
+[ext_resource type="PackedScene" uid="uid://6mbw10od76gr" path="res://scenes/props/grass2.tscn" id="scene_grass2"]
+[ext_resource type="PackedScene" uid="uid://bbuus4mtwbmd6" path="res://scenes/props/grass3.tscn" id="scene_grass3"]
 [ext_resource type="PackedScene" uid="uid://bo338bkicgtd0" path="res://scenes/props/hay_bale.tscn" id="scene_hay_bale"]
 [ext_resource type="PackedScene" uid="uid://cr0gse3w8c3ro" path="res://scenes/props/log.tscn" id="scene_log"]
 [ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="scene_pine_tree"]
@@ -100,6 +102,32 @@ script = ExtResource("2_prop")
 id = "grass"
 display_name = "Травяной пучок"
 scene = ExtResource("scene_grass")
+weight = 0.12
+size = Vector2(0.6, 1.25)
+width_jitter = Vector2(0.85, 1.2)
+height_jitter = Vector2(0.85, 1.15)
+category = 1
+placement_radius = 0.3
+small = true
+
+[sub_resource type="Resource" id="RallyProp_grass2"]
+script = ExtResource("2_prop")
+id = "grass2"
+display_name = "Трава 2"
+scene = ExtResource("scene_grass2")
+weight = 0.0
+size = Vector2(0.6, 1.25)
+width_jitter = Vector2(0.85, 1.2)
+height_jitter = Vector2(0.85, 1.15)
+category = 1
+placement_radius = 0.3
+small = true
+
+[sub_resource type="Resource" id="RallyProp_grass3"]
+script = ExtResource("2_prop")
+id = "grass3"
+display_name = "Трава 3"
+scene = ExtResource("scene_grass3")
 weight = 0.0
 size = Vector2(0.6, 1.25)
 width_jitter = Vector2(0.85, 1.2)
@@ -268,4 +296,4 @@ collider_height = 2.0
 
 [resource]
 script = ExtResource("1_lib")
-props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), null])
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner")])

@@ -1,20 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://ugy3qok4c7kj"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/bark.png" id="tex_bark"]
-
-[ext_resource type="Texture2D" path="res://textures/environment/needles.png" id="tex_needles"]
+[ext_resource type="Texture2D" uid="uid://k6hgv5lyih0o" path="res://textures/environment/bark.png" id="tex_bark"]
+[ext_resource type="Texture2D" uid="uid://b7wlllfwlmj8k" path="res://textures/environment/needles.png" id="tex_needles"]
 
 [sub_resource type="StandardMaterial3D" id="Material_trunk"]
-albedo_color = Color(1, 1, 1, 1)
+specular_mode = 2
 albedo_texture = ExtResource("tex_bark")
-roughness = 1.0
-specular_mode = 2
-
-[sub_resource type="StandardMaterial3D" id="Material_needles"]
-albedo_color = Color(0.9, 1, 0.9, 1)
-albedo_texture = ExtResource("tex_needles")
-roughness = 0.95
-specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_trunk"]
 material = SubResource("Material_trunk")
@@ -23,6 +14,12 @@ bottom_radius = 0.28
 height = 2.6
 radial_segments = 6
 rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Material_needles"]
+specular_mode = 2
+albedo_color = Color(0.9, 1, 0.9, 1)
+albedo_texture = ExtResource("tex_needles")
+roughness = 0.95
 
 [sub_resource type="CylinderMesh" id="Mesh_lower"]
 material = SubResource("Material_needles")
@@ -44,22 +41,23 @@ rings = 1
 height = 2.6
 radius = 0.32
 
-[node name="PineTree" type="Node3D"]
+[node name="PineTree" type="Node3D" unique_id=1541846367]
+transform = Transform3D(1.915, 0, 0, 0, 1.915, 0, 0, 0, 1.915, 0, 0, 0)
 
-[node name="Trunk" type="MeshInstance3D" parent="."]
+[node name="Trunk" type="MeshInstance3D" parent="." unique_id=1116853286]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
 mesh = SubResource("Mesh_trunk")
 
-[node name="Lower" type="MeshInstance3D" parent="."]
+[node name="Lower" type="MeshInstance3D" parent="." unique_id=2063782300]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.1, 0)
 mesh = SubResource("Mesh_lower")
 
-[node name="Upper" type="MeshInstance3D" parent="."]
+[node name="Upper" type="MeshInstance3D" parent="." unique_id=1384866101]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.3, 0)
 mesh = SubResource("Mesh_upper")
 
-[node name="Body" type="StaticBody3D" parent="."]
+[node name="Body" type="StaticBody3D" parent="." unique_id=394691776]
 
-[node name="Shape" type="CollisionShape3D" parent="Body"]
+[node name="Shape" type="CollisionShape3D" parent="Body" unique_id=1067058630]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
 shape = SubResource("Shape_trunk")

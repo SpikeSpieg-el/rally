@@ -119,7 +119,8 @@ shader_parameter/puddle_mix = 0.8
 script = ExtResource("9_h4p6t")
 preview_in_editor = false
 show_debug_info = true
-ps1_enabled = false
+apply_ps1_materials = true
+ps1_enabled = true
 ground_material = SubResource("ShaderMaterial_vbfph")
 road_material = SubResource("ShaderMaterial_mrwpt")
 

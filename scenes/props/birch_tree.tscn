@@ -1,35 +1,34 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://drna5vq65dq2v"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/birch_bark.png" id="tex_birch_bark"]
-
-[ext_resource type="Texture2D" path="res://textures/environment/leaves.png" id="tex_leaves"]
+[ext_resource type="Texture2D" uid="uid://h184vosavfft" path="res://textures/environment/birch_bark.png" id="tex_birch_bark"]
+[ext_resource type="Texture2D" uid="uid://cwm02jvl0sy5" path="res://textures/environment/leaves.png" id="tex_leaves"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_birch"]
+specular_mode = 2
 albedo_color = Color(0.98, 0.98, 0.96, 1)
 albedo_texture = ExtResource("tex_birch_bark")
+metallic_specular = 0.28
 roughness = 0.92
-metallic_specular = 0.28
-specular_mode = 2
-
-[sub_resource type="StandardMaterial3D" id="Mat_leaves"]
-albedo_color = Color(0.94, 1, 0.9, 1)
-albedo_texture = ExtResource("tex_leaves")
-roughness = 0.95
-metallic_specular = 0.28
-specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_trunk"]
 material = SubResource("Mat_birch")
 top_radius = 0.14
 bottom_radius = 0.2
-height = 5
+height = 5.0
 radial_segments = 6
 rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Mat_leaves"]
+specular_mode = 2
+albedo_color = Color(0.94, 1, 0.9, 1)
+albedo_texture = ExtResource("tex_leaves")
+metallic_specular = 0.28
+roughness = 0.95
 
 [sub_resource type="SphereMesh" id="Mesh_crown_a"]
 material = SubResource("Mat_leaves")
 radius = 1.25
-height = 2
+height = 2.0
 radial_segments = 7
 rings = 3
 
@@ -40,16 +39,17 @@ height = 1.6
 radial_segments = 7
 rings = 3
 
-[node name="BirchTree" type="Node3D"]
+[node name="BirchTree" type="Node3D" unique_id=626931363]
+transform = Transform3D(2.005, 0, 0, 0, 2.005, 0, 0, 0, 2.005, 0, 0, 0)
 
-[node name="Mesh_trunk" type="MeshInstance3D" parent="."]
+[node name="Mesh_trunk" type="MeshInstance3D" parent="." unique_id=1986604795]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 mesh = SubResource("Mesh_trunk")
 
-[node name="Mesh_crown_a" type="MeshInstance3D" parent="."]
+[node name="Mesh_crown_a" type="MeshInstance3D" parent="." unique_id=1217697722]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 5.3, 0.15)
 mesh = SubResource("Mesh_crown_a")
 
-[node name="Mesh_crown_b" type="MeshInstance3D" parent="."]
+[node name="Mesh_crown_b" type="MeshInstance3D" parent="." unique_id=1206960632]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 6.2, -0.2)
 mesh = SubResource("Mesh_crown_b")

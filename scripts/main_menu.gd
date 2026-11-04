@@ -834,7 +834,7 @@ func _on_garage_saved(index: int) -> void:
 	_sync_game()
 
 
-func _on_garage_start(index: int, _tuned_setup: CarSetupType) -> void:
+func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
 	if _transitioning:
 		return
 	selected_setup = index
@@ -842,6 +842,9 @@ func _on_garage_start(index: int, _tuned_setup: CarSetupType) -> void:
 	var game: Node = _get_game()
 	if game != null:
 		# Гараж уже сохранил все черновики до сигнала start_requested.
+		# Перед стартом явно закрепляем сетап именно того пресета, с которого
+		# пользователь нажал «Старт», даже если setup_index менялся раньше.
+		game.set("current_setup", tuned_setup)
 		game.call("start_race")
 	else:
 		get_tree().change_scene_to_file(config.stage_scene)

@@ -35,6 +35,7 @@ extends Node3D
 
 const CarType = preload("res://scripts/rally_car.gd")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
@@ -196,6 +197,7 @@ var speed_label: Label = null
 var gear_label: Label = null
 var drivetrain_label: Label = null
 var rpm_bar: ProgressBar = null
+var rpm_caption: Label = null
 var telemetry_label: Label = null
 var throttle_bar: GaugeBar = null
 var brake_bar: GaugeBar = null
@@ -225,10 +227,12 @@ func _enter_tree() -> void:
 	var game: Node = get_node_or_null("/root/RallyGame")
 	var selected_setup: CarSetupType = car_setup_override
 	if game != null:
-		if car_setup_override != null:
-			game.set("current_setup", car_setup_override)
-		elif game.has_method("get_race_setup_override"):
+		if car_setup_override == null and game.has_method("get_race_setup_override"):
 			selected_setup = game.call("get_race_setup_override") as CarSetupType
+		if selected_setup == null:
+			selected_setup = car_setup_override
+		if selected_setup != null:
+			game.set("current_setup", selected_setup)
 		if track_override != null:
 			game.set("current_track", track_override)
 	var stage_car := get_node_or_null("RallyCar") as CarType
@@ -249,6 +253,7 @@ func _load_resources() -> void:
 		settings = settings.duplicate() as StageSettingsType
 	if settings == null:
 		settings = StageSettingsType.new()
+	settings.ps1_enabled = GameSettings.ps1_enabled()
 	_bind_visual_effects()
 	if fx_nodes != null:
 		# Явно назначенный старый ресурс переносим один раз. Обычный дефолтный
@@ -257,6 +262,9 @@ func _load_resources() -> void:
 			fx_nodes.adopt_from_settings(settings)
 			legacy_effects_imported = true
 		fx_nodes.sync_to_settings(settings)
+		var screen := fx_nodes.screen()
+		if screen != null:
+			screen.enabled = settings.ps1_enabled
 	if spawn_layout == null:
 		spawn_layout = _load_resource(DEFAULT_SPAWN_PATH) as SpawnLayoutType
 	if spawn_layout == null:
@@ -316,6 +324,24 @@ func s_settings() -> StageSettingsType:
 	if settings == null:
 		_load_resources()
 	return settings
+
+
+func apply_ps1_setting(enabled: bool) -> void:
+	if settings != null:
+		settings = settings.duplicate() as StageSettingsType
+		settings.ps1_enabled = enabled
+	_bind_visual_effects()
+	if fx_nodes != null:
+		var screen := fx_nodes.screen()
+		if screen != null:
+			screen.enabled = enabled
+			screen.configure_for_track(track)
+	if speed_fx_material != null:
+		Ps1Materials.configure_post_effect(
+			speed_fx_material, enabled and track != null and bool(track.get("ps1_style")),
+			s_settings().retro_style_strength, float(s_settings().retro_resolution_height),
+			s_settings().color_bits_for(track), s_settings().dither_for(track)
+		)
 
 
 ## Раскладка спавнов (никогда null).
@@ -1796,13 +1822,31 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	# но сцена ему нужна, поэтому он едет в список видов отдельно.
 	var kinds: Array[RallyProp] = []
 	kinds.assign(pickable)
-	var companion: RallyProp = library.by_id(cfg.undergrowth_prop_id)
-	var companion_index: int = -1
-	if companion != null and companion.scene != null:
-		companion_index = kinds.find(companion)
+	var companion_indices: Array[int] = []
+	var companion_ids: Array[String] = cfg.undergrowth_prop_ids.duplicate()
+	if companion_ids.is_empty() and not cfg.undergrowth_prop_id.is_empty():
+		companion_ids.append(cfg.undergrowth_prop_id)
+	for companion_id in companion_ids:
+		var companion: RallyProp = library.by_id(companion_id)
+		if companion == null or companion.scene == null:
+			continue
+		var companion_index: int = kinds.find(companion)
 		if companion_index < 0:
 			companion_index = kinds.size()
 			kinds.append(companion)
+		if companion_indices.find(companion_index) < 0:
+			companion_indices.append(companion_index)
+	var ground_cover_indices: Array[int] = []
+	for ground_cover_id in cfg.ground_cover_prop_ids:
+		var ground_cover: RallyProp = library.by_id(ground_cover_id)
+		if ground_cover == null or ground_cover.scene == null:
+			continue
+		var ground_cover_index: int = kinds.find(ground_cover)
+		if ground_cover_index < 0:
+			ground_cover_index = kinds.size()
+			kinds.append(ground_cover)
+		if ground_cover_indices.find(ground_cover_index) < 0:
+			ground_cover_indices.append(ground_cover_index)
 	var container := Node3D.new()
 	container.name = "Scenery"
 	var destination: Node3D = generated if chunk_parent == null else chunk_parent
@@ -1916,7 +1960,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 						trunks.append(prop.collider_height)
 						trunks.append(ground + prop.collider_y_offset)
 				# Спутник (трава, папоротник) не имеет физики и не пишет тень.
-				if companion_index >= 0 and rng.randf() < prop.undergrowth_chance:
+				if not companion_indices.is_empty() and rng.randf() < prop.undergrowth_chance:
 					var ux: float = point.x + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
 					var uz: float = point.z + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
 					# Сдвиг не должен выносить спутника на полотно или на соседний
@@ -1926,7 +1970,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 						uz = point.z
 					var gs: float = rng.randf_range(cfg.undergrowth_size.x, cfg.undergrowth_size.y)
 					buffer.push(
-						companion_index,
+						companion_indices[rng.randi_range(0, companion_indices.size() - 1)],
 						ux,
 						ground_height(ux, uz),
 						uz,
@@ -1937,6 +1981,47 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 						_scenery_cell(ux, uz, cell_size),
 						SCENERY_CELL_SPAN
 					)
+			if not ground_cover_indices.is_empty() and cfg.ground_cover_density > 0.0:
+				var cover_attempts: int = mini(
+					cfg.max_attempts_per_step,
+					ceili(float(cfg.ground_cover_attempts_per_step) * cfg.ground_cover_density * maxf(density, 0.0))
+				)
+				var cover_chance: float = 0.0
+				if cover_attempts > 0:
+					cover_chance = clampf(
+						cfg.ground_cover_success_chance * float(cfg.ground_cover_attempts_per_step)
+							* cfg.ground_cover_density * maxf(density, 0.0) / float(cover_attempts),
+						0.0,
+						1.0
+					)
+				for _cover_attempt in range(cover_attempts):
+					if rng.randf() > cover_chance:
+						continue
+					var cover_point: Vector3 = center + side * (rng.randf_range(minimum_offset, cfg.max_offset) * side_sign)
+					cover_point += dir * rng.randf_range(-jitter, jitter)
+					if not terrain_rect.has_point(Vector2(cover_point.x, cover_point.z)):
+						continue
+					if network.distance_to_road(cover_point.x, cover_point.z) < corridor + cfg.road_clearance:
+						continue
+					var cover_radius: float = 0.2
+					if not placement.has_space(cover_point, cover_radius):
+						continue
+					var cover_size: float = rng.randf_range(cfg.undergrowth_size.x, cfg.undergrowth_size.y)
+					if not buffer.push(
+						ground_cover_indices[rng.randi_range(0, ground_cover_indices.size() - 1)],
+						cover_point.x,
+						ground_height(cover_point.x, cover_point.z),
+						cover_point.z,
+						rng.randf_range(0.0, TAU),
+						cover_size * cfg.undergrowth_width_factor,
+						cover_size,
+						cover_size * cfg.undergrowth_width_factor,
+						_scenery_cell(cover_point.x, cover_point.z, cell_size),
+						SCENERY_CELL_SPAN
+					):
+						full = true
+						break
+					placement.reserve(cover_point, cover_radius)
 		if full:
 			break
 		step_count += 1
@@ -2769,6 +2854,7 @@ func _setup_hud() -> void:
 	gear_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/GearLabel") as Label
 	drivetrain_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/DrivetrainLabel") as Label
 	rpm_bar = _hud_node("RallyHUD/SpeedPanel/SpeedBox/RPMBar") as ProgressBar
+	rpm_caption = _hud_node("RallyHUD/SpeedPanel/SpeedBox/RpmCaption") as Label
 
 	# Телеметрия.
 	telemetry_label = _hud_node("RallyHUD/TelemetryPanel/TeleBox/TelemetryLabel") as Label
@@ -2879,6 +2965,8 @@ func _update_hud() -> void:
 	if rpm_bar != null:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
+	if rpm_caption != null:
+		rpm_caption.text = "RPM %d" % int(round(car.max_rpm))
 	if stage_label != null:
 		var conditions: String = ""
 		if weather != null:

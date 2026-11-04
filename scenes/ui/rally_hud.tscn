@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://cjphdxoxbefkd" path="res://scripts/ui/gauge_bar.gd" id="2_gauge"]
 [ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 [ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
-[ext_resource type="Script" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
+[ext_resource type="Script" uid="uid://ct3hs3w6eqtf0" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 14.0
@@ -210,9 +210,7 @@ offset_right = 360.0
 offset_bottom = 184.0
 mouse_filter = 2
 script = ExtResource("5_radio")
-compact = true
 show_controls = false
-station_override = ""
 
 [node name="TimerPanel" type="PanelContainer" parent="." unique_id=766970301]
 layout_mode = 1
@@ -593,7 +591,7 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("4_controller_settings")
 
-[node name="ControlsButton" type="Button" parent="PausePanel/Box"]
+[node name="ControlsButton" type="Button" parent="PausePanel/Box" unique_id=2086676567]
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
@@ -719,7 +717,7 @@ theme_override_styles/hover = SubResource("SB_button_hover")
 theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ГЛАВНОЕ МЕНЮ"
 
-[node name="ClutchNotice" type="Label" parent="."]
+[node name="ClutchNotice" type="Label" parent="." unique_id=1747137834]
 visible = false
 layout_mode = 1
 anchors_preset = 5
@@ -730,7 +728,6 @@ offset_top = 88.0
 offset_right = 470.0
 offset_bottom = 125.0
 grow_horizontal = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.67, 0.2, 1)
 theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("SB_hint")
@@ -748,7 +745,6 @@ offset_right = -240.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 0.8)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("SB_hint")
@@ -757,7 +753,7 @@ horizontal_alignment = 1
 vertical_alignment = 2
 autowrap_mode = 3
 
-[node name="FPSLabel" type="Label" parent="."]
+[node name="FPSLabel" type="Label" parent="." unique_id=1510741606]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -767,7 +763,6 @@ offset_top = 214.0
 offset_right = -20.0
 offset_bottom = 240.0
 grow_horizontal = 0
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.35, 0.95, 0.62, 0.9)
 theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("SB_hint")

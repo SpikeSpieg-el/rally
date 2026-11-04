@@ -5,4 +5,4 @@
 
 [resource]
 script = ExtResource("1_settings")
-retro_style_strength = 0.4
+retro_style_strength = 0.05

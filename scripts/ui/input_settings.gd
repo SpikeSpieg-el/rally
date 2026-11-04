@@ -6,6 +6,7 @@ signal closed
 
 const Bindings = preload("res://scripts/input/input_bindings.gd")
 const ControllerSettings = preload("res://scripts/ui/controller_settings.gd")
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
 
 ## Палитра/размеры окна. Пусто — res://data/ui/default_ui_theme.tres.
@@ -89,7 +90,7 @@ func _build() -> void:
 	eyebrow.add_theme_font_size_override("font_size", t.font_overlay_note)
 	layout.add_child(eyebrow)
 	var title := Label.new()
-	title.text = "КЛАВИАТУРА И ГЕЙМПАД"
+	title.text = "НАСТРОЙКИ ИГРЫ"
 	title.add_theme_font_size_override("font_size", t.font_overlay_title)
 	layout.add_child(title)
 
@@ -99,6 +100,7 @@ func _build() -> void:
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.clip_tabs = true
 	layout.add_child(tabs)
+	_build_game_tab()
 	_build_controller_tab()
 	_build_bindings_tab("gamepad", "ГЕЙМПАД · КНОПКИ")
 	_build_bindings_tab("keyboard", "КЛАВИАТУРА")
@@ -163,6 +165,13 @@ func _new_scroll(title: String) -> VBoxContainer:
 	return content
 
 
+func _build_game_tab() -> void:
+	var content := _new_scroll("ИГРА")
+	var settings := GameSettings.new()
+	settings.name = "GameSettings"
+	content.add_child(settings)
+
+
 func _build_controller_tab() -> void:
 	var content := _new_scroll("ГЕЙМПАД")
 	var note := Label.new()
@@ -225,7 +234,7 @@ func open() -> void:
 	modulate.a = 0.0
 	_on_tab_changed(tabs.current_tab)
 	_refresh_buttons()
-	if tabs.current_tab == 0 and controller_options != null:
+	if tabs.current_tab == 1 and controller_options != null:
 		var first := controller_options.get_node_or_null("VibrationRow/VibrationToggle") as Control
 		if first != null:
 			first.grab_focus()
@@ -283,7 +292,7 @@ func _on_tab_changed(index: int) -> void:
 	if not capture_action.is_empty():
 		_cancel_capture()
 	if reset_button != null:
-		reset_button.visible = index > 0
+		reset_button.visible = index > 1
 	if status != null:
 		status.text = "Настройки сохраняются автоматически."
 
@@ -392,6 +401,6 @@ func _reset_current_device() -> void:
 	if manager == null or tabs.current_tab == 0:
 		return
 	_cancel_capture()
-	var device := "gamepad" if tabs.current_tab == 1 else "keyboard"
+	var device := "gamepad" if tabs.current_tab == 2 else "keyboard"
 	var service: RefCounted = manager.get("bindings")
 	status.text = "Заводские привязки восстановлены." if service != null and bool(service.call("reset_device", device)) else "Не удалось сохранить привязки."

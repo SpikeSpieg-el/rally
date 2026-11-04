@@ -3,7 +3,6 @@
 [ext_resource type="Texture2D" uid="uid://d058k45dtcubg" path="res://textures/environment/grass_1.png" id="1_r1c3m"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_p5ky0"]
-size = Vector2(0.695, 1)
 center_offset = Vector3(0, 0.245, 0)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wiqw4"]

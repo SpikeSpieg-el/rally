@@ -99,9 +99,18 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 	if stage.track.procedural_scenery and stage.has_method("_bake_prop_mesh"):
 		var library = stage.s_props()
 		var props: Array = library.active_props()
-		var companion = library.by_id(stage.s_scenery().undergrowth_prop_id)
-		if companion != null and not props.has(companion):
-			props.append(companion)
+		var scenery = stage.s_scenery()
+		var companion_ids: Array[String] = scenery.undergrowth_prop_ids.duplicate()
+		if companion_ids.is_empty() and not scenery.undergrowth_prop_id.is_empty():
+			companion_ids.append(scenery.undergrowth_prop_id)
+		for companion_id in companion_ids:
+			var companion = library.by_id(companion_id)
+			if companion != null and not props.has(companion):
+				props.append(companion)
+		for ground_cover_id in scenery.ground_cover_prop_ids:
+			var ground_cover = library.by_id(ground_cover_id)
+			if ground_cover != null and not props.has(ground_cover):
+				props.append(ground_cover)
 		for prop in props:
 			stage._bake_prop_mesh(prop)
 			stage._report_progress(0.8, "Подготовка деревьев и камней…")

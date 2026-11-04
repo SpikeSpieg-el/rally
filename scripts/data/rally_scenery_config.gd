@@ -47,7 +47,19 @@ extends Resource
 @export_group("Подлесок-спутник")
 ## Id вида, который сажается рядом с «хозяином» (травяной пучок).
 ## Пусто — спутник не сажается. Сам вид при этом должен лежать в библиотеке.
-@export var undergrowth_prop_id: String = "grass"
+@export var undergrowth_prop_id: String = ""
+## Несколько видов травы для случайной смены спутников вокруг больших пропсов.
+## Старое поле undergrowth_prop_id остаётся запасным вариантом, если список пуст.
+@export var undergrowth_prop_ids: Array[String] = []
+## Виды для отдельного массового заполнения окружения (обычно grass2/grass3).
+## Эти пропсы ставятся независимо от grass: он остаётся обычным объектом-пропсом.
+@export var ground_cover_prop_ids: Array[String] = ["grass2", "grass3"]
+## Отдельная плотность массового заполнения grass2/grass3.
+@export_range(0.0, 40.0, 0.1) var ground_cover_density: float = 4.0
+## Попыток заполнения на шаг трассы и сторону.
+@export_range(0, 100, 1) var ground_cover_attempts_per_step: int = 12
+## Доля успешных попыток заполнения.
+@export_range(0.0, 1.0, 0.01) var ground_cover_success_chance: float = 0.85
 ## Диапазон размера спутника (множитель к его сцене).
 @export var undergrowth_size: Vector2 = Vector2(0.60, 1.25)
 ## Дополнительный разброс ширины спутника.

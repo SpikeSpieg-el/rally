@@ -13,7 +13,7 @@ const Surfaces = preload("res://scripts/effects/rally_surface_looks.gd")
 
 @export_group("Где живут эффекты в сцене")
 ## Обычно это HUD/SpeedShaderRect: настоящий материал экранного фильтра.
-@export var screen_path: NodePath = ^"../../HUD/SpeedShaderRect"
+@export var screen_path: NodePath = ^"../HUD/SpeedShaderRect"
 @export var speed_path: NodePath = ^"Speed"
 @export var rain_path: NodePath = ^"Rain"
 @export var snow_path: NodePath = ^"Snow"

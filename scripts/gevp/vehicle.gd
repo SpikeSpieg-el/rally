@@ -908,6 +908,7 @@ func process_transmission() -> void:
 		var real_wheel_spin := drivetrain_spin * get_gear_ratio(current_gear)
 		var current_ideal_gear_rpm := gear_ratios[current_gear - 1] * final_drive * ideal_wheel_spin * ANGULAR_VELOCITY_TO_RPM
 		var current_real_gear_rpm := real_wheel_spin * ANGULAR_VELOCITY_TO_RPM
+		var upshift_rpm := max_rpm * 0.86
 		
 		if current_gear == -1:
 			reversing = true
@@ -920,10 +921,10 @@ func process_transmission() -> void:
 			
 			if current_gear < gear_ratios.size():
 				if current_gear > 0:
-					if current_ideal_gear_rpm > max_rpm:
+					if current_ideal_gear_rpm > upshift_rpm:
 						if delta_time - last_shift_delta_time > shift_time:
 							shift(1)
-					if current_ideal_gear_rpm > max_rpm * 0.8 and current_real_gear_rpm > max_rpm:
+					if current_ideal_gear_rpm > max_rpm * 0.8 and current_real_gear_rpm > upshift_rpm:
 						if delta_time - last_shift_delta_time > shift_time:
 							shift(1)
 				elif current_gear == 0 and motor_rpm > maxf(clutch_out_rpm, idle_rpm):

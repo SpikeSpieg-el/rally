@@ -4,3 +4,4 @@
 
 [resource]
 script = ExtResource("1_scenery")
+ground_cover_density = 10.9
