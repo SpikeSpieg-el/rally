@@ -58,6 +58,11 @@ func half_width_at(distance: float) -> float:
 		previous = section.half_width
 	return previous
 
+@export_group("Потоковая загрузка")
+## Дорога, земля и обстановка строятся только в радиусе машины.
+## Автоматически: незапечённые трассы от 5 км и любые маршруты от 20 км.
+@export var stream_world: bool = false
+
 @export_group("Рельеф")
 ## Сколько метров земли генерировать вокруг трассы с каждой стороны.
 @export_range(40.0, 400.0, 5.0) var terrain_margin: float = 120.0
@@ -91,7 +96,7 @@ func half_width_at(distance: float) -> float:
 
 @export_group("Профиль дороги: гребни, просадки, полки")
 ## Крупный непериодический профиль: отдельные формы, а не постоянная тряска.
-@export_range(0.0, 2.0, 0.05) var road_feature_height: float = 0.9
+@export_range(0.0, 2.0, 0.05) var road_feature_height: float = 1.5
 ## Средний масштаб участков; большая часть дороги между событиями ровная.
 @export_range(240.0, 900.0, 10.0) var road_feature_spacing: float = 320.0
 

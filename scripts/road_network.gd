@@ -60,6 +60,80 @@ static func build(curve: Curve3D, area: Rect2, cell_size: float) -> RoadNetwork:
 	return net
 
 
+# Long stages do not allocate a distance field covering the whole rectangle.
+const SPARSE_CELL := 64.0
+const SPARSE_STRIDE := 8
+var sparse: bool = false
+var _segments: Dictionary = {}
+var _regional_nodes: Dictionary = {}
+var _last_query := Vector2(INF, INF)
+var _last_result := Vector2(FAR, 0.0)
+
+static func build_sparse(curve: Curve3D) -> RoadNetwork:
+	var net := RoadNetwork.new()
+	net.sparse = true
+	net._sample_curve(curve)
+	for i in range(0, net.samples.size() - 1, SPARSE_STRIDE):
+		var a: Vector3 = net.samples[i]
+		var b: Vector3 = net.samples[mini(i + SPARSE_STRIDE, net.samples.size() - 1)]
+		var mid: Vector3 = (a + b) * 0.5
+		var key := Vector2i(floori(mid.x / SPARSE_CELL), floori(mid.z / SPARSE_CELL))
+		if not net._segments.has(key):
+			net._segments[key] = []
+		net._segments[key].append(i)
+	return net
+
+func _sparse_sample(x: float, z: float) -> Vector2:
+	var p := Vector2(x, z)
+	if p == _last_query:
+		return _last_result
+	var key := Vector2i(floori(x / SPARSE_CELL), floori(z / SPARSE_CELL))
+	var best := Vector2(FAR, 0.0)
+	var best_index: int = -1
+	# Search rings, stopping only when no unvisited bucket can be nearer.
+	for ring in range(0, 17):
+		for dz in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
+				if ring > 0 and absi(dx) != ring and absi(dz) != ring:
+					continue
+				for index in _segments.get(key + Vector2i(dx, dz), []):
+					var i: int = int(index)
+					var j: int = mini(i + SPARSE_STRIDE, samples.size() - 1)
+					var a := Vector2(samples[i].x, samples[i].z)
+					var b := Vector2(samples[j].x, samples[j].z)
+					var hit: Vector3 = _nearest_on_segment(p, a, b, sample_dists[i], sample_dists[j])
+					if hit.x < best.x:
+						best = Vector2(hit.x, hit.y)
+						best_index = i
+		if best_index >= 0 and best.x + 8.0 < float(ring) * SPARSE_CELL:
+			break
+	# Far-off teleports: bounded-memory fallback, never return along=0 blindly.
+	if best_index < 0:
+		for i in range(0, samples.size(), SPARSE_STRIDE):
+			var distance: float = p.distance_to(Vector2(samples[i].x, samples[i].z))
+			if distance < best.x:
+				best = Vector2(distance, sample_dists[i])
+				best_index = i
+	# Refine against the original metre-spaced segments, not an 8 m chord.
+	best.x = FAR
+	for i in range(maxi(0, best_index - SPARSE_STRIDE), mini(samples.size() - 1, best_index + SPARSE_STRIDE * 2)):
+		var hit: Vector3 = _nearest_on_segment(p, Vector2(samples[i].x, samples[i].z),
+			Vector2(samples[i + 1].x, samples[i + 1].z), sample_dists[i], sample_dists[i + 1])
+		if hit.x < best.x:
+			best = Vector2(hit.x, hit.y)
+	_last_query = p
+	_last_result = best
+	return best
+
+func _regional_node(key: Vector2i) -> float:
+	if not _regional_nodes.has(key):
+		if _regional_nodes.size() > 2048:
+			_regional_nodes.clear()
+		var hit: Vector2 = _sparse_sample(float(key.x) * 96.0, float(key.y) * 96.0)
+		_regional_nodes[key] = height_at_along(hit.y)
+	return float(_regional_nodes[key])
+
+
 func _sample_curve(curve: Curve3D) -> void:
 	samples.clear()
 	sample_dists.clear()
@@ -297,6 +371,8 @@ func _bilinear(field: PackedFloat32Array, x: float, z: float) -> float:
 
 ## Расстояние от точки до оси дороги (м).
 func distance_to_road(x: float, z: float) -> float:
+	if sparse:
+		return _sparse_sample(x, z).x
 	return _bilinear(field_dist, x, z)
 
 
@@ -359,6 +435,8 @@ func matches_grid(grid_origin: Vector2, grid_cell: float, grid_cols: int, grid_r
 ## углов больше ALONG_JUMP берём километраж угла, ближайшего к дороге:
 ## оба варианта — настоящие высоты трассы, выдуманных не остаётся.
 func along_road(x: float, z: float) -> float:
+	if sparse:
+		return _sparse_sample(x, z).y
 	if cols < 2 or rows < 2:
 		return 0.0
 	var fx: float = (x - origin.x) / cell
@@ -393,6 +471,13 @@ func along_road(x: float, z: float) -> float:
 
 ## Гладкая базовая высота рельефа в точке плана.
 func regional_height(x: float, z: float) -> float:
+	if sparse:
+		var f := Vector2(x, z) / 96.0
+		var key := Vector2i(floori(f.x), floori(f.y))
+		var t: Vector2 = f - Vector2(key)
+		var top: float = lerpf(_regional_node(key), _regional_node(key + Vector2i(1, 0)), t.x)
+		var bottom: float = lerpf(_regional_node(key + Vector2i(0, 1)), _regional_node(key + Vector2i(1, 1)), t.x)
+		return lerpf(top, bottom, t.y)
 	if regional.is_empty() or regional_cols < 2 or regional_rows < 2:
 		return height_at_along(along_road(x, z))
 	var fx: float = (x - regional_origin.x) / regional_cell

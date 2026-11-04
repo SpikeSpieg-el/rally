@@ -38,6 +38,17 @@ class MountainRouteTest(unittest.TestCase):
                             self.assertGreater(math.hypot(x - px, z - pz), 26)
             buckets.setdefault(cell, []).append((i, x, z))
 
+    def test_start_is_not_a_flat_straight(self):
+        a, b = self.points[10], self.points[30]
+        launch_heading = math.atan2(b[2] - a[2], b[0] - a[0])
+        turns = []
+        for i in range(30, 160):
+            a, b = self.points[i], self.points[i + 5]
+            heading = math.atan2(b[2] - a[2], b[0] - a[0])
+            turns.append(abs(math.atan2(math.sin(heading - launch_heading), math.cos(heading - launch_heading))))
+        self.assertGreater(max(turns), math.radians(30))
+        self.assertGreater(self.points[300][1] - self.points[0][1], 10)
+
     def test_sections_registered(self):
         text = (ROOT / 'data/tracks/stage_mountain_100.tres').read_text()
         self.assertEqual(text.count('[sub_resource'), 11)

@@ -151,10 +151,12 @@ func _rebuild(force_build: bool) -> void:
 	var curve: Curve3D = track.get_effective_curve() if force_build else track.get_metadata_curve()
 	if curve == null:
 		return
-	var baked: PackedVector3Array = curve.get_baked_points()
-	for p in baked:
-		_points.append(Vector2(p.x, p.z))
 	_length = curve.get_baked_length()
+	# The menu card cannot show hundreds of thousands of sub-pixel segments.
+	var count: int = clampi(ceili(_length / 2.0) + 1, 2, 2200)
+	for i in range(count):
+		var p: Vector3 = curve.sample_baked(_length * float(i) / float(count - 1))
+		_points.append(Vector2(p.x, p.z))
 	_build_height_tape(curve)
 	if track.checkpoint_interval > 0.0 and _length > 0.0:
 		var d: float = track.checkpoint_interval

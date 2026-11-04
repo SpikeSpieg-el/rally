@@ -44,7 +44,7 @@ def read_track(path=TRACK):
     cfg["bump_rough"] = num("bumps_roughness", 0.0)
     cfg["bump_cross"] = num("bumps_cross", 0.0)
     cfg["seed"] = int(num("terrain_seed", 2024))
-    cfg["feature_height"] = num("road_feature_height", .9)
+    cfg["feature_height"] = num("road_feature_height", 1.5)
     cfg["feature_spacing"] = num("road_feature_spacing", 320)
     cfg["corridor"] = cfg["half"] + cfg["shoulder"]
     return cfg
@@ -298,7 +298,7 @@ def hills(x, z):
 
 def bumps(along, cfg):
     return road_profile.sample(along, cfg.get("seed", 2024),
-                              cfg.get("feature_height", .9), cfg.get("feature_spacing", 320),
+                              cfg.get("feature_height", 1.5), cfg.get("feature_spacing", 320),
                               cfg["bump_amp"], cfg["bump_rough"], cfg["bump_wl"],
                               cfg.get("route_length", math.inf))
 

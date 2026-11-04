@@ -40,6 +40,7 @@ var car_position: Vector2 = Vector2.ZERO
 var car_heading: float = 0.0
 var has_car: bool = false
 var progress: float = 0.0
+var _has_progress: bool = false
 
 var _screen: PackedVector2Array = PackedVector2Array()
 var _scale: float = 1.0
@@ -53,7 +54,12 @@ func _notification(what: int) -> void:
 
 
 func set_route(new_route: PackedVector2Array, new_checkpoints: PackedVector2Array, new_start: Vector2, new_finish: Vector2) -> void:
-	route = new_route
+	route.clear()
+	var count: int = mini(1400, new_route.size())
+	for i in range(count):
+		var index: int = roundi(float(i) * float(new_route.size() - 1) / float(maxi(1, count - 1)))
+		route.append(new_route[index])
+	_has_progress = false
 	checkpoints = new_checkpoints
 	start_point = new_start
 	finish_point = new_finish
@@ -74,6 +80,7 @@ func clear_car() -> void:
 
 
 func set_progress(value: float) -> void:
+	_has_progress = true
 	progress = clampf(value, 0.0, 1.0)
 	queue_redraw()
 
@@ -139,7 +146,7 @@ func _draw() -> void:
 
 	# Пройденный участок рисуем строго по точкам маршрута
 	if has_car and _screen.size() >= 2:
-		var along_index: int = _nearest_route_index(car_position)
+		var along_index: int = clampi(roundi(progress * float(_screen.size() - 1)), 0, _screen.size() - 1) if _has_progress else _nearest_route_index(car_position)
 		if along_index >= 1:
 			var passed := _screen.slice(0, along_index + 1)
 			draw_polyline(passed, progress_color, route_line_width + 0.8, true)
