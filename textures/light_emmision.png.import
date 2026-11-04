@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bsolhe7em3asy"
 path.s3tc="res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.s3tc.ctex"
+path.etc2="res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/light_emmision.png"
-dest_files=["res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.s3tc.ctex"]
+dest_files=["res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.s3tc.ctex", "res://.godot/imported/light_emmision.png-9706a6864424eda26f6667d44ef59b72.etc2.ctex"]
 
 [params]
 

@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://lv0o6m35yuf3"
 path.s3tc="res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.s3tc.ctex"
+path.etc2="res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/wheelbump.png"
-dest_files=["res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.s3tc.ctex"]
+dest_files=["res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.s3tc.ctex", "res://.godot/imported/wheelbump.png-596f15909fb91f15467d8f016d3f83cc.etc2.ctex"]
 
 [params]
 

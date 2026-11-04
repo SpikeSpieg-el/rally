@@ -152,6 +152,20 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="GDScript" id="GDScript_fps"]
+script/source = "extends Label
+
+func _process(_delta: float) -> void:
+	var fps := Engine.get_frames_per_second()
+	text = \"%d FPS\" % fps
+	if fps >= 55:
+		add_theme_color_override(\"font_color\", Color(0.35, 0.95, 0.62, 0.9))
+	elif fps >= 30:
+		add_theme_color_override(\"font_color\", Color(1.0, 0.78, 0.2, 0.9))
+	else:
+		add_theme_color_override(\"font_color\", Color(0.95, 0.35, 0.35, 0.9))
+"
+
 [node name="RallyHUD" type="Control" unique_id=1658381581]
 layout_mode = 3
 anchors_preset = 15
@@ -742,3 +756,22 @@ text = "[W/S] ГАЗ/ТОРМОЗ  •  [A/D] РУЛЬ  •  [SPACE] РУЧНИ�
 horizontal_alignment = 1
 vertical_alignment = 2
 autowrap_mode = 3
+
+[node name="FPSLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -105.0
+offset_top = 214.0
+offset_right = -20.0
+offset_bottom = 240.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.35, 0.95, 0.62, 0.9)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("SB_hint")
+text = "60 FPS"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = SubResource("GDScript_fps")

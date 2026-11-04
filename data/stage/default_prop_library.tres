@@ -1,118 +1,75 @@
-[gd_resource type="Resource" script_class="RallyPropLibrary" format=3 uid="uid://h8pvzz6o5rfw"]
+[gd_resource type="Resource" script_class="RallyPropLibrary" format=3 uid="uid://h8pv006o5rfw"]
 
-[ext_resource type="Script" uid="uid://c8ffgzdkntls" path="res://scripts/data/rally_prop_library.gd" id="1_lib"]
+[ext_resource type="Script" uid="uid://c8ffg0dkntls" path="res://scripts/data/rally_prop_library.gd" id="1_lib"]
 [ext_resource type="Script" uid="uid://ccx3jftkun8b1" path="res://scripts/data/rally_prop.gd" id="2_prop"]
-[ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="scene_fir_tree"]
-[ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="scene_pine_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/birch_tree.tscn" id="scene_birch_tree"]
-[ext_resource type="PackedScene" path="res://scenes/props/dead_tree.tscn" id="scene_dead_tree"]
-[ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="scene_bush"]
-[ext_resource type="PackedScene" path="res://scenes/props/fern.tscn" id="scene_fern"]
-[ext_resource type="PackedScene" path="res://scenes/props/grass.tscn" id="scene_grass"]
 [ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="scene_boulder"]
-[ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="scene_rock_cluster"]
+[ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="scene_bush"]
+[ext_resource type="PackedScene" path="res://scenes/props/dead_tree.tscn" id="scene_dead_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/dirt_mound.tscn" id="scene_dirt_mound"]
-[ext_resource type="PackedScene" path="res://scenes/props/stump.tscn" id="scene_stump"]
-[ext_resource type="PackedScene" path="res://scenes/props/log.tscn" id="scene_log"]
+[ext_resource type="PackedScene" path="res://scenes/props/fern.tscn" id="scene_fern"]
+[ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="scene_fir_tree"]
+[ext_resource type="PackedScene" path="res://scenes/props/grass.tscn" id="scene_grass"]
 [ext_resource type="PackedScene" path="res://scenes/props/hay_bale.tscn" id="scene_hay_bale"]
-[ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
-[ext_resource type="PackedScene" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
+[ext_resource type="PackedScene" uid="uid://cr0gse3w8c3ro" path="res://scenes/props/log.tscn" id="scene_log"]
+[ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="scene_pine_tree"]
+[ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="scene_rock_cluster"]
 [ext_resource type="PackedScene" path="res://scenes/props/sandbag_barrier.tscn" id="scene_sandbag_barrier"]
 [ext_resource type="PackedScene" path="res://scenes/props/sponsor_banner.tscn" id="scene_sponsor_banner"]
+[ext_resource type="PackedScene" path="res://scenes/props/stump.tscn" id="scene_stump"]
+[ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
+[ext_resource type="PackedScene" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_fir_tree"]
+[sub_resource type="Resource" id="RallyProp_fir_tree"]
 script = ExtResource("2_prop")
 id = "fir_tree"
 display_name = "Ель"
 scene = ExtResource("scene_fir_tree")
 weight = 0.3
 size = Vector2(0.75, 1.75)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
+placement_radius = 2.5
 undergrowth_chance = 0.75
 collider_max_offset = 24.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 2.5
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_pine_tree"]
+[sub_resource type="Resource" id="RallyProp_pine_tree"]
 script = ExtResource("2_prop")
 id = "pine_tree"
 display_name = "Пихта"
 scene = ExtResource("scene_pine_tree")
 weight = 0.18
 size = Vector2(0.8, 1.85)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
+placement_radius = 2.5
 undergrowth_chance = 0.75
 collider_max_offset = 24.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 2.5
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_birch_tree"]
+[sub_resource type="Resource" id="RallyProp_birch_tree"]
 script = ExtResource("2_prop")
 id = "birch_tree"
 display_name = "Берёза"
 scene = ExtResource("scene_birch_tree")
 weight = 0.12
 size = Vector2(0.8, 1.5)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
+placement_radius = 2.0
 undergrowth_chance = 0.6
 collider_max_offset = 24.0
 collider_spacing = 55.0
 collider_radius = 0.4
-collider_height = 9.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 2
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_dead_tree"]
+[sub_resource type="Resource" id="RallyProp_dead_tree"]
 script = ExtResource("2_prop")
 id = "dead_tree"
 display_name = "Сухое дерево"
 scene = ExtResource("scene_dead_tree")
 weight = 0.05
 size = Vector2(0.7, 1.4)
-width_jitter = Vector2(0.9, 1.1)
 height_jitter = Vector2(0.9, 1.15)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
 undergrowth_chance = 0.5
 collider_max_offset = 20.0
 collider_spacing = 70.0
 collider_radius = 0.4
 collider_height = 8.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 1.8
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_bush"]
+[sub_resource type="Resource" id="RallyProp_bush"]
 script = ExtResource("2_prop")
 id = "bush"
 display_name = "Куст"
@@ -121,21 +78,11 @@ weight = 0.23
 size = Vector2(0.65, 1.6)
 width_jitter = Vector2(0.8, 1.3)
 height_jitter = Vector2(0.85, 1.15)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
-undergrowth_chance = 0.75
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
 category = 1
-min_offset = -1.0
-placement_radius = 1
+placement_radius = 1.0
+undergrowth_chance = 0.75
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_fern"]
+[sub_resource type="Resource" id="RallyProp_fern"]
 script = ExtResource("2_prop")
 id = "fern"
 display_name = "Папоротник"
@@ -144,21 +91,11 @@ weight = 0.1
 size = Vector2(0.7, 1.5)
 width_jitter = Vector2(0.85, 1.2)
 height_jitter = Vector2(0.85, 1.15)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = true
-undergrowth_chance = 0.0
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
 category = 1
-min_offset = -1.0
 placement_radius = 0.45
+small = true
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_grass"]
+[sub_resource type="Resource" id="RallyProp_grass"]
 script = ExtResource("2_prop")
 id = "grass"
 display_name = "Травяной пучок"
@@ -167,21 +104,11 @@ weight = 0.0
 size = Vector2(0.6, 1.25)
 width_jitter = Vector2(0.85, 1.2)
 height_jitter = Vector2(0.85, 1.15)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = true
-undergrowth_chance = 0.0
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
 category = 1
-min_offset = -1.0
 placement_radius = 0.3
+small = true
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_boulder"]
+[sub_resource type="Resource" id="RallyProp_boulder"]
 script = ExtResource("2_prop")
 id = "boulder"
 display_name = "Валун"
@@ -189,22 +116,13 @@ scene = ExtResource("scene_boulder")
 weight = 0.13
 size = Vector2(0.55, 2.1)
 width_jitter = Vector2(0.7, 1.3)
-height_jitter = Vector2(0.6, 1.0)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
-undergrowth_chance = 0.75
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
+height_jitter = Vector2(0.6, 1)
 category = 2
 min_offset = 9.0
-placement_radius = 2
+placement_radius = 2.0
+undergrowth_chance = 0.75
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_rock_cluster"]
+[sub_resource type="Resource" id="RallyProp_rock_cluster"]
 script = ExtResource("2_prop")
 id = "rock_cluster"
 display_name = "Группа камней"
@@ -212,22 +130,13 @@ scene = ExtResource("scene_rock_cluster")
 weight = 0.08
 size = Vector2(0.6, 1.6)
 width_jitter = Vector2(0.75, 1.3)
-height_jitter = Vector2(0.7, 1.0)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
-undergrowth_chance = 0.5
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
+height_jitter = Vector2(0.7, 1)
 category = 2
 min_offset = 9.0
 placement_radius = 2.2
+undergrowth_chance = 0.5
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_dirt_mound"]
+[sub_resource type="Resource" id="RallyProp_dirt_mound"]
 script = ExtResource("2_prop")
 id = "dirt_mound"
 display_name = "Насыпь грунта"
@@ -235,91 +144,53 @@ scene = ExtResource("scene_dirt_mound")
 weight = 0.05
 size = Vector2(0.8, 1.8)
 width_jitter = Vector2(0.85, 1.25)
-height_jitter = Vector2(0.7, 1.0)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
-small = false
-undergrowth_chance = 0.4
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
+height_jitter = Vector2(0.7, 1)
 category = 2
 min_offset = 9.0
 placement_radius = 2.5
+undergrowth_chance = 0.4
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_stump"]
+[sub_resource type="Resource" id="RallyProp_stump"]
 script = ExtResource("2_prop")
 id = "stump"
 display_name = "Пень"
 scene = ExtResource("scene_stump")
 weight = 0.09
 size = Vector2(0.6, 1.25)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
+placement_radius = 0.8
 small = true
 undergrowth_chance = 0.5
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 0.8
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_log"]
+[sub_resource type="Resource" id="RallyProp_log"]
 script = ExtResource("2_prop")
 id = "log"
 display_name = "Бревно"
 scene = ExtResource("scene_log")
 weight = 0.07
 size = Vector2(0.7, 1.35)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
-random_yaw = true
-max_offset = 0.0
+placement_radius = 1.6
 small = true
 undergrowth_chance = 0.5
-collider_max_offset = 0.0
-collider_spacing = 45.0
-collider_radius = 0.45
-collider_height = 9.0
-collider_y_offset = 0.0
-category = 0
-min_offset = -1.0
-placement_radius = 1.6
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_hay_bale"]
+[sub_resource type="Resource" id="RallyProp_hay_bale"]
 script = ExtResource("2_prop")
 id = "hay_bale"
 display_name = "Рулон сена"
 scene = ExtResource("scene_hay_bale")
 weight = 0.025
 size = Vector2(0.8, 1.2)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
 random_yaw = false
+category = 3
+min_offset = 15.0
+placement_radius = 2.0
 max_offset = 42.0
-small = false
 undergrowth_chance = 0.3
 collider_max_offset = 10.0
 collider_spacing = 90.0
 collider_radius = 0.9
 collider_height = 1.8
-collider_y_offset = 0.0
-category = 3
-min_offset = 15.0
-placement_radius = 2
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_tire_stack"]
+[sub_resource type="Resource" id="RallyProp_tire_stack"]
 script = ExtResource("2_prop")
 id = "tire_stack"
 display_name = "Стопка покрышек"
@@ -327,23 +198,18 @@ scene = ExtResource("scene_tire_stack")
 weight = 0.025
 size = Vector2(0.8, 1.3)
 width_jitter = Vector2(0.9, 1.15)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
 random_yaw = false
-max_offset = 7.0
-small = false
-undergrowth_chance = 0.0
-collider_max_offset = 7.0
-collider_spacing = 90.0
-collider_radius = 0.5
-collider_height = 1.0
-collider_y_offset = 0.0
 category = 5
 min_offset = 4.5
 placement_radius = 1.2
 align_to_road = true
+max_offset = 7.0
+collider_max_offset = 7.0
+collider_spacing = 90.0
+collider_radius = 0.5
+collider_height = 1.0
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_wooden_fence"]
+[sub_resource type="Resource" id="RallyProp_wooden_fence"]
 script = ExtResource("2_prop")
 id = "wooden_fence"
 display_name = "Дощатый забор"
@@ -351,47 +217,36 @@ scene = ExtResource("scene_wooden_fence")
 weight = 0.02
 size = Vector2(0.9, 1.1)
 width_jitter = Vector2(0.95, 1.05)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
 random_yaw = false
-max_offset = 7.0
-small = false
-undergrowth_chance = 0.0
-collider_max_offset = 7.0
-collider_spacing = 120.0
-collider_radius = 1.3
-collider_height = 1.4
-collider_y_offset = 0.0
 category = 4
 min_offset = 4.5
 placement_radius = 1.6
 align_to_road = true
+max_offset = 7.0
+collider_max_offset = 7.0
+collider_spacing = 120.0
+collider_radius = 1.3
+collider_height = 1.4
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_sandbag_barrier"]
+[sub_resource type="Resource" id="RallyProp_sandbag_barrier"]
 script = ExtResource("2_prop")
 id = "sandbag_barrier"
 display_name = "Мешки с песком"
 scene = ExtResource("scene_sandbag_barrier")
 weight = 0.02
 size = Vector2(0.9, 1.2)
-width_jitter = Vector2(0.9, 1.1)
-height_jitter = Vector2(0.9, 1.1)
-y_offset = 0.0
 random_yaw = false
-max_offset = 7.0
-small = false
-undergrowth_chance = 0.0
-collider_max_offset = 7.0
-collider_spacing = 90.0
-collider_radius = 0.7
-collider_height = 1.0
-collider_y_offset = 0.0
 category = 5
 min_offset = 4.5
 placement_radius = 1.6
 align_to_road = true
+max_offset = 7.0
+collider_max_offset = 7.0
+collider_spacing = 90.0
+collider_radius = 0.7
+collider_height = 1.0
 
-[sub_resource type="Resource" script_class="RallyProp" id="RallyProp_sponsor_banner"]
+[sub_resource type="Resource" id="RallyProp_sponsor_banner"]
 script = ExtResource("2_prop")
 id = "sponsor_banner"
 display_name = "Рекламный щит"
@@ -400,21 +255,17 @@ weight = 0.01
 size = Vector2(0.9, 1.1)
 width_jitter = Vector2(0.95, 1.05)
 height_jitter = Vector2(0.95, 1.05)
-y_offset = 0.0
 random_yaw = false
+category = 5
+min_offset = 4.5
+placement_radius = 2.0
+align_to_road = true
 max_offset = 7.0
-small = false
-undergrowth_chance = 0.0
 collider_max_offset = 7.0
 collider_spacing = 150.0
 collider_radius = 0.95
 collider_height = 2.0
-collider_y_offset = 0.0
-category = 5
-min_offset = 4.5
-placement_radius = 2
-align_to_road = true
 
 [resource]
 script = ExtResource("1_lib")
-props = [SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner")]
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner")])

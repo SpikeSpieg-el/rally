@@ -2,17 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://g1k4vmiiuw9u"
+uid="uid://g1k4vmiiuxau"
 path.s3tc="res://.godot/imported/fern.png-c584f8ff2483477b30bad7cd93fab7c9.s3tc.ctex"
+path.etc2="res://.godot/imported/fern.png-c584f8ff2483477b30bad7cd93fab7c9.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/environment/fern.png"
-dest_files=["res://.godot/imported/fern.png-c584f8ff2483477b30bad7cd93fab7c9.s3tc.ctex"]
+dest_files=["res://.godot/imported/fern.png-c584f8ff2483477b30bad7cd93fab7c9.s3tc.ctex", "res://.godot/imported/fern.png-c584f8ff2483477b30bad7cd93fab7c9.etc2.ctex"]
 
 [params]
 

@@ -2,17 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://h184vor9vfft"
+uid="uid://h184vosavfft"
 path.s3tc="res://.godot/imported/birch_bark.png-e3495a59a07f9402633554c4e0ce3e8d.s3tc.ctex"
+path.etc2="res://.godot/imported/birch_bark.png-e3495a59a07f9402633554c4e0ce3e8d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/environment/birch_bark.png"
-dest_files=["res://.godot/imported/birch_bark.png-e3495a59a07f9402633554c4e0ce3e8d.s3tc.ctex"]
+dest_files=["res://.godot/imported/birch_bark.png-e3495a59a07f9402633554c4e0ce3e8d.s3tc.ctex", "res://.godot/imported/birch_bark.png-e3495a59a07f9402633554c4e0ce3e8d.etc2.ctex"]
 
 [params]
 

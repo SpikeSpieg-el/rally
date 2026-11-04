@@ -2,17 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cwm02jvlzsy5"
+uid="uid://cwm02jvl0sy5"
 path.s3tc="res://.godot/imported/leaves.png-4c99746cb52f4c8d68f17d72fe940cb9.s3tc.ctex"
+path.etc2="res://.godot/imported/leaves.png-4c99746cb52f4c8d68f17d72fe940cb9.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/environment/leaves.png"
-dest_files=["res://.godot/imported/leaves.png-4c99746cb52f4c8d68f17d72fe940cb9.s3tc.ctex"]
+dest_files=["res://.godot/imported/leaves.png-4c99746cb52f4c8d68f17d72fe940cb9.s3tc.ctex", "res://.godot/imported/leaves.png-4c99746cb52f4c8d68f17d72fe940cb9.etc2.ctex"]
 
 [params]
 
