@@ -5,4 +5,4 @@
 
 [resource]
 script = ExtResource("1_settings")
-ps1_enabled = false
+retro_style_strength = 0.4
