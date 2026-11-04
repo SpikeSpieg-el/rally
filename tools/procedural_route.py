@@ -147,6 +147,29 @@ class Gen:
             direction = pick_direction()
             length = radius * math.radians(angle)
             return [("a", radius, angle, length * grade, direction)]
+        if kind in ("tightening", "opening", "double_apex", "crest_turn"):
+            direction = pick_direction()
+            wide = rng.uniform(85, 135)
+            tight = rng.uniform(max(self.min_radius, 24), 42)
+            radii, angles = [wide, wide * .6, tight], [28, 32, 42]
+            if kind == "opening":
+                radii.reverse()
+            elif kind == "double_apex":
+                radii, angles = [tight, wide, tight * 1.15], [38, 20, 35]
+            elif kind == "crest_turn":
+                radii, angles = [wide, wide * .8, wide], [24, 30, 24]
+            return [("a", radius, angle, radius * math.radians(angle) *
+                     ((.035, 0, -.035)[i] if kind == "crest_turn" else grade), direction)
+                    for i, (radius, angle) in enumerate(zip(radii, angles))]
+        if kind == "compression":
+            approach, exit = rng.uniform(65, 105), rng.uniform(80, 125)
+            depth = rng.uniform(2.5, 4.5)
+            return [("s", approach, -depth), ("s", rng.uniform(30, 50), 0),
+                    ("s", exit, depth + exit * grade * .3)]
+        if kind == "shelf":
+            climb = rng.uniform(100, 160)
+            return [("s", climb, climb * grade), ("s", rng.uniform(55, 100), 0),
+                    ("s", 90, 90 * grade * .5)]
         if kind == "hairpin":
             radius = rng.uniform(self.min_radius, self.min_radius + 4.0)
             angle = rng.uniform(150.0, 176.0)
@@ -301,16 +324,19 @@ class Gen:
         self._emit([("s", 130.0, 0.0)])           # старт — ровная прямая
         grade = rng.uniform(-0.02, 0.03)
         kinds = ("straight", "arc_flow", "arc_flow", "arc_tight",
-                 "hairpin", "chicane", "crest", "esses")
+                 "hairpin", "chicane", "crest", "esses", "tightening", "opening",
+                 "double_apex", "crest_turn", "compression", "shelf")
+        last_kind = "straight"
         guard = 0
         stuck = 0
         backs = 0
         history = []      # состояния до каждого принятого приёма
         while self.total < self.target - 300.0 and guard < 4000:
             guard += 1
-            kind = rng.choice(kinds)
+            kind = rng.choice([value for value in kinds if value != last_kind])
             state = self._save_state()
             if self._try_feature(kind, grade):
+                last_kind = kind
                 history.append(state)
                 stuck = 0
             else:

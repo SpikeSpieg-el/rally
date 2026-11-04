@@ -1,0 +1,174 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="track"]
+[ext_resource type="Script" path="res://scripts/data/rally_route_section.gd" id="section"]
+[ext_resource type="Curve3D" path="res://data/tracks/stage_mountain_100_route.tres" id="curve"]
+[ext_resource type="Resource" path="res://data/weather/weather_clear.tres" id="clear"]
+[ext_resource type="Resource" path="res://data/weather/weather_fog.tres" id="fog"]
+[ext_resource type="Resource" path="res://data/weather/weather_overcast.tres" id="overcast"]
+[ext_resource type="Resource" path="res://data/weather/weather_rain.tres" id="rain"]
+[ext_resource type="Resource" path="res://data/weather/weather_snow.tres" id="snow"]
+[ext_resource type="Resource" path="res://data/weather/weather_storm.tres" id="storm"]
+
+[sub_resource type="Resource" id="Section_0"]
+script = ExtResource("section")
+start_distance = 0.0
+title = "Долина — разогрев перед подъёмом"
+surface_name = "Гравий"
+half_width = 4.6
+road_color = Color(0.4, 0.33, 0.23, 1)
+grip = 1.0
+rolling = 1.0
+transition_length = 350.0
+weather = ExtResource("clear")
+
+[sub_resource type="Resource" id="Section_1"]
+script = ExtResource("section")
+start_distance = 8000.0
+title = "Лесные связки"
+surface_name = "Грязь"
+half_width = 3.5
+road_color = Color(0.23, 0.18, 0.11, 1)
+grip = 0.78
+rolling = 1.35
+transition_length = 350.0
+weather = ExtResource("overcast")
+
+[sub_resource type="Resource" id="Section_2"]
+script = ExtResource("section")
+start_distance = 17000.0
+title = "Нижний серпантин"
+surface_name = "Асфальт"
+half_width = 3.1
+road_color = Color(0.19, 0.2, 0.22, 1)
+grip = 1.25
+rolling = 0.8
+transition_length = 350.0
+weather = ExtResource("rain")
+
+[sub_resource type="Resource" id="Section_3"]
+script = ExtResource("section")
+start_distance = 27000.0
+title = "Каменистые полки"
+surface_name = "Гравий"
+half_width = 2.7
+road_color = Color(0.43, 0.4, 0.34, 1)
+grip = 0.9
+rolling = 1.15
+transition_length = 350.0
+weather = ExtResource("storm")
+
+[sub_resource type="Resource" id="Section_4"]
+script = ExtResource("section")
+start_distance = 38000.0
+title = "Узкая дорога в облаках"
+surface_name = "Грязь"
+half_width = 2.4
+road_color = Color(0.26, 0.22, 0.16, 1)
+grip = 0.7
+rolling = 1.45
+transition_length = 350.0
+weather = ExtResource("fog")
+
+[sub_resource type="Resource" id="Section_5"]
+script = ExtResource("section")
+start_distance = 49000.0
+title = "Снежный подъём к вершине"
+surface_name = "Снег"
+half_width = 2.6
+road_color = Color(0.78, 0.83, 0.88, 1)
+grip = 0.55
+rolling = 1.4
+transition_length = 350.0
+weather = ExtResource("snow")
+
+[sub_resource type="Resource" id="Section_6"]
+script = ExtResource("section")
+start_distance = 58000.0
+title = "Перевал — начало спуска"
+surface_name = "Снег"
+half_width = 2.4
+road_color = Color(0.78, 0.83, 0.88, 1)
+grip = 0.52
+rolling = 1.35
+transition_length = 350.0
+weather = ExtResource("snow")
+
+[sub_resource type="Resource" id="Section_7"]
+script = ExtResource("section")
+start_distance = 67000.0
+title = "Мокрый спуск"
+surface_name = "Асфальт"
+half_width = 3.0
+road_color = Color(0.18, 0.19, 0.21, 1)
+grip = 1.2
+rolling = 0.85
+transition_length = 350.0
+weather = ExtResource("rain")
+
+[sub_resource type="Resource" id="Section_8"]
+script = ExtResource("section")
+start_distance = 77000.0
+title = "Разбитая лесная дорога"
+surface_name = "Грязь"
+half_width = 2.8
+road_color = Color(0.25, 0.19, 0.12, 1)
+grip = 0.74
+rolling = 1.4
+transition_length = 350.0
+weather = ExtResource("overcast")
+
+[sub_resource type="Resource" id="Section_9"]
+script = ExtResource("section")
+start_distance = 87000.0
+title = "Быстрые связки в долине"
+surface_name = "Гравий"
+half_width = 3.8
+road_color = Color(0.41, 0.34, 0.24, 1)
+grip = 0.95
+rolling = 1.1
+transition_length = 350.0
+weather = ExtResource("clear")
+
+[sub_resource type="Resource" id="Section_10"]
+script = ExtResource("section")
+start_distance = 96000.0
+title = "Финальная атака"
+surface_name = "Асфальт"
+half_width = 4.2
+road_color = Color(0.21, 0.22, 0.24, 1)
+grip = 1.25
+rolling = 0.8
+transition_length = 350.0
+weather = ExtResource("clear")
+
+[resource]
+script = ExtResource("track")
+id = "mountain_100"
+display_name = "ВЕРШИНА • 100 КМ"
+description = "Экстремальный горный марафон: 63 разворота серпантина, сотни сложных связок, подъём от долины к снежному перевалу около 2400 м и затяжной спуск. 11 участков: гравий, грязь, асфальт и снег. Полотно сужается до 4,8 м. Погода меняется по маршруту: солнце, дождь, гроза, туман, снег и прояснение. Условия этого этапа задаются маршрутом."
+surface_name = "Гравий / грязь / асфальт / снег"
+difficulty = 5
+target_time = 7200.0
+road_curve = ExtResource("curve")
+road_half_width = 4.6
+road_shoulder = 0.8
+road_step = 2.5
+road_camber = 0.05
+terrain_margin = 70.0
+terrain_cell = 6.0
+terrain_seed = 1002400
+hills_height = 24.0
+ridge_height = 38.0
+embankment_min_width = 4.0
+embankment_max_width = 38.0
+max_terrain_slope_deg = 42.0
+bumps_amplitude = 0.0
+bumps_roughness = 0.0
+use_baked_props = false
+procedural_scenery = true
+scenery_density = 0.12
+checkpoint_interval = 800.0
+fog_far = 380.0
+fog_near = 80.0
+route_sections = Array[ExtResource("section")]([SubResource("Section_0"), SubResource("Section_1"), SubResource("Section_2"), SubResource("Section_3"), SubResource("Section_4"), SubResource("Section_5"), SubResource("Section_6"), SubResource("Section_7"), SubResource("Section_8"), SubResource("Section_9"), SubResource("Section_10")])

@@ -12,6 +12,7 @@ uniform sampler2D gravel_texture_smooth : source_color, repeat_enable, filter_li
 uniform bool ps1_textures = true;
 uniform float vertex_snap : hint_range(0.0, 1.0) = 0.0;
 uniform float resolution_y : hint_range(180.0, 720.0) = 270.0;
+uniform bool section_surfaces = false;
 uniform float loose_relief : hint_range(0.0, 1.0) = 1.0;
 uniform float detail_strength : hint_range(0.0, 0.5) = 0.16;
 uniform float track_strength : hint_range(0.0, 0.4) = 0.12;
@@ -97,7 +98,9 @@ void fragment() {
 	surface *= 1.0 - ruts * rut_variation * track_strength;
 	vec2 gravel_uv = vec2(UV.x, UV.y) * gravel_uv_scale;
 	vec3 gravel_detail = ps1_textures ? texture(gravel_texture, gravel_uv).rgb : texture(gravel_texture_smooth, gravel_uv).rgb;
-	vec3 albedo = COLOR.rgb * surface * (texture_base + gravel_detail * texture_gain);
+	float section_loose = section_surfaces ? COLOR.a : 1.0;
+	vec3 texture_detail = mix(vec3(1.0), texture_base + gravel_detail * texture_gain, section_loose);
+	vec3 albedo = COLOR.rgb * surface * texture_detail;
 	// Дождь: гравий темнеет, колеи блестят. Снег: полотно укрыто почти целиком.
 	albedo *= mix(1.0, 1.0 - wet_darken, wetness);
 	albedo = mix(albedo, snow_tint * surface, snow_cover * snow_tint_strength);
@@ -112,7 +115,7 @@ void fragment() {
 	albedo = mix(albedo, mix(albedo * (1.0 - zone_wet_darken), albedo * (1.0 + zone_dry_lighten), parity), zone * zone_contrast);
 	// Рельеф остаётся у машины, но плавно исчезает за пределами частоты
 	// дискретизации; иначе блики фар усиливают алиасинг до чёрных пятен.
-	float relief = gravel_noise * loose_relief * (1.0 - snow_cover * 0.65);
+	float relief = gravel_noise * loose_relief * section_loose * (1.0 - snow_cover * 0.65);
 	NORMAL = normalize(NORMAL - relief_strength * detail_fade * (dFdx(relief) * normalize(dFdx(VERTEX)) + dFdy(relief) * normalize(dFdy(VERTEX))));
 	ALBEDO = albedo;
 	ROUGHNESS = mix(mix(road_roughness, wet_roughness, wetness), snow_roughness, snow_cover * snow_tint_strength);

@@ -521,6 +521,36 @@ class Builder:
 			var a_tight: float = rng.randf_range(40.0, 130.0)
 			var l_tight: float = r_tight * deg_to_rad(a_tight)
 			return [["a", r_tight, a_tight, l_tight * grade, _pick_direction()]]
+		if kind in ["tightening", "opening", "double_apex", "crest_turn"]:
+			var direction: int = _pick_direction()
+			var wide: float = rng.randf_range(85.0, 135.0)
+			var tight: float = rng.randf_range(maxf(min_radius, 24.0), 42.0)
+			var radii: Array = [wide, wide * 0.6, tight]
+			var angles: Array = [28.0, 32.0, 42.0]
+			if kind == "opening":
+				radii.reverse()
+			elif kind == "double_apex":
+				radii = [tight, wide, tight * 1.15]
+				angles = [38.0, 20.0, 35.0]
+			elif kind == "crest_turn":
+				radii = [wide, wide * 0.8, wide]
+				angles = [24.0, 30.0, 24.0]
+			var result: Array = []
+			for i in range(3):
+				var arc_length: float = float(radii[i]) * deg_to_rad(float(angles[i]))
+				var local_grade: float = grade
+				if kind == "crest_turn":
+					local_grade = [0.035, 0.0, -0.035][i]
+				result.append(["a", radii[i], angles[i], arc_length * local_grade, direction])
+			return result
+		if kind == "compression":
+			var approach: float = rng.randf_range(65.0, 105.0)
+			var exit: float = rng.randf_range(80.0, 125.0)
+			var depth: float = rng.randf_range(2.5, 4.5)
+			return [["s", approach, -depth], ["s", rng.randf_range(30.0, 50.0), 0.0], ["s", exit, depth + exit * grade * 0.3]]
+		if kind == "shelf":
+			var climb: float = rng.randf_range(100.0, 160.0)
+			return [["s", climb, climb * grade], ["s", rng.randf_range(55.0, 100.0), 0.0], ["s", 90.0, 90.0 * grade * 0.5]]
 		if kind == "hairpin":
 			var r_hair: float = rng.randf_range(min_radius, min_radius + 4.0)
 			var a_hair: float = rng.randf_range(150.0, 176.0)
@@ -681,16 +711,20 @@ class Builder:
 		var kinds := [
 			"straight", "arc_flow", "arc_flow", "arc_tight",
 			"hairpin", "chicane", "crest", "esses",
+			"tightening", "opening", "double_apex", "crest_turn", "compression", "shelf",
 		]
+		var last_kind: String = "straight"
 		var guard: int = 0
 		var stuck: int = 0
 		var backs: int = 0
 		var history: Array = []
 		while total < target - 300.0 and guard < 4000:
 			guard += 1
-			var kind: String = kinds[rng.randi_range(0, kinds.size() - 1)]
+			var options: Array = kinds.filter(func(value): return value != last_kind)
+			var kind: String = options[rng.randi_range(0, options.size() - 1)]
 			var state := _save_state()
 			if _try_feature(kind, grade):
+				last_kind = kind
 				history.append(state)
 				stuck = 0
 			else:
