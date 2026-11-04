@@ -43,7 +43,7 @@ jobs:
           mkdir -p export/web
           report_failure() {
             echo '::error::Godot import or export failed; see the following diagnostic annotations and the full job log.'
-            grep -iE 'error|failed|invalid|missing|cannot' /tmp/godot-build.log | tail -25 | while IFS= read -r line; do
+            tail -40 /tmp/godot-build.log | while IFS= read -r line; do
               echo "::error::${line//%/%25}"
             done || true
           }
