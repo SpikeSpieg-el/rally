@@ -115,6 +115,8 @@ var weather: WeatherType = null
 var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
+const WorldStreamer = preload("res://scripts/world_streamer.gd")
+var world_streamer: WorldStreamer = null
 var terrain_rect: Rect2 = Rect2()
 var start_pos: Vector3 = Vector3.ZERO
 var finish_pos: Vector3 = Vector3.ZERO
@@ -595,6 +597,8 @@ func _apply_conditions_to_track() -> void:
 ## лесного спецучастка, а заездить могли на перевал, северную дугу или
 ## сгенерированную трассу.
 func _effective_curve() -> Curve3D:
+	if Engine.is_editor_hint() and track_override != null and track_override.road_curve != null:
+		return track_override.road_curve
 	if not Engine.is_editor_hint() and track != null:
 		if track.procedural:
 			return track.get_effective_curve()
@@ -665,7 +669,9 @@ func _build_world_async() -> void:
 	# Границы карты считаем по ТОЙ кривой, что реально используется
 	# (узел Route в сцене), иначе правка кривой в 3D не меняла бы размер поля.
 	terrain_rect = _curve_terrain_rect(curve)
-	network = RoadNetworkType.build(curve, terrain_rect, maxf(1.5, track.terrain_cell))
+	var route_length: float = curve.get_baked_length()
+	var streaming: bool = track.stream_world or route_length >= 20000.0 or (not track.use_baked_props and route_length >= 5000.0)
+	network = RoadNetworkType.build_sparse(curve) if streaming else RoadNetworkType.build(curve, terrain_rect, maxf(1.5, track.terrain_cell))
 	var length: float = network.total_length
 	start_pos = network.point_at(0.0)
 	finish_pos = network.point_at(length)
@@ -677,11 +683,24 @@ func _build_world_async() -> void:
 		_configure_world()
 	if has_progress:
 		await get_tree().process_frame
-	await _build_terrain(has_progress, 0.15, 0.58)
-	if has_progress:
-		_report_progress(0.60, "Полотно дороги…")
-		await get_tree().process_frame
-	await _build_road(has_progress, 0.60, 0.80)
+	if streaming:
+		if terrain_mesh != null:
+			terrain_mesh.mesh = null
+		if terrain_collider != null:
+			terrain_collider.shape = null
+		_ground_grid.clear()
+		_hills_cache.clear()
+		_prop_mesh_cache.clear()
+		world_streamer = WorldStreamer.new()
+		world_streamer.name = "StreamedWorld"
+		generated.add_child(world_streamer)
+		await world_streamer.initialize(self, network.point_at(s_spawn().car_spawn_distance))
+	else:
+		await _build_terrain(has_progress, 0.15, 0.58)
+		if has_progress:
+			_report_progress(0.60, "Полотно дороги…")
+			await get_tree().process_frame
+		await _build_road(has_progress, 0.60, 0.80)
 	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
@@ -693,11 +712,11 @@ func _build_world_async() -> void:
 		_snap_prop_nodes(false)
 	if s_spawn().spawn_route_markers and track.spawn_route_markers:
 		_spawn_route_markers()
-	if s_spawn().edge_posts and track.spawn_edge_posts:
+	if not streaming and s_spawn().edge_posts and track.spawn_edge_posts:
 		_spawn_edge_posts()
 	if track.spawn_checkpoints:
 		_spawn_checkpoints()
-	if track.procedural_scenery:
+	if track.procedural_scenery and not streaming:
 		if has_progress:
 			_report_progress(0.90, "Лес, камни и знаки…")
 			await get_tree().process_frame
@@ -738,6 +757,7 @@ func _make_noise(seed_value: int, frequency: float, octaves: int) -> FastNoiseLi
 
 
 func _clear_generated() -> void:
+	world_streamer = null
 	if generated == null:
 		return
 	for child in generated.get_children():
@@ -1300,14 +1320,17 @@ func _weather_snow_cover() -> float:
 
 ## Лента дороги: меш + коллизия. Высота краёв совпадает с землёй (та же
 ## функция height_at), поэтому стык не просвечивает.
-func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
+func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
 	var step: float = maxf(0.5, track.road_step)
 	if track.bumps_amplitude > 0.0 or track.bumps_roughness > 0.0:
 		# Самое короткое локальное пятно — 18 м; больше нет синусоиды,
 		# ради которой всё полотно приходилось дробить каждые 0.9 м.
 		step = minf(step, 1.5)
 	var length: float = network.total_length
-	var rows: int = maxi(2, ceili(length / step) + 1)
+	var end: float = length if distance_end < 0.0 else minf(length, distance_end)
+	var span: float = end - distance_start
+	var rows: int = maxi(2, ceili(span / step) + 1)
+	var destination: Node3D = generated if chunk_parent == null else chunk_parent
 	var half: float = track.road_half_width
 	var corridor: float = half + track.road_shoulder
 	var outer: float = corridor + 1.5
@@ -1322,11 +1345,8 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	normals.resize(rows * lanes)
 	colors.resize(rows * lanes)
 	uvs.resize(rows * lanes)
-	var color_rng := RandomNumberGenerator.new()
-	color_rng.seed = track.terrain_seed ^ 0x5A17
-
 	for row in range(rows):
-		var distance: float = minf(length, float(row) * step)
+		var distance: float = distance_start + span * float(row) / float(rows - 1)
 		half = track.half_width_at(distance)
 		corridor = half + track.road_shoulder
 		outer = corridor + 1.5
@@ -1335,7 +1355,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
-		var shade: float = color_rng.randf_range(0.9, 1.1)
+		var shade: float = 0.9 + 0.2 * TrackConfigType.hash_noise(distance, track.terrain_seed)
 		var surface_height: float = center.y + _surface_bumps_along(distance)
 		for lane in range(lanes):
 			var lat: float = lateral[lane]
@@ -1358,7 +1378,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			uvs[row * lanes + lane] = Vector2(lat, distance)
 
 			var base_color: Color = track.road_color * shade
-			base_color = base_color.lerp(track.road_color_2, color_rng.randf() * 0.45)
+			base_color = base_color.lerp(track.road_color_2, TrackConfigType.hash_noise(distance, float(lane)) * 0.45)
 			if section != null:
 				base_color = section.road_color * shade
 			var edge_factor: float = clampf((absf(lat) - half * 0.75) / maxf(half * 0.5, 0.01), 0.0, 1.0)
@@ -1370,15 +1390,19 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			if section != null:
 				base_color.a = 0.0 if section.surface_name == "Асфальт" else 1.0
 			colors[row * lanes + lane] = base_color
-		if light and row % 200 == 199:
-			_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
+		if light and row % (32 if chunk_parent != null else 200) == (31 if chunk_parent != null else 199):
+			if chunk_parent == null:
+				_report_progress(lerpf(from_pct, to_pct, float(row + 1) / float(rows)), "Полотно дороги…")
 			await get_tree().process_frame
 
 	for row in range(rows):
+		var d: float = distance_start + span * float(row) / float(rows - 1)
+		# Identical normals at shared chunk boundaries (sample outside the chunk).
+		var along: Vector3 = network.direction_at(d) * 2.0
+		along.y = network.height_at_along(d + 1.0) + _surface_bumps_along(d + 1.0) - network.height_at_along(d - 1.0) - _surface_bumps_along(d - 1.0)
 		for lane in range(lanes):
 			var here: int = row * lanes + lane
 			var across: Vector3 = vertices[row * lanes + mini(lanes - 1, lane + 1)] - vertices[row * lanes + maxi(0, lane - 1)]
-			var along: Vector3 = vertices[mini(rows - 1, row + 1) * lanes + lane] - vertices[maxi(0, row - 1) * lanes + lane]
 			var normal: Vector3 = along.cross(across)
 			if normal.y < 0.0:
 				normal = -normal
@@ -1449,8 +1473,9 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	road_visual.name = "RoadMesh"
 	road_visual.mesh = road_mesh
 	road_visual.material_override = road_material
-	if generated != null:
-		generated.add_child(road_visual)
+	road_visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if destination != null:
+		destination.add_child(road_visual)
 
 	# Коллизия — по всей видимой ленте, включая внешнюю «юбку» (outer):
 	# она ложится на землю и плавно уводит край полотна в кювет. Если
@@ -1465,8 +1490,6 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	while collider_row < rows - 1:
 		start_rows.append(collider_row)
 		collider_row += row_stride
-	if rows >= 2 and (start_rows.is_empty() or start_rows[start_rows.size() - 1] != rows - 2):
-		start_rows.append(rows - 2)
 	var faces := PackedVector3Array()
 	faces.resize(start_rows.size() * (lanes - 1) * 6)
 	var write: int = 0
@@ -1493,8 +1516,8 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var collider := CollisionShape3D.new()
 	collider.shape = shape
 	road_body.add_child(collider)
-	if generated != null:
-		generated.add_child(road_body)
+	if destination != null:
+		destination.add_child(road_body)
 
 
 ## Контакт вызывается отдельно для каждого колеса, в локальных координатах этапа.
@@ -1592,7 +1615,13 @@ func _apply_baked_props_visibility() -> void:
 	for node_name in ["Props", "ManualProps"]:
 		var root := get_node_or_null(node_name) as Node3D
 		if root != null:
-			root.visible = track.use_baked_props
+			if not Engine.is_editor_hint() and not track.use_baked_props:
+				# The shared scene contains the forest's baked nodes. Do not keep
+				# hundreds of invisible meshes/colliders alive on another track.
+				remove_child(root)
+				root.queue_free()
+			else:
+				root.visible = track.use_baked_props
 
 
 ## Дополнительный лес и мелкие объекты расставляются по обе стороны маршрута.
@@ -1661,7 +1690,7 @@ class SceneryBuffer:
 const SceneryPlacement = preload("res://scripts/data/rally_scenery_placement.gd")
 
 
-func _spawn_procedural_scenery(light: bool = false) -> void:
+func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
 	if generated == null or network == null:
 		return
 	var cfg := s_scenery()
@@ -1683,10 +1712,11 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 			kinds.append(companion)
 	var container := Node3D.new()
 	container.name = "Scenery"
-	generated.add_child(container)
+	var destination: Node3D = generated if chunk_parent == null else chunk_parent
+	destination.add_child(container)
 
 	var rng := RandomNumberGenerator.new()
-	rng.seed = track.terrain_seed ^ 8237431
+	rng.seed = track.terrain_seed ^ 8237431 ^ int(distance_start)
 	var corridor: float = corridor_half()
 	var step: float = maxf(1.0, cfg.sample_step)
 	var attempt_count: int = cfg.attempts_for(density)
@@ -1710,13 +1740,14 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 	last_collider.resize(kinds.size())
 	last_collider.fill(-10000.0)
 
-	var distance: float = cfg.start_margin
+	var distance: float = maxf(cfg.start_margin, distance_start + (4.0 if chunk_parent != null else 0.0))
+	var end: float = network.total_length - cfg.end_margin if distance_end < 0.0 else minf(network.total_length - cfg.end_margin, distance_end - 4.0)
 	var step_count: int = 0
 	var attempts_since_yield: int = 0
 	var total_steps: float = maxf(1.0, (network.total_length - cfg.start_margin - cfg.end_margin) / step)
 	var full := false
 	# Нулевая плотность трассы — леса нет вовсе (ворота и знаки при этом едут).
-	while attempt_chance > 0.0 and distance < network.total_length - cfg.end_margin:
+	while attempt_chance > 0.0 and distance < end:
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
@@ -1817,10 +1848,11 @@ func _spawn_procedural_scenery(light: bool = false) -> void:
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
 			await get_tree().process_frame
 		distance += step
-	_prop_mesh_cache.clear()
+	if chunk_parent == null:
+		_prop_mesh_cache.clear()
 	_build_scenery_multimeshes(container, buffer, kinds, cell_size, corridor)
 	_add_prop_colliders(container, trunks, cell_size)
-	_spawn_corner_signs(container)
+	_spawn_corner_signs(container, distance_start, distance_end)
 
 
 ## Номер пространственной ячейки MultiMesh (часть ключа группы).
@@ -2048,14 +2080,15 @@ func _make_scenery_mesh(kind: String) -> Mesh:
 	return _bake_prop_mesh(s_props().by_id(kind))
 
 
-func _spawn_corner_signs(parent: Node3D) -> void:
+func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_end: float = -1.0) -> void:
 	var cfg := s_spawn()
 	if not cfg.corner_signs:
 		return
 	var threshold: float = deg_to_rad(cfg.corner_turn_threshold_deg)
 	var last_sign: float = -10000.0
-	var distance: float = cfg.corner_sign_start
-	while distance < network.total_length - cfg.corner_sign_end:
+	var distance: float = maxf(cfg.corner_sign_start, ceilf(distance_start / 12.0) * 12.0)
+	var end: float = network.total_length - cfg.corner_sign_end if distance_end < 0.0 else minf(distance_end, network.total_length - cfg.corner_sign_end)
+	while distance < end:
 		var turn: float = _turn_ahead(distance, cfg.corner_lookahead)
 		if absf(turn) > threshold and distance - last_sign > cfg.corner_sign_spacing:
 			var center: Vector3 = network.point_at(distance)
@@ -2126,13 +2159,13 @@ func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -
 
 
 ## Красно-белые столбики по обочинам.
-func _spawn_edge_posts() -> void:
+func _spawn_edge_posts(distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
 	if generated == null or network == null:
 		return
 	var cfg := s_spawn()
 	var container := Node3D.new()
 	container.name = "EdgePosts"
-	generated.add_child(container)
+	(generated if chunk_parent == null else chunk_parent).add_child(container)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = track.edge_post_color
 	material.roughness = cfg.edge_post_roughness
@@ -2146,7 +2179,18 @@ func _spawn_edge_posts() -> void:
 	cap_mesh.surface_set_material(0, white)
 	var transforms: Array[Transform3D] = []
 	var lateral: float = corridor_half() + cfg.edge_post_lateral
-	for distance in cfg.resolve_edge_post_distances(network.total_length):
+	var post_distances: PackedFloat32Array
+	if chunk_parent == null:
+		post_distances = cfg.resolve_edge_post_distances(network.total_length)
+	else:
+		var spacing: float = maxf(4.0, cfg.edge_post_spacing)
+		var first: float = cfg.edge_post_start + maxf(0.0, ceilf((distance_start - cfg.edge_post_start) / spacing)) * spacing
+		while first < minf(distance_end, network.total_length - cfg.edge_post_end):
+			post_distances.append(first)
+			first += spacing
+	for distance in post_distances:
+		if distance < distance_start or (distance_end >= 0.0 and distance >= distance_end):
+			continue
 		lateral = track.half_width_at(distance) + track.road_shoulder + cfg.edge_post_lateral
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
@@ -2773,7 +2817,9 @@ func _populate_mini_map() -> void:
 	if mini_map == null or network == null:
 		return
 	var route := PackedVector2Array()
-	for p in network.samples:
+	var count: int = mini(1400, network.samples.size())
+	for i in range(count):
+		var p: Vector3 = network.point_at(network.total_length * float(i) / float(maxi(1, count - 1)))
 		route.append(Vector2(p.x, p.z))
 	var cps := PackedVector2Array()
 	for cp in checkpoints:

@@ -154,6 +154,7 @@ road_curve = ExtResource("curve")
 road_half_width = 4.6
 road_shoulder = 0.8
 road_step = 2.5
+stream_world = true
 road_camber = 0.05
 terrain_margin = 70.0
 terrain_cell = 6.0

@@ -23,7 +23,7 @@ def build():
             radius_in = rng.uniform(24, 65)
             radius_out = rng.uniform(26, 60)
             angle = rng.uniform(26, 55)
-            segments += [('s', rng.uniform(110, 280), 0)]
+            segments += [('s', 65.0 if terrace == 0 and j == 0 else rng.uniform(80, 220), 0)]
             sign = 1 if terrace % 2 == 0 else -1
             if (terrace + j) % 3 == 0:
                 # Broad approach followed by a tightening turn and recovery.
@@ -52,7 +52,12 @@ def build():
         # Isolated geological shelves/crests instead of a pair of sine waves.
         feature = road_profile.sample(d * scale, 1002400, 7, 1800, 0, 0, 9)
         feature *= road_profile.ease(d * scale / 700) * road_profile.ease((100000 - d * scale) / 700)
-        result.append((x * scale, z * scale, base + feature))
+        # Clearly visible uphill immediately after the launch zone, easing
+        # back into the sustained mountain profile over several kilometres.
+        distance = d * scale
+        approach = 32 * (1 - math.exp(-distance / 500))
+        approach *= 1 - road_profile.ease((distance - 1500) / 2000)
+        result.append((x * scale, z * scale, base + feature + approach))
     controls = kit.select_controls(result, max_gap=28, min_gap=5, turn_trigger_deg=7)
     kit.write_curve(controls, str(OUT))
     # Normalize the written Bezier, including altitude, not just plan length.
