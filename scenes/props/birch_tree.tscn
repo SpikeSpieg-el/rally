@@ -5,14 +5,14 @@
 [ext_resource type="Texture2D" path="res://textures/environment/leaves.png" id="tex_leaves"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_birch"]
-albedo_color = Color(0.98, 0.98, 0.96)
+albedo_color = Color(0.98, 0.98, 0.96, 1)
 albedo_texture = ExtResource("tex_birch_bark")
 roughness = 0.92
 specular = 0.28
 specular_mode = 2
 
 [sub_resource type="StandardMaterial3D" id="Mat_leaves"]
-albedo_color = Color(0.94, 1, 0.9)
+albedo_color = Color(0.94, 1, 0.9, 1)
 albedo_texture = ExtResource("tex_leaves")
 roughness = 0.95
 specular = 0.28

@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/burlap.png" id="tex_burlap"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_burlap"]
-albedo_color = Color(0.8, 0.72, 0.52)
+albedo_color = Color(0.8, 0.72, 0.52, 1)
 albedo_texture = ExtResource("tex_burlap")
 roughness = 1
 specular = 0.28

@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/rock_mossy.png" id="tex_rock_mossy"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_rock_mossy"]
-albedo_color = Color(0.97, 1, 0.96)
+albedo_color = Color(0.97, 1, 0.96, 1)
 albedo_texture = ExtResource("tex_rock_mossy")
 roughness = 0.98
 specular = 0.28

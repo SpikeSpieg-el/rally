@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/fern.png" id="tex_fern"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_fern"]
-albedo_color = Color(0.93, 1, 0.9)
+albedo_color = Color(0.93, 1, 0.9, 1)
 albedo_texture = ExtResource("tex_fern")
 roughness = 1
 specular = 0.28
