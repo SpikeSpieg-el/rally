@@ -1,23 +1,57 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/bark.png" id="tex_bark"]
 
 [ext_resource type="Texture2D" path="res://textures/environment/needles.png" id="tex_needles"]
 
-[sub_resource type="StandardMaterial3D" id="Material_fir"]
-albedo_color = Color(0.9, 1, 0.9, 1)
-albedo_texture = ExtResource("tex_needles")
-roughness = 0.95
+[sub_resource type="StandardMaterial3D" id="Mat_bark"]
+albedo_color = Color(0.78, 0.69, 0.58)
+albedo_texture = ExtResource("tex_bark")
+roughness = 1
+specular = 0.28
 specular_mode = 2
 
-[sub_resource type="CylinderMesh" id="Mesh_fir"]
-material = SubResource("Material_fir")
-top_radius = 0.0
+[sub_resource type="StandardMaterial3D" id="Mat_needles"]
+albedo_color = Color(0.9, 1, 0.9)
+albedo_texture = ExtResource("tex_needles")
+roughness = 0.95
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_trunk"]
+material = SubResource("Mat_bark")
+top_radius = 0.22
+bottom_radius = 0.32
+height = 2.3
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_lower"]
+material = SubResource("Mat_needles")
+top_radius = 0
 bottom_radius = 1.7
-height = 6.5
+height = 4.2
+radial_segments = 7
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_upper"]
+material = SubResource("Mat_needles")
+top_radius = 0
+bottom_radius = 1.15
+height = 3.4
 radial_segments = 7
 rings = 1
 
 [node name="FirTree" type="Node3D"]
 
-[node name="Mesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.25, 0)
-mesh = SubResource("Mesh_fir")
+[node name="Mesh_trunk" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+mesh = SubResource("Mesh_trunk")
+
+[node name="Mesh_lower" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+mesh = SubResource("Mesh_lower")
+
+[node name="Mesh_upper" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.9, 0)
+mesh = SubResource("Mesh_upper")

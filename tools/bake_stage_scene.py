@@ -91,12 +91,28 @@ mesh = SubResource("Mesh_bush")
 
 
 def ensure_prop_scenes():
+    """Сцены ассетов собираются make_prop_scenes.py — он же источник правды.
+
+    Старые шаблоны PROP_SCENES ниже остались только для справки: они без
+    текстур и не совпадают с текущими пропсами, поэтому используются лишь
+    тогда, когда make_prop_scenes.py недоступен.
+    """
     os.makedirs(PROPS_DIR, exist_ok=True)
-    for name, text in PROP_SCENES.items():
+    try:
+        import make_prop_scenes
+    except ImportError:
+        make_prop_scenes = None
+    if make_prop_scenes is not None:
+        for name, body in make_prop_scenes.build().items():
+            with open("%s/%s.tscn" % (PROPS_DIR, name), "w") as f:
+                f.write(body)
+        print("сцены ассетов обновлены: %d" % len(make_prop_scenes.build()))
+        return
+    for name, body in PROP_SCENES.items():
         path = "%s/%s.tscn" % (PROPS_DIR, name)
         if not os.path.exists(path):
             with open(path, "w") as f:
-                f.write(text)
+                f.write(body)
             print("создана сцена ассета:", path)
 
 

@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/burlap.png" id="tex_burlap"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_burlap"]
+albedo_color = Color(0.8, 0.72, 0.52)
+albedo_texture = ExtResource("tex_burlap")
+roughness = 1
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="BoxMesh" id="Mesh_bag_a"]
+material = SubResource("Mat_burlap")
+size = Vector3(1.3, 0.32, 0.45)
+
+[sub_resource type="BoxMesh" id="Mesh_bag_b"]
+material = SubResource("Mat_burlap")
+size = Vector3(1.3, 0.32, 0.45)
+
+[sub_resource type="BoxMesh" id="Mesh_bag_c"]
+material = SubResource("Mat_burlap")
+size = Vector3(1.2, 0.3, 0.42)
+
+[sub_resource type="BoxMesh" id="Mesh_bag_d"]
+material = SubResource("Mat_burlap")
+size = Vector3(0.6, 0.28, 0.4)
+
+[node name="SandbagBarrier" type="Node3D"]
+
+[node name="Mesh_bag_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.35, 0.16, 0)
+mesh = SubResource("Mesh_bag_a")
+
+[node name="Mesh_bag_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, 0.16, 0.02)
+mesh = SubResource("Mesh_bag_b")
+
+[node name="Mesh_bag_c" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.47, -0.02)
+mesh = SubResource("Mesh_bag_c")
+
+[node name="Mesh_bag_d" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.75, 0.05)
+mesh = SubResource("Mesh_bag_d")

@@ -300,6 +300,56 @@ func distance_to_road(x: float, z: float) -> float:
 	return _bilinear(field_dist, x, z)
 
 
+## Расстояние и километраж ПРЯМО В УЗЛЕ сетки (gx, gz), без интерполяции.
+##
+## Сетка рельефа обычно совпадает с сеткой поля (обе строятся от одного
+## прямоугольника с шагом terrain_cell), поэтому сборка рельефа читает узлы
+## напрямую: это те же значения, но без двух билинейных выборок на ячейку.
+func sample_grid(gx: int, gz: int) -> Vector2:
+	if gx < 0 or gz < 0 or gx >= cols or gz >= rows:
+		return Vector2(FAR, 0.0)
+	var index: int = gz * cols + gx
+	var distance: float = field_dist[index]
+	var along: float = field_along[index]
+	if cols < 2 or rows < 2:
+		return Vector2(distance, along)
+	# Та же страховка, что в along_road(): если четыре угла ячейки «голосуют»
+	# за сильно разные километражи (рядом второй виток шпильки), усреднять
+	# нельзя — берём километраж угла, ближайшего к дороге.
+	var base: int = mini(gz, rows - 2) * cols + mini(gx, cols - 2)
+	var i00: int = base
+	var i10: int = base + 1
+	var i01: int = base + cols
+	var i11: int = i01 + 1
+	var a_min: float = minf(minf(field_along[i00], field_along[i10]), minf(field_along[i01], field_along[i11]))
+	var a_max: float = maxf(maxf(field_along[i00], field_along[i10]), maxf(field_along[i01], field_along[i11]))
+	if a_max - a_min > ALONG_JUMP:
+		var best: int = i00
+		var best_dist: float = field_dist[i00]
+		if field_dist[i10] < best_dist:
+			best = i10
+			best_dist = field_dist[i10]
+		if field_dist[i01] < best_dist:
+			best = i01
+			best_dist = field_dist[i01]
+		if field_dist[i11] < best_dist:
+			best = i11
+		along = field_along[best]
+	return Vector2(distance, along)
+
+
+## Совпадает ли сетка рельефа с сеткой поля дороги. Если да, расстояние и
+## километраж можно читать напрямую через sample_grid().
+func matches_grid(grid_origin: Vector2, grid_cell: float, grid_cols: int, grid_rows: int) -> bool:
+	return (
+		cols == grid_cols
+		and rows == grid_rows
+		and is_equal_approx(cell, grid_cell)
+		and is_equal_approx(origin.x, grid_origin.x)
+		and is_equal_approx(origin.y, grid_origin.y)
+	)
+
+
 ## Километраж по трассе (м) для этой точки плана.
 ##
 ## Тонкость: если четыре угла сеточной ячейки «голосуют» за сильно разные

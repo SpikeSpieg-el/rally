@@ -87,8 +87,13 @@ func _run() -> void:
 	var ground_material := stage.terrain_mesh.material_override as ShaderMaterial
 	ok = ok and ground_material != null and ground_material.get_shader_parameter("ground_texture") != null
 	ok = ok and ground_material != null and ground_material.get_shader_parameter("rock_texture") != null
-	for kind in ["fir", "pine", "bush", "boulder"]:
+	# Каждый вид обстановки — сцена с текстурой: меш «запекается» из неё же,
+	# поэтому правка пропса в редакторе сразу видна в заезде.
+	for kind in ["fir_tree", "pine_tree", "bush", "boulder", "grass", "stump", "log"]:
 		var scenery_mesh: Mesh = stage._make_scenery_mesh(kind)
+		if scenery_mesh == null:
+			ok = false
+			continue
 		var scenery_material := scenery_mesh.surface_get_material(0) as StandardMaterial3D
 		ok = ok and scenery_material != null and scenery_material.albedo_texture != null
 	if road != null:

@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/grass_blade.png" id="tex_grass_blade"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_grass"]
+albedo_color = Color(0.8, 0.95, 0.65)
+albedo_texture = ExtResource("tex_grass_blade")
+roughness = 1
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_blade_a"]
+material = SubResource("Mat_grass")
+top_radius = 0
+bottom_radius = 0.5
+height = 0.55
+radial_segments = 5
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_blade_b"]
+material = SubResource("Mat_grass")
+top_radius = 0
+bottom_radius = 0.4
+height = 0.45
+radial_segments = 5
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_blade_c"]
+material = SubResource("Mat_grass")
+top_radius = 0
+bottom_radius = 0.42
+height = 0.5
+radial_segments = 5
+rings = 1
+
+[node name="GrassTuft" type="Node3D"]
+
+[node name="Mesh_blade_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
+mesh = SubResource("Mesh_blade_a")
+
+[node name="Mesh_blade_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9781476, -0.2079117, 0, 0.2079117, 0.9781476, 0, 0, 0, 1, 0.24, 0.22, 0.1)
+mesh = SubResource("Mesh_blade_b")
+
+[node name="Mesh_blade_c" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9702957, 0.2419219, 0, -0.2419219, 0.9702957, 0, 0, 0, 1, -0.22, 0.25, -0.12)
+mesh = SubResource("Mesh_blade_c")

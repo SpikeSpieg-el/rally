@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/birch_bark.png" id="tex_birch_bark"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/leaves.png" id="tex_leaves"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_birch"]
+albedo_color = Color(0.95, 0.95, 0.92)
+albedo_texture = ExtResource("tex_birch_bark")
+roughness = 0.92
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_leaves"]
+albedo_color = Color(0.8, 0.92, 0.62)
+albedo_texture = ExtResource("tex_leaves")
+roughness = 0.95
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_trunk"]
+material = SubResource("Mat_birch")
+top_radius = 0.14
+bottom_radius = 0.2
+height = 5
+radial_segments = 6
+rings = 1
+
+[sub_resource type="SphereMesh" id="Mesh_crown_a"]
+material = SubResource("Mat_leaves")
+radius = 1.25
+height = 2
+radial_segments = 7
+rings = 3
+
+[sub_resource type="SphereMesh" id="Mesh_crown_b"]
+material = SubResource("Mat_leaves")
+radius = 0.95
+height = 1.6
+radial_segments = 7
+rings = 3
+
+[node name="BirchTree" type="Node3D"]
+
+[node name="Mesh_trunk" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+mesh = SubResource("Mesh_trunk")
+
+[node name="Mesh_crown_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 5.3, 0.15)
+mesh = SubResource("Mesh_crown_a")
+
+[node name="Mesh_crown_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 6.2, -0.2)
+mesh = SubResource("Mesh_crown_b")

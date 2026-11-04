@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/straw.png" id="tex_straw"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_straw"]
+albedo_color = Color(0.92, 0.82, 0.45)
+albedo_texture = ExtResource("tex_straw")
+roughness = 1
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_bale"]
+material = SubResource("Mat_straw")
+top_radius = 0.85
+bottom_radius = 0.85
+height = 1.5
+radial_segments = 10
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_cap_a"]
+material = SubResource("Mat_straw")
+top_radius = 0.84
+bottom_radius = 0.84
+height = 0.06
+radial_segments = 10
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_cap_b"]
+material = SubResource("Mat_straw")
+top_radius = 0.84
+bottom_radius = 0.84
+height = 0.06
+radial_segments = 10
+rings = 1
+
+[node name="HayBale" type="Node3D"]
+
+[node name="Mesh_bale" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("Mesh_bale")
+
+[node name="Mesh_cap_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.75, 0.85, 0)
+mesh = SubResource("Mesh_cap_a")
+
+[node name="Mesh_cap_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, -0.75, 0.85, 0)
+mesh = SubResource("Mesh_cap_b")

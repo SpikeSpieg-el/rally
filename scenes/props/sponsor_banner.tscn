@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/plank.png" id="tex_plank"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/banner.png" id="tex_banner"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_plank"]
+albedo_color = Color(0.74, 0.62, 0.44)
+albedo_texture = ExtResource("tex_plank")
+roughness = 0.97
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_banner"]
+albedo_color = Color(0.95, 0.96, 0.97)
+albedo_texture = ExtResource("tex_banner")
+roughness = 0.85
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="BoxMesh" id="Mesh_post_l"]
+material = SubResource("Mat_plank")
+size = Vector3(0.09, 1.9, 0.09)
+
+[sub_resource type="BoxMesh" id="Mesh_post_r"]
+material = SubResource("Mat_plank")
+size = Vector3(0.09, 1.9, 0.09)
+
+[sub_resource type="BoxMesh" id="Mesh_board"]
+material = SubResource("Mat_banner")
+size = Vector3(1.9, 0.85, 0.06)
+
+[node name="SponsorBanner" type="Node3D"]
+
+[node name="Mesh_post_l" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.85, 0.95, 0)
+mesh = SubResource("Mesh_post_l")
+
+[node name="Mesh_post_r" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 0.95, 0)
+mesh = SubResource("Mesh_post_r")
+
+[node name="Mesh_board" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0)
+mesh = SubResource("Mesh_board")
