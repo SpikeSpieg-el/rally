@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/rock_mossy.png" id="tex_rock_mossy"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_rock_mossy"]
+albedo_color = Color(0.97, 1, 0.96)
+albedo_texture = ExtResource("tex_rock_mossy")
+roughness = 0.98
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="SphereMesh" id="Mesh_rock_a"]
+material = SubResource("Mat_rock_mossy")
+radius = 0.9
+height = 1.4
+radial_segments = 6
+rings = 3
+
+[sub_resource type="SphereMesh" id="Mesh_rock_b"]
+material = SubResource("Mat_rock_mossy")
+radius = 0.55
+height = 0.9
+radial_segments = 6
+rings = 2
+
+[sub_resource type="SphereMesh" id="Mesh_rock_c"]
+material = SubResource("Mat_rock_mossy")
+radius = 0.38
+height = 0.6
+radial_segments = 6
+rings = 2
+
+[node name="RockCluster" type="Node3D"]
+
+[node name="Mesh_rock_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("Mesh_rock_a")
+
+[node name="Mesh_rock_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 0.35, 0.35)
+mesh = SubResource("Mesh_rock_b")
+
+[node name="Mesh_rock_c" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.25, -0.45)
+mesh = SubResource("Mesh_rock_c")

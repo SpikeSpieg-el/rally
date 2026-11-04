@@ -1,0 +1,60 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/fern.png" id="tex_fern"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_fern"]
+albedo_color = Color(0.93, 1, 0.9)
+albedo_texture = ExtResource("tex_fern")
+roughness = 1
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_frond_a"]
+material = SubResource("Mat_fern")
+top_radius = 0
+bottom_radius = 0.45
+height = 0.7
+radial_segments = 5
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_frond_b"]
+material = SubResource("Mat_fern")
+top_radius = 0
+bottom_radius = 0.38
+height = 0.6
+radial_segments = 5
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_frond_c"]
+material = SubResource("Mat_fern")
+top_radius = 0
+bottom_radius = 0.38
+height = 0.6
+radial_segments = 5
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_frond_d"]
+material = SubResource("Mat_fern")
+top_radius = 0
+bottom_radius = 0.34
+height = 0.55
+radial_segments = 5
+rings = 1
+
+[node name="Fern" type="Node3D"]
+
+[node name="Mesh_frond_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9848078, -0.1736482, 0, 0.1736482, 0.9848078, 0, 0, 0, 1, 0, 0.35, 0)
+mesh = SubResource("Mesh_frond_a")
+
+[node name="Mesh_frond_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9063078, -0.4226183, 0, 0.3830222, 0.8213938, 0.4226183, -0.1786062, -0.3830222, 0.9063078, 0.28, 0.3, 0.16)
+mesh = SubResource("Mesh_frond_b")
+
+[node name="Mesh_frond_c" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9063078, 0.4226183, 0, -0.3830222, 0.8213938, -0.4226183, -0.1786062, 0.3830222, 0.9063078, -0.24, 0.3, -0.18)
+mesh = SubResource("Mesh_frond_c")
+
+[node name="Mesh_frond_d" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9902681, 0.1391731, 0, -0.1140039, 0.8111801, 0.5735764, 0.0798264, -0.5679944, 0.819152, 0.05, 0.28, 0.32)
+mesh = SubResource("Mesh_frond_d")

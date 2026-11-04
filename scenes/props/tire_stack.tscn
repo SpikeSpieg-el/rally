@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/tire.png" id="tex_tire"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_tire"]
+albedo_color = Color(0.97, 0.97, 1)
+albedo_texture = ExtResource("tex_tire")
+roughness = 0.88
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Mesh_tire_a"]
+material = SubResource("Mat_tire")
+top_radius = 0.44
+bottom_radius = 0.44
+height = 0.3
+radial_segments = 10
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_tire_b"]
+material = SubResource("Mat_tire")
+top_radius = 0.42
+bottom_radius = 0.42
+height = 0.3
+radial_segments = 10
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Mesh_tire_c"]
+material = SubResource("Mat_tire")
+top_radius = 0.4
+bottom_radius = 0.4
+height = 0.3
+radial_segments = 10
+rings = 1
+
+[node name="TireStack" type="Node3D"]
+
+[node name="Mesh_tire_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+mesh = SubResource("Mesh_tire_a")
+
+[node name="Mesh_tire_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9659258, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.9659258, 0.03, 0.45, 0.02)
+mesh = SubResource("Mesh_tire_b")
+
+[node name="Mesh_tire_c" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9781476, 0, 0.2079117, 0, 1, 0, -0.2079117, 0, 0.9781476, -0.02, 0.74, -0.02)
+mesh = SubResource("Mesh_tire_c")

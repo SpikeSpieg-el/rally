@@ -12,12 +12,22 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 		printerr("FAIL: " + message)
 
+func group_names(stage) -> Array[String]:
+	var names: Array[String] = []
+	for prop in stage.s_props().spawnable_props():
+		var value := String(prop.group_name())
+		if not value.is_empty() and not names.has(value):
+			names.append(value)
+	return names
+
 func snapshot(stage) -> Dictionary:
 	var result := {}
-	var scenery: Node = stage.generated.get_node("Scenery")
-	for group_name in ["Firs", "Pines", "TrunkVisuals", "Bushes", "Boulders", "Grass", "Stumps", "Logs"]:
+	var scenery: Node = stage.generated.get_node_or_null("Scenery")
+	check(scenery != null, "контейнер обстановки должен существовать")
+	if scenery == null:
+		return result
+	for group_name in group_names(stage):
 		var group: Node = scenery.get_node_or_null(group_name)
-		check(group != null, "отсутствует вид объектов " + group_name)
 		if group == null:
 			continue
 		var positions: Array[Vector3] = []
@@ -33,6 +43,12 @@ func snapshot(stage) -> Dictionary:
 				check(stage.network.distance_to_road(point.x, point.z) >= stage.corridor_half() + 3.45, "объект на полотне или слишком близко к другому витку")
 		result[group_name] = positions
 	return result
+
+func total_of(snapshot: Dictionary) -> int:
+	var total := 0
+	for key in snapshot:
+		total += (snapshot[key] as Array).size()
+	return total
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -51,14 +67,17 @@ func _run() -> void:
 	stage._setup_noise()
 	stage.generated = Node3D.new()
 	stage.add_child(stage.generated)
+	check(stage.s_props().active_props().size() >= 10, "в библиотеке должно быть хотя бы десять расставляемых видов")
 	await stage._spawn_procedural_scenery(false)
 	var first := snapshot(stage)
-	var total := 0
+	var total := total_of(first)
+	# 30-кратный множитель плотности: на 600 м прямой должно быть тысячи объектов.
+	check(total > 3000, "сцена должна быть плотнее прежней: %d" % total)
+	check(group_names(stage).size() >= 8, "видов обстановки должно быть много")
+	var cells := 0
 	for key in first:
-		if key != "TrunkVisuals":
-			total += first[key].size()
-	check(total > 220, "сцена должна быть плотнее прежней: %d" % total)
-	check(stage.generated.get_node("Scenery/Firs").get_child_count() > 1, "деревья должны быть разделены на ячейки")
+		cells = maxi(cells, stage.generated.get_node("Scenery/" + key).get_child_count())
+	check(cells > 1, "объекты должны быть разделены на ячейки")
 	stage.generated.get_node("Scenery").free()
 	await stage._spawn_procedural_scenery(false)
 	var second := snapshot(stage)
@@ -66,16 +85,12 @@ func _run() -> void:
 	stage.generated.get_node("Scenery").free()
 	stage.track.scenery_density = 2.0
 	await stage._spawn_procedural_scenery(false)
-	var dense := snapshot(stage)
-	var dense_total := 0
-	for key in dense:
-		if key != "TrunkVisuals":
-			dense_total += dense[key].size()
+	var dense_total := total_of(snapshot(stage))
 	check(dense_total > total * 1.5, "увеличение плотности должно заметно добавлять объекты")
 	stage.generated.get_node("Scenery").free()
 	stage.track.scenery_density = 0.0
 	await stage._spawn_procedural_scenery(false)
-	check(stage.generated.get_node("Scenery").get_node_or_null("Firs") == null, "нулевая плотность должна убирать лес")
+	check(total_of(snapshot(stage)) == 0, "нулевая плотность должна убирать лес")
 	stage.free()
 	print("Scenery: %d объектов; ошибок %d" % [total, failures.size()])
 	quit(0 if failures.is_empty() else 1)

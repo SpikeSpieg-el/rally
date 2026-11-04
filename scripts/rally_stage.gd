@@ -60,6 +60,7 @@ const StageSettingsType = preload("res://scripts/data/rally_stage_settings.gd")
 const SpawnLayoutType = preload("res://scripts/data/rally_spawn_layout.gd")
 const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SceneryType = preload("res://scripts/data/rally_scenery_config.gd")
+const PropLibraryType = preload("res://scripts/data/rally_prop_library.gd")
 const VisualEffectsType = preload("res://scripts/effects/rally_visual_effects.gd")
 const VisualEffectsScene = preload("res://scenes/effects/visual_effects.tscn")
 
@@ -68,6 +69,7 @@ const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
 const DEFAULT_SPAWN_PATH := "res://data/stage/default_spawn_layout.tres"
 const DEFAULT_FX_PATH := "res://data/stage/default_fx_profile.tres"
 const DEFAULT_SCENERY_PATH := "res://data/stage/default_scenery.tres"
+const DEFAULT_PROP_LIBRARY_PATH := "res://data/stage/default_prop_library.tres"
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -85,6 +87,8 @@ const DEFAULT_SCENERY_PATH := "res://data/stage/default_scenery.tres"
 @export var fx_profile: FxProfileType = null
 ## Что и как часто генерируется вдоль трассы (лес, камни, подлесок).
 @export var scenery: SceneryType = null
+## Библиотека ассетов обстановки: какие сцены ставить и с какими правилами.
+@export var prop_library: PropLibraryType = null
 
 @export_group("Материалы (правятся прямо в сцене)")
 ## Материал земли. Пусто — создаётся из шейдера и настроек (рекомендуется).
@@ -161,11 +165,21 @@ var _ground_cell: float = 2.0
 var _ground_cols: int = 0
 var _ground_rows: int = 0
 
+## Кеш крупных форм рельефа (холмы и хребты) на грубой сетке.
+var _hills_cache := PackedFloat32Array()
+var _hills_origin := Vector2.ZERO
+var _hills_cell: float = 8.0
+var _hills_cols: int = 0
+var _hills_rows: int = 0
+
 var _noise_hills: FastNoiseLite = null
 var _noise_ridge: FastNoiseLite = null
 var _noise_detail: FastNoiseLite = null
 var _noise_bumps: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
+## Запечённые меши ассетов обстановки на время одной сборки (по пути сцены).
+var _prop_mesh_cache: Dictionary = {}
+var _terrain_collider_stride: int = 1
 
 # HUD-узлы живут в scenes/ui/rally_hud.tscn (разметка правится в редакторе),
 # в _setup_hud() мы только находим их по путям и держим ссылки для _update_hud.
@@ -250,6 +264,10 @@ func _load_resources() -> void:
 		scenery = _load_resource(DEFAULT_SCENERY_PATH) as SceneryType
 	if scenery == null:
 		scenery = SceneryType.new()
+	if prop_library == null:
+		prop_library = _load_resource(DEFAULT_PROP_LIBRARY_PATH) as PropLibraryType
+	if prop_library == null:
+		prop_library = PropLibraryType.new()
 	surface_state.fx = fx_profile
 
 
@@ -314,6 +332,13 @@ func s_scenery() -> SceneryType:
 	if scenery == null:
 		_load_resources()
 	return scenery
+
+
+## Библиотека ассетов обстановки (никогда null).
+func s_props() -> PropLibraryType:
+	if prop_library == null:
+		_load_resources()
+	return prop_library
 
 
 func _ready() -> void:
@@ -739,15 +764,28 @@ func height_at(x: float, z: float) -> float:
 
 
 func _height_with_distance(x: float, z: float, distance: float) -> float:
-	var corridor: float = track.road_half_width + track.road_shoulder
 	var along: float = network.along_road(x, z)
 	var road_y: float = network.height_at_along(along)
+	return _blend_height(road_y, _base_height(x, z, distance), distance, along)
+
+
+## «Свой» рельеф точки без влияния полотна: региональный уровень + холмы,
+## которые проявляются с расстоянием.
+func _base_height(x: float, z: float, distance: float) -> float:
 	var fade: float = smoothstep(
 		track.hills_fade_start,
 		track.hills_fade_start + track.hills_fade_length,
 		distance
 	)
-	var base: float = network.regional_height(x, z) + _hills_at(x, z) * fade
+	return network.regional_height(x, z) + _hills_at(x, z) * fade
+
+
+## Сведение «полотно ↔ рельеф»: на полотне высота ровно дорожная, вдали —
+## ровно рельеф, между ними откос не круче embankment_slope_deg.
+## Вынесено отдельно, чтобы сборка рельефа могла переиспользовать уже
+## посчитанные along/road_y/base, а не считать их второй и третий раз.
+func _blend_height(road_y: float, base: float, distance: float, along: float) -> float:
+	var corridor: float = track.road_half_width + track.road_shoulder
 	var max_slope: float = tan(deg_to_rad(maxf(6.0, track.embankment_slope_deg)))
 	var blend_width: float = clampf(
 		absf(road_y - base) / maxf(max_slope, 0.05),
@@ -799,20 +837,22 @@ func corridor_half() -> float:
 ## с базовым рельефом. Нужна ограничителю склонов, чтобы он не «сглаживал»
 ## готовый откос и не делал из него стенку.
 func _embankment_width(x: float, z: float, distance: float) -> float:
-	var along: float = network.along_road(x, z)
-	var road_y: float = network.height_at_along(along)
-	var fade: float = smoothstep(
-		track.hills_fade_start,
-		track.hills_fade_start + track.hills_fade_length,
-		distance
-	)
-	var base: float = network.regional_height(x, z) + _hills_at(x, z) * fade
+	return _embankment_width_for_delta(_road_delta(x, z, distance))
+
+
+## Та же ширина по уже посчитанной разнице «высота дороги − базовый рельеф».
+func _embankment_width_for_delta(delta: float) -> float:
 	var max_slope: float = tan(deg_to_rad(maxf(6.0, track.embankment_slope_deg)))
 	return clampf(
-		absf(road_y - base) / maxf(max_slope, 0.05),
+		absf(delta) / maxf(max_slope, 0.05),
 		track.embankment_min_width,
 		track.embankment_max_width
 	)
+
+
+## Насколько полотно выше (или ниже) «своего» рельефа в этой точке.
+func _road_delta(x: float, z: float, distance: float) -> float:
+	return network.height_at_along(network.along_road(x, z)) - _base_height(x, z, distance)
 
 
 ## Кювет вдоль кромки: насколько опустить землю в этой точке.
@@ -828,12 +868,52 @@ func _road_ditch(distance: float) -> float:
 func _hills_at(x: float, z: float) -> float:
 	if _noise_hills == null:
 		return 0.0
+	# Крупные формы берём из кеша на грубой сетке, мелкую шершавость — точно:
+	# у неё длина волны считанные метры, и «размывать» её нельзя.
+	return _sample_hills_cache(x, z) + _noise_detail.get_noise_2d(x, z) * track.detail_height
+
+
+## Только крупные формы (холмы и хребты) — без мелкой шершавости.
+func _hills_low_frequency(x: float, z: float) -> float:
+	if _noise_hills == null:
+		return 0.0
 	var value: float = _noise_hills.get_noise_2d(x, z) * track.hills_height
 	if track.ridge_height > 0.0:
 		var ridge: float = 1.0 - absf(_noise_ridge.get_noise_2d(x, z))
 		value += (ridge - 0.5) * 2.0 * track.ridge_height
-	value += _noise_detail.get_noise_2d(x, z) * track.detail_height
 	return value
+
+
+## Заполнить кеш крупных форм: холмы и хребты — низкочастотный шум, считать
+## его в каждой из сотен тысяч ячеек рельефа незачем. Грубая сетка + билинейная
+## интерполяция дают ту же картинку, а шума считается в разы меньше.
+func _prepare_hills_cache(origin: Vector2, cell: float, cols: int, rows: int) -> void:
+	_hills_cell = maxf(cell * 3.0, 6.0)
+	_hills_origin = origin
+	_hills_cols = maxi(3, ceili(float(cols) * cell / _hills_cell) + 3)
+	_hills_rows = maxi(3, ceili(float(rows) * cell / _hills_cell) + 3)
+	_hills_cache.resize(_hills_cols * _hills_rows)
+	for gz in range(_hills_rows):
+		var z: float = origin.y + float(gz) * _hills_cell
+		for gx in range(_hills_cols):
+			var x: float = origin.x + float(gx) * _hills_cell
+			_hills_cache[gz * _hills_cols + gx] = _hills_low_frequency(x, z)
+
+
+## Крупные формы из кеша (билинейно). Без кеша — точное значение.
+func _sample_hills_cache(x: float, z: float) -> float:
+	if _hills_cache.is_empty() or _hills_cols < 2 or _hills_rows < 2:
+		return _hills_low_frequency(x, z)
+	var fx: float = (x - _hills_origin.x) / _hills_cell
+	var fz: float = (z - _hills_origin.y) / _hills_cell
+	var gx: int = clampi(int(floor(fx)), 0, _hills_cols - 2)
+	var gz: int = clampi(int(floor(fz)), 0, _hills_rows - 2)
+	var tx: float = clampf(fx - float(gx), 0.0, 1.0)
+	var tz: float = clampf(fz - float(gz), 0.0, 1.0)
+	var i00: int = gz * _hills_cols + gx
+	var top: float = lerpf(_hills_cache[i00], _hills_cache[i00 + 1], tx)
+	var bottom: float = lerpf(_hills_cache[i00 + _hills_cols], _hills_cache[i00 + _hills_cols + 1], tx)
+	return lerpf(top, bottom, tz)
 
 
 func _surface_bumps_along(along: float) -> float:
@@ -876,18 +956,42 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	var origin: Vector2 = terrain_rect.position
 
 	# 1) Сетка высот и расстояний до дороги (одна выборка на ячейку).
+	#    Если сетка рельефа совпадает с сеткой поля дороги (обычно так и есть:
+	#    обе строятся от terrain_rect с шагом terrain_cell), расстояние и
+	#    километраж читаются прямо из узлов — без билинейной интерполяции.
+	var grid_aligned: bool = network.matches_grid(origin, cell, cols, rows)
+	_prepare_hills_cache(origin, cell, cols, rows)
 	var heights := PackedFloat32Array()
 	var distances := PackedFloat32Array()
+	var deltas := PackedFloat32Array()
 	heights.resize(cols * rows)
 	distances.resize(cols * rows)
+	deltas.resize(cols * rows)
 	for gz in range(rows):
 		var z: float = origin.y + float(gz) * cell
 		for gx in range(cols):
 			var x: float = origin.x + float(gx) * cell
 			var index: int = gz * cols + gx
-			var distance: float = network.distance_to_road(x, z)
+			var distance: float = 0.0
+			var along: float = 0.0
+			if grid_aligned:
+				var sample: Vector2 = network.sample_grid(gx, gz)
+				distance = sample.x
+				along = sample.y
+			else:
+				distance = network.distance_to_road(x, z)
+				along = network.along_road(x, z)
 			distances[index] = distance
-			heights[index] = _height_with_distance(x, z, distance)
+			# Перепад «дорога − рельеф» пригодится ограничителю склонов:
+			# иначе он пересчитывал бы то же самое второй раз.
+			var road_y: float = network.height_at_along(along)
+			var base: float = network.regional_height(x, z) + _hills_at(x, z) * smoothstep(
+				track.hills_fade_start,
+				track.hills_fade_start + track.hills_fade_length,
+				distance
+			)
+			deltas[index] = road_y - base
+			heights[index] = _blend_height(road_y, base, distance, along)
 		if light and gz % 24 == 23:
 			# Полоса прогресса: примерно до половины этого этапа — сетка высот.
 			_report_progress(lerpf(from_pct, to_pct, 0.5 * float(gz + 1) / float(rows)), "Рельеф…")
@@ -926,7 +1030,7 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	#    Весь переход «полотно → рельеф» уже задан height_at плавным откосом,
 	#    поэтому он — якорь: раньше ограничитель «размазывал» и его, утягивая
 	#    землю у дороги на несколько метров вниз и делая из откоса стенку.
-	heights = _limit_terrain_slopes(heights, distances, cols, rows, cell, origin)
+	heights = _limit_terrain_slopes(heights, distances, deltas, cols, rows, cell)
 	_ground_grid = heights.duplicate()
 	_ground_origin = origin
 	_ground_cell = cell
@@ -1005,9 +1109,56 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	terrain_mesh.mesh = mesh
 	terrain_mesh.material_override = _make_ground_material()
-	var shape := mesh.create_trimesh_shape()
+	terrain_collider.shape = _make_terrain_collider(mesh, heights, cols, rows, cell, origin)
+
+
+## Коллизия рельефа строится по разрежённой сетке: физике не нужна точность
+## видимого меша, а треугольников в нём сотни тысяч — это и были главные
+## секунды загрузки карты. Дыр под полотном здесь нет (в отличие от видимого
+## меша): лента дороги лежит выше и перекрывает их своей коллизией.
+func _make_terrain_collider(
+	mesh: ArrayMesh,
+	heights: PackedFloat32Array,
+	cols: int,
+	rows: int,
+	cell: float,
+	origin: Vector2
+) -> Shape3D:
+	var stride: int = maxi(1, s_settings().terrain_collider_stride)
+	if stride <= 1 and mesh != null:
+		var exact := mesh.create_trimesh_shape()
+		exact.backface_collision = true
+		return exact
+	var grid_cols: int = maxi(2, ceili(float(cols - 1) / float(stride)) + 1)
+	var grid_rows: int = maxi(2, ceili(float(rows - 1) / float(stride)) + 1)
+	var faces := PackedVector3Array()
+	faces.resize((grid_cols - 1) * (grid_rows - 1) * 6)
+	var write: int = 0
+	for cz in range(grid_rows - 1):
+		var gz0: int = mini(cz * stride, rows - 1)
+		var gz1: int = mini(gz0 + stride, rows - 1)
+		var z0: float = origin.y + float(gz0) * cell
+		var z1: float = origin.y + float(gz1) * cell
+		for cx in range(grid_cols - 1):
+			var gx0: int = mini(cx * stride, cols - 1)
+			var gx1: int = mini(gx0 + stride, cols - 1)
+			var x0: float = origin.x + float(gx0) * cell
+			var x1: float = origin.x + float(gx1) * cell
+			var h00: float = heights[gz0 * cols + gx0]
+			var h10: float = heights[gz0 * cols + gx1]
+			var h01: float = heights[gz1 * cols + gx0]
+			var h11: float = heights[gz1 * cols + gx1]
+			faces[write] = Vector3(x0, h00, z0)
+			faces[write + 1] = Vector3(x1, h10, z0)
+			faces[write + 2] = Vector3(x0, h01, z1)
+			faces[write + 3] = Vector3(x1, h10, z0)
+			faces[write + 4] = Vector3(x1, h11, z1)
+			faces[write + 5] = Vector3(x0, h01, z1)
+			write += 6
+	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
-	terrain_collider.shape = shape
+	_set_shape_faces(shape, faces)
+	return shape
 
 
 ## Ограничитель склонов: если где-то получилась «стенка» круче
@@ -1016,10 +1167,10 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 func _limit_terrain_slopes(
 	heights: PackedFloat32Array,
 	distances: PackedFloat32Array,
+	deltas: PackedFloat32Array,
 	cols: int,
 	rows: int,
-	cell: float,
-	origin: Vector2
+	cell: float
 ) -> PackedFloat32Array:
 	var max_slope: float = tan(deg_to_rad(clampf(track.max_terrain_slope_deg, 20.0, 75.0)))
 	var max_delta: float = cell * max_slope
@@ -1033,9 +1184,7 @@ func _limit_terrain_slopes(
 			var index: int = gz * cols + gx
 			# Якоря — дорога, обочина и весь готовый откос насыпи/выемки.
 			if distances[index] < search_reach:
-				var x: float = origin.x + float(gx) * cell
-				var z: float = origin.y + float(gz) * cell
-				if distances[index] < corridor + _embankment_width(x, z, distances[index]):
+				if distances[index] < corridor + _embankment_width_for_delta(deltas[index]):
 					anchored[index] = 1
 					continue
 			if gz == 0 or gx == 0 or gz == rows - 1 or gx == cols - 1:
@@ -1290,19 +1439,33 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	# обрывать коллизию на обочине, под видимым краем остаётся невидимая
 	# ступенька в глубину кювета — машина упирается в неё, пытаясь
 	# вернуться на трассу.
+	# Видимая лента строится по road_step, а коллизия — через строку: шаг
+	# строк полотна мелкий (0.9–1.5 м), и физике столько не нужно.
+	var row_stride: int = maxi(1, s_settings().road_collider_row_stride)
+	var start_rows := PackedInt32Array()
+	var collider_row: int = 0
+	while collider_row < rows - 1:
+		start_rows.append(collider_row)
+		collider_row += row_stride
+	if rows >= 2 and (start_rows.is_empty() or start_rows[start_rows.size() - 1] != rows - 2):
+		start_rows.append(rows - 2)
 	var faces := PackedVector3Array()
-	for row in range(rows - 1):
+	faces.resize(start_rows.size() * (lanes - 1) * 6)
+	var write: int = 0
+	for start_row in start_rows:
+		var end_row: int = mini(int(start_row) + row_stride, rows - 1)
 		for lane in range(0, lanes - 1):
-			var i0: int = row * lanes + lane
+			var i0: int = int(start_row) * lanes + lane
 			var i1: int = i0 + 1
-			var i2: int = i0 + lanes
+			var i2: int = end_row * lanes + lane
 			var i3: int = i2 + 1
-			faces.append(vertices[i0])
-			faces.append(vertices[i1])
-			faces.append(vertices[i2])
-			faces.append(vertices[i1])
-			faces.append(vertices[i3])
-			faces.append(vertices[i2])
+			faces[write] = vertices[i0]
+			faces[write + 1] = vertices[i1]
+			faces[write + 2] = vertices[i2]
+			faces[write + 3] = vertices[i1]
+			faces[write + 4] = vertices[i3]
+			faces[write + 5] = vertices[i2]
+			write += 6
 	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
 	_set_shape_faces(shape, faces)
@@ -1406,234 +1569,426 @@ func _apply_baked_props_visibility() -> void:
 ## Дополнительный лес и мелкие объекты расставляются по обе стороны маршрута.
 ## Все позиции детерминированы сидом; ближайший виток дороги всегда остаётся
 ## свободным. Визуальные объекты разбиты на пространственные MultiMesh-ячейки.
+##
+## ЧТО растёт — решает библиотека ассетов RallyPropLibrary: у каждого вида своя
+## СЦЕНА (открывается и правится в редакторе), вес, размер и правила коллизии.
+## Сцена один раз запекается в ArrayMesh — по поверхности на каждый материал —
+## и дальше рисуется MultiMesh'ем, поэтому плотность ×30 не превращается
+## в ×30 узлов и вызовов отрисовки.
+## Сколько ячеек умещается в одном ключе группы «вид + ячейка» (2048 × 2048).
+const SCENERY_CELL_SPAN: int = 4194304
+## Сдвиг индекса ячейки: отрицательные координаты дают положительный ключ.
+const SCENERY_CELL_BIAS: int = 1024
+const SCENERY_CELL_WIDTH: int = 2048
+
+
+## Буфер расстановки: плоские массивы вместо Array[Transform3D].
+## На десятках тысяч объектов это и память, и заметное время.
+class SceneryBuffer:
+	## Чисел на один объект: x, y, z, поворот, масштаб по трём осям, индекс вида.
+	const STRIDE: int = 8
+
+	## Геометрия каждого объекта (STRIDE чисел на объект).
+	var data := PackedFloat32Array()
+	## Ключ группы «вид + пространственная ячейка» для каждого объекта.
+	var keys := PackedInt32Array()
+	## Сколько объектов записано.
+	var count := 0
+	## Потолок объектов (0 — без потолка).
+	var limit: int = 0
+
+	## Добавить объект. Возвращает false, если сработал потолок.
+	func push(
+		prop_index: int,
+		x: float,
+		y: float,
+		z: float,
+		yaw: float,
+		sx: float,
+		sy: float,
+		sz: float,
+		cell: int,
+		cell_span: int
+	) -> bool:
+		if limit > 0 and count >= limit:
+			return false
+		if (count + 1) * STRIDE > data.size():
+			data.resize(maxi(4096, data.size() * 2))
+			keys.resize(maxi(512, keys.size() * 2))
+		var o: int = count * STRIDE
+		data[o] = x
+		data[o + 1] = y
+		data[o + 2] = z
+		data[o + 3] = yaw
+		data[o + 4] = sx
+		data[o + 5] = sy
+		data[o + 6] = sz
+		data[o + 7] = float(prop_index)
+		keys[count] = prop_index * cell_span + cell
+		count += 1
+		return true
+
+
 func _spawn_procedural_scenery(light: bool = false) -> void:
 	if generated == null or network == null:
 		return
 	var cfg := s_scenery()
+	var library := s_props()
+	var pickable := library.active_props()
+	if pickable.is_empty():
+		return
+	var density: float = clampf(track.scenery_density, 0.0, 2.0)
+	# Спутник (трава, папоротник) в общую «урну» не попадает — у него вес 0,
+	# но сцена ему нужна, поэтому он едет в список видов отдельно.
+	var kinds: Array[RallyProp] = []
+	kinds.assign(pickable)
+	var companion: RallyProp = library.by_id(cfg.undergrowth_prop_id)
+	var companion_index: int = -1
+	if companion != null and companion.scene != null:
+		companion_index = kinds.find(companion)
+		if companion_index < 0:
+			companion_index = kinds.size()
+			kinds.append(companion)
 	var container := Node3D.new()
 	container.name = "Scenery"
 	generated.add_child(container)
+
 	var rng := RandomNumberGenerator.new()
 	rng.seed = track.terrain_seed ^ 8237431
 	var corridor: float = corridor_half()
-	var firs: Array[Transform3D] = []
-	var pines: Array[Transform3D] = []
-	var trunks_visual: Array[Transform3D] = []
-	var bushes: Array[Transform3D] = []
-	var rocks: Array[Transform3D] = []
-	var grass: Array[Transform3D] = []
-	var stumps: Array[Transform3D] = []
-	var logs: Array[Transform3D] = []
-	var trunks: Array[Vector3] = []
-	var distance: float = cfg.start_margin
-	var trunk_since: float = -100.0
-	var step_count: int = 0
 	var step: float = maxf(1.0, cfg.sample_step)
-	var total_steps: float = maxf(1.0, (network.total_length - cfg.start_margin - cfg.end_margin) / step)
-	var density: float = clampf(track.scenery_density, 0.0, 2.0)
-	var attempt_count: int = ceili(float(cfg.attempts_per_step) * density)
-	var attempt_chance: float = float(cfg.attempts_per_step) * density * cfg.success_chance / float(maxi(attempt_count, 1))
+	var attempt_count: int = cfg.attempts_for(density)
+	var attempt_chance: float = cfg.attempt_chance_for(density, attempt_count)
 	var minimum_offset: float = cfg.min_offset_baked if track.use_baked_props else cfg.min_offset_plain
-	while distance < network.total_length - cfg.end_margin:
+	var jitter: float = step * 0.5 if cfg.along_jitter_full_step else cfg.along_jitter
+	var cell_size: float = maxf(1.0, s_settings().scenery_cell_size)
+	var buffer := SceneryBuffer.new()
+	buffer.limit = cfg.max_instances
+	var trunks := PackedFloat32Array()
+	# У каждого вида своя «последняя коллизия»: шаг у ели и у покрышек разный.
+	var last_collider := PackedFloat32Array()
+	last_collider.resize(kinds.size())
+	last_collider.fill(-10000.0)
+
+	var distance: float = cfg.start_margin
+	var step_count: int = 0
+	var attempts_since_yield: int = 0
+	var total_steps: float = maxf(1.0, (network.total_length - cfg.start_margin - cfg.end_margin) / step)
+	var full := false
+	# Нулевая плотность трассы — леса нет вовсе (ворота и знаки при этом едут).
+	while attempt_chance > 0.0 and distance < network.total_length - cfg.end_margin:
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
 		for side_sign in [-1.0, 1.0]:
+			if full:
+				break
 			for _attempt in range(attempt_count):
+				if full:
+					break
 				if rng.randf() > attempt_chance:
 					continue
-				# На ручной лесной трассе не дублируем запечённые деревья у дороги.
-				var lateral: float = corridor + rng.randf_range(minimum_offset, cfg.max_offset)
-				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-cfg.along_jitter, cfg.along_jitter)
-				if not terrain_rect.has_point(Vector2(point.x, point.z)) or network.distance_to_road(point.x, point.z) < corridor + cfg.road_clearance:
+				var prop_index: int = library.pick_index(pickable, rng.randf())
+				if prop_index < 0:
+					continue
+				var prop: RallyProp = pickable[prop_index]
+				var far: float = cfg.max_offset
+				if prop.max_offset > 0.0:
+					far = minf(far, prop.max_offset)
+				# На лесной трассе не дублируем запечённые деревья у дороги.
+				var lateral: float = corridor + rng.randf_range(minimum_offset, maxf(minimum_offset, far))
+				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-jitter, jitter)
+				if not terrain_rect.has_point(Vector2(point.x, point.z)):
+					continue
+				if network.distance_to_road(point.x, point.z) < corridor + cfg.road_clearance:
 					continue
 				var ground: float = ground_height(point.x, point.z)
-				var angle: float = rng.randf_range(0.0, TAU)
-				var kind: String = cfg.pick_kind(rng.randf())
-				var size: float = 1.0
-				match kind:
-					"fir", "pine":
-						var range_size: Vector2 = cfg.fir_size if kind == "fir" else cfg.pine_size
-						size = rng.randf_range(range_size.x, range_size.y)
-						var tree_basis := Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size)
-						var crown_height: float = cfg.fir_crown_height if kind == "fir" else cfg.pine_crown_height
-						var tree_transform := Transform3D(tree_basis, Vector3(point.x, ground + crown_height * size, point.z))
-						if kind == "fir":
-							firs.append(tree_transform)
-						else:
-							pines.append(tree_transform)
-						trunks_visual.append(Transform3D(tree_basis, Vector3(point.x, ground + cfg.trunk_height * size, point.z)))
-						if lateral < corridor + cfg.collider_max_offset and distance - trunk_since > cfg.collider_spacing:
-							trunks.append(Vector3(point.x, ground, point.z))
-							trunk_since = distance
-					"bush":
-						size = rng.randf_range(cfg.bush_size.x, cfg.bush_size.y)
-						var bush_scale := Vector3(
-							size * rng.randf_range(cfg.bush_width_jitter.x, cfg.bush_width_jitter.y),
-							size,
-							size * rng.randf_range(cfg.bush_width_jitter.x, cfg.bush_width_jitter.y)
-						)
-						bushes.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(bush_scale), Vector3(point.x, ground + cfg.bush_height_factor * size, point.z)))
-					"boulder":
-						size = rng.randf_range(cfg.boulder_size.x, cfg.boulder_size.y)
-						var rock_scale := Vector3(
-							size * rng.randf_range(cfg.boulder_width_jitter.x, cfg.boulder_width_jitter.y),
-							size * rng.randf_range(cfg.boulder_height_jitter.x, cfg.boulder_height_jitter.y),
-							size
-						)
-						rocks.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(rock_scale), Vector3(point.x, ground + cfg.boulder_height_factor * rock_scale.y, point.z)))
-					"stump":
-						size = rng.randf_range(cfg.stump_size.x, cfg.stump_size.y)
-						stumps.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3.ONE * size), Vector3(point.x, ground + cfg.stump_height_factor * size, point.z)))
-					"log":
-						size = rng.randf_range(cfg.log_size.x, cfg.log_size.y)
-						var log_basis := Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * size)
-						logs.append(Transform3D(log_basis, Vector3(point.x, ground + cfg.log_height_factor * size, point.z)))
-				# Мелкий подлесок не имеет физики и не отбрасывает тень.
-				if kind != "fir" and kind != "pine" and rng.randf() < cfg.undergrowth_chance:
-					var gs: float = rng.randf_range(cfg.grass_size.x, cfg.grass_size.y)
-					grass.append(Transform3D(Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(gs * cfg.grass_width_factor, gs, gs)), Vector3(point.x, ground + cfg.grass_height_factor * gs, point.z)))
+				var size: float = rng.randf_range(prop.size.x, prop.size.y)
+				var width: float = size * rng.randf_range(prop.width_jitter.x, prop.width_jitter.y)
+				var height: float = size * rng.randf_range(prop.height_jitter.x, prop.height_jitter.y)
+				var yaw: float = rng.randf_range(0.0, TAU) if prop.random_yaw else 0.0
+				if not buffer.push(
+					prop_index,
+					point.x,
+					ground + prop.y_offset * size,
+					point.z,
+					yaw,
+					width,
+					height,
+					width,
+					_scenery_cell(point.x, point.z, cell_size),
+					SCENERY_CELL_SPAN
+				):
+					full = true
+					break
+				if prop.has_collider() and lateral < corridor + prop.collider_max_offset:
+					if distance - last_collider[prop_index] > prop.collider_spacing:
+						last_collider[prop_index] = distance
+						trunks.append(point.x)
+						trunks.append(point.z)
+						trunks.append(prop.collider_radius)
+						trunks.append(prop.collider_height)
+						trunks.append(ground + prop.collider_y_offset)
+				# Спутник (трава, папоротник) не имеет физики и не пишет тень.
+				if companion_index >= 0 and rng.randf() < prop.undergrowth_chance:
+					var ux: float = point.x + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
+					var uz: float = point.z + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
+					# Сдвиг не должен выносить спутника на полотно или на соседний
+					# виток трассы — иначе трава торчит из дороги.
+					if network.distance_to_road(ux, uz) < corridor + cfg.road_clearance:
+						ux = point.x
+						uz = point.z
+					var gs: float = rng.randf_range(cfg.undergrowth_size.x, cfg.undergrowth_size.y)
+					buffer.push(
+						companion_index,
+						ux,
+						ground_height(ux, uz),
+						uz,
+						rng.randf_range(0.0, TAU),
+						gs * cfg.undergrowth_width_factor,
+						gs,
+						gs * cfg.undergrowth_width_factor,
+						_scenery_cell(ux, uz, cell_size),
+						SCENERY_CELL_SPAN
+					)
+		if full:
+			break
 		step_count += 1
-		if light and step_count % 64 == 63:
+		attempts_since_yield += attempt_count * 2
+		if light and attempts_since_yield >= cfg.progress_attempts_per_frame:
+			attempts_since_yield = 0
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
 			await get_tree().process_frame
 		distance += step
-	_add_scenery_multimesh(container, "Firs", _make_scenery_mesh("fir"), firs)
-	_add_scenery_multimesh(container, "Pines", _make_scenery_mesh("pine"), pines)
-	_add_scenery_multimesh(container, "TrunkVisuals", _make_scenery_mesh("trunk"), trunks_visual)
-	_add_scenery_multimesh(container, "Bushes", _make_scenery_mesh("bush"), bushes)
-	_add_scenery_multimesh(container, "Boulders", _make_scenery_mesh("boulder"), rocks)
-	_add_scenery_multimesh(container, "Grass", _make_scenery_mesh("grass"), grass, true)
-	_add_scenery_multimesh(container, "Stumps", _make_scenery_mesh("stump"), stumps, true)
-	_add_scenery_multimesh(container, "Logs", _make_scenery_mesh("log"), logs, true)
-	_add_trunk_colliders(container, trunks)
+	_prop_mesh_cache.clear()
+	_build_scenery_multimeshes(container, buffer, kinds, cell_size, corridor)
+	_add_prop_colliders(container, trunks, cell_size)
 	_spawn_corner_signs(container)
 
 
-func _add_trunk_colliders(parent: Node3D, trunks: Array[Vector3]) -> void:
-	var cfg := s_scenery()
-	var bodies: Dictionary = {}
-	var shape := CylinderShape3D.new()
-	shape.radius = cfg.collider_radius
-	shape.height = cfg.collider_height
-	for point in trunks:
-		var key := _scenery_cell(point)
-		if not bodies.has(key):
-			var body := StaticBody3D.new()
-			body.name = "TreeTrunks_%d_%d" % [key.x, key.y]
-			parent.add_child(body)
-			bodies[key] = body
-		var collider := CollisionShape3D.new()
-		collider.shape = shape
-		collider.position = point + Vector3(0.0, cfg.collider_height * 0.5 + cfg.collider_y_offset, 0.0)
-		(bodies[key] as StaticBody3D).add_child(collider)
+## Номер пространственной ячейки MultiMesh (часть ключа группы).
+func _scenery_cell(x: float, z: float, cell_size: float) -> int:
+	var cx: int = clampi(floori(x / cell_size) + SCENERY_CELL_BIAS, 0, SCENERY_CELL_WIDTH - 1)
+	var cz: int = clampi(floori(z / cell_size) + SCENERY_CELL_BIAS, 0, SCENERY_CELL_WIDTH - 1)
+	return cz * SCENERY_CELL_WIDTH + cx
 
 
-## Размер ячейки MultiMesh — из настроек сцены (инспектор).
-func _scenery_cell(point: Vector3) -> Vector2i:
-	var size: float = maxf(1.0, s_settings().scenery_cell_size)
-	return Vector2i(floori(point.x / size), floori(point.z / size))
-
-
-func _make_scenery_mesh(kind: String) -> Mesh:
-	var cfg := s_scenery()
-	var material := StandardMaterial3D.new()
-	material.roughness = cfg.roughness
-	material.vertex_color_use_as_albedo = true
-	if cfg.ps1_filter:
-		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-	if kind == "fir" or kind == "pine":
-		material.albedo_texture = NeedleTexture
-		material.albedo_color = cfg.fir_color if kind == "fir" else cfg.pine_color
-		var crown := CylinderMesh.new()
-		crown.top_radius = 0.0
-		crown.bottom_radius = cfg.fir_radius if kind == "fir" else cfg.pine_radius
-		crown.height = cfg.fir_mesh_height if kind == "fir" else cfg.pine_mesh_height
-		crown.radial_segments = cfg.crown_segments
-		crown.rings = 1
-		crown.material = material
-		return crown
-	if kind in ["trunk", "stump", "log"]:
-		material.albedo_texture = BarkTexture
-		material.albedo_color = cfg.trunk_color
-		var wood := CylinderMesh.new()
-		wood.top_radius = cfg.trunk_top_radius if kind == "trunk" else cfg.stump_top_radius
-		wood.bottom_radius = cfg.trunk_bottom_radius if kind == "trunk" else cfg.stump_bottom_radius
-		wood.height = cfg.trunk_mesh_height if kind == "trunk" else (cfg.log_mesh_height if kind == "log" else cfg.stump_mesh_height)
-		wood.radial_segments = cfg.wood_segments
-		wood.material = material
-		return wood
-	if kind == "grass":
-		material.albedo_texture = NeedleTexture
-		material.albedo_color = cfg.grass_color
-		var tuft := CylinderMesh.new()
-		tuft.top_radius = 0.0
-		tuft.bottom_radius = cfg.grass_radius
-		tuft.height = cfg.grass_mesh_height
-		tuft.radial_segments = cfg.grass_segments
-		tuft.material = material
-		return tuft
-	if kind == "bush":
-		material.albedo_texture = NeedleTexture
-		material.albedo_color = cfg.bush_color
-		var mesh_bush := SphereMesh.new()
-		mesh_bush.radius = cfg.bush_radius
-		mesh_bush.height = cfg.bush_mesh_height
-		mesh_bush.radial_segments = cfg.bush_radial_segments
-		mesh_bush.rings = cfg.bush_rings
-		mesh_bush.material = material
-		return mesh_bush
-	material.albedo_texture = RockTexture
-	material.albedo_color = cfg.boulder_color
-	var mesh_rock := SphereMesh.new()
-	mesh_rock.radius = cfg.boulder_radius
-	mesh_rock.height = cfg.boulder_mesh_height
-	mesh_rock.radial_segments = cfg.boulder_radial_segments
-	mesh_rock.rings = cfg.boulder_rings
-	mesh_rock.material = material
-	return mesh_rock
-
-
-func _add_scenery_multimesh(parent: Node3D, node_name: String, mesh: Mesh, transforms: Array[Transform3D], small: bool = false) -> void:
-	if transforms.is_empty():
+## Разложить объекты по группам «вид + ячейка» и собрать из каждой MultiMesh.
+func _build_scenery_multimeshes(
+	container: Node3D,
+	buffer: SceneryBuffer,
+	kinds: Array[RallyProp],
+	cell_size: float,
+	corridor: float
+) -> void:
+	if buffer == null or buffer.count <= 0:
 		return
 	var cfg := s_settings()
+	var shadow_limit: float = corridor + cfg.scenery_shadow_max_offset
 	var groups: Dictionary = {}
-	for transform in transforms:
-		var key := _scenery_cell(transform.origin)
+	for i in range(buffer.count):
+		var key: int = buffer.keys[i]
 		if not groups.has(key):
 			groups[key] = []
-		(groups[key] as Array).append(transform)
-	var group_root := Node3D.new()
-	group_root.name = node_name
-	parent.add_child(group_root)
+		(groups[key] as Array).append(i)
+	var meshes: Array = []
+	meshes.resize(kinds.size())
+	var roots: Array = []
+	roots.resize(kinds.size())
 	for key in groups:
-		var chunk: Array = groups[key]
-		var chunk_origin := Vector3.ZERO
-		for transform: Transform3D in chunk:
-			chunk_origin += transform.origin
-		chunk_origin /= float(chunk.size())
+		var prop_index: int = int(key) / SCENERY_CELL_SPAN
+		var cell: int = int(key) % SCENERY_CELL_SPAN
+		if prop_index < 0 or prop_index >= kinds.size():
+			continue
+		if meshes[prop_index] == null:
+			meshes[prop_index] = _bake_prop_mesh(kinds[prop_index])
+		var mesh: Mesh = meshes[prop_index] as Mesh
+		if mesh == null:
+			continue
+		if roots[prop_index] == null:
+			var kind_root := Node3D.new()
+			kind_root.name = (kinds[prop_index] as RallyProp).group_name()
+			container.add_child(kind_root)
+			roots[prop_index] = kind_root
+		var parent: Node3D = roots[prop_index] as Node3D
+		var indices: Array = groups[key] as Array
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.use_colors = true
 		multimesh.mesh = mesh
-		multimesh.instance_count = chunk.size()
-		for i in range(chunk.size()):
-			var transform: Transform3D = chunk[i]
-			multimesh.set_instance_transform(i, Transform3D(transform.basis, transform.origin - chunk_origin))
-			var shade: float = cfg.scenery_shade_base + cfg.scenery_shade_spread * TrackConfigType.hash_noise(transform.origin.x, transform.origin.z)
-			multimesh.set_instance_color(i, Color(shade, shade, shade, 1.0))
+		multimesh.instance_count = indices.size()
+		# Своя система отсчёта у ячейки: float не «плывёт» на краю карты.
+		var chunk_origin := Vector3.ZERO
+		for i in indices:
+			var o: int = int(i) * SceneryBuffer.STRIDE
+			chunk_origin += Vector3(buffer.data[o], buffer.data[o + 1], buffer.data[o + 2])
+		chunk_origin /= float(indices.size())
+		for n in range(indices.size()):
+			var o2: int = int(indices[n]) * SceneryBuffer.STRIDE
+			var world := Vector3(buffer.data[o2], buffer.data[o2 + 1], buffer.data[o2 + 2])
+			var basis := Basis(Vector3.UP, buffer.data[o2 + 3]) * Basis.from_scale(
+				Vector3(buffer.data[o2 + 4], buffer.data[o2 + 5], buffer.data[o2 + 6])
+			)
+			multimesh.set_instance_transform(n, Transform3D(basis, world - chunk_origin))
+			var shade: float = cfg.scenery_shade_base + cfg.scenery_shade_spread * TrackConfigType.hash_noise(world.x, world.z)
+			multimesh.set_instance_color(n, Color(shade, shade, shade, 1.0))
 		var instance := MultiMeshInstance3D.new()
-		instance.name = "Cell_%d_%d" % [key.x, key.y]
+		var cell_x: int = (cell % SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
+		var cell_z: int = (cell / SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
+		instance.name = "Cell_%d_%d" % [cell_x, cell_z]
 		instance.position = chunk_origin
 		instance.multimesh = multimesh
-		# Мелочи исчезают дальше, чем размер ячейки, с запасом на её радиус.
+		# Мелочи исчезают раньше крупных, с запасом на радиус ячейки.
+		var small: bool = (kinds[prop_index] as RallyProp).small
 		instance.visibility_range_end = cfg.scenery_range_small if small else cfg.scenery_range_large
 		instance.visibility_range_end_margin = cfg.scenery_range_margin
 		instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-		if small:
+		# Дальний лес тень не пишет: за туманом его всё равно не разобрать,
+		# а теневой проход при плотности ×30 стоит дорого.
+		var centre_x: float = (float(cell_x) + 0.5) * cell_size
+		var centre_z: float = (float(cell_z) + 0.5) * cell_size
+		if small or network.distance_to_road(centre_x, centre_z) > shadow_limit:
 			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		group_root.add_child(instance)
+		parent.add_child(instance)
+
+
+## Физические стволы там, где вид это разрешил: по цилиндру на ствол, тела
+## сгруппированы по ячейкам, чтобы физика не держала тысячи отдельных узлов.
+func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: float) -> void:
+	if trunks.is_empty():
+		return
+	var bodies: Dictionary = {}
+	for i in range(trunks.size() / 5):
+		var o: int = i * 5
+		var x: float = trunks[o]
+		var z: float = trunks[o + 1]
+		var key: int = _scenery_cell(x, z, cell_size)
+		if not bodies.has(key):
+			var body := StaticBody3D.new()
+			body.name = "Trunks_%d" % key
+			parent.add_child(body)
+			bodies[key] = body
+		var shape := CylinderShape3D.new()
+		shape.radius = trunks[o + 2]
+		shape.height = trunks[o + 3]
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.position = Vector3(x, trunks[o + 4] + trunks[o + 3] * 0.5, z)
+		(bodies[key] as StaticBody3D).add_child(collider)
+
+
+## Запечь сцену пропса в один ArrayMesh: по поверхности на каждый материал.
+##
+## Меши складываются со своими трансформами, поэтому правка сцены в редакторе
+## (меши, материалы, сдвиги, поворот бревна) полностью определяет вид объекта
+## в заезде. Результат кешируется на время одной сборки обстановки.
+func _bake_prop_mesh(prop: RallyProp) -> Mesh:
+	if prop == null or prop.scene == null:
+		return null
+	var cache_key: String = "%s|%d" % [prop.scene.resource_path, 1 if s_scenery().ps1_filter else 0]
+	if _prop_mesh_cache.has(cache_key):
+		return _prop_mesh_cache[cache_key] as Mesh
+	var root := prop.scene.instantiate() as Node3D
+	var mesh := ArrayMesh.new()
+	if root != null:
+		var materials: Array = []
+		var groups: Array = []
+		_collect_prop_surfaces(root, materials, groups, Transform3D())
+		for g in range(materials.size()):
+			var group: Array = groups[g] as Array
+			var surface: Array = []
+			surface.resize(Mesh.ARRAY_MAX)
+			surface[Mesh.ARRAY_VERTEX] = group[0]
+			surface[Mesh.ARRAY_NORMAL] = group[1]
+			surface[Mesh.ARRAY_TEX_UV] = group[2]
+			surface[Mesh.ARRAY_INDEX] = group[3]
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface)
+			var material = materials[g]
+			if material != null:
+				material = (material as Material).duplicate()
+			if material is BaseMaterial3D and s_scenery().ps1_filter:
+				(material as BaseMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+			mesh.surface_set_material(g, material)
+		root.free()
+	_prop_mesh_cache[cache_key] = mesh
+	return mesh
+
+
+## Собрать все MeshInstance3D пропса в группы по материалу, приведя вершины
+## и нормали к системе координат корня сцены.
+##
+## Трансформы накапливаются вручную, а не через global_transform: сцена
+## инстанцируется ВНЕ дерева, где «мировой» трансформ либо не посчитан, либо
+## вовсе недоступен.
+func _collect_prop_surfaces(node: Node, materials: Array, groups: Array, parent_xform: Transform3D) -> void:
+	if node == null:
+		return
+	var xform: Transform3D = parent_xform
+	if node is Node3D:
+		xform = parent_xform * (node as Node3D).transform
+	if node is MeshInstance3D:
+		var instance := node as MeshInstance3D
+		var source: Mesh = instance.mesh
+		if source != null:
+			var normal_basis: Basis = xform.basis.inverse().transposed()
+			for s in range(source.get_surface_count()):
+				var arrays: Array = source.surface_get_arrays(s)
+				var vertices := PackedVector3Array()
+				if arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+					vertices = arrays[Mesh.ARRAY_VERTEX]
+				if vertices.is_empty():
+					continue
+				var source_normals := PackedVector3Array()
+				if arrays[Mesh.ARRAY_NORMAL] is PackedVector3Array:
+					source_normals = arrays[Mesh.ARRAY_NORMAL]
+				var source_uvs := PackedVector2Array()
+				if arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array:
+					source_uvs = arrays[Mesh.ARRAY_TEX_UV]
+				var source_indices := PackedInt32Array()
+				if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array:
+					source_indices = arrays[Mesh.ARRAY_INDEX]
+				var material = instance.get_active_material(s)
+				var slot: int = materials.find(material)
+				if slot < 0:
+					slot = materials.size()
+					materials.append(material)
+					groups.append([
+						PackedVector3Array(),
+						PackedVector3Array(),
+						PackedVector2Array(),
+						PackedInt32Array(),
+					])
+				var group: Array = groups[slot] as Array
+				var shifted: PackedVector3Array = group[0] as PackedVector3Array
+				var normals_out: PackedVector3Array = group[1] as PackedVector3Array
+				var uvs_out: PackedVector2Array = group[2] as PackedVector2Array
+				var indices_out: PackedInt32Array = group[3] as PackedInt32Array
+				var base: int = shifted.size()
+				var has_normals: bool = source_normals.size() == vertices.size()
+				var has_uvs: bool = source_uvs.size() == vertices.size()
+				for v in range(vertices.size()):
+					shifted.append(xform * vertices[v])
+					normals_out.append(
+						(normal_basis * (source_normals[v] if has_normals else Vector3.UP)).normalized()
+					)
+					uvs_out.append(source_uvs[v] if has_uvs else Vector2.ZERO)
+				if source_indices.is_empty():
+					for v2 in range(vertices.size()):
+						indices_out.append(base + v2)
+				else:
+					for idx in source_indices:
+						indices_out.append(base + int(idx))
+				group[0] = shifted
+				group[1] = normals_out
+				group[2] = uvs_out
+				group[3] = indices_out
+	for child in node.get_children():
+		_collect_prop_surfaces(child, materials, groups, xform)
+
+
+## Совместимость: запечённый меш обстановки по id вида (ель, куст, валун, …).
+func _make_scenery_mesh(kind: String) -> Mesh:
+	return _bake_prop_mesh(s_props().by_id(kind))
 
 
 func _spawn_corner_signs(parent: Node3D) -> void:

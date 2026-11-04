@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/dirt.png" id="tex_dirt"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_dirt"]
+albedo_color = Color(1, 0.95, 0.88)
+albedo_texture = ExtResource("tex_dirt")
+roughness = 1
+specular = 0.28
+specular_mode = 2
+
+[sub_resource type="SphereMesh" id="Mesh_mound"]
+material = SubResource("Mat_dirt")
+radius = 1.5
+height = 0.8
+radial_segments = 7
+rings = 2
+
+[sub_resource type="SphereMesh" id="Mesh_pebble"]
+material = SubResource("Mat_dirt")
+radius = 0.3
+height = 0.4
+radial_segments = 5
+rings = 2
+
+[node name="DirtMound" type="Node3D"]
+
+[node name="Mesh_mound" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+mesh = SubResource("Mesh_mound")
+
+[node name="Mesh_pebble" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 0.12, 0.5)
+mesh = SubResource("Mesh_pebble")
