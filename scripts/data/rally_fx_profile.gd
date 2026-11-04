@@ -72,9 +72,10 @@ extends Resource
 @export_group("Грязь и пыль на кузове")
 ## Порог скорости, ниже которого кузов не пачкается, м/с.
 @export_range(0.0, 10.0, 0.05) var dirt_min_speed: float = 1.0
-## Скорость накопления грязи на гравии и грязи, ед/с.
+## Скорость налипания на гравии, грязи и траве, ед/с.
 @export_range(0.0, 0.5, 0.001) var gravel_dirt_rate: float = 0.018
 @export_range(0.0, 0.5, 0.001) var mud_dirt_rate: float = 0.045
+@export_range(0.0, 0.5, 0.001) var grass_dirt_rate: float = 0.008
 ## Влажность меняет скорость налипания (при 0 и 1).
 @export_range(0.0, 4.0, 0.01) var damp_dry_scale: float = 0.35
 @export_range(0.0, 4.0, 0.01) var damp_wet_scale: float = 1.8
@@ -83,9 +84,9 @@ extends Resource
 ## Скорость высыхания грязи под дождём и без него, ед/с.
 @export_range(0.0, 1.0, 0.001) var rain_wet_gain: float = 0.08
 @export_range(0.0, 1.0, 0.001) var rain_dry_loss: float = 0.012
-@export_range(0.0, 1.0, 0.001) var rain_wash: float = 0.002
-@export_range(0.0, 1.0, 0.001) var snow_gain: float = 0.015
-@export_range(0.0, 1.0, 0.001) var snow_wash_by_rain: float = 0.025
+@export_range(0.0, 1.0, 0.001) var rain_wash: float = 0.035
+@export_range(0.0, 1.0, 0.001) var snow_gain: float = 0.035
+@export_range(0.0, 1.0, 0.001) var snow_wash_by_rain: float = 0.035
 @export_range(0.0, 1.0, 0.001) var snow_melt: float = 0.004
 ## Смещение центров «пятен» на кузове относительно подвески.
 @export_range(0.0, 1.0, 0.01) var dirt_center_spring_scale: float = 0.65
@@ -113,6 +114,12 @@ extends Resource
 @export var spray_dry_color: Color = Color(0.36, 0.26, 0.15)
 @export var spray_wet_color: Color = Color(0.12, 0.075, 0.035)
 @export var spray_snow_color: Color = Color(0.90, 0.94, 1.0)
+
+@export_group("Отдельные эффекты покрытий")
+## Включает эффекты контакта шин с гравием, грязью, травой, снегом и асфальтом.
+@export var surface_fx_enabled: bool = true
+## По одному RallySurfaceFxProfile на каждый тип: у каждого свои цвета и три уровня.
+@export var surface_fx_profiles: Array[RallySurfaceFxProfile] = []
 
 @export_group("Пыль из-под задних колёс")
 @export var dust_enabled: bool = true

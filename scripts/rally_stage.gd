@@ -1584,17 +1584,43 @@ func _make_road_material() -> ShaderMaterial:
 	return road_material
 
 
-## Контакт вызывается отдельно для каждого колеса, в локальных координатах этапа.
-func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float, speed: float, delta: float) -> Dictionary:
+## Тип полотна именно под колесом: на смешанной трассе брызги и пыль
+## переключаются по участкам, а не по общему названию спецучастка.
+func surface_kind_at(world_point: Vector3, grass: bool = false) -> String:
 	if track == null:
-		return {"grip": 1.0, "rolling": 1.0, "depth": 0.0}
+		return surface_state.surface_kind("", grass, _weather_snow_cover())
+	var surface_name: String = track.surface_name
+	if network != null:
+		var p: Vector3 = to_local(world_point)
+		var along: float = network.along_road(p.x, p.z)
+		var section = track.section_at(along)
+		if section != null:
+			surface_name = section.surface_name
+			grass = network.distance_to_road(p.x, p.z) > track.half_width_at(along) + track.road_shoulder
+	return surface_state.surface_kind(surface_name, grass, _weather_snow_cover())
+
+
+## Контакт вызывается для каждого колеса: point приходит в мировых координатах и
+## переводится в локальные координаты этапа перед выбором покрытия и выборкой грунта.
+func surface_contact(
+	point: Vector3, grass: bool, load_ratio: float, slip: float, speed: float, delta: float
+) -> Dictionary:
+	if track == null:
+		return {
+			"grip": 1.0,
+			"rolling": 1.0,
+			"depth": 0.0,
+			"kind": surface_state.surface_kind("", grass, _weather_snow_cover()),
+		}
 	var p := to_local(point)
-	var section = track.section_at(network.along_road(p.x, p.z)) if network != null else null
+	var along: float = network.along_road(p.x, p.z) if network != null else 0.0
+	var section = track.section_at(along) if network != null else null
 	var surface_name: String = section.surface_name if section != null else track.surface_name
 	if section != null:
-		grass = network.distance_to_road(p.x, p.z) > track.half_width_at(network.along_road(p.x, p.z)) + track.road_shoulder
+		grass = network.distance_to_road(p.x, p.z) > track.half_width_at(along) + track.road_shoulder
 	var kind: String = surface_state.surface_kind(surface_name, grass, _weather_snow_cover())
 	var result: Dictionary = surface_state.sample(p, kind, _weather_wetness())
+	result["kind"] = kind
 	if section != null:
 		if not grass:
 			result.grip *= section.grip

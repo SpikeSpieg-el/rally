@@ -31,6 +31,8 @@ var lateral_grip_assist := { "Road" : 0.05, "Dirt" : 0.0, "Grass" : 0.0}
 var longitudinal_grip_ratio := { "Road" : 0.5, "Dirt": 0.5, "Grass" : 0.5}
 
 var spring_length := 0.15
+## Развёрнутый тип покрытия (гравий/грязь/снег/асфальт) для визуальных FX.
+var surface_kind: String = ""
 var spring_rate := 0.0
 var slow_bump := 0.0
 var fast_bump := 0.0
@@ -160,6 +162,7 @@ var surface_depth := 0.0
 
 func process_forces(opposite_compression : float, braking : bool, delta : float) -> float:
 	force_raycast_update()
+	surface_kind = ""
 	previous_velocity = local_velocity
 	local_velocity = (global_position - previous_global_position) / delta * global_transform.basis
 	previous_global_position = global_position
@@ -195,6 +198,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 		if grass or road:
 			var load_ratio := spring_force / maxf(mass_over_wheel * vehicle.current_gravity.length(), 1.0)
 			var state: Dictionary = vehicle.call("surface_contact", last_collision_point, grass, load_ratio, slip_vector.length(), local_velocity.length(), delta)
+			surface_kind = str(state.get("kind", ""))
 			surface_grip = float(state.get("grip", 1.0))
 			surface_rolling = float(state.get("rolling", 1.0))
 			target_depth = float(state.get("depth", 0.0))
