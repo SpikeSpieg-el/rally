@@ -847,14 +847,47 @@ func _update_gravel_particles() -> void:
 	if not cfg.dust_enabled:
 		gravel_particles.emitting = false
 		return
+	var road_name: String = "Гравий"
+	var wetness: float = 0.0
+	var snow: float = 0.0
+	if is_instance_valid(tire_marks):
+		road_name = str(tire_marks.get("road_surface"))
+		wetness = float(tire_marks.get("wetness"))
+		snow = float(tire_marks.get("snow_cover"))
 	var rear_slip: float = 0.0
+	var gravel_level: int = 0
 	var rear_contact: bool = false
+	var gravel_contact: bool = false
 	for wheel: WheelType in rear_axle.wheels:
-		rear_contact = rear_contact or wheel.is_colliding()
+		if not wheel.is_colliding():
+			continue
+		rear_contact = true
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
+		if is_instance_valid(surface_effects):
+			var kind: String = surface_effects.kind_for_wheel(wheel, road_name, snow)
+			if kind == "gravel":
+				gravel_contact = true
+				gravel_level = maxi(
+					gravel_level,
+					surface_effects.effect_level_for(kind, speed_kmh, rear_slip, wetness)
+				)
 	if handbrake_input > 0.1:
 		rear_slip = maxf(rear_slip, cfg.dust_handbrake_slip)
-	gravel_particles.emitting = rear_contact and speed_kmh > cfg.dust_min_speed_kmh and rear_slip > cfg.dust_slip_threshold
+		if gravel_contact and is_instance_valid(surface_effects):
+			gravel_level = maxi(
+				gravel_level,
+				surface_effects.effect_level_for("gravel", speed_kmh, rear_slip, wetness)
+			)
+	# Это дополнительный плотный шлейф только для сухого гравия;
+	# мелкие брызги/пыль для остальных покрытий обслуживает SurfaceEffects.
+	gravel_particles.emitting = (
+		rear_contact
+		and gravel_contact
+		and gravel_level >= 2
+		and wetness < 0.55
+		and speed_kmh > cfg.dust_min_speed_kmh
+		and rear_slip > cfg.dust_slip_threshold
+	)
 
 
 func _apply_initial_camera_fov() -> void:
