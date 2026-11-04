@@ -38,6 +38,12 @@ static func _nearest_material(source: Material, cache: Dictionary) -> Material:
 			break
 	if not has_texture:
 		return source
+	# Уже отфильтровано — копию делать не зачем. Обстановка приходит сюда
+	# с материалами, у которых фильтр выставлен ещё при запекании сцены, а
+	# копирование MultiMesh ради одного материала стоит целого буфера
+	# трансформаций (при плотности ×30 — десятков тысяч).
+	if base.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS:
+		return source
 	if not cache.has(source):
 		var copy := base.duplicate() as BaseMaterial3D
 		copy.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
