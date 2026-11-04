@@ -6,7 +6,7 @@
 albedo_color = Color(1, 0.96, 0.88, 1)
 albedo_texture = ExtResource("tex_straw")
 roughness = 1
-specular = 0.28
+metallic_specular = 0.28
 specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_bale"]

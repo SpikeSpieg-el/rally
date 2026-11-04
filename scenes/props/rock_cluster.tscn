@@ -6,7 +6,7 @@
 albedo_color = Color(0.97, 1, 0.96, 1)
 albedo_texture = ExtResource("tex_rock_mossy")
 roughness = 0.98
-specular = 0.28
+metallic_specular = 0.28
 specular_mode = 2
 
 [sub_resource type="SphereMesh" id="Mesh_rock_a"]

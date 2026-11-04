@@ -5,6 +5,9 @@ const Profile = preload("res://scripts/road_profile.gd")
 const Track = preload("res://scripts/data/rally_track_config.gd")
 
 func _initialize() -> void:
+	assert(Profile.quintic_ease(0.0) == 0.0)
+	assert(Profile.quintic_ease(0.5) == 0.5)
+	assert(Profile.quintic_ease(1.0) == 1.0)
 	# Golden samples shared with the Python authoring model.
 	var fixtures: Array = [[150.0, 0.8845699062902813], [400.0, 0.14472225534957037],
 		[750.0, 0.54105001829043], [1250.0, 0.0], [1710.0, -0.2682183224792603]]

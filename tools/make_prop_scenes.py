@@ -72,7 +72,7 @@ class Material(object):
             'albedo_color = Color(%s, 1)\n'
             'albedo_texture = ExtResource("%s")\n'
             'roughness = %s\n'
-            'specular = %s\n'
+            'metallic_specular = %s\n'
             'specular_mode = 2\n' % (
                 self.key,
                 ", ".join(num(c) for c in self.color),

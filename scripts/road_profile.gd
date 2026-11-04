@@ -9,14 +9,14 @@ static func roll(index: int, seed_value: int, salt: int) -> float:
 	return float(n) / 1000003.0
 
 ## Quintic: нулевые первая и вторая производные на краях, без изломов.
-static func ease(value: float) -> float:
+static func quintic_ease(value: float) -> float:
 	var t: float = clampf(value, 0.0, 1.0)
 	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 
 static func lobe(t: float, peak: float = 0.5) -> float:
 	if t <= 0.0 or t >= 1.0:
 		return 0.0
-	return ease(t / peak) if t < peak else 1.0 - ease((t - peak) / (1.0 - peak))
+	return quintic_ease(t / peak) if t < peak else 1.0 - quintic_ease((t - peak) / (1.0 - peak))
 
 static func shape(t: float, kind: int) -> float:
 	match kind:
@@ -25,7 +25,7 @@ static func shape(t: float, kind: int) -> float:
 		1: # широкая просадка
 			return -lobe(t, 0.42)
 		2: # приподнятая полка с ровной вершиной
-			return ease(t / 0.3) * (1.0 - ease((t - 0.72) / 0.28))
+			return quintic_ease(t / 0.3) * (1.0 - quintic_ease((t - 0.72) / 0.28))
 		3: # компрессия перед выходом на гребень
 			return -0.65 * lobe(t / 0.6, 0.55) + 0.75 * lobe((t - 0.4) / 0.6, 0.6)
 		_: # два разных широких бугра с седловиной, не синусоида
@@ -55,4 +55,4 @@ static func sample(along: float, seed_value: int, feature_height: float, feature
 			value += sign_value * amplitude * lobe(t, 0.38 + roll(patch, seed_value, 15) * 0.24)
 			value += roughness * shape(t, 3) * 0.5
 	# Старт и финиш ровные даже при смене сида.
-	return value * ease((along - 65.0) / 55.0) * ease((length - along - 65.0) / 55.0)
+	return value * quintic_ease((along - 65.0) / 55.0) * quintic_ease((length - along - 65.0) / 55.0)

@@ -6,7 +6,7 @@
 albedo_color = Color(0.97, 0.97, 1, 1)
 albedo_texture = ExtResource("tex_tire")
 roughness = 0.88
-specular = 0.28
+metallic_specular = 0.28
 specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_tire_a"]
