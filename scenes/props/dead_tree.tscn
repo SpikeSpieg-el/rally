@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/bark_dry.png" id="tex_bark_dry"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_bark_dry"]
-albedo_color = Color(0.72, 0.66, 0.56)
+albedo_color = Color(1, 0.97, 0.92)
 albedo_texture = ExtResource("tex_bark_dry")
 roughness = 1
 specular = 0.28

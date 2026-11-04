@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" path="res://textures/environment/dirt.png" id="tex_dirt"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_dirt"]
-albedo_color = Color(0.62, 0.5, 0.36)
+albedo_color = Color(1, 0.95, 0.88)
 albedo_texture = ExtResource("tex_dirt")
 roughness = 1
 specular = 0.28

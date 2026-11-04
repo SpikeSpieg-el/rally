@@ -150,6 +150,12 @@ def build():
     out = {}
 
     # --- ель: ствол + два яруса кроны ---------------------------------------
+    # ВАЖНО: оттенки подобраны под ФОТОГРАФИЧЕСКИЕ текстуры из
+    # textures/environment/. Процедурные (tools/make_prop_textures.py) были
+    # плоскими и гасились цветом — например покрышку красили в 0.28. Фото уже
+    # несёт свой цвет, поэтому множители подняты ближе к единице. Если
+    # перегенерировать текстуры процедурно, оттенки надо вернуть старые
+    # (подобрать заново: tools/refine_prop_textures.py <папка> --tints).
     bark = Material("Mat_bark", (0.78, 0.69, 0.58), "tex_bark", 1.0)
     needles = Material("Mat_needles", (0.90, 1.00, 0.90), "tex_needles", 0.95)
     out["fir_tree"] = prop(
@@ -187,7 +193,7 @@ def build():
     )
 
     # --- травяной пучок ------------------------------------------------------
-    blade = Material("Mat_grass", (0.80, 0.95, 0.65), "tex_grass_blade", 1.0)
+    blade = Material("Mat_grass", (0.94, 1.00, 0.90), "tex_grass_blade", 1.0)
     out["grass"] = prop(
         "grass", "GrassTuft",
         [
@@ -226,7 +232,7 @@ def build():
     )
 
     # --- сухое дерево --------------------------------------------------------
-    dry = Material("Mat_bark_dry", (0.72, 0.66, 0.56), "tex_bark_dry", 1.0)
+    dry = Material("Mat_bark_dry", (1.00, 0.97, 0.92), "tex_bark_dry", 1.0)
     out["dead_tree"] = prop(
         "dead_tree", "DeadTree",
         [
@@ -240,8 +246,8 @@ def build():
     )
 
     # --- берёза --------------------------------------------------------------
-    birch = Material("Mat_birch", (0.95, 0.95, 0.92), "tex_birch_bark", 0.92)
-    leaf = Material("Mat_leaves", (0.80, 0.92, 0.62), "tex_leaves", 0.95)
+    birch = Material("Mat_birch", (0.98, 0.98, 0.96), "tex_birch_bark", 0.92)
+    leaf = Material("Mat_leaves", (0.94, 1.00, 0.90), "tex_leaves", 0.95)
     out["birch_tree"] = prop(
         "birch_tree", "BirchTree",
         [
@@ -254,7 +260,7 @@ def build():
     )
 
     # --- папоротник ----------------------------------------------------------
-    fern = Material("Mat_fern", (0.78, 0.94, 0.60), "tex_fern", 1.0)
+    fern = Material("Mat_fern", (0.93, 1.00, 0.90), "tex_fern", 1.0)
     out["fern"] = prop(
         "fern", "Fern",
         [
@@ -268,7 +274,7 @@ def build():
     )
 
     # --- рулон сена: цилиндр лежит вдоль X ----------------------------------
-    straw = Material("Mat_straw", (0.92, 0.82, 0.45), "tex_straw", 1.0)
+    straw = Material("Mat_straw", (1.00, 0.96, 0.88), "tex_straw", 1.0)
     out["hay_bale"] = prop(
         "hay_bale", "HayBale",
         [
@@ -281,7 +287,7 @@ def build():
     )
 
     # --- стопка покрышек -----------------------------------------------------
-    tire = Material("Mat_tire", (0.28, 0.28, 0.30), "tex_tire", 0.88)
+    tire = Material("Mat_tire", (0.97, 0.97, 1.00), "tex_tire", 0.88)
     out["tire_stack"] = prop(
         "tire_stack", "TireStack",
         [
@@ -294,7 +300,7 @@ def build():
     )
 
     # --- дощатый забор -------------------------------------------------------
-    plank = Material("Mat_plank", (0.74, 0.62, 0.44), "tex_plank", 0.97)
+    plank = Material("Mat_plank", (1.00, 0.96, 0.90), "tex_plank", 0.97)
     out["wooden_fence"] = prop(
         "wooden_fence", "WoodenFence",
         [
@@ -309,7 +315,7 @@ def build():
     )
 
     # --- группа камней -------------------------------------------------------
-    mossy = Material("Mat_rock_mossy", (0.80, 0.84, 0.78), "tex_rock_mossy", 0.98)
+    mossy = Material("Mat_rock_mossy", (0.97, 1.00, 0.96), "tex_rock_mossy", 0.98)
     out["rock_cluster"] = prop(
         "rock_cluster", "RockCluster",
         [
@@ -322,7 +328,7 @@ def build():
     )
 
     # --- насыпь грунта -------------------------------------------------------
-    dirt = Material("Mat_dirt", (0.62, 0.50, 0.36), "tex_dirt", 1.0)
+    dirt = Material("Mat_dirt", (1.00, 0.95, 0.88), "tex_dirt", 1.0)
     out["dirt_mound"] = prop(
         "dirt_mound", "DirtMound",
         [
