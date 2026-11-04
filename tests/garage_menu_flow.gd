@@ -18,10 +18,10 @@ class TestGame:
 	var starts := 0
 	var fail_writes := false
 
-	func save_custom_setups(setups: Dictionary) -> bool:
+	func save_user_setup(source_index: int, setup: RallyCarSetup, name_text: String, create_new: bool) -> int:
 		if fail_writes:
-			return false
-		return super.save_custom_setups(setups)
+			return -1
+		return super.save_user_setup(source_index, setup, name_text, create_new)
 
 	func start_race() -> void:
 		starts += 1
@@ -63,27 +63,35 @@ func _run() -> void:
 
 	# Вход в гараж и возврат без записи черновика.
 	menu._on_start_pressed()
+	await create_timer(0.5).timeout
 	check(menu.garage != null and menu.garage.visible, "главное меню открывает гараж")
 	var original := (game.get_custom_setup(0) as RallyCarSetup).max_torque
+	menu.garage._create_copy()
 	menu.garage._on_slider_changed(555.0, "max_torque")
 	menu.garage._request_back()
+	await create_timer(0.5).timeout
 	check(not menu.garage.visible and menu.get_node("Content").visible, "возврат показывает меню трассы")
 	menu._on_start_pressed()
+	await create_timer(0.5).timeout
 	check(is_equal_approx(menu.garage.setup.max_torque, original), "возврат без сохранения отменяет черновик")
 
 	# Явное сохранение выбирает нужный пресет и обновляет состояние меню.
 	menu.garage._select_setup(2)
+	menu.garage._create_copy()
 	menu.garage._on_slider_changed(680.0, "max_torque")
 	menu.garage._on_choice_changed(2, "livery")
 	menu.garage._on_choice_changed(RallyCarSetup.Transmission.MANUAL_CLUTCH, "transmission_mode")
 	check(menu.garage._summary.text.contains("РУЧНАЯ + СЦЕПЛЕНИЕ"), "выбранная коробка видна в сводке гаража")
 	menu.garage._on_slider_changed(0.55, "front_brake_bias")
 	menu.garage._save_button_pressed()
-	check(menu.selected_setup == 2 and game.setup_index == 2, "сохранённый пресет выбран в меню и RallyGame")
+	var saved_index: int = Config.setup_count()
+	check(menu.selected_setup == saved_index and game.setup_index == saved_index, "сохранённый пресет выбран в меню и RallyGame")
 	check(is_equal_approx((game.current_setup as RallyCarSetup).max_torque, 680.0), "текущая настройка обновлена без старта")
 	menu.garage._request_back()
+	await create_timer(0.5).timeout
 	menu._on_start_pressed()
-	check(menu.garage.selected_index == 2 and menu.garage.setup.livery == 2, "повторный вход восстанавливает выбранный пресет")
+	await create_timer(0.5).timeout
+	check(menu.garage.selected_index == saved_index and menu.garage.setup.livery == 2, "повторный вход восстанавливает выбранный пресет")
 	check(menu.garage.setup.transmission_mode == RallyCarSetup.Transmission.MANUAL_CLUTCH, "коробка сохраняется вместе с пресетом")
 
 	# При ошибке сохранения старт блокируется, текущая конфигурация не портится.
@@ -95,7 +103,7 @@ func _run() -> void:
 	game.fail_writes = false
 	menu.garage._on_slider_changed(0.51, "tire_radius")
 	menu.garage._start_race()
-	check(game.starts == 1 and game.setup_index == 2, "старт запускается после успешного сохранения")
+	check(game.starts == 1 and game.setup_index == saved_index, "старт запускается после успешного сохранения")
 	check(is_equal_approx((game.current_setup as RallyCarSetup).max_torque, 705.0), "гараж передаёт новые настройки в RallyGame")
 
 	# В реальной сцене этапа у машины назначен старый setup_override. Заезд

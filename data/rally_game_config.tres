@@ -8,6 +8,13 @@
 [ext_resource type="Resource" uid="uid://hvt7acezb4jm6" path="res://data/setups/engine_stock.tres" id="6_setup"]
 [ext_resource type="Resource" uid="uid://e9zw6klhl3niy" path="res://data/setups/engine_group_a.tres" id="7_setup"]
 [ext_resource type="Resource" uid="uid://h22xrv8c29ysh" path="res://data/setups/engine_atmo.tres" id="8_setup"]
+[ext_resource type="Resource" path="res://data/setups/engine_rallycross.tres" id="new1"]
+[ext_resource type="Resource" path="res://data/setups/engine_classic.tres" id="new2"]
+[ext_resource type="Resource" path="res://data/setups/engine_sprint.tres" id="new3"]
+[ext_resource type="Resource" path="res://data/setups/engine_endurance.tres" id="new4"]
+[ext_resource type="Resource" path="res://data/setups/engine_hillclimb.tres" id="new5"]
+[ext_resource type="Resource" path="res://data/setups/engine_snow.tres" id="new6"]
+[ext_resource type="Resource" path="res://data/setups/engine_club.tres" id="new7"]
 [ext_resource type="Resource" uid="uid://i59bwvdtb1tv8" path="res://data/weather/weather_default.tres" id="w1"]
 [ext_resource type="Resource" uid="uid://tlkc86xl1gorb" path="res://data/weather/weather_clear.tres" id="w2"]
 [ext_resource type="Resource" uid="uid://iigaaphj4hr41" path="res://data/weather/weather_overcast.tres" id="w3"]
@@ -25,9 +32,9 @@
 [resource]
 script = ExtResource("1_script")
 title = "RALLY"
-subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 3 МОТОРА"
+subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 10 ПРЕСЕТОВ"
 tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("mountain100")])
-car_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup")])
+car_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup"), ExtResource("new1"), ExtResource("new2"), ExtResource("new3"), ExtResource("new4"), ExtResource("new5"), ExtResource("new6"), ExtResource("new7")])
 weather_presets = Array[Resource]([ExtResource("w1"), ExtResource("w2"), ExtResource("w3"), ExtResource("w4"), ExtResource("w5"), ExtResource("w6"), ExtResource("w7")])
 track_profiles = Array[Resource]([ExtResource("p1"), ExtResource("p2"), ExtResource("p3"), ExtResource("p4")])
 default_track_index = 0

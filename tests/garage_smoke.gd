@@ -39,15 +39,15 @@ func _run() -> void:
 	ok = ok and garage.get_node_or_null("%TorqueSlider") is HSlider
 	ok = ok and garage.get_node_or_null("Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Camera") is Camera3D
 	ok = ok and garage.get_node_or_null("Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Platform") is MeshInstance3D
+	garage._create_copy()
 	garage._on_slider_changed(560.0, "max_torque")
 	garage._on_slider_changed(0.48, "tire_radius")
 	garage._on_color_changed(Color(0.3, 0.6, 0.8))
 	ok = ok and is_equal_approx(original.max_torque, original_torque)
 	ok = ok and is_equal_approx(garage._wheel_visuals[0].basis.get_scale().y, 0.48 / 0.438)
-	game.select_setup(0)
-	game.save_custom_setup(0, garage.setup)
+	var saved_index: int = game.save_user_setup(0, garage.setup, "Тест", true)
 	game.load_conditions()
-	game.select_setup(0)
+	game.select_setup(saved_index)
 	var restored = game.current_setup
 	ok = ok and is_equal_approx(restored.max_torque, 560.0) and is_equal_approx(restored.tire_radius, 0.48)
 	ok = ok and restored.body_color.is_equal_approx(Color(0.3, 0.6, 0.8))
@@ -57,10 +57,11 @@ func _run() -> void:
 	car.apply_setup(restored)
 	ok = ok and is_equal_approx(car.max_torque, 560.0) and is_equal_approx(car.front_tire_radius, 0.48)
 	garage._select_setup(1)
-	garage._select_setup(0)
+	garage._select_setup(saved_index)
 	ok = ok and is_equal_approx(garage.setup.max_torque, 560.0)
+	garage._on_slider_changed(600.0, "max_torque")
 	garage._reset_setup()
-	ok = ok and is_equal_approx(garage.setup.max_torque, original_torque)
+	ok = ok and is_equal_approx(garage.setup.max_torque, 560.0)
 	car.queue_free()
 	garage.queue_free()
 	game.queue_free()

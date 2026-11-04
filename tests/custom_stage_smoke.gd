@@ -40,9 +40,10 @@ func _run() -> void:
 	tuned.tire_width = 290.0
 	tuned.front_brake_bias = 0.57
 	tuned.brake_force_multiplier = 1.2
-	check(game.save_custom_setup(1, tuned), "сохранение тестового пресета")
+	var saved_index: int = game.save_user_setup(1, tuned, "Тест этапа", true)
+	check(saved_index >= Config.setup_count(), "сохранение тестового пресета")
 	game.load_conditions()
-	game.select_setup(1)
+	game.select_setup(saved_index)
 	# Такую же отметку выставляет RallyGame.start_race() перед сменой сцены.
 	game._race_uses_selected_setup = true
 
@@ -60,7 +61,7 @@ func _run() -> void:
 		return
 
 	var car = stage.get_node("RallyCar")
-	check(car.active_setup != null and car.active_setup.id == "engine_group_a", "этап использует выбранный пресет")
+	check(car.active_setup != null and car.active_setup.id.begins_with("custom_"), "этап использует выбранный пресет")
 	check(is_equal_approx(car.max_torque, 705.0) and is_equal_approx(car.front_tire_radius, 0.51), "мотор и радиус дошли до физики")
 	check(is_equal_approx(car.front_tire_width, 290.0) and is_equal_approx(car.front_axle.brake_bias, 0.57), "ширина и баланс тормозов дошли до колёс")
 	check(is_equal_approx(car.brake_force_multiplier, 1.2) and car.wheel_array.size() == 4, "тормоза и колёса инициализированы корректно")

@@ -171,12 +171,25 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 16
-text = "КОНФИГУРАЦИЯ  /  НЕЗАВИСИМЫЕ ПРЕСЕТЫ"
+text = "ПРЕСЕТЫ  /  ЗАГОТОВЛЕННЫЕ И СВОИ"
 
 [node name="SetupSelector" type="OptionButton" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
+fit_to_longest_item = false
+
+[node name="CreateButton" type="Button" parent="Margin/Layout/Body/Settings"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "СОЗДАТЬ СВОЙ НА ОСНОВЕ ЭТОГО"
+tooltip_text = "Создать отдельную копию, не изменяя исходный пресет."
+
+[node name="PresetName" type="LineEdit" parent="Margin/Layout/Body/Settings"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Название своего пресета"
+max_length = 60
 
 [node name="Description" type="Label" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
@@ -198,7 +211,7 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 16
-text = "КАСТОМИЗАЦИЯ  /  ПРОКРУТИТЕ ДЛЯ ДРУГИХ ПАРАМЕТРОВ"
+text = "ХАРАКТЕРИСТИКИ  /  ПРОКРУТИТЕ ДЛЯ ДРУГИХ ПАРАМЕТРОВ"
 
 [node name="SettingsTabs" type="TabContainer" parent="Margin/Layout/Body/Settings"]
 unique_name_in_owner = true
@@ -224,8 +237,8 @@ autowrap_mode = 3
 unique_name_in_owner = true
 custom_minimum_size = Vector2(190, 40)
 layout_mode = 2
-text = "СБРОСИТЬ ПРЕСЕТ"
-tooltip_text = "Вернуть текущему пресету заводские настройки. Сохраните сброс или начните заезд."
+text = "ОТМЕНИТЬ ПРАВКИ"
+tooltip_text = "Отменить несохранённые изменения."
 
 [node name="Buttons" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2
@@ -254,7 +267,7 @@ custom_minimum_size = Vector2(220, 52)
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "СОХРАНИТЬ"
-tooltip_text = "Сохранить изменения всех открытых пресетов без запуска заезда."
+tooltip_text = "Сохранить свой пресет без запуска заезда."
 
 [node name="StartButton" type="Button" parent="Margin/Layout/Buttons"]
 unique_name_in_owner = true

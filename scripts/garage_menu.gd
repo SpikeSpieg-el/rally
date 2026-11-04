@@ -1,5 +1,5 @@
 ## Экран подготовки машины. Витрина и автомобиль заезда используют одну
-## реализацию внешности; схема UI и сохранения общая для всех пресетов.
+## реализацию внешности; готовые пресеты доступны только для просмотра.
 extends Control
 
 signal back_requested
@@ -26,8 +26,10 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 var config: RallyGameConfig
 var game: Node
 var selected_index := 0
-var drafts: Dictionary = {}
 var setup: SetupType
+var _creating := false
+var _editing := false
+var _readonly_values: Dictionary = {}
 var _updating := false
 var _dragging := false
 var _dirty: Dictionary = {}
@@ -65,6 +67,10 @@ func turntable_speed() -> float:
 		return turntable_speed_override
 	return layout().garage_turntable_speed
 
+@onready var _name_input: LineEdit = %PresetName
+@onready var _create: Button = %CreateButton
+@onready var _reset: Button = %ResetButton
+@onready var _save: Button = %SaveButton
 @onready var _selector: OptionButton = %SetupSelector
 @onready var _summary: Label = %Summary
 @onready var _description: Label = %Description
@@ -81,6 +87,8 @@ func turntable_speed() -> float:
 func _ready() -> void:
 	_build_settings()
 	_selector.item_selected.connect(_select_setup)
+	_create.pressed.connect(_create_copy)
+	_name_input.text_changed.connect(_on_name_changed)
 	%ResetButton.pressed.connect(_reset_setup)
 	%SaveButton.pressed.connect(_save_button_pressed)
 	%BackButton.pressed.connect(_request_back)
@@ -147,6 +155,13 @@ func _build_field(parent: VBoxContainer, field: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", theme_cfg().font_button_small)
 	title.add_theme_color_override("font_color", theme_cfg().text_primary)
 	header.add_child(title)
+
+	if kind != "number" and kind != "gear":
+		var readonly := Label.new()
+		readonly.add_theme_font_size_override("font_size", theme_cfg().font_button_small)
+		readonly.add_theme_color_override("font_color", theme_cfg().text_value)
+		header.add_child(readonly)
+		_readonly_values[key] = readonly
 
 	if kind == "number" or kind == "gear":
 		var value_label := Label.new()
@@ -215,15 +230,11 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	config = game_config
 	game = game_state
 	_configure_preview_style()
-	drafts.clear()
 	_dirty.clear()
-	_status.text = layout().garage_status_ready
-	_selector.clear()
-	for i in range(config.setup_count()):
-		var preset := config.get_setup(i) as SetupType
-		_selector.add_item(preset.display_name if preset != null else "—", i)
+	_status.text = "Выберите пресет или создайте свой на его основе."
+	_rebuild_selector()
 	show()
-	_select_setup(clampi(index, 0, maxi(0, config.setup_count() - 1)))
+	_select_setup(clampi(index, 0, maxi(0, _setup_count() - 1)))
 	_start.grab_focus()
 
 
@@ -268,20 +279,58 @@ func _on_preview_input(event: InputEvent) -> void:
 		_preview_container.accept_event()
 
 
+func _setup_count() -> int:
+	return int(game.call("setup_count")) if game != null and game.has_method("setup_count") else config.setup_count()
+
+
+func _setup_at(index: int) -> SetupType:
+	if game != null and game.has_method("get_custom_setup"):
+		return game.call("get_custom_setup", index) as SetupType
+	var original := config.get_setup(index) as SetupType
+	return original.duplicate(true) as SetupType if original != null else null
+
+
+func _rebuild_selector() -> void:
+	_selector.clear()
+	for i in range(_setup_count()):
+		var preset := _setup_at(i)
+		var prefix := "СВОЙ · " if i >= config.setup_count() else "ГОТОВЫЙ · "
+		_selector.add_item(prefix + (preset.display_name if preset != null else "—"), i)
+
+
 func _select_setup(index: int) -> void:
-	if config == null or index < 0 or index >= config.setup_count():
+	if config == null or index < 0 or index >= _setup_count():
 		return
+	var had_changes := not _dirty.is_empty()
 	selected_index = index
-	if not drafts.has(index):
-		var original := config.get_setup(index) as SetupType
-		if original == null:
-			return
-		var loaded: SetupType = null
-		if game != null and game.has_method("get_custom_setup"):
-			loaded = game.call("get_custom_setup", index) as SetupType
-		drafts[index] = loaded if loaded != null else original.duplicate(true)
-	setup = drafts[index] as SetupType
+	_creating = false
+	_editing = index >= config.setup_count()
+	_dirty.clear()
+	setup = _setup_at(index)
+	if setup == null:
+		return
+	_name_input.text = setup.display_name
+	_status.text = "Несохранённые изменения отменены." if had_changes else ("Свой пресет можно редактировать." if _editing else "Готовый пресет доступен только для просмотра.")
 	_refresh()
+
+
+func _create_copy() -> void:
+	if setup == null:
+		return
+	setup = setup.duplicate(true) as SetupType
+	_creating = true
+	_editing = true
+	_name_input.text = setup.display_name + " · МОЙ"
+	_dirty.clear()
+	_dirty[selected_index] = true
+	_status.text = "Новая копия. Задайте название и сохраните её."
+	_refresh()
+	_name_input.grab_focus()
+
+
+func _on_name_changed(_value: String) -> void:
+	if not _updating and _editing:
+		_mark_changed()
 
 
 func _refresh() -> void:
@@ -289,12 +338,29 @@ func _refresh() -> void:
 		return
 	_updating = true
 	_selector.select(selected_index)
-	_description.text = layout().garage_preset_prefix + setup.description
+	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
+	_name_input.visible = _editing
+	_save.visible = _editing
+	_reset.visible = _editing
+	_create.disabled = _creating
+	_create.tooltip_text = "Сначала сохраните или отмените новую копию." if _creating else "Создать отдельную копию этого пресета."
 	_summary.text = "%s\n%s  ·  %d кг  ·  %s" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass), setup.get_transmission_name()]
 	for field: Dictionary in Customization.FIELDS:
 		var key: String = field["key"]
 		var kind: String = field["kind"]
 		var control: Control = _controls[key]
+		control.visible = _editing
+		if _readonly_values.has(key):
+			var readonly: Label = _readonly_values[key]
+			readonly.visible = not _editing
+			if kind == "choice":
+				var options: Array = field["options"]
+				readonly.text = String(options[clampi(int(setup.get(key)), 0, options.size() - 1)])
+			elif kind == "toggle":
+				readonly.text = "Вкл." if bool(setup.get(key)) else "Выкл."
+			elif kind == "color":
+				var color: Color = setup.get(key)
+				readonly.text = "#" + color.to_html(false).to_upper()
 		if kind == "gear":
 			var gear: int = field["gear"]
 			_rows[key].visible = gear < setup.gear_ratios.size()
@@ -353,7 +419,7 @@ func _mark_changed() -> void:
 
 
 func _on_slider_changed(value: float, key: String) -> void:
-	if _updating or setup == null or not _fields.has(key):
+	if _updating or not _editing or setup == null or not _fields.has(key):
 		return
 	var field: Dictionary = _fields[key]
 	if field["kind"] == "gear":
@@ -375,20 +441,20 @@ func _on_slider_changed(value: float, key: String) -> void:
 
 
 func _on_choice_changed(value: int, key: String) -> void:
-	if _updating or setup == null:
+	if _updating or not _editing or setup == null:
 		return
 	setup.set(key, Customization.sanitize_value(_fields[key], value, setup.get(key)))
 	if key == "torque_shape":
 		# В RallyCar непустая пользовательская Curve важнее формы.
 		# Вернуть исходную кривую можно первым пунктом списка.
-		var base := config.get_setup(selected_index) as SetupType
+		var base: SetupType = game.call("get_setup_base", selected_index) as SetupType if game != null and game.has_method("get_setup_base") else config.get_setup(selected_index) as SetupType
 		setup.torque_curve = base.torque_curve.duplicate() as Curve if value == SetupType.TorqueShape.CUSTOM and base.torque_curve != null else null
 	_mark_changed()
 	_refresh()
 
 
 func _on_toggle_changed(value: bool, key: String) -> void:
-	if _updating or setup == null:
+	if _updating or not _editing or setup == null:
 		return
 	setup.set(key, value)
 	_mark_changed()
@@ -396,7 +462,7 @@ func _on_toggle_changed(value: bool, key: String) -> void:
 
 
 func _on_custom_color_changed(color: Color, key: String) -> void:
-	if _updating or setup == null:
+	if _updating or not _editing or setup == null:
 		return
 	setup.set(key, Customization.sanitize_value(_fields[key], color, setup.get(key)))
 	_mark_changed()
@@ -409,14 +475,23 @@ func _on_color_changed(color: Color) -> void:
 
 
 func _save_drafts() -> bool:
-	if game == null or not game.has_method("save_custom_setups"):
+	if not _editing:
+		return true
+	if _name_input.text.strip_edges().is_empty():
+		_status.text = "Введите название своего пресета."
+		_name_input.grab_focus()
+		return false
+	if game == null or not game.has_method("save_user_setup"):
 		_status.text = layout().garage_status_storage_missing
 		return false
-	if not bool(game.call("save_custom_setups", drafts)):
+	var index := int(game.call("save_user_setup", selected_index, setup, _name_input.text, _creating))
+	if index < 0:
 		_status.text = layout().garage_status_save_failed
 		return false
 	_dirty.clear()
-	_status.text = layout().garage_status_saved
+	_rebuild_selector()
+	_select_setup(index)
+	_status.text = "Свой пресет сохранён. Готовые пресеты не изменены."
 	setup_saved.emit(selected_index)
 	return true
 
@@ -428,20 +503,16 @@ func _save_button_pressed() -> void:
 func _start_race() -> void:
 	if setup == null:
 		return
-	if game != null and not _save_drafts():
+	if _editing and (_creating or not _dirty.is_empty()) and not _save_drafts():
 		return
 	start_requested.emit(selected_index, setup)
 
 
 func _reset_setup() -> void:
-	var base := config.get_setup(selected_index) as SetupType
-	if base == null:
+	if not _editing:
 		return
-	setup = base.duplicate(true) as SetupType
-	drafts[selected_index] = setup
-	_mark_changed()
-	_status.text = layout().garage_status_reset
-	_refresh()
+	_select_setup(selected_index)
+	_status.text = "Несохранённые изменения отменены."
 
 
 func _unhandled_input(event: InputEvent) -> void:
