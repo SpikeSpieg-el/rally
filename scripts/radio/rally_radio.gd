@@ -125,7 +125,11 @@ func _scan_music() -> void:
 		push_warning("RallyRadio: папка не найдена: " + config.music_dir)
 		return
 	for file_name in dir.get_files():
-		if not file_name.ends_with(".ogg"):
+		# В экспортированном проекте импортированные ресурсы представлены
+		# файлами .ogg.remap; загружать их нужно по исходному пути .ogg.
+		if file_name.ends_with(".ogg.remap"):
+			file_name = file_name.trim_suffix(".remap")
+		elif not file_name.ends_with(".ogg"):
 			continue
 		var path := config.music_dir.path_join(file_name)
 		tracks.append(_metadata_for(path))
