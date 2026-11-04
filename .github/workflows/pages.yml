@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - arena/04a18e75-rally
+      - arena/351d2d6e-rally
   workflow_dispatch:
 
 permissions:
