@@ -46,7 +46,7 @@ func _run() -> void:
 
 
 func _check_motors() -> void:
-	_check(rally_config.setup_count() == 3, "в конфиге должно быть три мотора")
+	_check(rally_config.setup_count() == 10, "в конфиге должно быть десять пресетов")
 	var stock: SetupType = rally_config.get_setup(0) as SetupType
 	var group_a: SetupType = rally_config.get_setup(1) as SetupType
 	var atmo: SetupType = rally_config.get_setup(2) as SetupType

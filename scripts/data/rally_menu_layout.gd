@@ -50,7 +50,7 @@ extends Resource
 @export_group("Гараж")
 @export var garage_turntable_speed: float = 0.16
 @export var garage_status_saved: String = "Все открытые пресеты сохранены."
-@export var garage_status_unsaved: String = "Есть несохранённые изменения."
+@export var garage_status_unsaved: String = "Есть несохранённые изменения. При смене пресета они будут отменены."
 @export var garage_status_ready: String = "Сохраните изменения или нажмите «На старт»."
 @export var garage_status_reset: String = "Пресет сброшен. Сохраните изменения или начните заезд."
 @export var garage_status_save_failed: String = "Не удалось сохранить. Проверьте доступ к файлу настроек."

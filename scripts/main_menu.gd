@@ -173,7 +173,7 @@ func _restore_selection() -> void:
 	selected_profile = clampi(config.default_profile_index, 0, maxi(0, config.profile_count() - 1))
 	if game != null:
 		selected_track = clampi(int(game.get("track_index")), 0, maxi(0, config.track_count() - 1))
-		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, config.setup_count() - 1))
+		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, int(game.call("setup_count")) - 1))
 		selected_weather = clampi(int(game.get("weather_index")), 0, maxi(0, config.weather_count() - 1))
 		selected_profile = clampi(int(game.get("profile_index")), 0, maxi(0, config.profile_count() - 1))
 

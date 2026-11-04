@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "engine_classic"
+display_name = "2.0 АТМО · КЛАССИКА"
+description = "Лёгкий заднеприводный автомобиль с атмосферным мотором и мягкой подвеской."
+body_color = Color(0.86, 0.87, 0.89, 1)
+accent_color = Color(1, 0.55, 0.05, 1)
+engine_name = "4G63 · 2.0 АТМО"
+max_torque = 320.0
+max_rpm = 8000.0
+idle_rpm = 900.0
+torque_shape = 2
+engine_brake_scale = 1.00
+turbo = false
+final_drive = 4.3
+gear_ratios = Array[float]([3.6, 2.4, 1.75, 1.35, 1.08, 0.88])
+traction_control_max_slip = 0.65
+drivetrain = 1
+awd_front_torque = 0.38
+vehicle_mass = 1050.0
+front_weight_distribution = 0.53
+center_of_gravity_height_offset = -0.10
+front_spring_length = 0.34
+rear_spring_length = 0.35
+front_resting_ratio = 0.55
+rear_resting_ratio = 0.55
+front_damping_ratio = 0.46
+rear_damping_ratio = 0.52
+front_arb_ratio = 0.13
+rear_arb_ratio = 0.10
+bump_damp_multiplier = 0.75
+rebound_damp_multiplier = 1.35
+tire_radius = 0.438
+tire_width = 220.0
+grip_scale = 0.93
+tire_stiffness_scale = 1.00
+rolling_resistance_scale = 1.00
+max_steering_angle_deg = 35.0
+chase_distance = 5.8
+chase_height = 1.55
