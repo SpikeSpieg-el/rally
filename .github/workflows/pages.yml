@@ -43,9 +43,7 @@ jobs:
           mkdir -p export/web
           report_failure() {
             echo '::error::Godot import or export failed; see the following diagnostic annotations and the full job log.'
-            tail -40 /tmp/godot-build.log | while IFS= read -r line; do
-              echo "::error::${line//%/%25}"
-            done || true
+            echo "::error::GODOT_LOG_BASE64:$(tail -c 16000 /tmp/godot-build.log | base64 -w 0)"
           }
           trap report_failure ERR
           "$godot" --headless --editor --path . --import 2>&1 | tee /tmp/godot-build.log
