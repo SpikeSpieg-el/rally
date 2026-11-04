@@ -6,7 +6,7 @@
 albedo_color = Color(0.8, 0.72, 0.52, 1)
 albedo_texture = ExtResource("tex_burlap")
 roughness = 1
-specular = 0.28
+metallic_specular = 0.28
 specular_mode = 2
 
 [sub_resource type="BoxMesh" id="Mesh_bag_a"]

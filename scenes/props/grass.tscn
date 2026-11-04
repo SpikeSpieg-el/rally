@@ -6,7 +6,7 @@
 albedo_color = Color(0.94, 1, 0.9, 1)
 albedo_texture = ExtResource("tex_grass_blade")
 roughness = 1
-specular = 0.28
+metallic_specular = 0.28
 specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_blade_a"]
