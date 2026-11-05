@@ -13,53 +13,13 @@
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
-[ext_resource type="Script" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
+[ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
-friction = 0.05
+friction = 0.49
 
 [sub_resource type="ConvexPolygonShape3D" id="ChassisShape"]
 points = PackedVector3Array(-0.82, 0.38, -2.15, 0.82, 0.38, -2.15, -0.82, 0.38, 2.32, 0.82, 0.38, 2.32, -1.16, 0.6, -2.48, 1.16, 0.6, -2.48, -1.13, 0.6, 2.84, 1.18, 0.6, 2.84, -1.16, 1.15, -2.48, 1.16, 1.15, -2.48, -1.025, 1.15, 2.84, 1.085, 1.03, 2.84, -0.805, 1.82, -1.05, 0.775, 1.82, -1.05, -0.71, 1.82, 0.625, 0.71, 1.82, 0.61)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cavtd"]
-albedo_texture = ExtResource("4_finkb")
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jbshp"]
-resource_name = "brake"
-cull_mode = 2
-metallic = 1.0
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_ujetl"]
-_surfaces = [{
-"aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
-"format": 34896613377,
-"index_count": 6,
-"index_data": PackedByteArray("AAABAAIAAAADAAEA"),
-"name": "brake",
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 4,
-"vertex_data": PackedByteArray("AAAAAP//AAD//wAAAAAAAP//AAD//wAAAAAAAAAAAAA=")
-}]
-blend_shape_mode = 0
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_cy6et"]
-resource_name = "low poly lance evo_Plane_001"
-_surfaces = [{
-"aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
-"attribute_data": PackedByteArray("rn//////63//////rn/rfw=="),
-"format": 34896613399,
-"index_count": 6,
-"index_data": PackedByteArray("AAABAAIAAAADAAEA"),
-"material": SubResource("StandardMaterial3D_jbshp"),
-"name": "brake",
-"primitive": 3,
-"uv_scale": Vector4(1.9855409, 1.9892406, 0, 0),
-"vertex_count": 4,
-"vertex_data": PackedByteArray("AAAAAP///7///wAAAAD/v///AAD///+/AAAAAAAA/7////9/////f////3////9/")
-}]
-blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_ujetl")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u7u7f"]
 resource_name = "wheel"
@@ -102,10 +62,15 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_bxyv4")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6rw0i"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cavtd"]
 albedo_texture = ExtResource("4_finkb")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_a62n5"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jbshp"]
+resource_name = "brake"
+cull_mode = 2
+metallic = 1.0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_ujetl"]
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "format": 34896613377,
@@ -119,8 +84,8 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_vwgei"]
-resource_name = "low poly lance evo_Plane_002"
+[sub_resource type="ArrayMesh" id="ArrayMesh_cy6et"]
+resource_name = "low poly lance evo_Plane_001"
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "attribute_data": PackedByteArray("rn//////63//////rn/rfw=="),
@@ -135,7 +100,7 @@ _surfaces = [{
 "vertex_data": PackedByteArray("AAAAAP///7///wAAAAD/v///AAD///+/AAAAAAAA/7////9/////f////3////9/")
 }]
 blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_a62n5")
+shadow_mesh = SubResource("ArrayMesh_ujetl")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ppamr"]
 albedo_texture = ExtResource("5_rv3qr")
@@ -179,10 +144,10 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_vksdm")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nipno"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6rw0i"]
 albedo_texture = ExtResource("4_finkb")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_1h7n3"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_a62n5"]
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "format": 34896613377,
@@ -196,8 +161,8 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_ykpwh"]
-resource_name = "low poly lance evo_Plane"
+[sub_resource type="ArrayMesh" id="ArrayMesh_vwgei"]
+resource_name = "low poly lance evo_Plane_002"
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "attribute_data": PackedByteArray("rn//////63//////rn/rfw=="),
@@ -212,7 +177,7 @@ _surfaces = [{
 "vertex_data": PackedByteArray("AAAAAP///7///wAAAAD/v///AAD///+/AAAAAAAA/7////9/////f////3////9/")
 }]
 blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_1h7n3")
+shadow_mesh = SubResource("ArrayMesh_a62n5")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_doa1w"]
 _surfaces = [{
@@ -248,10 +213,10 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_doa1w")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g12nq"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nipno"]
 albedo_texture = ExtResource("4_finkb")
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_yfqfh"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_1h7n3"]
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "format": 34896613377,
@@ -265,8 +230,8 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_268vy"]
-resource_name = "low poly lance evo_Plane_004"
+[sub_resource type="ArrayMesh" id="ArrayMesh_ykpwh"]
+resource_name = "low poly lance evo_Plane"
 _surfaces = [{
 "aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
 "attribute_data": PackedByteArray("rn//////63//////rn/rfw=="),
@@ -281,7 +246,7 @@ _surfaces = [{
 "vertex_data": PackedByteArray("AAAAAP///7///wAAAAD/v///AAD///+/AAAAAAAA/7////9/////f////3////9/")
 }]
 blend_shape_mode = 0
-shadow_mesh = SubResource("ArrayMesh_yfqfh")
+shadow_mesh = SubResource("ArrayMesh_1h7n3")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_53hjw"]
 albedo_texture = ExtResource("5_rv3qr")
@@ -319,6 +284,41 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_ipwwn")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g12nq"]
+albedo_texture = ExtResource("4_finkb")
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_yfqfh"]
+_surfaces = [{
+"aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
+"format": 34896613377,
+"index_count": 6,
+"index_data": PackedByteArray("AAABAAIAAAADAAEA"),
+"name": "brake",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 4,
+"vertex_data": PackedByteArray("AAAAAP//AAD//wAAAAAAAP//AAD//wAAAAAAAAAAAAA=")
+}]
+blend_shape_mode = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_268vy"]
+resource_name = "low poly lance evo_Plane_004"
+_surfaces = [{
+"aabb": AABB(-1, 0, -1, 2, 1e-05, 2),
+"attribute_data": PackedByteArray("rn//////63//////rn/rfw=="),
+"format": 34896613399,
+"index_count": 6,
+"index_data": PackedByteArray("AAABAAIAAAADAAEA"),
+"material": SubResource("StandardMaterial3D_jbshp"),
+"name": "brake",
+"primitive": 3,
+"uv_scale": Vector4(1.9855409, 1.9892406, 0, 0),
+"vertex_count": 4,
+"vertex_data": PackedByteArray("AAAAAP///7///wAAAAD/v///AAD///+/AAAAAAAA/7////9/////f////3////9/")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_yfqfh")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yojui"]
 albedo_texture = ExtResource("7_gxar1")
@@ -1016,15 +1016,15 @@ target_position = Vector3(0, -0.393, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="Plane_001" type="MeshInstance3D" parent="Wheel_FL" unique_id=1164566766]
-transform = Transform3D(-1.4517414e-06, 0.21454948, -0.00059725414, 0.20585954, -0.00016687294, -0.060445543, -0.06044577, -0.00057347014, -0.20585874, 0.0695833, 0, 0)
-material_override = SubResource("StandardMaterial3D_cavtd")
-mesh = SubResource("ArrayMesh_cy6et")
-
 [node name="WheelVisual" type="Node3D" parent="Wheel_FL" unique_id=1697940092]
 
 [node name="Mitsubishi_Wheel_Ft_L" type="MeshInstance3D" parent="Wheel_FL/WheelVisual" unique_id=2095702640]
 mesh = SubResource("ArrayMesh_sjde7")
+
+[node name="Plane_001" type="MeshInstance3D" parent="Wheel_FL/WheelVisual" unique_id=1164566766]
+transform = Transform3D(-1.4517414e-06, 0.21454948, -0.00059725414, 0.20585954, -0.00016687294, -0.060445543, -0.06044577, -0.00057347014, -0.20585874, 0.0695833, 0, 0)
+material_override = SubResource("StandardMaterial3D_cavtd")
+mesh = SubResource("ArrayMesh_cy6et")
 
 [node name="Wheel_FR" type="RayCast3D" parent="." unique_id=544484868 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.99, 0.51, 1.905)
@@ -1032,16 +1032,16 @@ target_position = Vector3(0, -0.393, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="Plane_002" type="MeshInstance3D" parent="Wheel_FR" unique_id=628088670]
-transform = Transform3D(-8.233555e-06, -0.21454948, -0.00059777976, -0.20681366, 0.00016701726, -0.057095706, 0.05709595, 0.0005740328, -0.20681287, -0.0739609, 0, 0)
-material_override = SubResource("StandardMaterial3D_6rw0i")
-mesh = SubResource("ArrayMesh_vwgei")
-
 [node name="WheelVisual" type="Node3D" parent="Wheel_FR" unique_id=304763899]
 
 [node name="Mitsubishi_Wheel_Ft_R" type="MeshInstance3D" parent="Wheel_FR/WheelVisual" unique_id=1316042388]
 material_override = SubResource("StandardMaterial3D_ppamr")
 mesh = SubResource("ArrayMesh_f2jas")
+
+[node name="Plane_002" type="MeshInstance3D" parent="Wheel_FR/WheelVisual" unique_id=628088670]
+transform = Transform3D(-8.233555e-06, -0.21454948, -0.00059777976, -0.20681366, 0.00016701726, -0.057095706, 0.05709595, 0.0005740328, -0.20681287, -0.0739609, 0, 0)
+material_override = SubResource("StandardMaterial3D_6rw0i")
+mesh = SubResource("ArrayMesh_vwgei")
 
 [node name="Wheel_RL" type="RayCast3D" parent="." unique_id=1610642693 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99, 0.519, -1.5)
@@ -1049,15 +1049,15 @@ target_position = Vector3(0, -0.393, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="Plane" type="MeshInstance3D" parent="Wheel_RL" unique_id=1071512913]
-transform = Transform3D(1.6454482e-06, 0.23662932, 6.1111655e-07, -0.22902979, 1.4389323e-06, 0.059487768, 0.059487768, -1.0051397e-06, 0.22902979, 0.0695833, 0, 0)
-material_override = SubResource("StandardMaterial3D_nipno")
-mesh = SubResource("ArrayMesh_ykpwh")
-
 [node name="WheelVisual" type="Node3D" parent="Wheel_RL" unique_id=1797851955]
 
 [node name="Mitsubishi_Wheel_Bk_L" type="MeshInstance3D" parent="Wheel_RL/WheelVisual" unique_id=2115445160]
 mesh = SubResource("ArrayMesh_ngg65")
+
+[node name="Plane" type="MeshInstance3D" parent="Wheel_RL/WheelVisual" unique_id=1071512913]
+transform = Transform3D(1.6454482e-06, 0.23662932, 6.1111655e-07, -0.22902979, 1.4389323e-06, 0.059487768, 0.059487768, -1.0051397e-06, 0.22902979, 0.0695833, 0, 0)
+material_override = SubResource("StandardMaterial3D_nipno")
+mesh = SubResource("ArrayMesh_ykpwh")
 
 [node name="Wheel_RR" type="RayCast3D" parent="." unique_id=1795045355 node_paths=PackedStringArray("wheel_node")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.99, 0.519, -1.5)
@@ -1065,16 +1065,16 @@ target_position = Vector3(0, -0.393, 0)
 script = ExtResource("3_wheel")
 wheel_node = NodePath("WheelVisual")
 
-[node name="Plane_004" type="MeshInstance3D" parent="Wheel_RR" unique_id=2074492987]
-transform = Transform3D(-1.5894495e-06, -0.23662932, 4.4737038e-07, 0.2270442, -1.3990494e-06, 0.06666616, -0.06666616, 8.7705473e-07, 0.22704418, -0.0739609, 0, 0)
-material_override = SubResource("StandardMaterial3D_g12nq")
-mesh = SubResource("ArrayMesh_268vy")
-
 [node name="WheelVisual" type="Node3D" parent="Wheel_RR" unique_id=1241146367]
 
 [node name="Mitsubishi_Wheel_Bk_R" type="MeshInstance3D" parent="Wheel_RR/WheelVisual" unique_id=623353516]
 material_override = SubResource("StandardMaterial3D_53hjw")
 mesh = SubResource("ArrayMesh_iviy6")
+
+[node name="Plane_004" type="MeshInstance3D" parent="Wheel_RR/WheelVisual" unique_id=2074492987]
+transform = Transform3D(-1.5894495e-06, -0.23662932, 4.4737038e-07, 0.2270442, -1.3990494e-06, 0.06666616, -0.06666616, 8.7705473e-07, 0.22704418, -0.0739609, 0, 0)
+material_override = SubResource("StandardMaterial3D_g12nq")
+mesh = SubResource("ArrayMesh_268vy")
 
 [node name="GravelParticles" type="GPUParticles3D" parent="." unique_id=1966451970]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -1.6)
