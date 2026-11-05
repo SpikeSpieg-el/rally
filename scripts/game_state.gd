@@ -120,9 +120,9 @@ func _restore_saved_selection() -> void:
 			0, maxi(0, setup_count() - 1)
 		)
 		var selected_custom := String(_conditions.get_value("selection", "setup_custom_id", ""))
-		var custom_position := _custom_ids().find(selected_custom)
+		var custom_position := _custom_ids(vehicle_id).find(selected_custom)
 		if not selected_custom.is_empty() and custom_position >= 0:
-			setup_index = config.setup_count() + custom_position
+			setup_index = config.setup_count(vehicle_id) + custom_position
 		weather_index = clampi(
 			int(_conditions.get_value("selection", "weather_index", weather_index)),
 			0, maxi(0, weather_count() - 1)
@@ -141,8 +141,8 @@ func _save_selection() -> void:
 	_conditions.set_value("selection", "track_index", track_index)
 	_conditions.set_value("selection", "vehicle_id", vehicle_id)
 	_conditions.set_value("selection", "setup_index", setup_index)
-	var custom_position := setup_index - config.setup_count() if config != null else -1
-	var ids := _custom_ids()
+	var custom_position := setup_index - config.setup_count(vehicle_id) if config != null else -1
+	var ids := _custom_ids(vehicle_id)
 	_conditions.set_value("selection", "setup_custom_id", String(ids[custom_position]) if custom_position >= 0 and custom_position < ids.size() else "")
 	_conditions.set_value("selection", "weather_index", weather_index)
 	_conditions.set_value("selection", "profile_index", profile_index)
@@ -290,20 +290,22 @@ func get_track(index: int) -> Resource:
 	return config.get_track(index) if config != null else null
 
 
-func get_setup(index: int) -> Resource:
-	if config == null or index < 0 or index >= setup_count():
+func get_setup(index: int, vehicle_id: String = "") -> Resource:
+	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+	if config == null or index < 0 or index >= setup_count(vehicle):
 		return null
-	if index < config.setup_count():
-		return config.get_setup(index)
-	var ids: Array = _custom_ids()
-	var section := "custom_garage_" + String(ids[index - config.setup_count()])
-	var base := _find_base(String(_conditions.get_value(section, "base_id", "")))
+	if index < base_setup_count(vehicle):
+		return config.get_setup(index, vehicle)
+	var ids: Array = _custom_ids(vehicle)
+	var offset := index - base_setup_count(vehicle)
+	var section := "custom_garage_" + String(ids[offset])
+	var base := _find_base(String(_conditions.get_value(section, "base_id", "")), vehicle)
 	if base == null:
 		return null
 	var result := base.duplicate(true) as CarSetupType
 	CarCustomization.read_setup(_conditions, section, result, base)
 	result.display_name = String(_conditions.get_value(section, "name", base.display_name + " · СВОЙ"))
-	result.id = "custom_" + String(ids[index - config.setup_count()])
+	result.id = "custom_" + String(ids[offset])
 	return result
 
 
@@ -319,8 +321,17 @@ func track_count() -> int:
 	return config.track_count() if config != null else 0
 
 
-func setup_count() -> int:
-	return config.setup_count() + _custom_ids().size() if config != null else 0
+## Число готовых пресетов выбранной машины.
+func base_setup_count(vehicle_id: String = "mitsubishi") -> int:
+	return config.setup_count(vehicle_id) if config != null else 0
+
+
+## Все пункты списка для машины: готовые пресеты плюс её собственные записи.
+func setup_count(vehicle_id: String = "") -> int:
+	if config == null:
+		return 0
+	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+	return config.setup_count(vehicle) + _custom_ids(vehicle).size()
 
 
 func weather_count() -> int:
@@ -340,6 +351,10 @@ func select_track(index: int) -> void:
 
 func select_vehicle(id: String) -> void:
 	vehicle_id = id if id in ["mitsubishi", "subaru"] else "mitsubishi"
+	# Списки пресетов у машин разные: старый индекс мог оказаться за границей
+	# списка новой машины, поэтому выбираем ближайший допустимый пункт.
+	setup_index = clampi(setup_index, 0, maxi(0, setup_count() - 1))
+	current_setup = get_custom_setup(setup_index)
 	_save_selection()
 	selection_changed.emit()
 
@@ -362,14 +377,16 @@ func get_custom_setup(index: int) -> CarSetupType:
 	return selected.duplicate(true) as CarSetupType if selected != null else null
 
 
-func _custom_ids() -> Array:
-	var ids: Variant = _conditions.get_value("custom_garage", "ids", [])
+## Свои пресеты хранятся отдельно для каждой машины: правка Subaru не должна
+## подменять настройки Lancer (и наоборот). Старые записи — «mitsubishi».
+func _custom_ids(vehicle_id: String = "mitsubishi") -> Array:
+	var ids: Variant = _conditions.get_value("custom_garage", _ids_key(vehicle_id), [])
 	return ids if ids is Array else []
 
 
-func _find_base(id: String) -> CarSetupType:
+func _find_base(id: String, vehicle_id: String = "mitsubishi") -> CarSetupType:
 	if config != null:
-		for resource in config.car_setups:
+		for resource in config.setups_for(vehicle_id):
 			var base := resource as CarSetupType
 			if base != null and base.id == id:
 				return base
@@ -379,10 +396,16 @@ func _find_base(id: String) -> CarSetupType:
 func get_setup_base(index: int) -> CarSetupType:
 	if config == null or index < 0 or index >= setup_count():
 		return null
-	if index < config.setup_count():
-		return config.get_setup(index) as CarSetupType
-	var ids := _custom_ids()
-	return _find_base(String(_conditions.get_value("custom_garage_" + String(ids[index - config.setup_count()]), "base_id", "")))
+	if index < config.setup_count(vehicle_id):
+		return config.get_setup(index, vehicle_id) as CarSetupType
+	var ids := _custom_ids(vehicle_id)
+	var offset := index - config.setup_count(vehicle_id)
+	return _find_base(String(_conditions.get_value("custom_garage_" + String(ids[offset]), "base_id", "")), vehicle_id)
+
+
+## Ключ списка пользовательских пресетов: у каждой машины свой.
+func _ids_key(vehicle_id: String) -> String:
+	return "ids" if vehicle_id == "mitsubishi" else vehicle_id + "_ids"
 
 
 func _copy_conditions() -> ConfigFile:
@@ -400,7 +423,9 @@ func save_user_setup(source_index: int, setup: CarSetupType, name_text: String, 
 	if base == null or setup == null or clean_name.is_empty():
 		return -1
 	var staged := _copy_conditions()
-	var ids: Array = _custom_ids().duplicate()
+	var vehicle := vehicle_id
+	var ids: Array = _custom_ids(vehicle).duplicate()
+	var base_count := config.setup_count(vehicle)
 	var index := source_index
 	var id: String
 	if create_new:
@@ -411,12 +436,12 @@ func save_user_setup(source_index: int, setup: CarSetupType, name_text: String, 
 			id = str(serial)
 		staged.set_value("custom_garage", "next_id", serial + 1)
 		ids.append(id)
-		staged.set_value("custom_garage", "ids", ids)
-		index = config.setup_count() + ids.size() - 1
+		staged.set_value("custom_garage", _ids_key(vehicle), ids)
+		index = base_count + ids.size() - 1
 	else:
-		if source_index < config.setup_count():
+		if source_index < base_count:
 			return -1
-		id = String(ids[source_index - config.setup_count()])
+		id = String(ids[source_index - base_count])
 	var section := "custom_garage_" + id
 	staged.set_value(section, "base_id", base.id)
 	staged.set_value(section, "name", clean_name)
@@ -436,7 +461,7 @@ func _migrate_legacy_garage() -> void:
 	if config == null or bool(_conditions.get_value("custom_garage", "legacy_migrated", false)):
 		return
 	var staged := _copy_conditions()
-	var ids: Array = _custom_ids().duplicate()
+	var ids: Array = _custom_ids("mitsubishi").duplicate()
 	var serial := int(staged.get_value("custom_garage", "next_id", 1))
 	var old_selection := int(staged.get_value("selection", "setup_index", -1))
 	for i in range(config.setup_count()):

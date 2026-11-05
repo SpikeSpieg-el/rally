@@ -15,6 +15,9 @@ extends Resource
 @export var tracks: Array[Resource] = []
 ## Массив ресурсов RallyCarSetup (файлы из res://data/setups/).
 @export var car_setups: Array[Resource] = []
+## Пресеты второй машины — Subaru Impreza (res://data/setups/subaru/*.tres).
+## Списки не смешиваются: у Lancer свои настройки, у Impreza свои.
+@export var subaru_setups: Array[Resource] = []
 ## Массив ресурсов RallyWeatherConfig (файлы из res://data/weather/).
 @export var weather_presets: Array[Resource] = []
 ## Массив ресурсов RallyTrackProfile (файлы из res://data/profiles/).
@@ -36,8 +39,20 @@ func track_count() -> int:
 	return tracks.size()
 
 
-func setup_count() -> int:
-	return car_setups.size()
+## Список пресетов выбранной машины. По умолчанию — Mitsubishi, поэтому
+## все прежние вызовы без аргумента видят тот же список из десяти пунктов.
+func setups_for(vehicle_id: String = "mitsubishi") -> Array:
+	if vehicle_id == "subaru" and not subaru_setups.is_empty():
+		return subaru_setups
+	return car_setups
+
+
+func has_vehicle(vehicle_id: String) -> bool:
+	return vehicle_id == "mitsubishi" or (vehicle_id == "subaru" and not subaru_setups.is_empty())
+
+
+func setup_count(vehicle_id: String = "mitsubishi") -> int:
+	return setups_for(vehicle_id).size()
 
 
 func get_track(index: int) -> Resource:
@@ -46,10 +61,11 @@ func get_track(index: int) -> Resource:
 	return tracks[clampi(index, 0, tracks.size() - 1)]
 
 
-func get_setup(index: int) -> Resource:
-	if car_setups.is_empty():
+func get_setup(index: int, vehicle_id: String = "mitsubishi") -> Resource:
+	var list := setups_for(vehicle_id)
+	if list.is_empty():
 		return null
-	return car_setups[clampi(index, 0, car_setups.size() - 1)]
+	return list[clampi(index, 0, list.size() - 1)]
 
 
 func weather_count() -> int:

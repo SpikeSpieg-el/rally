@@ -141,6 +141,7 @@ func _ready() -> void:
 	_connect_signals()
 	_connect_focus_navigation()
 	_refresh()
+	_connect_selection_changes()
 	_setup_controller()
 	if start_button != null:
 		start_button.grab_focus()
@@ -148,6 +149,16 @@ func _ready() -> void:
 
 func _get_game() -> Node:
 	return get_node_or_null("/root/RallyGame")
+
+
+## Какая машина выбрана в гараже. От неё зависит список пресетов в меню:
+## у Impreza свои настройки, у Lancer свои.
+func _vehicle_id() -> String:
+	var game := _get_game()
+	if game == null:
+		return "mitsubishi"
+	var id := String(game.get("vehicle_id")) if game.get("vehicle_id") != null else "mitsubishi"
+	return id if config != null and config.has_vehicle(id) else "mitsubishi"
 
 
 func _resolve_config() -> void:
@@ -175,7 +186,7 @@ func _restore_selection() -> void:
 	selected_profile = clampi(config.default_profile_index, 0, maxi(0, config.profile_count() - 1))
 	if game != null:
 		selected_track = clampi(int(game.get("track_index")), 0, maxi(0, config.track_count() - 1))
-		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, int(game.call("setup_count")) - 1))
+		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, int(game.call("setup_count", _vehicle_id())) - 1))
 		selected_weather = clampi(int(game.get("weather_index")), 0, maxi(0, config.weather_count() - 1))
 		selected_profile = clampi(int(game.get("profile_index")), 0, maxi(0, config.profile_count() - 1))
 
@@ -205,8 +216,9 @@ func _build_buttons() -> void:
 		for child in setup_list.get_children():
 			child.queue_free()
 		setup_buttons.clear()
-		for i in range(config.setup_count()):
-			var setup: CarSetupType = config.get_setup(i) as CarSetupType
+		var vehicle := _vehicle_id()
+		for i in range(config.setup_count(vehicle)):
+			var setup: CarSetupType = config.get_setup(i, vehicle) as CarSetupType
 			if setup == null:
 				continue
 			var t := theme_cfg()
@@ -448,6 +460,26 @@ func _on_setup_focused(index: int) -> void:
 	_refresh()
 
 
+## Гараж может сменить машину или добавить свой пресет: список в меню
+## обязан обновиться, иначе в меню Subaru висели бы пресеты Lancer.
+func _connect_selection_changes() -> void:
+	var game := _get_game()
+	if game == null or not game.has_signal("selection_changed"):
+		return
+	if not game.is_connected("selection_changed", _on_selection_changed):
+		game.connect("selection_changed", _on_selection_changed)
+
+
+func _on_selection_changed() -> void:
+	if _transitioning:
+		return
+	var count: int = config.setup_count(_vehicle_id()) if config != null else 0
+	selected_setup = clampi(selected_setup, 0, maxi(0, count - 1))
+	_build_buttons()
+	_connect_focus_navigation()
+	_refresh()
+
+
 func _setup_controller() -> void:
 	controller_manager = get_node_or_null("/root/ControllerManager")
 	if controller_manager != null and controller_manager.has_signal("active_device_changed"):
@@ -499,7 +531,7 @@ func _refresh() -> void:
 		profile_buttons[i].modulate = t.condition_selected_color if i == selected_profile else t.condition_idle_color
 
 	var track: TrackConfigType = config.get_track(selected_track) as TrackConfigType
-	var setup: CarSetupType = config.get_setup(selected_setup) as CarSetupType
+	var setup: CarSetupType = config.get_setup(selected_setup, _vehicle_id()) as CarSetupType
 	var garage_game := _get_game()
 	if garage_game != null and garage_game.has_method("get_custom_setup"):
 		setup = garage_game.call("get_custom_setup", selected_setup) as CarSetupType

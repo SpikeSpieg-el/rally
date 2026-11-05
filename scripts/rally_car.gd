@@ -137,6 +137,9 @@ var smoothed_mouse_yaw: float = 0.0
 var smoothed_mouse_pitch: float = 0.0
 var mouse_idle_timer: float = 10.0
 
+## Какая машина собрана в этой сцене: "mitsubishi" или "subaru". Нужна звуку,
+## приборке и отладке — сцена машины одна, а моторов и салонов два.
+var vehicle_id: String = "mitsubishi"
 var active_setup: CarSetupType = null
 var track_grip_scale: float = 1.0
 var track_rolling_scale: float = 1.0
@@ -165,6 +168,7 @@ var fall_limit_provider: Callable = Callable()
 func _ready() -> void:
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null and game.has_method("get_race_vehicle_id") and game.call("get_race_vehicle_id") == "subaru":
+		vehicle_id = "subaru"
 		CarModels.install_subaru(self)
 	if spawn_transform == Transform3D.IDENTITY:
 		spawn_transform = global_transform

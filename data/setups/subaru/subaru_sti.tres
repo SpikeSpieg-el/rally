@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://1bk0urqf1x3fn"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_sti_stock"
+display_name = "EJ25 · IMPREZA STI"
+description = "Заводская Impreza WRX STI: оппозитный EJ25, 407 Нм и полка момента с 3000 об/мин. Длинный ряд, тяжёлый нос и очень цепкий полный привод — машина едет «в накат», а не в взрыв."
+body_color = Color(0.1, 0.26, 0.72, 1)
+accent_color = Color(1.0, 0.82, 0.12, 1)
+engine_name = "EJ25 · 2.5 TURBO BOXER"
+max_torque = 407.0
+max_rpm = 6800.0
+idle_rpm = 800.0
+torque_shape = 1
+engine_brake_scale = 1.15
+turbo = true
+final_drive = 3.90
+gear_ratios = Array[float]([3.17, 2.06, 1.48, 1.14, 0.92, 0.76])
+traction_control_max_slip = 0.60
+drivetrain = 0
+awd_front_torque = 0.42
+vehicle_mass = 1505.0
+front_weight_distribution = 0.58
+center_of_gravity_height_offset = -0.12
+front_spring_length = 0.320
+rear_spring_length = 0.340
+front_resting_ratio = 0.54
+rear_resting_ratio = 0.54
+front_damping_ratio = 0.52
+rear_damping_ratio = 0.58
+front_arb_ratio = 0.16
+rear_arb_ratio = 0.12
+bump_damp_multiplier = 0.78
+rebound_damp_multiplier = 1.38
+tire_radius = 0.442
+tire_width = 235.0
+grip_scale = 1.06
+tire_stiffness_scale = 1.06
+rolling_resistance_scale = 1.02
+max_steering_angle_deg = 34.0
+brake_force_multiplier = 1.05
+front_brake_bias = 0.64
+chase_distance = 5.9
+chase_height = 1.58

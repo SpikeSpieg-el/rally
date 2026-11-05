@@ -30,6 +30,18 @@ const RPM_GRID := [900, 970, 1050, 1130, 1220, 1320, 1430, 1540, 1670, 1800, 194
 	2270, 2450, 2640, 2850, 3080, 3330, 3600, 3880, 4190, 4530, 4890, 5280,
 	5710, 6160, 6660, 7190, 7600]
 
+## Второй мотор игры — оппозитный Subaru EJ25. У него своя отсечка (6800),
+## своя сетка оборотов и свой банк записанных лупов, поэтому машина звучит
+## по-своему, а не голосом Mitsubishi.
+const SUBARU_DIR := "res://audio/engine/subaru/"
+## Свои одиночные звуки боксера: сброс турбины, хлопки, переключение и
+## запуск записаны отдельно (ниже и глуше), поэтому Subaru не звучит
+## событиями Mitsubishi. Гравий и ветер общие — это шум дороги, а не мотора.
+const SUBARU_EVENTS_DIR := "res://audio/vehicle/subaru/"
+const SUBARU_RPM_GRID := [800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765,
+	1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910, 4235, 4585, 4965,
+	5375, 5820, 6300, 6800]
+
 ## Режимы нагрузки: «light» — холостые/сброс газа, «full» — полный газ.
 const BANKS := ["light", "full"]
 
@@ -74,6 +86,11 @@ class EngineBank:
 	var cooldown: float = 0.0
 
 
+## Идентификатор машины, чей мотор звучит. Пусто — берём выбранную в гараже
+## (или Mitsubishi при прямом запуске сцены).
+@export_enum("По выбору игрока", "Mitsubishi 4G63T", "Subaru EJ25")
+var engine_override: int = 0
+
 @export_group("Громкость")
 @export var enabled: bool = true
 ## Общая громкость звука машины, дБ. Запас до 0 dBFS оставлен под музыку:
@@ -110,6 +127,13 @@ var attenuation_model: int = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DIST
 
 var _banks: Array = []
 var _streams: Dictionary = {}
+## Активный банк мотора: сетка оборотов, папка с лупами и то, насколько
+## громче/тише он звучит относительно записанного лупа.
+var _rpm_grid: Array = RPM_GRID
+var _engine_dir: String = ENGINE_DIR
+var _events_dir: String = VEHICLE_DIR
+var _engine_trim_db: float = 0.0
+var _load_engine_key: String = ""
 var _road_stream: AudioStream = null
 var _wind_stream: AudioStream = null
 var _road_player: AudioStreamPlayer3D = null
@@ -140,6 +164,7 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless" or AudioServer.get_driver_name() == "Dummy":
 		return
 	_audio_ready = true
+	_apply_engine(_engine_id_from_context())
 	_load_streams()
 	_build_players()
 	if car != null:
@@ -164,29 +189,103 @@ func _exit_tree() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Какой мотор звучит
+# ---------------------------------------------------------------------------
+
+
+## Идентификатор мотора: "mitsubishi" (4G63T) или "subaru" (EJ25).
+## Приоритет: поле в инспекторе, затем выбранная в гараже машина, затем
+## RallyGame. При прямом запуске сцены (F6) звучит мотор сцены.
+func _engine_id_from_context() -> String:
+	match engine_override:
+		1:
+			return "mitsubishi"
+		2:
+			return "subaru"
+	# Звук — дочерний узел машины, поэтому его _ready() выполняется РАНЬШЕ
+	# _ready() самой машины: local-поле vehicle_id ещё не выставлено. Сначала
+	# спрашиваем RallyGame, иначе Subaru один кадр звучал бы мотором Lancer.
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("get_race_vehicle_id"):
+		var race_id := String(game.call("get_race_vehicle_id"))
+		if race_id == "subaru":
+			return "subaru"
+	if car != null and "vehicle_id" in car:
+		return String(car.get("vehicle_id"))
+	return "mitsubishi"
+
+
+## Переключает банк лупов и папку ассетов под выбранный мотор.
+func _apply_engine(engine_id: String) -> void:
+	_load_engine_key = engine_id
+	if engine_id == "subaru":
+		_rpm_grid = SUBARU_RPM_GRID
+		_engine_dir = SUBARU_DIR
+		# Без своего банка одиночных звуков машина молчала бы на сбросе газа.
+		_events_dir = SUBARU_EVENTS_DIR if ResourceLoader.exists(
+			SUBARU_EVENTS_DIR + "start.wav") else VEHICLE_DIR
+		# Оппозит записан плотнее в низах: чуть приглушаем, чтобы смена
+		# машины не была сменой громкости, а оставалась сменой характера.
+		_engine_trim_db = -1.5
+	else:
+		_rpm_grid = RPM_GRID
+		_engine_dir = ENGINE_DIR
+		_events_dir = VEHICLE_DIR
+		_engine_trim_db = 0.0
+
+
+## Мотор сменился (например, игрок пересобрал сцену) — перезагружаем банк.
+func _refresh_engine_if_needed() -> void:
+	var wanted: String = _engine_id_from_context()
+	if wanted == _load_engine_key:
+		return
+	for bank in _banks:
+		for entry in bank.players:
+			var player := entry as AudioStreamPlayer3D
+			if player != null:
+				player.stop()
+				player.stream = null
+		bank.cur = 0
+		bank.prev = -1
+		bank.fade = 1.0
+		bank.index = [-1, -1]
+		bank.pitch = [1.0, 1.0]
+	_streams.clear()
+	_apply_engine(wanted)
+	_load_streams()
+
+
+## Глубина «утробного» звука событий: у боксера хлопки ниже.
+func _engine_event_pitch() -> float:
+	return 0.90 if _load_engine_key == "subaru" else 1.0
+
+
+# ---------------------------------------------------------------------------
 # Загрузка ресурсов
 # ---------------------------------------------------------------------------
 
 
 func _load_streams() -> void:
-	for rpm in RPM_GRID:
+	for rpm in _rpm_grid:
 		for bank_name in BANKS:
-			var path := "%sengine_%04d_%s.wav" % [ENGINE_DIR, int(rpm), str(bank_name)]
+			var path := "%sengine_%04d_%s.wav" % [_engine_dir, int(rpm), str(bank_name)]
 			var stream := _load_loop(path)
 			if stream != null:
 				_streams["%04d_%s" % [int(rpm), str(bank_name)]] = stream
 
 	_road_stream = _load_loop(VEHICLE_DIR + "gravel_road.wav")
 	_wind_stream = _load_loop(VEHICLE_DIR + "wind.wav")
+	_bov_streams.clear()
+	_pop_streams.clear()
 	for i in range(3):
-		var bov := _load_oneshot(VEHICLE_DIR + "bov_%02d.wav" % (i + 1))
+		var bov := _load_oneshot(_events_dir + "bov_%02d.wav" % (i + 1))
 		if bov != null:
 			_bov_streams.append(bov)
 	for i in range(6):
-		var pop := _load_oneshot(VEHICLE_DIR + "pop_%02d.wav" % (i + 1))
+		var pop := _load_oneshot(_events_dir + "pop_%02d.wav" % (i + 1))
 		if pop != null:
 			_pop_streams.append(pop)
-	_shift_stream = _load_oneshot(VEHICLE_DIR + "shift.wav")
+	_shift_stream = _load_oneshot(_events_dir + "shift.wav")
 
 
 func _load_loop(path: String) -> AudioStream:
@@ -284,6 +383,7 @@ func _process(delta: float) -> void:
 		_mute(true)
 		return
 	_mute(false)
+	_refresh_engine_if_needed()
 
 	# Пока звучит радио, машина чуть уступает ему место в середине микса.
 	# Переход плавный: никакого резкого провала при включении трека.
@@ -366,7 +466,7 @@ func _update_engine(rpm: float, delta: float) -> void:
 
 func _update_bank(bank: EngineBank, index: int, rpm: float, gain: float,
 		camera_db: float, delta: float) -> void:
-	var key := "%04d_%s" % [int(RPM_GRID[index]), bank.bank_name]
+	var key := "%04d_%s" % [int(_rpm_grid[index]), bank.bank_name]
 	var stream: AudioStream = _streams.get(key)
 	if stream == null:
 		return
@@ -380,7 +480,7 @@ func _update_bank(bank: EngineBank, index: int, rpm: float, gain: float,
 	if cur_index >= 0 and target_index != cur_index:
 		# Если текущий луп уже не вытягивает тон (резкий разгон), переключаемся
 		# сразу: точность тона важнее защиты от дрожания.
-		var error_now := absf(rpm / maxf(1.0, float(RPM_GRID[cur_index])) - 1.0)
+		var error_now := absf(rpm / maxf(1.0, float(_rpm_grid[cur_index])) - 1.0)
 		var urgent := error_now > PITCH_LIMIT
 		if not urgent and (bank.cooldown > 0.0
 				or not _worth_switch(cur_index, target_index, rpm)):
@@ -389,7 +489,7 @@ func _update_bank(bank: EngineBank, index: int, rpm: float, gain: float,
 	if int(bank.index[bank.cur]) != target_index:
 		_switch_loop(bank, target_index, rpm)
 
-	var volume := master_volume_db + engine_volume_db + camera_db
+	var volume := master_volume_db + engine_volume_db + _engine_trim_db + camera_db
 	var cur_player: AudioStreamPlayer3D = bank.players[bank.cur]
 	if bank.prev >= 0:
 		var fade: float = minf(1.0, bank.fade + delta / CROSSFADE_TIME)
@@ -425,7 +525,7 @@ func _update_bank(bank: EngineBank, index: int, rpm: float, gain: float,
 
 
 func _switch_loop(bank: EngineBank, index: int, rpm: float) -> void:
-	var key := "%04d_%s" % [int(RPM_GRID[index]), bank.bank_name]
+	var key := "%04d_%s" % [int(_rpm_grid[index]), bank.bank_name]
 	var stream: AudioStream = _streams.get(key)
 	if stream == null:
 		return
@@ -452,16 +552,16 @@ func _switch_loop(bank: EngineBank, index: int, rpm: float) -> void:
 
 
 func _grid_index(rpm: float) -> int:
-	var count := RPM_GRID.size()
+	var count := _rpm_grid.size()
 	if count == 0:
 		return 0
-	if rpm <= float(RPM_GRID[0]):
+	if rpm <= float(_rpm_grid[0]):
 		return 0
-	if rpm >= float(RPM_GRID[count - 1]):
+	if rpm >= float(_rpm_grid[count - 1]):
 		return count - 1
 	for i in range(count - 1):
-		var low := float(RPM_GRID[i])
-		var high := float(RPM_GRID[i + 1])
+		var low := float(_rpm_grid[i])
+		var high := float(_rpm_grid[i + 1])
 		if rpm < high:
 			# Берём ближайшую точку в геометрическом смысле: так питч-коррекция
 			# остаётся минимальной на всём диапазоне.
@@ -475,20 +575,20 @@ func _worth_switch(current: int, candidate: int, rpm: float) -> bool:
 	"""Стоит ли менять луп: кандидат должен быть заметно ближе к оборотам."""
 	if rpm <= 0.0:
 		return false
-	var current_error := absf(rpm - float(RPM_GRID[current])) / rpm
-	var candidate_error := absf(rpm - float(RPM_GRID[candidate])) / rpm
+	var current_error := absf(rpm - float(_rpm_grid[current])) / rpm
+	var candidate_error := absf(rpm - float(_rpm_grid[candidate])) / rpm
 	return candidate_error < current_error - SWITCH_MARGIN
 
 
 func _pitch_for(index: int, rpm: float) -> float:
-	var base := float(RPM_GRID[clampi(index, 0, RPM_GRID.size() - 1)])
+	var base := float(_rpm_grid[clampi(index, 0, _rpm_grid.size() - 1)])
 	if base <= 0.0:
 		return 1.0
 	# Моторы, которые крутятся выше верхнего сэмпла (атмо 9000 об/мин),
 	# продолжают «тянуться» вверх по питчу, а не упираются в потолок:
 	# иначе на последней тысяче оборотов звук стоит на месте.
-	var top := float(RPM_GRID[RPM_GRID.size() - 1])
-	if rpm > top and index == RPM_GRID.size() - 1:
+	var top := float(_rpm_grid[_rpm_grid.size() - 1])
+	if rpm > top and index == _rpm_grid.size() - 1:
 		return clampf(rpm / base, 1.0, 2.0)
 	var limit: float = PITCH_LIMIT if rpm <= top else 0.25
 	return clampf(rpm / base, 1.0 - limit, 1.0 + limit)
@@ -580,7 +680,8 @@ func _play_event(stream: AudioStream, volume: float, pitch_jitter: float = 0.0) 
 		player.stream = stream
 		player.volume_db = (master_volume_db + events_volume_db + _to_db(volume)
 			+ _music_duck * 0.25)
-		player.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+		# У боксера хлопки и сброс турбины звучат ниже: тембр глубже.
+		player.pitch_scale = _engine_event_pitch() * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 		player.play()
 		return
 	# Все слоты заняты — лучше пропустить звук, чем оборвать уже играющий:

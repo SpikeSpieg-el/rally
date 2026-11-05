@@ -254,6 +254,10 @@ func _select_vehicle(index: int) -> void:
 		return
 	if game != null and game.has_method("select_vehicle"):
 		game.call("select_vehicle", id)
+	# У каждой машины свой список пресетов: после смены машины список и выбор
+	# пересобираются, иначе в гараже Subaru остались бы настройки Lancer.
+	_rebuild_selector()
+	_select_setup(clampi(selected_index, 0, maxi(0, _setup_count() - 1)))
 	_refresh()
 
 
@@ -317,14 +321,22 @@ func _on_preview_input(event: InputEvent) -> void:
 		_preview_container.accept_event()
 
 
+## Число пунктов списка для текущей машины: у Subaru свой набор пресетов.
 func _setup_count() -> int:
-	return int(game.call("setup_count")) if game != null and game.has_method("setup_count") else config.setup_count()
+	if game != null and game.has_method("setup_count"):
+		return int(game.call("setup_count", _vehicle_id))
+	return config.setup_count(_vehicle_id)
+
+
+func _base_setup_count() -> int:
+	return config.setup_count(_vehicle_id)
 
 
 func _setup_at(index: int) -> SetupType:
 	if game != null and game.has_method("get_custom_setup"):
+		# Индекс идёт в той же нумерации, что и список выбранной машины.
 		return game.call("get_custom_setup", index) as SetupType
-	var original := config.get_setup(index) as SetupType
+	var original := config.get_setup(index, _vehicle_id) as SetupType
 	return original.duplicate(true) as SetupType if original != null else null
 
 
@@ -332,7 +344,7 @@ func _rebuild_selector() -> void:
 	_selector.clear()
 	for i in range(_setup_count()):
 		var preset := _setup_at(i)
-		var prefix := "СВОЙ · " if i >= config.setup_count() else "ГОТОВЫЙ · "
+		var prefix := "СВОЙ · " if i >= _base_setup_count() else "ГОТОВЫЙ · "
 		_selector.add_item(prefix + (preset.display_name if preset != null else "—"), i)
 
 
@@ -342,7 +354,7 @@ func _select_setup(index: int) -> void:
 	var had_changes := not _dirty.is_empty()
 	selected_index = index
 	_creating = false
-	_editing = index >= config.setup_count()
+	_editing = index >= _base_setup_count()
 	_dirty.clear()
 	setup = _setup_at(index)
 	if setup == null:
@@ -378,7 +390,8 @@ func _refresh() -> void:
 	_selector.select(selected_index)
 	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
 	if _vehicle_id == "subaru":
-		_description.text += "\nДля Subaru используются общие настройки физики; окраска, ливреи и цвет дисков доступны только для Mitsubishi."
+		_description.text += ("\nПресеты Impreza: свой мотор EJ25, свой ряд передач и своя"
+			+ " подвеска. Ливреи, окраска и цвет дисков остаются у Mitsubishi.")
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing
