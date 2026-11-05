@@ -755,6 +755,8 @@ func _build_world_async() -> void:
 		_spawn_route_markers()
 	if not streaming and s_spawn().edge_posts and track.spawn_edge_posts:
 		_spawn_edge_posts()
+	if not streaming:
+		await _spawn_guardrails(0.0, -1.0, null, has_progress)
 	if track.spawn_checkpoints:
 		_spawn_checkpoints()
 	if track.procedural_scenery and not streaming:
@@ -1829,6 +1831,7 @@ class SceneryBuffer:
 
 
 const SceneryPlacement = preload("res://scripts/data/rally_scenery_placement.gd")
+const GuardrailPlacement = preload("res://scripts/data/rally_guardrail_placement.gd")
 
 
 func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -2376,6 +2379,118 @@ func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_e
 			parent.add_child(sign_node)
 			last_sign = distance
 		distance += 12.0
+
+
+## Непрерывный отбойник снаружи крутых поворотов. Не зависит от плотности леса.
+func _spawn_guardrails(distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null, light: bool = false) -> void:
+	var cfg := s_spawn()
+	if not cfg.guardrails or generated == null or network == null:
+		return
+	var prop: RallyProp = s_props().by_id(cfg.guardrail_prop_id)
+	if prop == null or prop.scene == null:
+		return
+	var mesh: Mesh = _bake_prop_mesh(prop)
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	var destination: Node3D = generated if chunk_parent == null else chunk_parent
+	var streamed: bool = chunk_parent != null and light
+	var stream_clock = chunk_parent.get_parent()._clock if streamed else null
+	var container := Node3D.new()
+	container.name = "Guardrails"
+	destination.add_child(container)
+	var body := StaticBody3D.new()
+	body.name = "Collision"
+	body.collision_layer = 0 # Не оставляем невидимый барьер, пока собирается MultiMesh.
+	if cfg.guardrail_collisions:
+		container.add_child(body)
+	else:
+		body.free()
+	var transforms: Array[Transform3D] = []
+	var ids := PackedInt32Array()
+	var origin := Vector3.ZERO
+	var step: float = maxf(0.5, cfg.guardrail_step)
+	var end: float = network.total_length - cfg.guardrail_end_margin
+	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
+	for id in GuardrailPlacement.segment_ids(network.total_length, step, cfg.guardrail_end_margin, distance_start, distance_end):
+		if light and Time.get_ticks_usec() >= slice_deadline:
+			if streamed:
+				await stream_clock.tick
+			else:
+				await get_tree().process_frame
+			if not is_instance_valid(container) or not container.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
+		var start: float = float(id) * step
+		var finish: float = minf(start + step, end)
+		var middle: float = (start + finish) * 0.5
+		var outer: float = GuardrailPlacement.outer_side(network, middle, cfg.guardrail_lookahead, cfg.guardrail_turn_threshold_deg)
+		if is_zero_approx(outer):
+			continue
+		var a: Vector3 = GuardrailPlacement.offset_point(network, track, start, outer, cfg.guardrail_offset)
+		var b: Vector3 = GuardrailPlacement.offset_point(network, track, finish, outer, cfg.guardrail_offset)
+		if not _guardrail_span_is_clear(a, b, cfg.guardrail_road_clearance):
+			continue
+		a.y = ground_height(a.x, a.z)
+		b.y = ground_height(b.x, b.z)
+		if Vector2(b.x - a.x, b.z - a.z).length_squared() < 0.01:
+			continue
+		if transforms.is_empty():
+			origin = (a + b) * 0.5
+			container.position = origin
+		var placement: Transform3D = GuardrailPlacement.span_transform(a, b)
+		placement.origin -= origin
+		transforms.append(placement)
+		ids.append(id)
+		if cfg.guardrail_collisions:
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(a.distance_to(b) + 0.04, 1.1, 0.28)
+			var collision := CollisionShape3D.new()
+			collision.name = "Section_%06d" % id
+			collision.shape = shape
+			var collision_xform: Transform3D = GuardrailPlacement.collision_transform(a, b)
+			collision_xform.origin -= origin
+			collision.transform = collision_xform
+			body.add_child(collision)
+	if transforms.is_empty():
+		container.free()
+		return
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+		if light and i % 32 == 31 and Time.get_ticks_usec() >= slice_deadline:
+			if streamed:
+				await stream_clock.tick
+			else:
+				await get_tree().process_frame
+			if not is_instance_valid(container) or not container.is_inside_tree():
+				return
+			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
+	var visual := MultiMeshInstance3D.new()
+	visual.name = "Sections"
+	visual.multimesh = multimesh
+	visual.visibility_range_end = cfg.guardrail_visibility_range
+	visual.visibility_range_end_margin = 30.0
+	container.add_child(visual)
+	if cfg.guardrail_collisions:
+		body.collision_layer = 1
+	container.set_meta("segment_ids", ids)
+
+
+## Проверяем весь хордовидный пролёт, а не только стойки: соседний виток
+## шпильки и короткая дорога под углом не должны пересекать отбойник.
+func _guardrail_span_is_clear(a: Vector3, b: Vector3, clearance: float) -> bool:
+	for i in range(5):
+		var point: Vector3 = a.lerp(b, float(i) * 0.25)
+		if not terrain_rect.has_point(Vector2(point.x, point.z)):
+			return false
+		var nearest: float = network.along_road(point.x, point.z)
+		var minimum: float = track.half_width_at(nearest) + track.road_shoulder + clearance
+		if network.distance_to_road(point.x, point.z) < minimum:
+			return false
+	return true
 
 
 func _turn_ahead(distance: float, lookahead: float) -> float:

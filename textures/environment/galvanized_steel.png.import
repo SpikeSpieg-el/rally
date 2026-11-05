@@ -1,0 +1,18 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+path="res://.godot/imported/galvanized_steel.png-d0582b315a96022c5db7fedc7f400740.ctex"
+metadata={"vram_texture": false}
+
+[deps]
+
+source_file="res://textures/environment/galvanized_steel.png"
+dest_files=["res://.godot/imported/galvanized_steel.png-d0582b315a96022c5db7fedc7f400740.ctex"]
+
+[params]
+
+compress/mode=0
+mipmaps/generate=true
+mipmaps/limit=-1
+detect_3d/compress_to=0

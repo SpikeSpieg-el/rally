@@ -100,6 +100,13 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 		await _run_job()
 		stage._report_progress(lerpf(0.15, 0.8, 1.0 - float(_pending.size()) / float(maxi(1, total))), "Ближайшие повороты и рельеф…")
 		await _clock.tick
+	if stage.s_spawn().guardrails:
+		var guardrail = stage.s_props().by_id(stage.s_spawn().guardrail_prop_id)
+		if guardrail != null:
+			stage._bake_prop_mesh(guardrail)
+			await _clock.tick
+			if _stopping:
+				return
 	# Baking prop scenes reads meshes and creates materials. Do it while the
 	# loading screen is visible, not the first time a new tree appears in game.
 	if stage.track.procedural_scenery and stage.has_method("_bake_prop_mesh"):
@@ -124,7 +131,7 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 				return
 	# У «Живой ленты» стартовые объекты должны существовать до снятия
 	# загрузочного экрана, а не появляться после ближайшей геометрии.
-	if stage.track.procedural and (stage.track.procedural_scenery or stage.track.spawn_edge_posts):
+	if stage.track.procedural and (stage.track.procedural_scenery or stage.track.spawn_edge_posts or stage.s_spawn().guardrails):
 		var start_along: float = stage.network.along_road(start.x, start.z)
 		var first: int = maxi(0, floori(start_along / ROAD_LENGTH) - 1)
 		var last: int = mini(count - 1, floori((start_along + 512.0) / ROAD_LENGTH))
@@ -338,6 +345,10 @@ func _run_job() -> void:
 		if stage.track.spawn_edge_posts and stage.s_spawn().edge_posts:
 			stage._spawn_edge_posts(float(id) * ROAD_LENGTH, float(id + 1) * ROAD_LENGTH, root)
 			await _clock.tick
+			if _stopping or not is_instance_valid(root):
+				return
+		if stage.s_spawn().guardrails:
+			await stage._spawn_guardrails(float(id) * ROAD_LENGTH, float(id + 1) * ROAD_LENGTH, root, true)
 			if _stopping or not is_instance_valid(root):
 				return
 		if stage.track.procedural_scenery:

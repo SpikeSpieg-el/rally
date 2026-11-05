@@ -28,6 +28,8 @@
 [ext_resource type="PackedScene" path="res://scenes/props/mushroom_cluster.tscn" id="scene_mushroom_cluster"]
 [ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="scene_wildflowers"]
 
+[ext_resource type="PackedScene" path="res://scenes/props/metal_guardrail.tscn" id="scene_metal_guardrail"]
+
 [sub_resource type="Resource" id="RallyProp_fir_tree"]
 script = ExtResource("2_prop")
 id = "fir_tree"
@@ -376,6 +378,18 @@ small = true
 ground_cover = true
 cover_weight = 0.22
 
+[sub_resource type="Resource" id="RallyProp_metal_guardrail"]
+script = ExtResource("2_prop")
+id = "metal_guardrail"
+display_name = "Металлический отбойник · секция 3 м"
+scene = ExtResource("scene_metal_guardrail")
+weight = 0.0
+size = Vector2(1, 1)
+random_yaw = false
+category = 4
+placement_radius = 1.5
+align_to_road = true
+
 [resource]
 script = ExtResource("1_lib")
-props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers")])
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers"), SubResource("RallyProp_metal_guardrail")])
