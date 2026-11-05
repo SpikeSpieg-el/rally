@@ -151,6 +151,7 @@ var _edge_cap_mesh: Mesh = null
 ## Условия уже наложены на копию трассы: повторный _resolve_track не должен
 ## умножать сцепление и кочки второй раз.
 var _track_prepared := false
+var _marathon_transitioning := false
 var _hud_ready := false
 ## Мир этапа готов, физика/HUD можно тикать (await в _ready разбил старт на кадры).
 var _stage_live := false
@@ -196,6 +197,8 @@ var best_label: Label = null
 var speed_label: Label = null
 var gear_label: Label = null
 var drivetrain_label: Label = null
+var setup_label: Label = null
+var engine_label: Label = null
 var rpm_bar: ProgressBar = null
 var rpm_caption: Label = null
 var telemetry_label: Label = null
@@ -338,7 +341,7 @@ func apply_ps1_setting(enabled: bool) -> void:
 			screen.configure_for_track(track)
 	if speed_fx_material != null:
 		Ps1Materials.configure_post_effect(
-			speed_fx_material, enabled and track != null and bool(track.get("ps1_style")),
+			speed_fx_material, enabled and track != null and track.ps1_style,
 			s_settings().retro_style_strength, float(s_settings().retro_resolution_height),
 			s_settings().color_bits_for(track), s_settings().dither_for(track)
 		)
@@ -536,19 +539,21 @@ func _resolve_track() -> void:
 		var loaded_config: Resource = ResourceLoader.load("res://data/rally_game_config.tres")
 		if loaded_config is GameConfigType:
 			game_config = loaded_config
-	if track_override != null:
-		track = track_override
-	elif game != null:
-		var current: Variant = game.get("current_track")
-		if current is TrackConfigType:
-			track = current
-	if track == null and game_config != null and game_config.get_script() != null:
-		var first: Variant = game_config.call("get_track", 0)
-		if first is TrackConfigType:
-			track = first
-	if track == null:
-		track = TrackConfigType.new()
-	if not Engine.is_editor_hint() and not _track_prepared:
+	if Engine.is_editor_hint() or not _track_prepared:
+		if track_override != null:
+			track = track_override
+		elif game != null:
+			var current: Variant = game.get("current_track")
+			if current is TrackConfigType:
+				track = current
+		if track == null and game_config != null and game_config.get_script() != null:
+			var first: Variant = game_config.call("get_track", 0)
+			if first is TrackConfigType:
+				track = first
+		if track == null:
+			track = TrackConfigType.new()
+	var preparing: bool = not Engine.is_editor_hint() and not _track_prepared
+	if preparing:
 		# Погода и характер трассы применяются к КОПИИ конфига: исходный
 		# .tres в репозитории остаётся нетронутым, а сцепление/ширина/кочки
 		# не «накапливаются» от заезда к заезду.
@@ -556,7 +561,10 @@ func _resolve_track() -> void:
 		_resolve_conditions(game)
 		_apply_conditions_to_track()
 		_track_prepared = true
-	if not Engine.is_editor_hint() and track.procedural and track.reroll_seed_each_visit:
+	var marathon_running: bool = game != null and game.has_method("marathon_active") and bool(game.call("marathon_active"))
+	if preparing and track.procedural and marathon_running:
+		track.generation_seed = int(game.call("marathon_seed"))
+	if preparing and track.procedural and track.reroll_seed_each_visit and not marathon_running:
 		# «Каждый заезд — новая трасса»: новый сид ещё до построения кривой.
 		# Сид сразу сохраняется, поэтому трассу можно вернуть по номеру,
 		# а рекорды честно считаются по фактическому сиду.
@@ -566,6 +574,9 @@ func _resolve_track() -> void:
 			var reroll := RandomNumberGenerator.new()
 			reroll.seed = hash("reroll_%d_%d" % [Time.get_ticks_msec(), Time.get_unix_time_from_system()])
 			track.generation_seed = reroll.randi_range(1, 999999999)
+	if preparing and track.procedural:
+		# Тот же сид определяет рельеф, обстановку и характер неровностей.
+		track.terrain_seed = track.generation_seed
 	if car_setup_override != null:
 		setup = car_setup_override
 	elif game != null:
@@ -998,9 +1009,17 @@ func _surface_bumps_along(along: float) -> float:
 		elif section.surface_name == "Снег":
 			micro_scale = 0.4
 	var length: float = network.total_length if network != null else INF
+	var texture_scale := 1.0
+	var wavelength: float = track.bumps_wavelength
+	if track.procedural:
+		var block := floori(along / 550.0)
+		var blend := smoothstep(0.0, 1.0, fposmod(along, 550.0) / 550.0)
+		texture_scale = lerpf(0.6 + RoadProfile.roll(block, track.generation_seed, 42),
+			0.6 + RoadProfile.roll(block + 1, track.generation_seed, 42), blend)
+		wavelength *= lerpf(0.85, 1.15, clampf(texture_scale - 0.6, 0.0, 1.0))
 	return RoadProfile.sample(along, track.terrain_seed, track.road_feature_height,
-		track.road_feature_spacing, track.bumps_amplitude * micro_scale,
-		track.bumps_roughness * micro_scale, track.bumps_wavelength, length)
+		track.road_feature_spacing, track.bumps_amplitude * micro_scale * texture_scale,
+		track.bumps_roughness * micro_scale * texture_scale, wavelength, length)
 
 
 ## Нормаль поверхности по нарисованному мешу (для наклона ассетов).
@@ -1435,6 +1454,12 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 			base_color = base_color.lerp(track.road_color_2, TrackConfigType.hash_noise(distance, float(lane)) * 0.45)
 			if section != null:
 				base_color = section.road_color * shade
+			elif track.procedural:
+				# Разные пятна гравия плавно сопровождают меняющуюся фактуру кочек.
+				var patch := floori(distance / 550.0)
+				var fade := smoothstep(0.0, 1.0, fposmod(distance, 550.0) / 550.0)
+				var tint := lerpf(RoadProfile.roll(patch, track.generation_seed, 43), RoadProfile.roll(patch + 1, track.generation_seed, 43), fade)
+				base_color = base_color.lerp(track.road_color_2, tint * 0.18)
 			var edge_factor: float = clampf((absf(lat) - half * 0.75) / maxf(half * 0.5, 0.01), 0.0, 1.0)
 			if absf(lat) > half:
 				base_color = base_color.lerp(track.shoulder_color, edge_factor)
@@ -1885,6 +1910,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var full := false
 	# Нулевая плотность трассы — леса нет вовсе (ворота и знаки при этом едут).
 	while attempt_chance > 0.0 and distance < end:
+		corridor = track.half_width_at(distance) + track.road_shoulder
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
 		var side := Vector3(dir.z, 0.0, -dir.x)
@@ -2322,7 +2348,7 @@ func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_e
 			# side указывает в сторону роста heading, наружу поворота —
 			# противоположная сторона.
 			var outer: float = -1.0 if turn > 0.0 else 1.0
-			var point: Vector3 = center + side * (outer * (corridor_half() + cfg.corner_sign_lateral))
+			var point: Vector3 = center + side * (outer * (track.half_width_at(distance) + track.road_shoulder + cfg.corner_sign_lateral))
 			var sign_node: Node3D = RoadSignScene.instantiate()
 			sign_node.position = Vector3(point.x, ground_height(point.x, point.z), point.z)
 			sign_node.rotation.y = atan2(-dir.x, -dir.z) + deg_to_rad(cfg.corner_sign_yaw_offset)
@@ -2366,7 +2392,9 @@ func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -
 	post_mesh.size = cfg.gate_post_size
 	post_mesh.surface_set_material(0, material)
 	var bar_mesh := BoxMesh.new()
-	bar_mesh.size = Vector3(track.road_half_width * 2.0 + cfg.gate_width_extra, cfg.gate_bar_thickness, cfg.gate_bar_thickness)
+	var gate_distance: float = network.along_road(pos.x, pos.z) if network != null else 0.0
+	var gate_half: float = track.half_width_at(gate_distance)
+	bar_mesh.size = Vector3(gate_half * 2.0 + cfg.gate_width_extra, cfg.gate_bar_thickness, cfg.gate_bar_thickness)
 	bar_mesh.surface_set_material(0, material)
 	var gate := Node3D.new()
 	gate.position = Vector3(pos.x, height_at(pos.x, pos.z), pos.z)
@@ -2374,7 +2402,7 @@ func _create_gate(container: Node3D, pos: Vector3, dir: Vector3, color: Color) -
 	for side_sign in [-1.0, 1.0]:
 		var post := MeshInstance3D.new()
 		post.mesh = post_mesh
-		post.position = Vector3(float(side_sign) * (track.road_half_width + cfg.gate_post_lateral), cfg.gate_post_size.y * 0.5, 0.0)
+		post.position = Vector3(float(side_sign) * (gate_half + cfg.gate_post_lateral), cfg.gate_post_size.y * 0.5, 0.0)
 		gate.add_child(post)
 	var bar := MeshInstance3D.new()
 	bar.mesh = bar_mesh
@@ -2721,6 +2749,9 @@ func _configure_car() -> void:
 	if car == null:
 		push_warning("RallyStage: узел RallyCar не найден.")
 		return
+	# Фактически применённый машиной ресурс — единственный источник для
+	# HUD и этапа, включая сценический override при прямом запуске.
+	setup = car.active_setup
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
 	var precipitation := _precipitation_levels()
 	car.set_precipitation(precipitation.x, precipitation.y)
@@ -2853,6 +2884,8 @@ func _setup_hud() -> void:
 	speed_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/SpeedLabel") as Label
 	gear_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/GearLabel") as Label
 	drivetrain_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/DrivetrainLabel") as Label
+	setup_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/SetupLabel") as Label
+	engine_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/EngineLabel") as Label
 	rpm_bar = _hud_node("RallyHUD/SpeedPanel/SpeedBox/RPMBar") as ProgressBar
 	rpm_caption = _hud_node("RallyHUD/SpeedPanel/SpeedBox/RpmCaption") as Label
 
@@ -2966,7 +2999,17 @@ func _update_hud() -> void:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
 	if rpm_caption != null:
-		rpm_caption.text = "RPM %d" % int(round(car.max_rpm))
+		rpm_caption.text = "%d / %d ОБ/МИН" % [roundi(car.current_rpm), roundi(car.max_rpm)]
+	if setup_label != null:
+		var current_setup: CarSetupType = car.active_setup
+		setup_label.text = current_setup.display_name if current_setup != null else "СЦЕНИЧЕСКАЯ МАШИНА"
+		setup_label.tooltip_text = setup_label.text
+	if engine_label != null:
+		var active: CarSetupType = car.active_setup
+		var engine_name: String = active.engine_name if active != null and not active.engine_name.is_empty() else "ДВИГАТЕЛЬ"
+		var turbo_text: String = " · TURBO" if active != null and active.turbo and not engine_name.to_upper().contains("TURBO") else ""
+		engine_label.text = "%s · %d Н·м%s" % [engine_name, roundi(car.max_torque), turbo_text]
+		engine_label.tooltip_text = engine_label.text
 	if stage_label != null:
 		var conditions: String = ""
 		if weather != null:
@@ -2980,6 +3023,13 @@ func _update_hud() -> void:
 			var section = track.section_at(along)
 			if section != null:
 				surface_label = "%s · %.1f м · %.1f км · %s" % [section.surface_name, track.half_width_at(along) * 2.0, along / 1000.0, section.title]
+		elif network != null and track.procedural:
+			var p: Vector3 = to_local(car.global_position)
+			var along: float = network.along_road(p.x, p.z)
+			surface_label = "%s · %.1f м" % [track.surface_name, track.half_width_at(along) * 2.0]
+		var marathon_game: Node = get_node_or_null("/root/RallyGame")
+		if marathon_game != null and marathon_game.has_method("marathon_active") and bool(marathon_game.call("marathon_active")):
+			conditions += "  |  ЭТАП %d/%d · СИД %d" % [int(marathon_game.get("marathon_index")) + 1, marathon_game.get("marathon_seeds").size(), track.generation_seed]
 		stage_label.text = "%s  |  %.0f м  |  %s  |  УРОВЕНЬ %d/5%s" % [
 			track.display_name,
 			network.total_length if network != null else 0.0,
@@ -3247,7 +3297,7 @@ func _check_finish() -> void:
 		return
 	var dx: float = car.global_position.x - finish_pos.x
 	var dz: float = car.global_position.z - finish_pos.z
-	var tolerance: float = track.road_half_width + 4.0
+	var tolerance: float = track.half_width_at(network.total_length) + 4.0
 	if dx * dx + dz * dz > tolerance * tolerance:
 		return
 	var forward := car.global_transform.basis.z
@@ -3256,6 +3306,8 @@ func _check_finish() -> void:
 
 
 func _finish_stage() -> void:
+	if stage_finished:
+		return
 	stage_finished = true
 	if car != null:
 		car.driving_feedback_active = false
@@ -3268,11 +3320,22 @@ func _finish_stage() -> void:
 	if game != null:
 		is_new_record = bool(game.call("submit_time", _record_key(), stage_time))
 		best_time = float(game.call("get_best_time", _record_key()))
+	var marathon_running: bool = game != null and game.has_method("marathon_active") and bool(game.call("marathon_active"))
+	if marathon_running:
+		game.call("finish_marathon_stage", stage_time)
+		if again_button != null:
+			again_button.text = "СЛЕДУЮЩИЙ ЭТАП  ▶" if bool(game.call("marathon_has_next")) else "В ГЛАВНОЕ МЕНЮ"
 	if results_panel != null:
 		results_panel.visible = true
 		if results_label != null:
 			var record_line: String = "НОВЫЙ РЕКОРД!" if is_new_record else "ЛУЧШЕЕ: %s" % _format_time(best_time)
-			results_label.text = "%s\n\nВРЕМЯ  %s\n%s" % [track.display_name, _format_time(stage_time), record_line]
+			if marathon_running:
+				var completed: int = game.get("marathon_times").size()
+				var count: int = game.get("marathon_seeds").size()
+				var heading := "МАРАФОН ЗАВЕРШЁН" if completed == count else "МАРАФОН · ЭТАП %d/%d" % [completed, count]
+				results_label.text = "%s\nЭТАП  %s\nОБЩЕЕ ВРЕМЯ  %s\nСИД  %d" % [heading, _format_time(stage_time), _format_time(float(game.call("marathon_total"))), track.generation_seed]
+			else:
+				results_label.text = "%s\n\nВРЕМЯ  %s\n%s" % [track.display_name, _format_time(stage_time), record_line]
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if again_button != null:
 		again_button.grab_focus()
@@ -3316,14 +3379,25 @@ func _on_resume_pressed() -> void:
 
 
 func _on_restart_pressed() -> void:
+	if _marathon_transitioning:
+		return
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
-		game.call("restart_race")
+		if stage_finished and game.has_method("marathon_active") and bool(game.call("marathon_active")):
+			_marathon_transitioning = true
+			if bool(game.call("marathon_has_next")):
+				game.call("next_marathon_stage")
+			else:
+				game.call("goto_menu")
+		else:
+			game.call("restart_race")
 	else:
 		_reload_scene()
 
 
 func _on_menu_pressed() -> void:
+	if _marathon_transitioning:
+		return
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
 		game.call("goto_menu")
