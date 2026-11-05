@@ -37,7 +37,7 @@ func _run() -> void:
 	var garage = Garage.instantiate()
 	root.add_child(garage)
 	garage.open(game.config, 0, game)
-	var subaru := Models.vehicle("subaru")
+	var subaru: RallyVehicle = Models.vehicle("subaru")
 	check(subaru != null, "в реестре машин есть Subaru")
 	garage.select_vehicle("subaru")
 	var preview: Node3D = garage._vehicle_models.get("subaru")

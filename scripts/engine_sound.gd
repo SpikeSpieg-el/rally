@@ -224,7 +224,7 @@ func _engine_id_from_context() -> String:
 ## Неизвестная машина звучит банком по умолчанию (Mitsubishi).
 func _apply_engine(engine_id: String) -> void:
 	_load_engine_key = engine_id
-	var vehicle := _vehicle_resource(engine_id)
+	var vehicle: RallyVehicle = _vehicle_resource(engine_id)
 	if vehicle == null:
 		_rpm_grid = RPM_GRID
 		_engine_dir = ENGINE_DIR
@@ -244,7 +244,7 @@ func _apply_engine(engine_id: String) -> void:
 
 ## Ресурс машины из конфига игры: оттуда берутся звук, модель и пресеты.
 func _vehicle_resource(engine_id: String) -> RallyVehicle:
-	var config := _game_config()
+	var config: RallyGameConfig = _game_config()
 	if config == null or engine_id.is_empty():
 		return null
 	return config.vehicle(engine_id)
@@ -254,7 +254,7 @@ func _vehicle_resource(engine_id: String) -> RallyVehicle:
 func _game_config() -> RallyGameConfig:
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null and "config" in game:
-		var loaded := game.get("config") as RallyGameConfig
+		var loaded: RallyGameConfig = game.get("config") as RallyGameConfig
 		if loaded != null:
 			return loaded
 	if ResourceLoader.exists(CONFIG_PATH):

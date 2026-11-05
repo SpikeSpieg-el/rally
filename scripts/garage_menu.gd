@@ -257,7 +257,8 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 
 ## Машины в порядке реестра: индекс пункта = индекс в data/vehicles.
 func _vehicle_ids() -> Array[String]:
-	return config.vehicle_ids() if config != null else (["mitsubishi"] as Array[String])
+	var fallback: Array[String] = ["mitsubishi"]
+	return config.vehicle_ids() if config != null else fallback
 
 
 func _vehicle_index(id: String) -> int:
@@ -267,7 +268,7 @@ func _vehicle_index(id: String) -> int:
 func _fill_vehicle_selector() -> void:
 	_vehicle_selector.clear()
 	for id in _vehicle_ids():
-		var data := config.vehicle(id) if config != null else null
+		var data: RallyVehicle = config.vehicle(id) if config != null else null
 		_vehicle_selector.add_item(data.display_name if data != null else id.to_upper())
 
 
@@ -295,7 +296,7 @@ func _select_vehicle(index: int) -> void:
 ## Показывает кузов выбранной машины. Модель грузится один раз и висит на
 ## витрине: при переключении машины включается нужный кузов.
 func _show_vehicle(id: String) -> bool:
-	var data := config.vehicle(id) if config != null else null
+	var data: RallyVehicle = config.vehicle(id) if config != null else null
 	if not _vehicle_models.has(id) and _vehicle_model(id) == null:
 		# Модель не загрузилась — остаёмся на прежней машине, но не молчим.
 		if data != null and not data.model_scene.is_empty():
@@ -314,7 +315,7 @@ func _show_vehicle(id: String) -> bool:
 func _vehicle_model(id: String) -> Node3D:
 	if _vehicle_models.has(id):
 		return _vehicle_models[id] as Node3D
-	var data := config.vehicle(id) if config != null else null
+	var data: RallyVehicle = config.vehicle(id) if config != null else null
 	if data == null or data.model_scene.is_empty():
 		return null
 	var model := CarModels.make_model(id)
@@ -330,7 +331,7 @@ func _vehicle_model(id: String) -> Node3D:
 
 
 func _vehicle_title(id: String) -> String:
-	var data := config.vehicle(id) if config != null else null
+	var data: RallyVehicle = config.vehicle(id) if config != null else null
 	return data.display_name if data != null else id.to_upper()
 
 
@@ -443,7 +444,7 @@ func _refresh() -> void:
 	_updating = true
 	_selector.select(selected_index)
 	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
-	var vehicle_data := config.vehicle(_vehicle_id) if config != null else null
+	var vehicle_data: RallyVehicle = config.vehicle(_vehicle_id) if config != null else null
 	if vehicle_data != null and not vehicle_data.uses_livery_presets:
 		_description.text += ("\nПресеты этой машины: свой мотор, свой ряд передач и своя"
 			+ " подвеска. Окраска, ливреи и цвет дисков остаются у машины с"

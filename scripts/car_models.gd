@@ -13,17 +13,17 @@ const WHEEL_MOUNTS := ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]
 static func vehicle(vehicle_id: String) -> RallyVehicle:
 	if vehicle_id.is_empty():
 		return null
-	var config := _game_config()
+	var config: RallyGameConfig = _game_config()
 	if config == null:
 		return null
 	return config.vehicle(vehicle_id)
 
 
 static func _game_config() -> RallyGameConfig:
-	var loop := Engine.get_main_loop() as SceneTree
+	var loop: SceneTree = Engine.get_main_loop() as SceneTree
 	var game: Node = loop.root.get_node_or_null("RallyGame") if loop != null else null
 	if game != null and "config" in game:
-		var loaded := game.get("config") as RallyGameConfig
+		var loaded: RallyGameConfig = game.get("config") as RallyGameConfig
 		if loaded != null:
 			return loaded
 	if ResourceLoader.exists(CONFIG_PATH):
@@ -34,14 +34,14 @@ static func _game_config() -> RallyGameConfig:
 ## Модель кузова машины для витрины гаража: только кузов, без физики.
 ## Машина без своей модели возвращает null — витрина покажет кузов сцены.
 static func make_model(vehicle_id: String) -> Node3D:
-	var data := vehicle(vehicle_id)
+	var data: RallyVehicle = vehicle(vehicle_id)
 	if data == null or data.model_scene.is_empty():
 		return null
-	var scene := load(data.model_scene) as PackedScene
+	var scene: PackedScene = load(data.model_scene) as PackedScene
 	if scene == null:
 		push_warning("Машина %s: сцена модели не найдена" % vehicle_id)
 		return null
-	var source := scene.instantiate()
+	var source: Node = scene.instantiate()
 	var model: Node3D = null
 	if data.model_root.is_empty():
 		model = source as Node3D
@@ -54,7 +54,7 @@ static func make_model(vehicle_id: String) -> Node3D:
 		source.free()
 		return null
 	for wheel_name in data.wheel_names:
-		var wheel := model.find_child(wheel_name, true, false) as Node3D
+		var wheel: Node3D = model.find_child(wheel_name, true, false) as Node3D
 		if wheel != null:
 			_show_wheel_parts(wheel)
 	source.free()
@@ -73,10 +73,10 @@ static func _show_wheel_parts(node: Node) -> void:
 ## Меняет кузов машины заезда на кузов из ресурса. Возвращает false и
 ## оставляет машину как есть, если модель или колёса не сошлись.
 static func install(car: Node3D, vehicle_id: String) -> bool:
-	var data := vehicle(vehicle_id)
+	var data: RallyVehicle = vehicle(vehicle_id)
 	if data == null or data.model_scene.is_empty():
 		return false
-	var model := make_model(vehicle_id)
+	var model: Node3D = make_model(vehicle_id)
 	if model == null:
 		return false
 
@@ -85,8 +85,8 @@ static func install(car: Node3D, vehicle_id: String) -> bool:
 	var wheels: Array[Node3D] = []
 	var mounts: Array[Node3D] = []
 	for i in range(mini(data.wheel_names.size(), WHEEL_MOUNTS.size())):
-		var wheel := model.find_child(data.wheel_names[i], true, false) as Node3D
-		var mount := car.get_node_or_null(WHEEL_MOUNTS[i] + "/WheelVisual") as Node3D
+		var wheel: Node3D = model.find_child(data.wheel_names[i], true, false) as Node3D
+		var mount: Node3D = car.get_node_or_null(WHEEL_MOUNTS[i] + "/WheelVisual") as Node3D
 		if wheel == null or mount == null:
 			push_warning("Машина %s: не найдены колёса или крепления" % vehicle_id)
 			model.free()
@@ -96,7 +96,7 @@ static func install(car: Node3D, vehicle_id: String) -> bool:
 
 	car.add_child(model)
 	if data.hide_scene_body:
-		var old_model := car.get_node_or_null(SCENE_BODY) as Node3D
+		var old_model: Node3D = car.get_node_or_null(SCENE_BODY) as Node3D
 		if old_model != null:
 			old_model.visible = false
 	if data.hide_model_interior:
@@ -118,16 +118,16 @@ static func hide_model_interior(model: Node3D) -> void:
 	if model == null:
 		return
 	for node in model.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := node as MeshInstance3D
+		var mesh_instance: MeshInstance3D = node as MeshInstance3D
 		if mesh_instance != null and _is_interior_mesh(mesh_instance):
 			mesh_instance.visible = false
 
 
 static func _is_interior_mesh(mesh: MeshInstance3D) -> bool:
-	var path := String(mesh.get_path()).to_upper()
+	var path: String = String(mesh.get_path()).to_upper()
 	if path.contains("MAT_DETAILS_INT") or path.contains("SM_INTERIOR"):
 		return true
-	var mesh_resource := mesh.mesh
+	var mesh_resource: Mesh = mesh.mesh
 	if mesh_resource == null:
 		return false
 	for i in range(mesh_resource.get_surface_count()):
