@@ -45,6 +45,10 @@ func section_at(distance: float) -> RallyRouteSection:
 	return result
 
 func half_width_at(distance: float) -> float:
+	# У «Живой ленты» чередуются узкие и широкие зоны. Плавные переходы
+	# используются и мешем дороги, и рельефом, и расчётом сцепления.
+	if procedural and route_sections.is_empty():
+		return _live_half_width(distance)
 	var previous: float = road_half_width
 	for section in route_sections:
 		if section == null:
@@ -57,6 +61,22 @@ func half_width_at(distance: float) -> float:
 			return width
 		previous = section.half_width
 	return previous
+
+
+func _live_half_width(distance: float) -> float:
+	if distance <= 220.0:
+		return road_half_width
+	var position := distance - 220.0
+	var block := floori(position / 700.0)
+	var current := _live_width_target(block)
+	var previous := road_half_width if block == 0 else _live_width_target(block - 1)
+	return lerpf(previous, current, smoothstep(0.0, 200.0, fposmod(position, 700.0)))
+
+
+func _live_width_target(block: int) -> float:
+	var random_value := RallyRoadProfile.roll(block, generation_seed, 31)
+	var scale := lerpf(0.72, 0.84, random_value) if block % 2 == 0 else lerpf(1.10, 1.24, random_value)
+	return clampf(road_half_width * scale, 2.2, 9.0)
 
 @export_group("Потоковая загрузка")
 ## Дорога, земля и обстановка строятся только в радиусе машины.
@@ -276,7 +296,9 @@ func get_record_key() -> String:
 	# У процедурной трассы рекорды считаются по сиду: другой сид — другая
 	# трасса, подсказывать ей чужое лучшее время было бы жульничеством.
 	if procedural:
-		return "%s_%d" % [id, generation_seed]
+		# Версия: геометрия генератора и рельеф изменились, старые рекорды
+		# по тому же сиду относятся к другой трассе.
+		return "%s_v2_%d" % [id, generation_seed]
 	return id
 
 

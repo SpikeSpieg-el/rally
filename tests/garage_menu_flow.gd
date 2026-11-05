@@ -79,6 +79,7 @@ func _run() -> void:
 	menu.garage._select_setup(2)
 	menu.garage._create_copy()
 	menu.garage._on_slider_changed(680.0, "max_torque")
+	menu.garage._on_slider_changed(8700.0, "max_rpm")
 	menu.garage._on_choice_changed(2, "livery")
 	menu.garage._on_choice_changed(RallyCarSetup.Transmission.MANUAL_CLUTCH, "transmission_mode")
 	check(menu.garage._summary.text.contains("РУЧНАЯ + СЦЕПЛЕНИЕ"), "выбранная коробка видна в сводке гаража")
@@ -117,6 +118,23 @@ func _run() -> void:
 	check(car.active_setup != null and is_equal_approx(car.max_torque, 705.0), "реальный этап получает момент выбранного пресета")
 	check(car.manual_clutch_control and not car.automatic_transmission and car.current_gear == 0, "выбранная МКПП со сцеплением применяется к машине заезда")
 	check(is_equal_approx(car.front_tire_radius, 0.51) and is_equal_approx(car.front_axle.brake_bias, 0.55), "шины и тормоза доходят до физики этапа")
+	# HUD читает то, что действительно применено к машине, а не ресурс
+	# сцены или устаревший индекс из меню.
+	stage.car = car
+	stage.setup_label = stage._hud_node("RallyHUD/SpeedPanel/SpeedBox/SetupLabel")
+	stage.engine_label = stage._hud_node("RallyHUD/SpeedPanel/SpeedBox/EngineLabel")
+	stage.rpm_caption = stage._hud_node("RallyHUD/SpeedPanel/SpeedBox/RpmCaption")
+	stage.rpm_bar = stage._hud_node("RallyHUD/SpeedPanel/SpeedBox/RPMBar")
+	stage.gear_label = stage._hud_node("RallyHUD/SpeedPanel/SpeedBox/GearLabel")
+	car.current_rpm = 3400.0
+	stage._update_hud()
+	check(stage.setup_label.text == car.active_setup.display_name, "имя своего пресета видно в HUD")
+	check(stage.engine_label.text.contains(car.active_setup.engine_name) and stage.engine_label.text.contains("705"), "HUD показывает реальный двигатель и момент")
+	check(stage.rpm_caption.text.contains("3400") and stage.rpm_caption.text.contains("8700") and is_equal_approx(stage.rpm_bar.max_value, 8700.0), "текущие обороты и отсечка совпадают с машиной")
+	check(stage.gear_label.text.contains("МКПП + СЦ") and stage.gear_label.text.contains("RWD"), "коробка и привод взяты из машины")
+	car.set_drivetrain_mode(RallyCarSetup.Drivetrain.AWD)
+	stage._update_hud()
+	check(stage.gear_label.text.contains("AWD"), "HUD обновляется после смены привода в заезде")
 	var body := car.get_node("low poly lance evo/Mitsubishi_Body") as MeshInstance3D
 	check((body.material_override as StandardMaterial3D).albedo_texture.resource_path.ends_with("иташа3.jpg"), "выбранная ливрея доходит до машины этапа")
 	stage.queue_free()
@@ -129,6 +147,9 @@ func _run() -> void:
 	direct_car.freeze = true
 	root.add_child(direct_stage)
 	check(direct_car.active_setup != null and direct_car.active_setup.id == "gravel", "прямой F6 сохраняет сценический override")
+	direct_stage._resolve_track()
+	direct_stage._configure_car()
+	check(direct_stage.setup == direct_car.active_setup, "этап и HUD используют сценический сетап при прямом F6")
 	direct_stage.queue_free()
 
 	# Явный override корня этапа имеет приоритет над выбранной машиной.

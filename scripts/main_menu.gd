@@ -59,6 +59,8 @@ var _conditions_box: VBoxContainer = null
 var _seed_box: VBoxContainer = null
 var _seed_edit: LineEdit = null
 var _seed_status: Label = null
+var _marathon_choice: OptionButton = null
+var _marathon_stages: int = 0
 var _weather_flow: HFlowContainer = null
 var _profile_flow: HFlowContainer = null
 
@@ -282,8 +284,28 @@ func _build_conditions_ui() -> void:
 	_seed_status = Label.new()
 	_seed_status.add_theme_color_override("font_color", t.text_muted)
 	_seed_status.add_theme_font_size_override("font_size", t.font_caption)
+	_seed_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_seed_status.text = cfg.seed_hint
 	_seed_box.add_child(_seed_status)
+	var marathon_row := HBoxContainer.new()
+	marathon_row.add_theme_constant_override("separation", t.chip_separation)
+	_seed_box.add_child(marathon_row)
+	var marathon_label := Label.new()
+	marathon_label.text = "РЕЖИМ"
+	marathon_label.add_theme_color_override("font_color", t.accent_soft)
+	marathon_row.add_child(marathon_label)
+	_marathon_choice = OptionButton.new()
+	_marathon_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_marathon_choice.fit_to_longest_item = false
+	_marathon_choice.add_item("ОДИН ЗАЕЗД · ВЫБРАННЫЙ СИД", 0)
+	_marathon_choice.add_item("МАРАФОН · 3 СЛУЧАЙНЫХ ЭТАПА", 3)
+	_marathon_choice.add_item("МАРАФОН · 5 СЛУЧАЙНЫХ ЭТАПОВ", 5)
+	_marathon_choice.tooltip_text = "Марафон на суммарное время: каждый этап — новый случайный сид. Выбранная машина, погода и покрытие сохраняются."
+	_marathon_choice.item_selected.connect(func(index: int) -> void:
+		_marathon_stages = _marathon_choice.get_item_id(index)
+		_seed_status.text = "Марафон: случайные трассы и общее время. Сид выше — для одиночного заезда." if _marathon_stages > 0 else layout().seed_hint
+	)
+	marathon_row.add_child(_marathon_choice)
 
 	# --- Погода ------------------------------------------------------------
 	var weather_title := Label.new()
@@ -841,6 +863,11 @@ func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
 	_sync_game()
 	var game: Node = _get_game()
 	if game != null:
+		var selected_track_resource := _current_track()
+		if game.has_method("clear_marathon"):
+			game.call("clear_marathon")
+		if _marathon_stages > 0 and selected_track_resource != null and selected_track_resource.procedural and game.has_method("begin_marathon"):
+			game.call("begin_marathon", _marathon_stages)
 		# Гараж уже сохранил все черновики до сигнала start_requested.
 		# Перед стартом явно закрепляем сетап именно того пресета, с которого
 		# пользователь нажал «Старт», даже если setup_index менялся раньше.

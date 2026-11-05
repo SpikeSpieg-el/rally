@@ -24,6 +24,12 @@ const TILE_SIZE := 96.0
 const TILE_DIVISIONS := 16
 const LOAD_RADIUS := 384.0
 const KEEP_RADIUS := 576.0
+# У процедурной трассы заранее загружаем узкий коридор вдоль маршрута,
+# а не огромный круг вокруг машины. При скорости 200 км/ч — до ~950 м.
+const LIVE_LOOKAHEAD_MIN := 640.0
+const LIVE_LOOKAHEAD_MAX := 960.0
+const LIVE_LOOKAHEAD_SECONDS := 6.0
+const DECOR_PRIORITY_OFFSET := 22000.0
 const TERRAIN_SLICE_USEC := 1800
 const LOADING_SLICE_USEC := 6000
 const TerrainJob = preload("res://scripts/stream_terrain_job.gd")
@@ -117,6 +123,21 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 			await _clock.tick
 			if _stopping:
 				return
+	# У «Живой ленты» стартовые объекты должны существовать до снятия
+	# загрузочного экрана, а не появляться после ближайшей геометрии.
+	if stage.track.procedural and (stage.track.procedural_scenery or stage.track.spawn_edge_posts):
+		var start_along: float = stage.network.along_road(start.x, start.z)
+		var first: int = maxi(0, floori(start_along / ROAD_LENGTH) - 1)
+		var last: int = mini(count - 1, floori((start_along + 512.0) / ROAD_LENGTH))
+		for id in range(first, last + 1):
+			if roads.has(id) and not roads[id].has_meta("decorated"):
+				_pending.append({"kind": "decor", "key": id, "priority": float(id - first)})
+		while not _pending.is_empty():
+			await _run_job()
+			if _stopping:
+				return
+			stage._report_progress(0.8, "Подготовка объектов перед стартом…")
+			await _clock.tick
 	print("Streamed start: %d ms; %d road chunks; %d terrain tiles; no global distance field" % [Time.get_ticks_msec() - started, roads.size(), tiles.size()])
 	# Expand in the background once the start area is safe.
 	_last_position = Vector3(INF, INF, INF)
@@ -137,10 +158,13 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 	_wanted_roads.clear()
 	_wanted_tiles.clear()
 	_pending.clear()
+	var tile_priorities: Dictionary = {}
+	var road_priorities: Dictionary = {}
 	var centre: Vector2i = _tile_key(position)
 	var forward := Vector2.ZERO
+	var velocity := Vector3.ZERO
 	if stage.car != null:
-		var velocity: Vector3 = stage.global_transform.basis.inverse() * stage.car.linear_velocity
+		velocity = stage.global_transform.basis.inverse() * stage.car.linear_velocity
 		if Vector2(velocity.x, velocity.z).length_squared() > 4.0:
 			forward = Vector2(velocity.x, velocity.z).normalized()
 	var reach: int = ceili(radius / TILE_SIZE) + 1
@@ -151,19 +175,50 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 			var distance_squared: float = _plan_distance_squared(position, tile_centre)
 			if distance_squared > pow(radius + TILE_SIZE * 0.71, 2.0):
 				continue
-			_wanted_tiles[key] = true
-			if _retired_tiles.has(key):
-				tiles[key] = _retired_tiles[key]
-				_retired_tiles.erase(key)
-			if not tiles.has(key):
-				var offset := Vector2(tile_centre.x - position.x, tile_centre.z - position.z)
-				var priority: float = distance_squared - offset.dot(forward) * 180.0
-				# The tile under the car is always first after a teleport.
-				if key == centre:
-					priority -= 2000000.0
-				_pending.append({"kind": "terrain", "key": key, "priority": priority})
-			for id in _road_index.get(key, {}):
-				_wanted_roads[id] = true
+			var offset := Vector2(tile_centre.x - position.x, tile_centre.z - position.z)
+			var priority: float = distance_squared - offset.dot(forward) * 180.0
+			if key == centre:
+				priority -= 2000000.0
+			tile_priorities[key] = priority
+
+	# Дополнительный коридор следует изгибам, а не направлению взгляда:
+	# шпильки и подъёмы подгружаются даже когда они за ближайшим поворотом.
+	if stage.track != null and stage.track.procedural and stage.network.distance_to_road(position.x, position.z) < 80.0:
+		var along: float = stage.network.along_road(position.x, position.z)
+		var tangent: Vector3 = stage.network.direction_at(along)
+		var direction: float = -1.0 if velocity.length_squared() > 4.0 and velocity.dot(tangent) < -1.0 else 1.0
+		var speed: float = Vector2(velocity.x, velocity.z).length()
+		var ahead: float = clampf(LIVE_LOOKAHEAD_MIN + speed * LIVE_LOOKAHEAD_SECONDS, LIVE_LOOKAHEAD_MIN, LIVE_LOOKAHEAD_MAX)
+		var total: float = stage.network.total_length
+		var distance := 0.0
+		while distance <= ahead:
+			var target: float = clampf(along + direction * distance, 0.0, total)
+			var target_point: Vector3 = stage.network.point_at(target)
+			var target_key := _tile_key(target_point)
+			var route_priority: float = 20000.0 + distance * 100.0
+			var road_id: int = mini(floori(target / ROAD_LENGTH), ceili(total / ROAD_LENGTH) - 1)
+			if road_id >= 0:
+				road_priorities[road_id] = minf(float(road_priorities.get(road_id, INF)), route_priority)
+			for dz in range(-1, 2):
+				for dx in range(-1, 2):
+					var key := target_key + Vector2i(dx, dz)
+					var cost: float = route_priority + float(dx * dx + dz * dz) * 6000.0
+					tile_priorities[key] = minf(float(tile_priorities.get(key, INF)), cost)
+			if target <= 0.0 and direction < 0.0 or target >= total and direction > 0.0:
+				break
+			distance += TILE_SIZE * 0.5
+
+	for key in tile_priorities:
+		_wanted_tiles[key] = true
+		if _retired_tiles.has(key):
+			tiles[key] = _retired_tiles[key]
+			_retired_tiles.erase(key)
+		if not tiles.has(key):
+			_pending.append({"kind": "terrain", "key": key, "priority": tile_priorities[key]})
+		for id in _road_index.get(key, {}):
+			_wanted_roads[id] = true
+	for id in road_priorities:
+		_wanted_roads[id] = true
 	for id in _wanted_roads:
 		if _retired_roads.has(id):
 			roads[id] = _retired_roads[id]
@@ -171,21 +226,24 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 		var road_centre: Vector3 = _road_centres[id]
 		var offset := Vector2(road_centre.x - position.x, road_centre.z - position.z)
 		var priority: float = _plan_distance_squared(position, road_centre) - offset.dot(forward) * 180.0
+		priority = minf(priority, float(road_priorities.get(id, INF)))
 		if not roads.has(id):
-			# Nearby road and ground both precede distant geometry. Loading all
-			# nearby switchback roads first could freeze a teleported car for seconds.
 			_pending.append({"kind": "road", "key": id, "priority": priority - TILE_SIZE * TILE_SIZE})
 		elif not roads[id].has_meta("decorated"):
-			_pending.append({"kind": "decor", "key": id, "priority": priority + 1000000.0})
-	_pending.sort_custom(func(a: Dictionary, b: Dictionary): return float(a.priority) < float(b.priority))
+			_pending.append({"kind": "decor", "key": id, "priority": priority + DECOR_PRIORITY_OFFSET})
+	_sort_pending()
 	for key in tiles.keys():
-		if _plan_distance_squared(position, _tile_centre(key)) > KEEP_RADIUS * KEEP_RADIUS:
+		if not _wanted_tiles.has(key) and _plan_distance_squared(position, _tile_centre(key)) > KEEP_RADIUS * KEEP_RADIUS:
 			_schedule_retirement("terrain", key, tiles[key])
 			tiles.erase(key)
 	for id in roads.keys():
 		if not _wanted_roads.has(id) and _plan_distance_squared(position, _road_centres[id]) > KEEP_RADIUS * KEEP_RADIUS:
 			_schedule_retirement("road", id, roads[id])
 			roads.erase(id)
+
+
+func _sort_pending() -> void:
+	_pending.sort_custom(func(a: Dictionary, b: Dictionary): return float(a.priority) < float(b.priority))
 
 
 func _schedule_retirement(kind: String, key, node: Node) -> void:
@@ -271,7 +329,8 @@ func _run_job() -> void:
 		await stage._build_road(true, 0.0, 0.0, float(id) * ROAD_LENGTH, float(id + 1) * ROAD_LENGTH, root)
 		roads[id] = root
 		if not _priming:
-			_pending.append({"kind": "decor", "key": id, "priority": 2000000.0})
+			_pending.append({"kind": "decor", "key": id, "priority": float(job.priority) + TILE_SIZE * TILE_SIZE + DECOR_PRIORITY_OFFSET})
+			_sort_pending()
 	elif job.kind == "terrain" and not tiles.has(job.key):
 		await _build_tile(job.key)
 	elif job.kind == "decor" and roads.has(job.key) and not roads[job.key].has_meta("decorated"):

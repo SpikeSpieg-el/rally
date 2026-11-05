@@ -44,6 +44,11 @@ var _race_uses_selected_setup: bool = false
 var _records := ConfigFile.new()
 var _conditions := ConfigFile.new()
 
+# Марафон живёт только в текущей сессии; выбранный в меню сид не меняется.
+var marathon_seeds: Array[int] = []
+var marathon_times: Array[float] = []
+var marathon_index: int = 0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -192,6 +197,61 @@ func reroll_live_seed(track: Resource) -> int:
 	track.set("generation_seed", value)
 	remember_live_seed(String(track.get("id")), value)
 	return value
+
+
+## Создаём сразу весь календарь: повторы этапа и рестарт используют тот же сид.
+func begin_marathon(count: int) -> bool:
+	clear_marathon()
+	if count not in [3, 5] or current_track == null or not bool(current_track.get("procedural")):
+		return false
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	while marathon_seeds.size() < count:
+		var value := rng.randi_range(1, 999999999)
+		if not marathon_seeds.has(value):
+			marathon_seeds.append(value)
+	return true
+
+
+func clear_marathon() -> void:
+	marathon_seeds.clear()
+	marathon_times.clear()
+	marathon_index = 0
+
+
+func marathon_active() -> bool:
+	return not marathon_seeds.is_empty() and marathon_index < marathon_seeds.size()
+
+
+func marathon_seed() -> int:
+	return marathon_seeds[marathon_index] if marathon_active() else 0
+
+
+## Считаем результат ровно один раз; повторная кнопка не удвоит время.
+func finish_marathon_stage(seconds: float) -> bool:
+	if not marathon_active() or not is_finite(seconds) or seconds <= 0.0 or marathon_times.size() != marathon_index:
+		return false
+	marathon_times.append(seconds)
+	return true
+
+
+func marathon_total() -> float:
+	var total := 0.0
+	for value in marathon_times:
+		total += value
+	return total
+
+
+func marathon_has_next() -> bool:
+	return marathon_active() and marathon_times.size() == marathon_index + 1 and marathon_index + 1 < marathon_seeds.size()
+
+
+func next_marathon_stage() -> bool:
+	if not marathon_has_next():
+		return false
+	marathon_index += 1
+	restart_race()
+	return true
 
 
 func get_best_time(key: String) -> float:
@@ -463,6 +523,7 @@ func restart_race() -> void:
 
 
 func goto_menu() -> void:
+	clear_marathon()
 	_race_uses_selected_setup = false
 	get_tree().paused = false
 	finish_loading()

@@ -115,6 +115,7 @@ func _run() -> void:
 	stage.free()
 
 	await _test_scheduler()
+	_test_live_scheduler()
 	await _test_inflight_shutdown(route_network, track, key)
 	print("Streaming runtime: %d failures" % failures.size())
 	quit(0 if failures.is_empty() else 1)
@@ -189,6 +190,61 @@ func _test_scheduler() -> void:
 	streamer.roads[0] = near_road
 	streamer._process(0.0)
 	check(not car.freeze, "car resumes when both ground and road are ready")
+	mock.free()
+
+
+func _test_live_scheduler() -> void:
+	var curve := Curve3D.new()
+	curve.add_point(Vector3.ZERO)
+	curve.add_point(Vector3(0, 0, 3000))
+	var mock := MockStage.new()
+	mock.network = Network.build_sparse(curve)
+	mock.track.procedural = true
+	root.add_child(mock)
+	var streamer = Streamer.new()
+	mock.add_child(streamer)
+	streamer.set_process(false)
+	streamer.stage = mock
+	streamer._priming = false
+	var count: int = ceili(mock.network.total_length / streamer.ROAD_LENGTH)
+	for id in range(count):
+		streamer._road_centres[id] = mock.network.point_at((float(id) + 0.5) * streamer.ROAD_LENGTH)
+		var d: float = float(id) * streamer.ROAD_LENGTH
+		while d <= minf(mock.network.total_length, float(id + 1) * streamer.ROAD_LENGTH):
+			var key: Vector2i = streamer._tile_key(mock.network.point_at(d))
+			if not streamer._road_index.has(key):
+				streamer._road_index[key] = {}
+			streamer._road_index[key][id] = true
+			d += 16.0
+	var car := RigidBody3D.new()
+	mock.add_child(car)
+	mock.car = car
+	car.global_position = mock.network.point_at(100.0)
+	car.linear_velocity = Vector3(0, 0, 55.0)
+	streamer._request(car.position)
+	var future: Vector2i = streamer._tile_key(mock.network.point_at(850.0))
+	check(streamer._wanted_tiles.has(future) and streamer._wanted_roads.has(6), "live route loads terrain and road well ahead")
+	check(streamer._wanted_tiles.size() < 275, "predictive corridor stays bounded")
+	var future_tile := Node3D.new()
+	streamer.add_child(future_tile)
+	streamer.tiles[future] = future_tile
+	var near_road := Node3D.new()
+	streamer.add_child(near_road)
+	streamer.roads[1] = near_road
+	streamer._request(car.position)
+	check(streamer.tiles.has(future), "wanted lookahead tile beyond keep radius is not retired")
+	var decor_priority := INF
+	var far_terrain_priority := -INF
+	for job in streamer._pending:
+		if job.kind == "decor" and job.key == 1:
+			decor_priority = float(job.priority)
+		if job.kind == "terrain" and streamer._plan_distance_squared(car.position, streamer._tile_centre(job.key)) > 300.0 * 300.0:
+			far_terrain_priority = maxf(far_terrain_priority, float(job.priority))
+	check(decor_priority < far_terrain_priority, "nearby decoration must not wait for all distant terrain")
+	car.global_position = mock.network.point_at(1500.0)
+	car.linear_velocity = Vector3(0, 0, -55.0)
+	streamer._request(car.position)
+	check(streamer._wanted_roads.has(7) and not streamer._wanted_roads.has(17), "lookahead follows reversing direction")
 	mock.free()
 
 

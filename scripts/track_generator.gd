@@ -574,6 +574,11 @@ class Builder:
 				segs_chic.append(["a", r_chic, a_chic, l_chic * grade * 0.6, dir_chic])
 				dir_chic = -dir_chic
 			return segs_chic
+		if kind == "steep_climb":
+			# Затяжной подъём или спуск, но в пределах общего лимита уклона.
+			var climb_length: float = rng.randf_range(140.0, 230.0)
+			var direction: float = -1.0 if rng.randf() < 0.4 else 1.0
+			return [["s", climb_length, climb_length * direction * rng.randf_range(0.09, 0.12)]]
 		if kind == "crest":
 			var run_in: float = rng.randf_range(60.0, 110.0)
 			var face: float = rng.randf_range(22.0, 32.0)
@@ -711,7 +716,7 @@ class Builder:
 		var kinds := [
 			"straight", "arc_flow", "arc_flow", "arc_tight",
 			"hairpin", "chicane", "crest", "esses",
-			"tightening", "opening", "double_apex", "crest_turn", "compression", "shelf",
+			"tightening", "opening", "double_apex", "crest_turn", "compression", "shelf", "steep_climb",
 		]
 		var last_kind: String = "straight"
 		var guard: int = 0
@@ -743,7 +748,7 @@ class Builder:
 					# откатываться нечем — финиш здесь, короткая трасса
 					# лучше битой
 					break
-			grade = clampf(grade + rng.randf_range(-0.028, 0.028), -0.065, 0.065)
+			grade = clampf(grade + rng.randf_range(-0.028, 0.028), -0.095, 0.095)
 			# возврат к нулю: не даём профилю уехать в стратосферу
 			var h_now: float = pts[pts.size() - 1].y
 			if h_now > 70.0:
