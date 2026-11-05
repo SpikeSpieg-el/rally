@@ -1934,6 +1934,10 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				var prop: RallyProp = library.pick(pool, rng.randf())
 				if prop == null:
 					continue
+				# Заборы и гоночный реквизит должны быть редкими акцентами,
+				# а не случайной россыпью вдоль всей дороги.
+				if (prop.category == RallyProp.Category.FENCE or prop.category == RallyProp.Category.RALLY) and rng.randf() > cfg.roadside_prop_chance:
+					continue
 				# Между тематическими участками оставляем переход без крупных
 				# объектов: jitter не смешивает камни, поле и лес на границе.
 				var block_position: float = fposmod(distance, maxf(1.0, cfg.biome_length))
@@ -3350,15 +3354,6 @@ func _process(delta: float) -> void:
 		if Input.is_action_just_pressed("ui_cancel"):
 			_set_paused(false)
 		return
-	if Input.is_action_just_pressed("reset_car"):
-		stage_time = 0.0
-		timer_running = false
-		stage_finished = false
-		if car != null:
-			car.driving_feedback_active = true
-		last_cp_index = -1
-		cp_triggered.fill(false)
-		cp_times.fill(0.0)
 	_update_route_weather(delta)
 	if not stage_finished:
 		if Input.get_action_strength("throttle") > 0.05:

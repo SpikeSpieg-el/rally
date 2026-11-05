@@ -24,9 +24,8 @@ extends Resource
 @export_range(1, 40, 1) var attempts_per_step: int = 3
 ## Доля удачных попыток (0–1): остальные отбрасываются, сохраняя «рваный» лес.
 @export_range(0.0, 1.0, 0.01) var success_chance: float = 0.75
-## Множитель плотности: во сколько раз больше объектов, чем в базовой
-## раскладке. 30 — густой лес (просили «в 30 раз больше»), 1 — прежняя плотность.
-@export_range(0.1, 100.0, 0.5) var density_multiplier: float = 30.0
+## Множитель плотности крупных объектов.
+@export_range(0.1, 100.0, 0.5) var density_multiplier: float = 6.0
 ## Потолок попыток на один шаг (страховка от гигантских карт).
 @export_range(1, 4000, 1) var max_attempts_per_step: int = 400
 ## Потолок объектов за одну сборку (0 — без потолка).
@@ -43,10 +42,12 @@ extends Resource
 @export var along_jitter_full_step: bool = true
 ## Запретная зона у чужого витка дороги сверх коридора, м.
 @export_range(0.0, 60.0, 0.1) var road_clearance: float = 3.5
+## Искусственный придорожный реквизит — редкий акцент, а не сплошной мусор.
+@export_range(0.0, 1.0, 0.01) var roadside_prop_chance: float = 0.25
 
 @export_group("Биомы заполнения")
 ## Длина тематического участка вдоль дороги; обе стороны выбирают зоны независимо.
-@export_range(40.0, 2000.0, 10.0) var biome_length: float = 120.0
+@export_range(40.0, 2000.0, 10.0) var biome_length: float = 240.0
 ## Первый профиль с нужной зоной; пустой список сохраняет старую равномерную раскладку.
 @export var biomes: Array[RallySceneryBiome] = []
 
