@@ -144,11 +144,14 @@ func _run() -> void:
 	check(positions(stage).is_empty(), "нулевая плотность трассы отключает заполнение")
 	clear_scenery(stage)
 	stage.track.scenery_density = 1.0
+	stage.scenery.extra_grass_prop_ids = ["custom_cover"]
+	stage.scenery.extra_grass_density = 2.5
 	stage.scenery.ground_cover_density = 0.0
 	await stage._spawn_procedural_scenery(false)
 	check(positions(stage).is_empty(), "нулевая плотность заполнения работает")
 	clear_scenery(stage)
 	stage.scenery.ground_cover_density = 1.0
+	stage.scenery.extra_grass_density = 0.0
 	grass.cover_altitude = Vector2(99999, 100000)
 	await stage._spawn_procedural_scenery(false)
 	check(positions(stage).is_empty(), "ограничение по высоте работает")

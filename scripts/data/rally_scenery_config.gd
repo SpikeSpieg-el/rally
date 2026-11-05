@@ -63,6 +63,9 @@ extends Resource
 @export var ground_cover_prop_ids: Array[String] = ["grass2", "grass3"]
 ## Отдельная плотность массового заполнения grass2/grass3.
 @export_range(0.0, 40.0, 0.1) var ground_cover_density: float = 4.0
+## Дополнительный слой только травы, отдельно от грибов и цветов.
+@export_range(0.0, 40.0, 0.1) var extra_grass_density: float = 0.0
+@export var extra_grass_prop_ids: Array[String] = ["grass2", "grass3"]
 ## Попыток заполнения на шаг трассы и сторону.
 @export_range(0, 100, 1) var ground_cover_attempts_per_step: int = 12
 ## Доля успешных попыток заполнения.
