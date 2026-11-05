@@ -88,6 +88,23 @@ extends Resource
 @export_range(0.1, 5.0, 0.05) var corner_sign_scale: float = 1.0
 @export_range(-180.0, 180.0, 1.0) var corner_sign_yaw_offset: float = 0.0
 
+@export_group("Металлический отбойник на крутых поворотах")
+@export var guardrails: bool = true
+## Модуль из библиотеки пропсов: длина вдоль локальной X — 3 м.
+@export var guardrail_prop_id: String = "metal_guardrail"
+## Отступ от кромки ПОЛОТНА (не от оси), м.
+@export_range(1.0, 15.0, 0.1) var guardrail_offset: float = 3.0
+## Шаг вдоль оси дороги. Секции растягиваются между соседними точками.
+@export_range(0.5, 6.0, 0.25) var guardrail_step: float = 3.0
+## Изменение направления в симметричном окне вокруг секции.
+@export_range(20.0, 150.0, 1.0) var guardrail_turn_threshold_deg: float = 65.0
+@export_range(10.0, 100.0, 1.0) var guardrail_lookahead: float = 40.0
+@export_range(0.0, 100.0, 1.0) var guardrail_end_margin: float = 12.0
+## Не ставить отбойник на обочину соседнего витка шпильки.
+@export_range(0.0, 3.0, 0.1) var guardrail_road_clearance: float = 0.35
+@export var guardrail_collisions: bool = true
+@export_range(100.0, 1000.0, 10.0) var guardrail_visibility_range: float = 350.0
+
 @export_group("Машина")
 ## Точка появления: расстояние от начала кривой, м (для F6/первого кадра).
 @export_range(0.0, 200.0, 0.5) var car_spawn_distance: float = 14.0
