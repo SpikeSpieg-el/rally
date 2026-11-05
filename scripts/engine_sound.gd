@@ -291,12 +291,12 @@ func _process(delta: float) -> void:
 	_music_duck = lerpf(_music_duck, duck_target,
 		clampf(delta * MUSIC_DUCK_RESPONSE, 0.0, 1.0))
 
-	var rpm: float = clampf(car.current_rpm, 0.0, 9000.0)
+	var rpm: float = maxf(car.current_rpm, 0.0)
 	var throttle: float = clampf(car.throttle_input, 0.0, 1.0)
 	var speed: float = maxf(car.speed_kmh, 0.0)
 
 	# Нагрузка: газ плюс доля от оборота. Чем больше нагрузка, тем звонче звук.
-	var target_load: float = clampf(throttle * 0.88 + 0.12 * clampf(rpm / 7000.0, 0.0, 1.0), 0.0, 1.0)
+	var target_load: float = _engine_load_target(rpm, throttle)
 	_load = lerpf(_load, target_load, clampf(delta * 9.0, 0.0, 1.0))
 
 	# На время переключения передачи двигатель приглушается: так щелчок
@@ -330,6 +330,13 @@ func _mute(muted: bool) -> void:
 		_road_player.volume_db = -60.0
 	if _wind_player != null:
 		_wind_player.volume_db = -60.0
+
+
+func _engine_load_target(rpm: float, throttle: float) -> float:
+	# Отсечка в физике и сброс нагрузки в звуке используют один флаг.
+	if car.motor_is_redline or car.engine_stalled:
+		return 0.0
+	return clampf(throttle * 0.88 + 0.12 * clampf(rpm / maxf(car.max_rpm, 1.0), 0.0, 1.0), 0.0, 1.0)
 
 
 func _update_engine(rpm: float, delta: float) -> void:
@@ -481,6 +488,8 @@ func _pitch_for(index: int, rpm: float) -> float:
 	# продолжают «тянуться» вверх по питчу, а не упираются в потолок:
 	# иначе на последней тысяче оборотов звук стоит на месте.
 	var top := float(RPM_GRID[RPM_GRID.size() - 1])
+	if rpm > top and index == RPM_GRID.size() - 1:
+		return clampf(rpm / base, 1.0, 2.0)
 	var limit: float = PITCH_LIMIT if rpm <= top else 0.25
 	return clampf(rpm / base, 1.0 - limit, 1.0 + limit)
 

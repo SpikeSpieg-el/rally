@@ -177,6 +177,7 @@ func _ready() -> void:
 	_apply_drivetrain()
 	_refresh_grip_tuning()
 	motor_rpm = idle_rpm
+	motor_is_redline = false
 	current_rpm = idle_rpm
 	current_gear = 0 if manual_clutch_control else 1
 	requested_gear = current_gear
@@ -1224,6 +1225,7 @@ func reset_to_spawn() -> void:
 	is_braking = false
 	enable_stability = false
 	motor_rpm = idle_rpm
+	motor_is_redline = false
 	current_rpm = idle_rpm
 	current_gear = 0 if manual_clutch_control else 1
 	requested_gear = current_gear

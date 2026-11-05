@@ -22,6 +22,12 @@
 [ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
 [ext_resource type="PackedScene" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
 
+[ext_resource type="PackedScene" path="res://scenes/props/juniper.tscn" id="scene_juniper"]
+[ext_resource type="PackedScene" path="res://scenes/props/dry_shrub.tscn" id="scene_dry_shrub"]
+[ext_resource type="PackedScene" path="res://scenes/props/moss_rock.tscn" id="scene_moss_rock"]
+[ext_resource type="PackedScene" path="res://scenes/props/mushroom_cluster.tscn" id="scene_mushroom_cluster"]
+[ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="scene_wildflowers"]
+
 [sub_resource type="Resource" id="RallyProp_fir_tree"]
 script = ExtResource("2_prop")
 id = "fir_tree"
@@ -122,6 +128,9 @@ height_jitter = Vector2(0.85, 1.15)
 category = 1
 placement_radius = 0.3
 small = true
+ground_cover = true
+cover_weight = 1.3
+biome_ids = Array[String](["forest", "meadow", "roadside"])
 
 [sub_resource type="Resource" id="RallyProp_grass3"]
 script = ExtResource("2_prop")
@@ -135,6 +144,9 @@ height_jitter = Vector2(0.85, 1.15)
 category = 1
 placement_radius = 0.3
 small = true
+ground_cover = true
+cover_weight = 1.0
+biome_ids = Array[String](["meadow", "rocky", "roadside"])
 
 [sub_resource type="Resource" id="RallyProp_boulder"]
 script = ExtResource("2_prop")
@@ -294,6 +306,76 @@ collider_spacing = 150.0
 collider_radius = 0.95
 collider_height = 2.0
 
+[sub_resource type="Resource" id="RallyProp_juniper"]
+script = ExtResource("2_prop")
+id = "juniper"
+display_name = "Можжевельник"
+scene = ExtResource("scene_juniper")
+weight = 0.08
+category = 1
+size = Vector2(0.75, 1.3)
+placement_radius = 0.8
+biome_ids = Array[String](["forest"])
+small = true
+ground_cover = false
+cover_weight = 1.0
+
+[sub_resource type="Resource" id="RallyProp_dry_shrub"]
+script = ExtResource("2_prop")
+id = "dry_shrub"
+display_name = "Сухой куст"
+scene = ExtResource("scene_dry_shrub")
+weight = 0.08
+category = 1
+size = Vector2(0.75, 1.3)
+placement_radius = 0.8
+biome_ids = Array[String](["rocky"])
+small = true
+ground_cover = false
+cover_weight = 1.0
+
+[sub_resource type="Resource" id="RallyProp_moss_rock"]
+script = ExtResource("2_prop")
+id = "moss_rock"
+display_name = "Замшелый камень"
+scene = ExtResource("scene_moss_rock")
+weight = 0.07
+category = 1
+size = Vector2(0.75, 1.3)
+placement_radius = 0.8
+biome_ids = Array[String](["forest"])
+small = true
+ground_cover = false
+cover_weight = 1.0
+
+[sub_resource type="Resource" id="RallyProp_mushroom_cluster"]
+script = ExtResource("2_prop")
+id = "mushroom_cluster"
+display_name = "Группа грибов"
+scene = ExtResource("scene_mushroom_cluster")
+weight = 0
+category = 1
+size = Vector2(0.75, 1.3)
+placement_radius = 0.22
+biome_ids = Array[String](["forest"])
+small = true
+ground_cover = true
+cover_weight = 0.12
+
+[sub_resource type="Resource" id="RallyProp_wildflowers"]
+script = ExtResource("2_prop")
+id = "wildflowers"
+display_name = "Луговые цветы"
+scene = ExtResource("scene_wildflowers")
+weight = 0
+category = 1
+size = Vector2(0.75, 1.3)
+placement_radius = 0.22
+biome_ids = Array[String](["meadow"])
+small = true
+ground_cover = true
+cover_weight = 0.22
+
 [resource]
 script = ExtResource("1_lib")
-props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner")])
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers")])

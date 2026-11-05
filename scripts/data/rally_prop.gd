@@ -23,8 +23,8 @@ extends Resource
 ## Перед расстановкой сцена один раз «запекается» в MultiMesh, поэтому её
 ## меши и материалы — ровно то, что видно в заезде.
 @export var scene: PackedScene = null
-## Доля в общей «урне» видов. 0 — вид не расставляется сам (но может быть
-## спутником, см. `undergrowth_prop_id` в RallySceneryConfig).
+## Доля в обычной «урне». 0 — только заполнение или спутник
+## (ground_cover либо undergrowth_prop_id в RallySceneryConfig).
 @export_range(0.0, 10.0, 0.01) var weight: float = 1.0
 
 @export_group("Размер и поворот")
@@ -60,6 +60,18 @@ enum Category { FOREST, VEGETATION, ROCKS, FIELD, FENCE, RALLY }
 ## Шанс посадить рядом спутника (трава, папоротник — id в конфиге обстановки).
 @export_range(0.0, 1.0, 0.01) var undergrowth_chance: float = 0.0
 
+@export_group("Биомы и заполнение")
+## Пусто — все биомы; иначе id из RallySceneryBiome (также для обычных пропсов).
+@export var biome_ids: Array[String] = []
+## Независимый слой заполнения, не участвует в урне крупных объектов.
+@export var ground_cover: bool = false
+## Вес внутри биома, независимо от weight (у заполнения weight обычно 0).
+@export_range(0.0, 10.0, 0.05) var cover_weight: float = 1.0
+## Допустимый уклон грунта для заполнения, градусы.
+@export_range(0.0, 89.0, 1.0) var cover_max_slope: float = 42.0
+## Допустимая мировая высота, м.
+@export var cover_altitude: Vector2 = Vector2(-10000.0, 10000.0)
+
 @export_group("Коллизия")
 ## В пределах скольки метров от кромки полотна ставить коллизию. 0 — без
 ## коллизии: сквозь кусты и траву машина проезжает.
@@ -86,3 +98,7 @@ func group_name() -> String:
 			continue
 		out += part.substr(0, 1).to_upper() + part.substr(1)
 	return out if not out.is_empty() else "Props"
+
+
+func supports_biome(biome_id: String) -> bool:
+	return biome_ids.is_empty() or biome_ids.has(biome_id)

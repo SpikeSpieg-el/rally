@@ -6,8 +6,8 @@ extends RefCounted
 const CELL_SIZE := 12.0
 var occupied: Dictionary = {}
 
-static func zone_at(distance: float, side_sign: float, seed_value: int) -> int:
-	var block := int(floor(distance / 120.0))
+static func zone_at(distance: float, side_sign: float, seed_value: int, block_length: float = 120.0) -> int:
+	var block := int(floor(distance / maxf(1.0, block_length)))
 	return int(posmod(hash(Vector3i(block, int(side_sign), seed_value)), 4))
 
 static func allows(prop: RallyProp, zone: int) -> bool:

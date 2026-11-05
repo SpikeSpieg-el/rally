@@ -44,6 +44,12 @@ extends Resource
 ## Запретная зона у чужого витка дороги сверх коридора, м.
 @export_range(0.0, 60.0, 0.1) var road_clearance: float = 3.5
 
+@export_group("Биомы заполнения")
+## Длина тематического участка вдоль дороги; обе стороны выбирают зоны независимо.
+@export_range(40.0, 2000.0, 10.0) var biome_length: float = 120.0
+## Первый профиль с нужной зоной; пустой список сохраняет старую равномерную раскладку.
+@export var biomes: Array[RallySceneryBiome] = []
+
 @export_group("Подлесок-спутник")
 ## Id вида, который сажается рядом с «хозяином» (травяной пучок).
 ## Пусто — спутник не сажается. Сам вид при этом должен лежать в библиотеке.
@@ -51,8 +57,8 @@ extends Resource
 ## Несколько видов травы для случайной смены спутников вокруг больших пропсов.
 ## Старое поле undergrowth_prop_id остаётся запасным вариантом, если список пуст.
 @export var undergrowth_prop_ids: Array[String] = []
-## Виды для отдельного массового заполнения окружения (обычно grass2/grass3).
-## Эти пропсы ставятся независимо от grass: он остаётся обычным объектом-пропсом.
+## Старый список id заполнения (совместимость). Новые виды автоматически
+## подключаются флагом RallyProp.ground_cover в библиотеке, без правок этого списка.
 @export var ground_cover_prop_ids: Array[String] = ["grass2", "grass3"]
 ## Отдельная плотность массового заполнения grass2/grass3.
 @export_range(0.0, 40.0, 0.1) var ground_cover_density: float = 4.0
@@ -88,3 +94,10 @@ func attempts_for(density: float) -> int:
 func attempt_chance_for(density: float, attempt_count: int) -> float:
 	var scaled: float = float(attempts_per_step) * maxf(density, 0.0) * maxf(density_multiplier, 0.0) * success_chance
 	return clampf(scaled / float(maxi(attempt_count, 1)), 0.0, 1.0)
+
+
+func biome_for_zone(zone: int) -> RallySceneryBiome:
+	for biome in biomes:
+		if biome != null and biome.zone == zone:
+			return biome
+	return null

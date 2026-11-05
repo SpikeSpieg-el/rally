@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/moss_stone.png" id="tex_surface"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_surface"]
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("tex_surface")
+roughness = 1
+metallic_specular = 0.28
+specular_mode = 2
+
+[sub_resource type="SphereMesh" id="Mesh_0"]
+material = SubResource("Mat_surface")
+radius = 0.65
+height = 0.75
+radial_segments = 7
+rings = 3
+
+[sub_resource type="SphereMesh" id="Mesh_1"]
+material = SubResource("Mat_surface")
+radius = 0.32
+height = 0.38
+radial_segments = 6
+rings = 2
+
+[node name="MossRock" type="Node3D"]
+
+[node name="Mesh_0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.32, 0)
+mesh = SubResource("Mesh_0")
+
+[node name="Mesh_1" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9396926, 0, -0.3420201, 0, 1, 0, 0.3420201, 0, 0.9396926, 0.5, 0.17, 0.2)
+mesh = SubResource("Mesh_1")

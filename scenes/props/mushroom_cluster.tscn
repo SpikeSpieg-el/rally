@@ -1,0 +1,90 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/mushroom_cap.png" id="tex_cap"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/dry_branches.png" id="tex_stem"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_cap"]
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("tex_cap")
+roughness = 1
+metallic_specular = 0.28
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_stem"]
+albedo_color = Color(0.95, 0.86, 0.67, 1)
+albedo_texture = ExtResource("tex_stem")
+roughness = 1
+metallic_specular = 0.28
+specular_mode = 2
+
+[sub_resource type="CylinderMesh" id="Stem_0"]
+material = SubResource("Mat_stem")
+top_radius = 0.04
+bottom_radius = 0.06
+height = 0.32
+radial_segments = 6
+rings = 1
+
+[sub_resource type="SphereMesh" id="Cap_0"]
+material = SubResource("Mat_cap")
+radius = 0.16
+height = 0.128
+radial_segments = 8
+rings = 3
+
+[sub_resource type="CylinderMesh" id="Stem_1"]
+material = SubResource("Mat_stem")
+top_radius = 0.04
+bottom_radius = 0.06
+height = 0.45
+radial_segments = 6
+rings = 1
+
+[sub_resource type="SphereMesh" id="Cap_1"]
+material = SubResource("Mat_cap")
+radius = 0.225
+height = 0.18
+radial_segments = 8
+rings = 3
+
+[sub_resource type="CylinderMesh" id="Stem_2"]
+material = SubResource("Mat_stem")
+top_radius = 0.04
+bottom_radius = 0.06
+height = 0.22
+radial_segments = 6
+rings = 1
+
+[sub_resource type="SphereMesh" id="Cap_2"]
+material = SubResource("Mat_cap")
+radius = 0.11
+height = 0.088
+radial_segments = 8
+rings = 3
+
+[node name="MushroomCluster" type="Node3D"]
+
+[node name="Stem_0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.16, 0)
+mesh = SubResource("Stem_0")
+
+[node name="Cap_0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.32, 0)
+mesh = SubResource("Cap_0")
+
+[node name="Stem_1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.225, 0.13)
+mesh = SubResource("Stem_1")
+
+[node name="Cap_1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.45, 0.13)
+mesh = SubResource("Cap_1")
+
+[node name="Stem_2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.11, -0.1)
+mesh = SubResource("Stem_2")
+
+[node name="Cap_2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.22, -0.1)
+mesh = SubResource("Cap_2")

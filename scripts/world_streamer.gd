@@ -113,9 +113,8 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 			var companion = library.by_id(companion_id)
 			if companion != null and not props.has(companion):
 				props.append(companion)
-		for ground_cover_id in scenery.ground_cover_prop_ids:
-			var ground_cover = library.by_id(ground_cover_id)
-			if ground_cover != null and not props.has(ground_cover):
+		for ground_cover in library.ground_cover_props(scenery.ground_cover_prop_ids):
+			if not props.has(ground_cover):
 				props.append(ground_cover)
 		for prop in props:
 			stage._bake_prop_mesh(prop)
