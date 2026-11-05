@@ -1,21 +1,12 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dj4lgkn53ln7e"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/galvanized_steel.png" id="tex_steel"]
+[ext_resource type="Texture2D" uid="uid://3s5b0yjpum2b" path="res://textures/environment/galvanized_steel.png" id="tex_steel"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_steel"]
-albedo_color = Color(1, 1, 1, 1)
 albedo_texture = ExtResource("tex_steel")
 metallic = 0.65
+metallic_specular = 0.28
 roughness = 0.65
-metallic_specular = 0.28
-specular_mode = 0
-
-[sub_resource type="StandardMaterial3D" id="Mat_reflector"]
-albedo_color = Color(0.9, 0.12, 0.06, 1)
-albedo_texture = ExtResource("tex_steel")
-roughness = 0.45
-metallic_specular = 0.28
-specular_mode = 2
 
 [sub_resource type="BoxMesh" id="Rail_0"]
 material = SubResource("Mat_steel")
@@ -37,6 +28,13 @@ size = Vector3(3, 0.13, 0.035)
 material = SubResource("Mat_steel")
 size = Vector3(0.1, 1.2, 0.13)
 
+[sub_resource type="StandardMaterial3D" id="Mat_reflector"]
+specular_mode = 2
+albedo_color = Color(0.9, 0.12, 0.06, 1)
+albedo_texture = ExtResource("tex_steel")
+metallic_specular = 0.28
+roughness = 0.45
+
 [sub_resource type="BoxMesh" id="FrontReflector"]
 material = SubResource("Mat_reflector")
 size = Vector3(0.12, 0.12, 0.02)
@@ -48,38 +46,39 @@ size = Vector3(0.12, 0.12, 0.02)
 [sub_resource type="BoxShape3D" id="GuardrailShape"]
 size = Vector3(3, 1.1, 0.28)
 
-[node name="MetalGuardrail" type="Node3D"]
+[node name="MetalGuardrail" type="Node3D" unique_id=1175937543]
+transform = Transform3D(1.425, 0, 0, 0, 1.425, 0, 0, 0, 1.425, 0, 0, 0)
 
-[node name="Rail_0" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.9063078, 0.4226183, 0, -0.4226183, 0.9063078, 0, 0.62, 0.01)
+[node name="Rail_0" type="MeshInstance3D" parent="." unique_id=1472329490]
+transform = Transform3D(1, 0, 0, 0, 0.98219657, 0.18785606, 0, -0.18785606, 0.98219657, 0, 0.6091028, -0.04962056)
 mesh = SubResource("Rail_0")
 
-[node name="Rail_1" type="MeshInstance3D" parent="."]
+[node name="Rail_1" type="MeshInstance3D" parent="." unique_id=933213817]
 transform = Transform3D(1, 0, 0, 0, 0.9063078, -0.4226183, 0, 0.4226183, 0.9063078, 0, 0.73, -0.04)
 mesh = SubResource("Rail_1")
 
-[node name="Rail_2" type="MeshInstance3D" parent="."]
+[node name="Rail_2" type="MeshInstance3D" parent="." unique_id=858616538]
 transform = Transform3D(1, 0, 0, 0, 0.9063078, 0.4226183, 0, -0.4226183, 0.9063078, 0, 0.84, -0.04)
 mesh = SubResource("Rail_2")
 
-[node name="Rail_3" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.9063078, -0.4226183, 0, 0.4226183, 0.9063078, 0, 0.95, 0.01)
+[node name="Rail_3" type="MeshInstance3D" parent="." unique_id=506957116]
+transform = Transform3D(1, 0, 0, 0, 0.98561215, -0.16902247, 0, 0.16902247, 0.98561215, 0, 0.95, -0.047599487)
 mesh = SubResource("Rail_3")
 
-[node name="Post" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.1)
+[node name="Post" type="MeshInstance3D" parent="." unique_id=1939521300]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.14419898)
 mesh = SubResource("Post")
 
-[node name="FrontReflector" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.8, 0.09)
+[node name="FrontReflector" type="MeshInstance3D" parent="." unique_id=1126756075]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.8, 0.015276328)
 mesh = SubResource("FrontReflector")
 
-[node name="BackReflector" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.8, -0.12)
+[node name="BackReflector" type="MeshInstance3D" parent="." unique_id=2078658515]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.8809506, -0.0826382)
 mesh = SubResource("BackReflector")
 
-[node name="Collision" type="StaticBody3D" parent="."]
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1639360438]
 
-[node name="Shape" type="CollisionShape3D" parent="Collision"]
-position = Vector3(0, 0.55, 0)
+[node name="Shape" type="CollisionShape3D" parent="Collision" unique_id=1877333433]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
 shape = SubResource("GuardrailShape")

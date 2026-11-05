@@ -16,18 +16,17 @@
 [ext_resource type="PackedScene" uid="uid://bo338bkicgtd0" path="res://scenes/props/hay_bale.tscn" id="scene_hay_bale"]
 [ext_resource type="PackedScene" path="res://scenes/props/juniper.tscn" id="scene_juniper"]
 [ext_resource type="PackedScene" uid="uid://cr0gse3w8c3ro" path="res://scenes/props/log.tscn" id="scene_log"]
+[ext_resource type="PackedScene" uid="uid://dj4lgkn53ln7e" path="res://scenes/props/metal_guardrail.tscn" id="scene_metal_guardrail"]
 [ext_resource type="PackedScene" path="res://scenes/props/moss_rock.tscn" id="scene_moss_rock"]
 [ext_resource type="PackedScene" path="res://scenes/props/mushroom_cluster.tscn" id="scene_mushroom_cluster"]
 [ext_resource type="PackedScene" uid="uid://ugy3qok4c7kj" path="res://scenes/props/pine_tree.tscn" id="scene_pine_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="scene_rock_cluster"]
 [ext_resource type="PackedScene" path="res://scenes/props/sandbag_barrier.tscn" id="scene_sandbag_barrier"]
-[ext_resource type="PackedScene" path="res://scenes/props/sponsor_banner.tscn" id="scene_sponsor_banner"]
-[ext_resource type="PackedScene" path="res://scenes/props/stump.tscn" id="scene_stump"]
-[ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
+[ext_resource type="PackedScene" uid="uid://dnfh1hjw5fb5t" path="res://scenes/props/sponsor_banner.tscn" id="scene_sponsor_banner"]
+[ext_resource type="PackedScene" uid="uid://cg6kx3ewyqkfk" path="res://scenes/props/stump.tscn" id="scene_stump"]
+[ext_resource type="PackedScene" uid="uid://cybn2n7acr7er" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
 [ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="scene_wildflowers"]
-[ext_resource type="PackedScene" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
-
-[ext_resource type="PackedScene" path="res://scenes/props/metal_guardrail.tscn" id="scene_metal_guardrail"]
+[ext_resource type="PackedScene" uid="uid://x352v4piuwv6" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
 
 [sub_resource type="Resource" id="RallyProp_fir_tree"]
 script = ExtResource("2_prop")
