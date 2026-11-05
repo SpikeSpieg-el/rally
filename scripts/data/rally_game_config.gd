@@ -13,11 +13,14 @@ extends Resource
 @export_group("Списки")
 ## Массив ресурсов RallyTrackConfig (файлы из res://data/tracks/).
 @export var tracks: Array[Resource] = []
-## Массив ресурсов RallyCarSetup (файлы из res://data/setups/).
-@export var car_setups: Array[Resource] = []
-## Пресеты второй машины — Subaru Impreza (res://data/setups/subaru/*.tres).
-## Списки не смешиваются: у Lancer свои настройки, у Impreza свои.
-@export var subaru_setups: Array[Resource] = []
+## Машины игры: кузов, колёса, звук мотора и пресеты каждой
+## (res://data/vehicles/*.tres). Первая машина — машина по умолчанию.
+## Добавить новую = положить новый .tres, код править не нужно.
+@export var vehicles: Array[Resource] = []
+## Все готовые пресеты игры (файлы из res://data/setups/). Машина ссылается
+## на нужные ей по id (RallyVehicle.setup_ids), поэтому один пресет может
+## достаться нескольким машинам без копирования файла.
+@export var all_setups: Array[Resource] = []
 ## Массив ресурсов RallyWeatherConfig (файлы из res://data/weather/).
 @export var weather_presets: Array[Resource] = []
 ## Массив ресурсов RallyTrackProfile (файлы из res://data/profiles/).
@@ -39,19 +42,60 @@ func track_count() -> int:
 	return tracks.size()
 
 
-## Список пресетов выбранной машины. По умолчанию — Mitsubishi, поэтому
-## все прежние вызовы без аргумента видят тот же список из десяти пунктов.
-func setups_for(vehicle_id: String = "mitsubishi") -> Array:
-	if vehicle_id == "subaru" and not subaru_setups.is_empty():
-		return subaru_setups
-	return car_setups
+## Идентификатор машины по умолчанию: первая в списке (обычно Mitsubishi).
+func default_vehicle_id() -> String:
+	if vehicles.is_empty():
+		return "mitsubishi"
+	return String((vehicles[0] as RallyVehicle).id)
+
+
+## Все идентификаторы машин в порядке меню.
+func vehicle_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for resource in vehicles:
+		var vehicle := resource as RallyVehicle
+		if vehicle != null and not vehicle.id.is_empty():
+			ids.append(vehicle.id)
+	return ids
+
+
+## Ресурс машины по идентификатору. Неизвестный id — машина по умолчанию:
+## сохранение со старой машиной не должно ронять меню.
+func vehicle(vehicle_id: String) -> RallyVehicle:
+	var fallback: RallyVehicle = vehicles[0] as RallyVehicle if not vehicles.is_empty() else null
+	for resource in vehicles:
+		var candidate := resource as RallyVehicle
+		if candidate != null and candidate.id == vehicle_id:
+			return candidate
+	return fallback
 
 
 func has_vehicle(vehicle_id: String) -> bool:
-	return vehicle_id == "mitsubishi" or (vehicle_id == "subaru" and not subaru_setups.is_empty())
+	for resource in vehicles:
+		var candidate := resource as RallyVehicle
+		if candidate != null and candidate.id == vehicle_id:
+			return true
+	return false
 
 
-func setup_count(vehicle_id: String = "mitsubishi") -> int:
+## Пресет по его id — независимо от того, какой машине он принадлежит.
+func find_setup(setup_id: String) -> Resource:
+	for resource in all_setups:
+		var setup := resource as RallyCarSetup
+		if setup != null and setup.id == setup_id:
+			return setup
+	return null
+
+
+## Список пресетов выбранной машины. Неизвестный id — список машины по
+## умолчанию, поэтому старые вызовы без аргумента видят те же 10 пунктов.
+func setups_for(vehicle_id: String = "") -> Array:
+	var target := vehicle_id if not vehicle_id.is_empty() else default_vehicle_id()
+	var selected := vehicle(target)
+	return selected.setups(self) if selected != null else []
+
+
+func setup_count(vehicle_id: String = "") -> int:
 	return setups_for(vehicle_id).size()
 
 
@@ -61,7 +105,7 @@ func get_track(index: int) -> Resource:
 	return tracks[clampi(index, 0, tracks.size() - 1)]
 
 
-func get_setup(index: int, vehicle_id: String = "mitsubishi") -> Resource:
+func get_setup(index: int, vehicle_id: String = "") -> Resource:
 	var list := setups_for(vehicle_id)
 	if list.is_empty():
 		return null

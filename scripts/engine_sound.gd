@@ -23,6 +23,8 @@ const CarType = preload("res://scripts/rally_car.gd")
 
 const ENGINE_DIR := "res://audio/engine/"
 const VEHICLE_DIR := "res://audio/vehicle/"
+## Реестр машин: при прямом запуске сцены звук читает его сам.
+const CONFIG_PATH := "res://data/rally_game_config.tres"
 
 ## Сетка оборотов, для которой сделаны лупы. Должна совпадать с той, что
 ## использует tools/render_engine_audio.py.
@@ -30,17 +32,10 @@ const RPM_GRID := [900, 970, 1050, 1130, 1220, 1320, 1430, 1540, 1670, 1800, 194
 	2270, 2450, 2640, 2850, 3080, 3330, 3600, 3880, 4190, 4530, 4890, 5280,
 	5710, 6160, 6660, 7190, 7600]
 
-## Второй мотор игры — оппозитный Subaru EJ25. У него своя отсечка (6800),
-## своя сетка оборотов и свой банк записанных лупов, поэтому машина звучит
-## по-своему, а не голосом Mitsubishi.
-const SUBARU_DIR := "res://audio/engine/subaru/"
-## Свои одиночные звуки боксера: сброс турбины, хлопки, переключение и
-## запуск записаны отдельно (ниже и глуше), поэтому Subaru не звучит
-## событиями Mitsubishi. Гравий и ветер общие — это шум дороги, а не мотора.
-const SUBARU_EVENTS_DIR := "res://audio/vehicle/subaru/"
-const SUBARU_RPM_GRID := [800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765,
-	1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910, 4235, 4585, 4965,
-	5375, 5820, 6300, 6800]
+## Всё, что отличает мотор одной машины от другой (папка лупов, сетка
+## оборотов, папка одиночных звуков, поправка громкости и питч событий),
+## описано в ресурсе машины: data/vehicles/<id>.tres. Новый мотор не требует
+## правок в этом скрипте. Гравий и ветер — шум дороги, он общий.
 
 ## Режимы нагрузки: «light» — холостые/сброс газа, «full» — полный газ.
 const BANKS := ["light", "full"]
@@ -86,10 +81,9 @@ class EngineBank:
 	var cooldown: float = 0.0
 
 
-## Идентификатор машины, чей мотор звучит. Пусто — берём выбранную в гараже
-## (или Mitsubishi при прямом запуске сцены).
-@export_enum("По выбору игрока", "Mitsubishi 4G63T", "Subaru EJ25")
-var engine_override: int = 0
+## Идентификатор машины, чей мотор звучит, для отладки отдельной сцены.
+## Пусто — берём выбранную в гараже (или машину по умолчанию при F6).
+@export var engine_override: String = ""
 
 @export_group("Громкость")
 @export var enabled: bool = true
@@ -133,6 +127,7 @@ var _rpm_grid: Array = RPM_GRID
 var _engine_dir: String = ENGINE_DIR
 var _events_dir: String = VEHICLE_DIR
 var _engine_trim_db: float = 0.0
+var _engine_event_pitch_value: float = 1.0
 var _load_engine_key: String = ""
 var _road_stream: AudioStream = null
 var _wind_stream: AudioStream = null
@@ -164,7 +159,7 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless" or AudioServer.get_driver_name() == "Dummy":
 		return
 	_audio_ready = true
-	_apply_engine(_engine_id_from_context())
+	_apply_engine(_resolved_vehicle_id())
 	_load_streams()
 	_build_players()
 	if car != null:
@@ -193,50 +188,83 @@ func _exit_tree() -> void:
 # ---------------------------------------------------------------------------
 
 
-## Идентификатор мотора: "mitsubishi" (4G63T) или "subaru" (EJ25).
-## Приоритет: поле в инспекторе, затем выбранная в гараже машина, затем
-## RallyGame. При прямом запуске сцены (F6) звучит мотор сцены.
+## Машина, которую нужно озвучить: поле из инспектора, иначе выбранная в
+## гараже, иначе машина сцены, иначе машина по умолчанию из конфига.
+## Пустой id не возвращаем никогда — иначе звук молча уехал бы на дефолт,
+## даже когда игрок выбрал другую машину.
+func _resolved_vehicle_id() -> String:
+	var wanted := _engine_id_from_context()
+	if not wanted.is_empty():
+		return wanted
+	var config := _game_config()
+	return config.default_vehicle_id() if config != null else "mitsubishi"
+
+
+## Идентификатор машины, чей мотор звучит. Приоритет: поле в инспекторе,
+## затем выбранная в гараже машина, затем RallyGame. При прямом запуске
+## сцены (F6) звучит мотор машины этой сцены.
 func _engine_id_from_context() -> String:
-	match engine_override:
-		1:
-			return "mitsubishi"
-		2:
-			return "subaru"
+	if not engine_override.is_empty():
+		return engine_override
 	# Звук — дочерний узел машины, поэтому его _ready() выполняется РАНЬШЕ
 	# _ready() самой машины: local-поле vehicle_id ещё не выставлено. Сначала
 	# спрашиваем RallyGame, иначе Subaru один кадр звучал бы мотором Lancer.
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null and game.has_method("get_race_vehicle_id"):
 		var race_id := String(game.call("get_race_vehicle_id"))
-		if race_id == "subaru":
-			return "subaru"
+		if not race_id.is_empty():
+			return race_id
 	if car != null and "vehicle_id" in car:
 		return String(car.get("vehicle_id"))
-	return "mitsubishi"
+	return ""
 
 
 ## Переключает банк лупов и папку ассетов под выбранный мотор.
+## Всё берётся из ресурса машины: папки, сетка оборотов, громкость и питч.
+## Неизвестная машина звучит банком по умолчанию (Mitsubishi).
 func _apply_engine(engine_id: String) -> void:
 	_load_engine_key = engine_id
-	if engine_id == "subaru":
-		_rpm_grid = SUBARU_RPM_GRID
-		_engine_dir = SUBARU_DIR
-		# Без своего банка одиночных звуков машина молчала бы на сбросе газа.
-		_events_dir = SUBARU_EVENTS_DIR if ResourceLoader.exists(
-			SUBARU_EVENTS_DIR + "start.wav") else VEHICLE_DIR
-		# Оппозит записан плотнее в низах: чуть приглушаем, чтобы смена
-		# машины не была сменой громкости, а оставалась сменой характера.
-		_engine_trim_db = -1.5
-	else:
+	var vehicle := _vehicle_resource(engine_id)
+	if vehicle == null:
 		_rpm_grid = RPM_GRID
 		_engine_dir = ENGINE_DIR
 		_events_dir = VEHICLE_DIR
 		_engine_trim_db = 0.0
+		_engine_event_pitch_value = 1.0
+		return
+	_rpm_grid = vehicle.rpm_grid(RPM_GRID)
+	_engine_dir = vehicle.loops_dir(ENGINE_DIR)
+	# Папка событий может быть не заполнена или битой: тогда остаются общие
+	# звуки машины, иначе на сбросе газа была бы тишина.
+	var events: String = vehicle.events_dir(VEHICLE_DIR)
+	_events_dir = events if ResourceLoader.exists(events + "start.wav") else VEHICLE_DIR
+	_engine_trim_db = vehicle.engine_trim_db
+	_engine_event_pitch_value = vehicle.engine_event_pitch
+
+
+## Ресурс машины из конфига игры: оттуда берутся звук, модель и пресеты.
+func _vehicle_resource(engine_id: String) -> RallyVehicle:
+	var config := _game_config()
+	if config == null or engine_id.is_empty():
+		return null
+	return config.vehicle(engine_id)
+
+
+## Конфиг игры: у RallyGame он уже загружен, при F6 читаем файл сами.
+func _game_config() -> RallyGameConfig:
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and "config" in game:
+		var loaded := game.get("config") as RallyGameConfig
+		if loaded != null:
+			return loaded
+	if ResourceLoader.exists(CONFIG_PATH):
+		return load(CONFIG_PATH) as RallyGameConfig
+	return null
 
 
 ## Мотор сменился (например, игрок пересобрал сцену) — перезагружаем банк.
 func _refresh_engine_if_needed() -> void:
-	var wanted: String = _engine_id_from_context()
+	var wanted: String = _resolved_vehicle_id()
 	if wanted == _load_engine_key:
 		return
 	for bank in _banks:
@@ -255,9 +283,9 @@ func _refresh_engine_if_needed() -> void:
 	_load_streams()
 
 
-## Глубина «утробного» звука событий: у боксера хлопки ниже.
+## Питч одиночных событий из ресурса машины: у боксера хлопки ниже.
 func _engine_event_pitch() -> float:
-	return 0.90 if _load_engine_key == "subaru" else 1.0
+	return _engine_event_pitch_value
 
 
 # ---------------------------------------------------------------------------

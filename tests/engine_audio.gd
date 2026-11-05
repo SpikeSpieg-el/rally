@@ -4,6 +4,7 @@ extends SceneTree
 
 const EngineSoundScript = preload("res://scripts/engine_sound.gd")
 const CarScene = preload("res://scenes/rally_car.tscn")
+const CONFIG_PATH := "res://data/rally_game_config.tres"
 
 const ENGINE_DIR := "res://audio/engine/"
 const VEHICLE_DIR := "res://audio/vehicle/"
@@ -19,6 +20,11 @@ const ONESHOT_NAMES := ["bov_01.wav", "bov_02.wav", "bov_03.wav", "shift.wav",
 	"pop_05.wav", "pop_06.wav"]
 
 var failures: Array[String] = []
+
+
+## Реестр машин: откуда звук берёт папку лупов, сетку оборотов и события.
+func _vehicle_config() -> RallyGameConfig:
+	return load(CONFIG_PATH) as RallyGameConfig
 
 
 func _initialize() -> void:
@@ -115,17 +121,22 @@ func _run() -> void:
 				"файл %s не соответствует сетке оборотов" % file_name)
 
 	# 2b. Второй мотор игры — Subaru EJ25. Свой банк лупов и свои одиночные
-	#     звуки: боксер не должен звучать голосом Mitsubishi.
-	var subaru_grid: Array = sound.SUBARU_RPM_GRID
+	#     звуки: боксер не должен звучать голосом Mitsubishi. Всё это описано
+	#     в ресурсе машины data/vehicles/subaru.tres, а не в константах кода.
+	var subaru: RallyVehicle = _vehicle_config().vehicle("subaru")
+	_check(subaru != null, "в реестре машин есть Subaru")
+	var subaru_grid: Array = subaru.rpm_grid(sound.RPM_GRID) if subaru != null else []
 	_check(subaru_grid.size() >= 10, "у Subaru своя сетка оборотов")
-	_check(sound.SUBARU_DIR != sound.ENGINE_DIR, "лупы Subaru лежат отдельно")
-	_check(sound.SUBARU_EVENTS_DIR != sound.VEHICLE_DIR,
+	_check(subaru != null and subaru.loops_dir(sound.ENGINE_DIR) != sound.ENGINE_DIR,
+		"лупы Subaru лежат отдельно")
+	_check(subaru != null and subaru.events_dir(sound.VEHICLE_DIR) != sound.VEHICLE_DIR,
 		"одиночные звуки Subaru лежат отдельно")
-	_check(int(subaru_grid[subaru_grid.size() - 1]) == 6800,
+	_check(not subaru_grid.is_empty() and int(subaru_grid[subaru_grid.size() - 1]) == 6800,
 		"отсечка EJ25 — 6800 об/мин")
+	var subaru_loops: String = subaru.loops_dir(sound.ENGINE_DIR) if subaru != null else ""
 	for rpm in subaru_grid:
 		for bank in ["light", "full"]:
-			var subaru_path := "%sengine_%04d_%s.wav" % [sound.SUBARU_DIR, int(rpm), str(bank)]
+			var subaru_path := "%sengine_%04d_%s.wav" % [subaru_loops, int(rpm), str(bank)]
 			_check(FileAccess.file_exists(subaru_path), "нет лупа " + subaru_path)
 			_check(FileAccess.file_exists(subaru_path + ".import"),
 				"нет .import для " + subaru_path)
@@ -153,8 +164,9 @@ func _run() -> void:
 			"нет хлопка pop_%02d.wav" % (i + 1))
 
 	# 3b. Одиночные звуки боксера: тот же контракт, отдельные файлы.
+	var subaru_events: String = subaru.events_dir(sound.VEHICLE_DIR) if subaru != null else ""
 	for name in ONESHOT_NAMES:
-		var subaru_event: String = sound.SUBARU_EVENTS_DIR + str(name)
+		var subaru_event: String = subaru_events + str(name)
 		_check(FileAccess.file_exists(subaru_event), "нет звука Subaru " + subaru_event)
 		if not FileAccess.file_exists(subaru_event):
 			continue

@@ -40,12 +40,25 @@ func _run() -> void:
 	_check(lancer_names.size() == 10, "двигатели Mitsubishi различаются")
 
 	# 2. У Subaru свой список и свой мотор EJ25.
+	var subaru := config.vehicle("subaru")
+	_check(subaru != null, "в реестре машин есть Subaru")
 	var subaru_count: int = config.setup_count("subaru")
 	_check(subaru_count >= 3, "у Subaru должно быть несколько своих пресетов")
 	_check(
 		config.setups_for("subaru") != config.setups_for(),
 		"список пресетов Subaru не должен совпадать со списком Mitsubishi"
 	)
+	# Каждая машина — свой ресурс: кузов, колёса и банк звука её собственные.
+	var lancer := config.vehicle("mitsubishi")
+	_check(
+		subaru != null and subaru.model_scene != lancer.model_scene,
+		"у Subaru своя модель кузова"
+	)
+	_check(
+		subaru != null and subaru.loops_dir("") != lancer.loops_dir(""),
+		"у Subaru свой банк лупов"
+	)
+	_check(subaru != null and subaru.engine_event_pitch < 1.0, "события боксера звучат ниже")
 	var ids := {}
 	for i in range(subaru_count):
 		var preset := config.get_setup(i, "subaru") as RallyCarSetup

@@ -109,8 +109,9 @@ func save_conditions() -> Error:
 ## Выбор из прошлой сессии (трасса, сетап, погода, профиль) — если он есть.
 func _restore_saved_selection() -> void:
 	if _conditions.has_section("selection"):
-		var saved_vehicle := String(_conditions.get_value("selection", "vehicle_id", "mitsubishi"))
-		vehicle_id = saved_vehicle if saved_vehicle in ["mitsubishi", "subaru"] else "mitsubishi"
+		var saved_vehicle := String(_conditions.get_value("selection", "vehicle_id", ""))
+		vehicle_id = saved_vehicle if config != null and config.has_vehicle(saved_vehicle) \
+				else _default_vehicle()
 		track_index = clampi(
 			int(_conditions.get_value("selection", "track_index", track_index)),
 			0, maxi(0, track_count() - 1)
@@ -322,8 +323,9 @@ func track_count() -> int:
 
 
 ## Число готовых пресетов выбранной машины.
-func base_setup_count(vehicle_id: String = "mitsubishi") -> int:
-	return config.setup_count(vehicle_id) if config != null else 0
+func base_setup_count(vehicle_id: String = "") -> int:
+	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+	return config.setup_count(vehicle) if config != null else 0
 
 
 ## Все пункты списка для машины: готовые пресеты плюс её собственные записи.
@@ -349,8 +351,14 @@ func select_track(index: int) -> void:
 	selection_changed.emit()
 
 
+## Машина по умолчанию из конфига: первая в списке data/vehicles/*.tres.
+func _default_vehicle() -> String:
+	return config.default_vehicle_id() if config != null else "mitsubishi"
+
+
 func select_vehicle(id: String) -> void:
-	vehicle_id = id if id in ["mitsubishi", "subaru"] else "mitsubishi"
+	# Неизвестный id (например, из старого сохранения) — машина по умолчанию.
+	vehicle_id = id if config != null and config.has_vehicle(id) else _default_vehicle()
 	# Списки пресетов у машин разные: старый индекс мог оказаться за границей
 	# списка новой машины, поэтому выбираем ближайший допустимый пункт.
 	setup_index = clampi(setup_index, 0, maxi(0, setup_count() - 1))
@@ -361,7 +369,7 @@ func select_vehicle(id: String) -> void:
 
 ## Прямой запуск сцены сохраняет сценический автомобиль, как и setup.
 func get_race_vehicle_id() -> String:
-	return vehicle_id if _race_uses_selected_setup else "mitsubishi"
+	return vehicle_id if _race_uses_selected_setup else _default_vehicle()
 
 
 func select_setup(index: int) -> void:
@@ -377,16 +385,19 @@ func get_custom_setup(index: int) -> CarSetupType:
 	return selected.duplicate(true) as CarSetupType if selected != null else null
 
 
-## Свои пресеты хранятся отдельно для каждой машины: правка Subaru не должна
-## подменять настройки Lancer (и наоборот). Старые записи — «mitsubishi».
-func _custom_ids(vehicle_id: String = "mitsubishi") -> Array:
-	var ids: Variant = _conditions.get_value("custom_garage", _ids_key(vehicle_id), [])
+## Свои пресеты хранятся отдельно для каждой машины: правка одной машины не
+## должна подменять настройки другой. Старые записи лежат под ключом «ids»
+## и принадлежат машине по умолчанию — так их видит прежнее сохранение.
+func _custom_ids(vehicle_id: String = "") -> Array:
+	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+	var ids: Variant = _conditions.get_value("custom_garage", _ids_key(vehicle), [])
 	return ids if ids is Array else []
 
 
-func _find_base(id: String, vehicle_id: String = "mitsubishi") -> CarSetupType:
+func _find_base(id: String, vehicle_id: String = "") -> CarSetupType:
+	var target := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
 	if config != null:
-		for resource in config.setups_for(vehicle_id):
+		for resource in config.setups_for(target):
 			var base := resource as CarSetupType
 			if base != null and base.id == id:
 				return base
@@ -405,7 +416,7 @@ func get_setup_base(index: int) -> CarSetupType:
 
 ## Ключ списка пользовательских пресетов: у каждой машины свой.
 func _ids_key(vehicle_id: String) -> String:
-	return "ids" if vehicle_id == "mitsubishi" else vehicle_id + "_ids"
+	return "ids" if vehicle_id == _default_vehicle() else vehicle_id + "_ids"
 
 
 func _copy_conditions() -> ConfigFile:
@@ -461,7 +472,7 @@ func _migrate_legacy_garage() -> void:
 	if config == null or bool(_conditions.get_value("custom_garage", "legacy_migrated", false)):
 		return
 	var staged := _copy_conditions()
-	var ids: Array = _custom_ids("mitsubishi").duplicate()
+	var ids: Array = _custom_ids(_default_vehicle()).duplicate()
 	var serial := int(staged.get_value("custom_garage", "next_id", 1))
 	var old_selection := int(staged.get_value("selection", "setup_index", -1))
 	for i in range(config.setup_count()):

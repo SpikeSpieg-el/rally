@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RallyVehicle" format=3 uid="uid://c8lywpq4nr3vd"]
+
+[ext_resource type="Script" uid="uid://14v5g2inqnbr" path="res://scripts/data/rally_vehicle.gd" id="1_vehicle"]
+
+[resource]
+script = ExtResource("1_vehicle")
+id = "subaru"
+display_name = "SUBARU IMPREZA WRX STI"
+setup_ids = PackedStringArray(["subaru_sti_stock", "subaru_gravel", "subaru_snow", "subaru_tarmac", "subaru_gravel_spec"])
+model_scene = "res://scenes/rally_car2.tscn"
+model_root = "Sketchfab_Scene"
+hide_scene_body = true
+wheel_names = Array[String](["3DWheel Front L_6", "3DWheel Front R_15", "3DWheel Rear L_24", "3DWheel Rear R_33"])
+hide_model_interior = false
+uses_livery_presets = false
+engine_dir = "res://audio/engine/subaru/"
+engine_rpm_grid = Array[int]([800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765, 1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910, 4235, 4585, 4965, 5375, 5820, 6300, 6800])
+engine_events_dir = "res://audio/vehicle/subaru/"
+engine_trim_db = -1.5
+engine_event_pitch = 0.9

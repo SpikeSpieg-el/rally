@@ -5,16 +5,18 @@
 [ext_resource type="Resource" uid="uid://cv4peval9k2q7" path="res://data/tracks/stage_pereval.tres" id="3_t"]
 [ext_resource type="Resource" uid="uid://cnarc7d21g6m8" path="res://data/tracks/stage_north_arc.tres" id="4_t"]
 [ext_resource type="Resource" uid="uid://cdynmic4ge9k2" path="res://data/tracks/stage_dynamic.tres" id="5_t"]
+[ext_resource type="Resource" uid="uid://bvq3n8wmxs1ka" path="res://data/vehicles/mitsubishi.tres" id="v1"]
+[ext_resource type="Resource" uid="uid://c8lywpq4nr3vd" path="res://data/vehicles/subaru.tres" id="v2"]
 [ext_resource type="Resource" uid="uid://hvt7acezb4jm6" path="res://data/setups/engine_stock.tres" id="6_setup"]
 [ext_resource type="Resource" uid="uid://e9zw6klhl3niy" path="res://data/setups/engine_group_a.tres" id="7_setup"]
 [ext_resource type="Resource" uid="uid://h22xrv8c29ysh" path="res://data/setups/engine_atmo.tres" id="8_setup"]
-[ext_resource type="Resource" path="res://data/setups/engine_rallycross.tres" id="new1"]
-[ext_resource type="Resource" path="res://data/setups/engine_classic.tres" id="new2"]
-[ext_resource type="Resource" path="res://data/setups/engine_sprint.tres" id="new3"]
-[ext_resource type="Resource" path="res://data/setups/engine_endurance.tres" id="new4"]
-[ext_resource type="Resource" path="res://data/setups/engine_hillclimb.tres" id="new5"]
-[ext_resource type="Resource" path="res://data/setups/engine_snow.tres" id="new6"]
-[ext_resource type="Resource" path="res://data/setups/engine_club.tres" id="new7"]
+[ext_resource type="Resource" path="res://data/setups/engine_rallycross.tres" id="engine_rallycross"]
+[ext_resource type="Resource" path="res://data/setups/engine_classic.tres" id="engine_classic"]
+[ext_resource type="Resource" path="res://data/setups/engine_sprint.tres" id="engine_sprint"]
+[ext_resource type="Resource" path="res://data/setups/engine_endurance.tres" id="engine_endurance"]
+[ext_resource type="Resource" path="res://data/setups/engine_hillclimb.tres" id="engine_hillclimb"]
+[ext_resource type="Resource" path="res://data/setups/engine_snow.tres" id="engine_snow"]
+[ext_resource type="Resource" path="res://data/setups/engine_club.tres" id="engine_club"]
 [ext_resource type="Resource" uid="uid://1bk0urqf1x3fn" path="res://data/setups/subaru/subaru_sti.tres" id="subaru1"]
 [ext_resource type="Resource" uid="uid://lgfgdoxiw9cz" path="res://data/setups/subaru/subaru_gravel.tres" id="subaru2"]
 [ext_resource type="Resource" uid="uid://t5wc9k3obxvs" path="res://data/setups/subaru/subaru_snow.tres" id="subaru3"]
@@ -39,8 +41,8 @@ script = ExtResource("1_script")
 title = "RALLY"
 subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 10 ПРЕСЕТОВ"
 tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("mountain100")])
-car_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup"), ExtResource("new1"), ExtResource("new2"), ExtResource("new3"), ExtResource("new4"), ExtResource("new5"), ExtResource("new6"), ExtResource("new7")])
-subaru_setups = Array[Resource]([ExtResource("subaru1"), ExtResource("subaru2"), ExtResource("subaru3"), ExtResource("subaru4"), ExtResource("subaru5")])
+vehicles = Array[Resource]([ExtResource("v1"), ExtResource("v2")])
+all_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup"), ExtResource("engine_rallycross"), ExtResource("engine_classic"), ExtResource("engine_sprint"), ExtResource("engine_endurance"), ExtResource("engine_hillclimb"), ExtResource("engine_snow"), ExtResource("engine_club"), ExtResource("subaru1"), ExtResource("subaru2"), ExtResource("subaru3"), ExtResource("subaru4"), ExtResource("subaru5")])
 weather_presets = Array[Resource]([ExtResource("w1"), ExtResource("w2"), ExtResource("w3"), ExtResource("w4"), ExtResource("w5"), ExtResource("w6"), ExtResource("w7")])
 track_profiles = Array[Resource]([ExtResource("p1"), ExtResource("p2"), ExtResource("p3"), ExtResource("p4")])
 default_track_index = 0

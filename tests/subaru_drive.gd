@@ -37,18 +37,21 @@ func _run() -> void:
 	var garage = Garage.instantiate()
 	root.add_child(garage)
 	garage.open(game.config, 0, game)
-	garage._select_vehicle(1)
-	check(game.vehicle_id == "subaru" and garage._subaru_preview != null and garage._subaru_preview.visible and not garage._model.visible, "Subaru выбирается и показывается в гараже")
-	for name in Models.SUBARU_WHEELS:
-		var wheel = garage._subaru_preview.find_child(name, true, false)
+	var subaru := Models.vehicle("subaru")
+	check(subaru != null, "в реестре машин есть Subaru")
+	garage.select_vehicle("subaru")
+	var preview: Node3D = garage._vehicle_models.get("subaru")
+	check(game.vehicle_id == "subaru" and preview != null and preview.visible and not garage._model.visible, "Subaru выбирается и показывается в гараже")
+	for name in subaru.wheel_names:
+		var wheel = preview.find_child(name, true, false)
 		check(wheel != null and wheel.visible, "колесо Subaru видно в гараже: " + name)
 	game.load_conditions()
 	game.vehicle_id = "mitsubishi"
 	game._restore_saved_selection()
 	check(game.vehicle_id == "subaru", "выбор машины сохраняется между сеансами")
-	garage._select_vehicle(0)
-	check(game.vehicle_id == "mitsubishi" and garage._model.visible and not garage._subaru_preview.visible, "можно вернуться к Mitsubishi")
-	garage._select_vehicle(1)
+	garage.select_vehicle("mitsubishi")
+	check(game.vehicle_id == "mitsubishi" and garage._model.visible and not preview.visible, "можно вернуться к Mitsubishi")
+	garage.select_vehicle("subaru")
 	game._race_uses_selected_setup = true
 	garage.free()
 
@@ -71,7 +74,7 @@ func _run() -> void:
 	check(car.get_node_or_null("Sketchfab_Scene") != null and not car.get_node("low poly lance evo").visible, "в заезде используется модель Subaru")
 	for i in range(Models.WHEEL_MOUNTS.size()):
 		var mount: Node = car.get_node(Models.WHEEL_MOUNTS[i] + "/WheelVisual")
-		var wheel = mount.get_node_or_null(Models.SUBARU_WHEELS[i])
+		var wheel = mount.get_node_or_null(subaru.wheel_names[i])
 		check(wheel != null and wheel.visible, "колесо прикреплено к симуляции подвески")
 	await _steps(180)
 	var contacts: int = car.get_wheel_contact_count()
