@@ -114,6 +114,33 @@ func _run() -> void:
 			_check(grid.has(int(parts[1])),
 				"файл %s не соответствует сетке оборотов" % file_name)
 
+	# 2b. Второй мотор игры — Subaru EJ25. Свой банк лупов и свои одиночные
+	#     звуки: боксер не должен звучать голосом Mitsubishi.
+	var subaru_grid: Array = sound.SUBARU_RPM_GRID
+	_check(subaru_grid.size() >= 10, "у Subaru своя сетка оборотов")
+	_check(sound.SUBARU_DIR != sound.ENGINE_DIR, "лупы Subaru лежат отдельно")
+	_check(sound.SUBARU_EVENTS_DIR != sound.VEHICLE_DIR,
+		"одиночные звуки Subaru лежат отдельно")
+	_check(int(subaru_grid[subaru_grid.size() - 1]) == 6800,
+		"отсечка EJ25 — 6800 об/мин")
+	for rpm in subaru_grid:
+		for bank in ["light", "full"]:
+			var subaru_path := "%sengine_%04d_%s.wav" % [sound.SUBARU_DIR, int(rpm), str(bank)]
+			_check(FileAccess.file_exists(subaru_path), "нет лупа " + subaru_path)
+			_check(FileAccess.file_exists(subaru_path + ".import"),
+				"нет .import для " + subaru_path)
+			if not FileAccess.file_exists(subaru_path):
+				continue
+			var subaru_header := _read_wav_header(subaru_path)
+			_check(int(subaru_header["rate"]) == EXPECTED_RATE,
+				"частота дискретизации в %s должна быть %d" % [subaru_path, EXPECTED_RATE])
+			_check(int(subaru_header["channels"]) == 1, "%s должен быть моно" % subaru_path)
+			_check(bool(subaru_header["has_smpl"]),
+				"в %s нет блока smpl, луп не будет бесшовным" % subaru_path)
+			var subaru_import := _read_text(subaru_path + ".import")
+			_check(subaru_import.contains("edit/loop_mode=2"),
+				"%s должен импортироваться как луп" % subaru_path)
+
 	# 3. Звуки машины на месте.
 	for name in ["gravel_road.wav", "wind.wav", "shift.wav", "start.wav"]:
 		_check(FileAccess.file_exists(VEHICLE_DIR + name),
@@ -124,6 +151,19 @@ func _run() -> void:
 	for i in range(6):
 		_check(FileAccess.file_exists(VEHICLE_DIR + "pop_%02d.wav" % (i + 1)),
 			"нет хлопка pop_%02d.wav" % (i + 1))
+
+	# 3b. Одиночные звуки боксера: тот же контракт, отдельные файлы.
+	for name in ONESHOT_NAMES:
+		var subaru_event: String = sound.SUBARU_EVENTS_DIR + str(name)
+		_check(FileAccess.file_exists(subaru_event), "нет звука Subaru " + subaru_event)
+		if not FileAccess.file_exists(subaru_event):
+			continue
+		var subaru_event_header := _read_wav_header(subaru_event)
+		_check(not bool(subaru_event_header["has_smpl"]),
+			"в %s не должно быть блока smpl: это одиночный звук" % subaru_event)
+		var subaru_event_import := _read_text(subaru_event + ".import")
+		_check(subaru_event_import.contains("edit/loop_mode=1"),
+			"%s должен импортироваться без зацикливания" % subaru_event)
 
 	# 4. Одиночные звуки не зациклены: иначе хлопок в выхлопе превращается
 	#    в непрерывный треск.

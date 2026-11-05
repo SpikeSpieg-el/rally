@@ -85,6 +85,8 @@ def is_loop_asset(path: str) -> bool:
         return False
     if name in ("shift.wav", "start.wav"):
         return False
+    # У каждого мотора свой банк одиночных звуков, например
+    # audio/vehicle/subaru/pop_01.wav — правила те же.
     return True
 
 
@@ -194,7 +196,9 @@ def main(argv: list) -> int:
         targets = []
         for folder, extension in (
             ("audio/engine", ".wav"),
+            ("audio/engine/subaru", ".wav"),
             ("audio/vehicle", ".wav"),
+            ("audio/vehicle/subaru", ".wav"),
             ("textures/radio", ".png"),
         ):
             base = os.path.join(ROOT, folder)

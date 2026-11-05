@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://lgfgdoxiw9cz"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_gravel"
+display_name = "EJ25 · ГРАВИЙ"
+description = "Гравийная Impreza: мягче пружины, длиннее ход, шины с крупным шагом и повышенным сцеплением на грунте. Мотор без изменений — боксер и так тянет с низов."
+body_color = Color(0.16, 0.42, 0.3, 1)
+accent_color = Color(1.0, 0.86, 0.3, 1)
+engine_name = "EJ25 · GRAVEL SPEC"
+max_torque = 420.0
+max_rpm = 6800.0
+idle_rpm = 850.0
+torque_shape = 1
+engine_brake_scale = 1.05
+turbo = true
+final_drive = 4.11
+gear_ratios = Array[float]([3.30, 2.15, 1.55, 1.19, 0.96, 0.80])
+traction_control_max_slip = 0.70
+drivetrain = 0
+awd_front_torque = 0.46
+vehicle_mass = 1470.0
+front_weight_distribution = 0.57
+center_of_gravity_height_offset = -0.10
+front_spring_length = 0.380
+rear_spring_length = 0.400
+front_resting_ratio = 0.50
+rear_resting_ratio = 0.50
+front_damping_ratio = 0.40
+rear_damping_ratio = 0.46
+front_arb_ratio = 0.11
+rear_arb_ratio = 0.09
+bump_damp_multiplier = 0.68
+rebound_damp_multiplier = 1.25
+tire_radius = 0.450
+tire_width = 225.0
+grip_scale = 1.16
+tire_stiffness_scale = 0.98
+rolling_resistance_scale = 1.14
+max_steering_angle_deg = 35.0
+brake_force_multiplier = 1.05
+front_brake_bias = 0.62
+chase_distance = 5.9
+chase_height = 1.62

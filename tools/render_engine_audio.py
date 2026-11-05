@@ -6,8 +6,10 @@
 
 Что получается на выходе:
 
-  audio/engine/engine_<об/мин>_<режим>.wav  — лупы двигателя Mitsubishi 4G63T
+  audio/engine/engine_<об/мин>_<режим>.wav        — лупы двигателя Mitsubishi 4G63T
         («light» — сброс газа/холостые, «full» — полный газ), сетка по оборотам;
+  audio/engine/subaru/engine_<об/мин>_<режим>.wav — те же режимы для оппозитного
+        Subaru EJ25: другой порядок вспышек, длинный «плоский» выпуск, свой тембр;
   audio/vehicle/gravel_road.wav               — шорох гравия под колёсами (луп);
   audio/vehicle/wind.wav                      — шум ветра (луп);
   audio/vehicle/bov_*.wav                     — сброс давления турбины;
@@ -19,6 +21,7 @@
     python3 tools/render_engine_audio.py                 # всё
     python3 tools/render_engine_audio.py --rpm-grid 900 1250 1600
     python3 tools/render_engine_audio.py --only vehicle
+    python3 tools/render_engine_audio.py --only subaru     # только банк Subaru
 """
 from __future__ import annotations
 
@@ -39,7 +42,14 @@ import godot_import  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE_DIR = os.path.join(ROOT, "audio", "engine")
+# Второй двигатель игры живёт в подпапке: сетка оборотов у него своя
+# (отсечка 6800 вместо 7600), а имена файлов — те же, что у Mitsubishi.
+SUBARU_DIR = os.path.join(ENGINE_DIR, "subaru")
 VEHICLE_DIR = os.path.join(ROOT, "audio", "vehicle")
+# Одиночные звуки боксера тоже свои: у Subaru ниже сброс турбины, глуше
+# хлопок в выхлопе и тяжелее ход кулисы, потому что выхлоп длиннее и
+# «плоский», а коробка — с тяжёлым механизмом переключения.
+SUBARU_VEHICLE_DIR = os.path.join(VEHICLE_DIR, "subaru")
 
 SR = 32000
 # Сетка оборотов — логарифмическая: шаг в октавах одинаков, поэтому тон
@@ -48,6 +58,11 @@ SR = 32000
 RPM_GRID = [900, 970, 1050, 1130, 1220, 1320, 1430, 1540, 1670, 1800, 1940,
             2100, 2270, 2450, 2640, 2850, 3080, 3330, 3600, 3880, 4190, 4530,
             4890, 5280, 5710, 6160, 6660, 7190, 7600]
+# Сетка оборотов Subaru EJ25: отсечка 6800, поэтому верхняя точка ниже, а
+# ступени те же ~8 % (должна совпадать с SUBARU_RPM_GRID в scripts/engine_sound.gd).
+SUBARU_RPM_GRID = [800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765,
+                   1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910,
+                   4235, 4585, 4965, 5375, 5820, 6300, 6800]
 LOOP_SECONDS = 1.0
 
 
@@ -128,35 +143,58 @@ def loopify(data: np.ndarray, loop_len: int, sr: int = SR) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def render_bank(rpm: int, load: float, seed: int) -> np.ndarray:
+def render_bank(rpm: int, load: float, seed: int,
+                engine: str = "mitsubishi") -> np.ndarray:
+    """Один луп двигателя. `engine` выбирает физическую модель мотора."""
     params = m.RenderParams(sr=SR, duration=LOOP_SECONDS, seed=seed)
-    spec = m.EngineSpec()
-    params.spec = spec
+    if engine == "subaru":
+        # Оппозит: своя геометрия выпуска и стабильный «бокс» на холостых.
+        params.spec = m.subaru_ej25()
+        # Боксеры гремят на холостых заметнее рядных четвёрок.
+        params.idle_lope = 0.016
+        # Мягче глушитель: длинная трасса сама убирает верх, срез ставим ниже.
+        params.muffler_hz = 4600.0
+        params.muffler_hz_load = 2300.0
+        # Меньше «цыканья» клапанов — у боксера оно глуше и тише.
+        params.valvetrain_level = 0.130
+        params.valvetrain_gain = 0.80
+        params.turbo_gain = 0.85
+        # Подчёркиваем низ: у оппозита «утробный» кузовной резонанс.
+        params.exhaust_gain = 1.10
+        params.intake_gain = 0.85
+    else:
+        params.spec = m.EngineSpec()
     if load < 0.5:
         # Холостые/сброс газа: звук мягче, труба «глуше», слышны хлопки.
         params.decay_load = params.decay_idle
         params.decay_idle = 0.030
         params.overrun = 1.0
-        params.idle_lope = 0.011
-        params.valvetrain_level = 0.150
+        params.idle_lope = max(params.idle_lope, 0.011)
+        params.valvetrain_level = min(params.valvetrain_level, 0.150)
     else:
         params.overrun = 0.0
-        params.idle_lope = 0.003
+        params.idle_lope = min(params.idle_lope, 0.003)
     loop, _ = m.render_engine(rpm, load, params)
     return m.normalize(loop)
 
 
-def build_engine_bank(rpm_grid: list) -> list:
+def _write_engine_loop(directory: str, rpm: int, name: str,
+                       engine: str) -> tuple:
+    data = render_bank(rpm, 1.0 if name == "full" else 0.12,
+                       seed=rpm * 7 + (0 if name == "light" else 3), engine=engine)
+    path = os.path.join(directory, "engine_%04d_%s.wav" % (rpm, name))
+    write_wav(path, data)
+    write_import_file(path)
+    print("  %-38s %6.2f с" % (os.path.relpath(path, ROOT), data.size / SR))
+    return path, data
+
+
+def build_engine_bank(rpm_grid: list, engine: str = "mitsubishi",
+                      directory: str = ENGINE_DIR) -> list:
     written = []
     for rpm in rpm_grid:
-        for load, name in ((0.12, "light"), (1.0, "full")):
-            # Сид зависит от оборотов: каждый луп свой, но воспроизводимый.
-            data = render_bank(rpm, load, seed=rpm * 7 + (0 if name == "light" else 3))
-            path = os.path.join(ENGINE_DIR, "engine_%04d_%s.wav" % (rpm, name))
-            write_wav(path, data)
-            write_import_file(path)
-            written.append((path, data))
-            print("  %-34s %6.2f с" % (os.path.relpath(path, ROOT), data.size / SR))
+        for name in ("light", "full"):
+            written.append(_write_engine_loop(directory, rpm, name, engine))
     return written
 
 
@@ -212,8 +250,14 @@ def wind(seconds: float = 2.0, seed: int = 23) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def blow_off(seed: int = 31, seconds: float = 0.55) -> np.ndarray:
-    """Сброс давления турбины: широкополосный «пшшш» с падающей частотой."""
+def blow_off(seed: int = 31, seconds: float = 0.55,
+             center_hz: tuple = (2600.0, 3400.0), decay: float = 0.16,
+             click_hz: float = 900.0, fall: float = 0.985) -> np.ndarray:
+    """Сброс давления турбины: широкополосный «пшшш» с падающей частотой.
+
+    Параметры задают характер конкретного мотора: у боксера фильтр ниже и
+    падает быстрее, поэтому сброс звучит коротко и глухо, а не звонко.
+    """
     n = int(seconds * SR)
     rng = np.random.default_rng(seed)
     noise = rng.standard_normal(n)
@@ -221,74 +265,97 @@ def blow_off(seed: int = 31, seconds: float = 0.55) -> np.ndarray:
     # Фильтр «ползёт» вниз — так слышно, как сбрасывается давление.
     out = np.zeros(n)
     step = 64
-    center = rng.uniform(2600.0, 3400.0)
+    center = rng.uniform(center_hz[0], center_hz[1])
     for i in range(0, n, step):
         end = min(n, i + step)
         block = noise[i:end]
-        center *= 0.985
+        center *= fall
         out[i:end] = m.biquad(block, m.bandpass_sos(max(center, 350.0), 1.1, SR))
-    env = np.exp(-t / 0.16) * (1.0 - np.exp(-t / 0.004))
+    env = np.exp(-t / decay) * (1.0 - np.exp(-t / 0.004))
     out *= env
     # Лёгкий «хлопок» клапана в начале.
-    click = np.exp(-t / 0.006) * np.sin(2.0 * math.pi * 900.0 * t)
+    click = np.exp(-t / 0.006) * np.sin(2.0 * math.pi * click_hz * t)
     out += click * 0.25
     return m.normalize(out)
 
 
-def pop(seed: int = 41, seconds: float = 0.22) -> np.ndarray:
-    """Хлопок на сбросе газа: резкий короткий «пук»."""
+def pop(seed: int = 41, seconds: float = 0.22,
+        band_hz: tuple = (600.0, 1800.0), thump_hz: tuple = (150.0, 320.0),
+        tail: float = 0.16) -> np.ndarray:
+    """Хлопок на сбросе газа: резкий короткий «пук».
+
+    Длинный «плоский» выпуск боксера режет верх и удлиняет хвост, поэтому
+    хлопок ниже и толще, чем у рядной четвёрки.
+    """
     n = int(seconds * SR)
     rng = np.random.default_rng(seed)
     noise = rng.standard_normal(n)
     t = np.arange(n) / SR
     length = int(rng.uniform(0.02, 0.09) * SR)
     env = np.zeros(n)
-    env[:length] = np.exp(-np.arange(length) / max(1.0, length * 0.16))
-    out = m.biquad(noise, m.bandpass_sos(rng.uniform(600.0, 1800.0), 1.4, SR))
+    env[:length] = np.exp(-np.arange(length) / max(1.0, length * tail))
+    out = m.biquad(noise, m.bandpass_sos(rng.uniform(band_hz[0], band_hz[1]), 1.4, SR))
     out *= env
-    out += np.exp(-t / 0.004) * np.sin(2.0 * math.pi * rng.uniform(150.0, 320.0) * t) * 0.35
+    out += np.exp(-t / 0.004) * np.sin(
+        2.0 * math.pi * rng.uniform(thump_hz[0], thump_hz[1]) * t) * 0.35
     return m.normalize(out)
 
 
-def gear_shift(seed: int = 53, seconds: float = 0.30) -> np.ndarray:
+def gear_shift(seed: int = 53, seconds: float = 0.30,
+               band_hz: tuple = (1800.0, 3200.0), thud_hz: tuple = (110.0, 190.0),
+               thud_gain: float = 0.5, body_decay: float = 0.035) -> np.ndarray:
     """Лязг переключения передачи: сухой металлический стук."""
     n = int(seconds * SR)
     rng = np.random.default_rng(seed)
     noise = rng.standard_normal(n)
     t = np.arange(n) / SR
-    body = m.biquad(noise, m.bandpass_sos(rng.uniform(1800.0, 3200.0), 2.2, SR))
-    env = np.exp(-t / 0.035)
-    low = np.exp(-t / 0.02) * np.sin(2.0 * math.pi * rng.uniform(110.0, 190.0) * t)
-    out = body * env * 0.8 + low * 0.5
+    body = m.biquad(noise, m.bandpass_sos(rng.uniform(band_hz[0], band_hz[1]), 2.2, SR))
+    env = np.exp(-t / body_decay)
+    low = np.exp(-t / 0.02) * np.sin(2.0 * math.pi * rng.uniform(thud_hz[0], thud_hz[1]) * t)
+    out = body * env * 0.8 + low * thud_gain
     return m.normalize(out)
 
 
-def engine_start(seed: int = 67, seconds: float = 1.6) -> np.ndarray:
-    """Запуск двигателя: прокрутка стартером и первый «выстрел»."""
+def engine_start(seed: int = 67, seconds: float = 1.6,
+                 engine: str = "mitsubishi") -> np.ndarray:
+    """Запуск двигателя: прокрутка стартером и первый «выстрел».
+
+    У боксера неровная прокрутка (цилиндры в два ряда) и «утробный» первый
+    выстрел, поэтому стартер крутится с биением, а вспышки идут по своей
+    сетке оборотов Subaru.
+    """
     n = int(seconds * SR)
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)  # noqa: F841 (сид для воспроизводимости)
     out = np.zeros(n)
+    is_boxer = engine == "subaru"
+    spec = m.SUBARU_EJ25 if is_boxer else m.EngineSpec()
+    idle_rpm = spec.idle_rpm
+    lope = 0.024 if is_boxer else 0.014
+    rumble_hz = 32.0 if is_boxer else 0.0
 
     # Вой стартера: нарастающий писк с пульсацией.
     t = np.arange(n) / SR
     crank = np.zeros(n)
     for i in range(n):
-        rpm = 220.0 + 260.0 * min(1.0, t[i] / 0.55)
-        crank[i] = math.sin(2.0 * math.pi * rpm / 30.0 * t[i]) * (0.25 + 0.55 * min(1.0, t[i] / 0.6))
+        crank_rpm = 200.0 + (240.0 if is_boxer else 260.0) * min(1.0, t[i] / 0.55)
+        wobble = 1.0 + (0.18 * math.sin(2.0 * math.pi * rumble_hz * t[i] / 4.0)
+                        if is_boxer else 0.0)
+        crank[i] = (math.sin(2.0 * math.pi * crank_rpm / 30.0 * t[i])
+                    * (0.25 + 0.55 * min(1.0, t[i] / 0.6)) * wobble)
     crank *= (t < 0.75).astype(np.float64)
-    out += crank * 0.35
+    out += crank * (0.42 if is_boxer else 0.35)
 
     # Старт: вспышки на холостых.
     params = m.RenderParams(sr=SR, duration=0.8, seed=seed)
-    params.spec = m.EngineSpec()
+    params.spec = spec
     params.decay_load = params.decay_idle
     params.decay_idle = 0.030
-    params.idle_lope = 0.014
-    loop, _ = m.render_engine(900, 0.25, params)
+    params.idle_lope = lope
+    loop, _ = m.render_engine(idle_rpm, 0.25, params)
     loop = m.normalize(loop)
     start = int(0.62 * SR)
     seg = min(loop.size, n - start)
-    out[start:start + seg] += loop[:seg] * 0.8
+    out[start:start + seg] += loop[:seg] * (0.9 if is_boxer else 0.8)
     return m.normalize(out)
 
 
@@ -297,24 +364,51 @@ def engine_start(seed: int = 67, seconds: float = 1.6) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def build_vehicle() -> list:
+def build_vehicle(engine: str = "mitsubishi",
+                  directory: str = VEHICLE_DIR) -> list:
+    """Одиночные звуки мотора: шины и ветер общие, события — свои у каждого.
+
+    Третий элемент — луп ли это. Одиночные звуки (хлопки, сброс турбины,
+    переключение передачи, запуск) зацикливать нельзя: Godot читает блок
+    smpl при импорте, и такой звук потом повторялся бы бесконечно.
+    """
     written = []
-    # Третий элемент — луп ли это. Одиночные звуки (хлопки, сброс турбины,
-    # переключение передачи, запуск) зацикливать нельзя: Godot читает блок
-    # smpl при импорте, и такой звук потом повторялся бы бесконечно.
+    is_boxer = engine == "subaru"
     jobs = [
-        ("gravel_road.wav", gravel_road(), True),
-        ("wind.wav", wind(), True),
-        ("bov_01.wav", blow_off(seed=31), False),
-        ("bov_02.wav", blow_off(seed=32), False),
-        ("bov_03.wav", blow_off(seed=33), False),
-        ("shift.wav", gear_shift(), False),
-        ("start.wav", engine_start(), False),
+        ("bov_01.wav", blow_off(seed=231 if is_boxer else 31,
+                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
+                                decay=0.21 if is_boxer else 0.16,
+                                click_hz=620.0 if is_boxer else 900.0,
+                                fall=0.978 if is_boxer else 0.985), False),
+        ("bov_02.wav", blow_off(seed=232 if is_boxer else 32,
+                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
+                                decay=0.21 if is_boxer else 0.16,
+                                click_hz=620.0 if is_boxer else 900.0,
+                                fall=0.978 if is_boxer else 0.985), False),
+        ("bov_03.wav", blow_off(seed=233 if is_boxer else 33,
+                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
+                                decay=0.21 if is_boxer else 0.16,
+                                click_hz=620.0 if is_boxer else 900.0,
+                                fall=0.978 if is_boxer else 0.985), False),
+        ("shift.wav", gear_shift(seed=253 if is_boxer else 53,
+                                 band_hz=(1150.0, 2300.0) if is_boxer else (1800.0, 3200.0),
+                                 thud_hz=(85.0, 150.0) if is_boxer else (110.0, 190.0),
+                                 thud_gain=0.72 if is_boxer else 0.5,
+                                 body_decay=0.05 if is_boxer else 0.035), False),
+        ("start.wav", engine_start(seed=267 if is_boxer else 67, engine=engine), False),
     ]
     for i in range(6):
-        jobs.append(("pop_%02d.wav" % (i + 1), pop(seed=41 + i), False))
+        jobs.append(("pop_%02d.wav" % (i + 1),
+                     pop(seed=(241 if is_boxer else 41) + i,
+                         band_hz=(420.0, 1250.0) if is_boxer else (600.0, 1800.0),
+                         thump_hz=(105.0, 240.0) if is_boxer else (150.0, 320.0),
+                         tail=0.24 if is_boxer else 0.16), False))
+    if not is_boxer:
+        # Шум дороги и ветра не принадлежат мотору — они общие для обеих машин.
+        jobs = [("gravel_road.wav", gravel_road(), True),
+                ("wind.wav", wind(), True)] + jobs
     for name, data, loop in jobs:
-        path = os.path.join(VEHICLE_DIR, name)
+        path = os.path.join(directory, name)
         write_wav(path, data, loop=loop)
         write_import_file(path)
         written.append(path)
@@ -325,15 +419,21 @@ def build_vehicle() -> list:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rpm-grid", type=int, nargs="*", default=RPM_GRID)
-    ap.add_argument("--only", choices=["engine", "vehicle"], default=None)
+    ap.add_argument("--only", choices=["engine", "subaru", "vehicle"],
+                    default=None)
     args = ap.parse_args()
 
     if args.only in (None, "engine"):
-        print("Лупы двигателя:")
+        print("Лупы двигателя Mitsubishi 4G63T:")
         build_engine_bank(args.rpm_grid)
+    if args.only in (None, "subaru"):
+        print("Лупы двигателя Subaru EJ25 (боксер):")
+        build_engine_bank(SUBARU_RPM_GRID, engine="subaru", directory=SUBARU_DIR)
     if args.only in (None, "vehicle"):
-        print("Звуки машины:")
+        print("Звуки машины Mitsubishi:")
         build_vehicle()
+        print("Звуки машины Subaru:")
+        build_vehicle(engine="subaru", directory=SUBARU_VEHICLE_DIR)
     return 0
 
 

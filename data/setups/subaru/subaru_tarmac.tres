@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://1frf2hwa06b7r"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_tarmac"
+display_name = "EJ25 · АСФАЛЬТ"
+description = "Асфальтовая Impreza: жёсткие пружины, низкий клиренс, широкие шины и короткая главная пара. Боксер крутится до 6800 и требует аккуратной работы правой ногой на выходе."
+body_color = Color(0.92, 0.92, 0.94, 1)
+accent_color = Color(0.95, 0.16, 0.14, 1)
+engine_name = "EJ25 · TARMAC SPEC"
+max_torque = 445.0
+max_rpm = 7000.0
+idle_rpm = 900.0
+torque_shape = 0
+engine_brake_scale = 1.25
+turbo = true
+final_drive = 4.44
+gear_ratios = Array[float]([3.05, 2.00, 1.44, 1.11, 0.90, 0.74])
+traction_control_max_slip = 0.55
+drivetrain = 0
+awd_front_torque = 0.38
+vehicle_mass = 1420.0
+front_weight_distribution = 0.56
+center_of_gravity_height_offset = -0.16
+front_spring_length = 0.220
+rear_spring_length = 0.240
+front_resting_ratio = 0.60
+rear_resting_ratio = 0.58
+front_damping_ratio = 0.68
+rear_damping_ratio = 0.72
+front_arb_ratio = 0.24
+rear_arb_ratio = 0.18
+bump_damp_multiplier = 0.92
+rebound_damp_multiplier = 1.60
+tire_radius = 0.438
+tire_width = 255.0
+grip_scale = 1.18
+tire_stiffness_scale = 1.16
+rolling_resistance_scale = 0.98
+max_steering_angle_deg = 31.0
+brake_force_multiplier = 1.05
+front_brake_bias = 0.68
+chase_distance = 5.4
+chase_height = 1.50
