@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check Godot resources for merge markers
+        run: python3 -m unittest discover -s tests -p test_resource_integrity.py
       - name: Install Godot and web export templates
         shell: bash
         run: |
@@ -48,6 +50,7 @@ jobs:
           }
           trap report_failure ERR
           "$godot" --headless --editor --path . --import 2>&1 | tee /tmp/godot-build.log
+          "$godot" --headless --path . --script res://tests/scenery_resource_smoke.gd 2>&1 | tee -a /tmp/godot-build.log
           "$godot" --headless --path . --export-release Web export/web/index.html 2>&1 | tee -a /tmp/godot-build.log
       - uses: actions/upload-pages-artifact@v3
         with:
