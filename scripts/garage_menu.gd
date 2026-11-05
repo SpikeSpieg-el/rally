@@ -42,7 +42,9 @@ var _fields: Dictionary = {}
 var _wheel_visuals: Array[MeshInstance3D] = []
 var _wheel_bases: Array[Basis] = []
 var _model_default_y: float = 0.0
-var _subaru_preview: Node3D = null
+## Кузова машин, у которых есть своя модель: id → узел на витрине.
+## Кузов сцены (%PreviewModel) показывается у машины без model_scene.
+var _vehicle_models: Dictionary = {}
 var _vehicle_id: String = "mitsubishi"
 
 
@@ -91,8 +93,7 @@ func turntable_speed() -> float:
 
 func _ready() -> void:
 	_build_settings()
-	_vehicle_selector.add_item("MITSUBISHI LANCER EVOLUTION")
-	_vehicle_selector.add_item("SUBARU IMPREZA WRX STI")
+	_fill_vehicle_selector()
 	_vehicle_selector.item_selected.connect(_select_vehicle)
 	_selector.item_selected.connect(_select_setup)
 	_create.pressed.connect(_create_copy)
@@ -237,7 +238,13 @@ func _request_back() -> void:
 func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	config = game_config
 	game = game_state
-	var selected_vehicle: String = String(game.get("vehicle_id")) if game != null and game.has_method("select_vehicle") else "mitsubishi"
+	# Список машин приходит из конфига, а он известен только здесь: в _ready()
+	# конфига ещё нет, иначе в списке осталась бы одна машина по умолчанию.
+	_fill_vehicle_selector()
+	var fallback := config.default_vehicle_id() if config != null else "mitsubishi"
+	var selected_vehicle: String = (
+		String(game.get("vehicle_id")) if game != null and game.has_method("select_vehicle") else fallback
+	)
 	_show_vehicle(selected_vehicle)
 	_configure_preview_style()
 	_dirty.clear()
@@ -248,36 +255,83 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	_start.grab_focus()
 
 
+## Машины в порядке реестра: индекс пункта = индекс в data/vehicles.
+func _vehicle_ids() -> Array[String]:
+	return config.vehicle_ids() if config != null else (["mitsubishi"] as Array[String])
+
+
+func _vehicle_index(id: String) -> int:
+	return maxi(0, _vehicle_ids().find(id))
+
+
+func _fill_vehicle_selector() -> void:
+	_vehicle_selector.clear()
+	for id in _vehicle_ids():
+		var data := config.vehicle(id) if config != null else null
+		_vehicle_selector.add_item(data.display_name if data != null else id.to_upper())
+
+
+## Выбрать машину по id (из меню или теста). Индекс ищется в реестре.
+func select_vehicle(id: String) -> void:
+	_select_vehicle(_vehicle_index(id))
+
+
 func _select_vehicle(index: int) -> void:
-	var id := "subaru" if index == 1 else "mitsubishi"
+	var ids := _vehicle_ids()
+	if index < 0 or index >= ids.size():
+		return
+	var id: String = ids[index]
 	if not _show_vehicle(id):
 		return
 	if game != null and game.has_method("select_vehicle"):
 		game.call("select_vehicle", id)
 	# У каждой машины свой список пресетов: после смены машины список и выбор
-	# пересобираются, иначе в гараже Subaru остались бы настройки Lancer.
+	# пересобираются, иначе в гараже остались бы чужие настройки.
 	_rebuild_selector()
 	_select_setup(clampi(selected_index, 0, maxi(0, _setup_count() - 1)))
 	_refresh()
 
 
+## Показывает кузов выбранной машины. Модель грузится один раз и висит на
+## витрине: при переключении машины включается нужный кузов.
 func _show_vehicle(id: String) -> bool:
-	if id == "subaru" and _subaru_preview == null:
-		_subaru_preview = CarModels.make_subaru()
-		if _subaru_preview == null:
-			_vehicle_selector.select(0)
-			_status.text = "Не удалось загрузить Subaru."
+	var data := config.vehicle(id) if config != null else null
+	if not _vehicle_models.has(id) and _vehicle_model(id) == null:
+		# Модель не загрузилась — остаёмся на прежней машине, но не молчим.
+		if data != null and not data.model_scene.is_empty():
 			return false
-		_turntable.add_child(_subaru_preview)
-		# Превью стоит на полу витрины, а не в координатах шасси.
-		_subaru_preview.position = Vector3.ZERO
 	_vehicle_id = id
-	_vehicle_selector.select(1 if id == "subaru" else 0)
-	_model.visible = id != "subaru"
-	if _subaru_preview != null:
-		_subaru_preview.visible = id == "subaru"
-	_car_title.text = "SUBARU IMPREZA WRX STI" if id == "subaru" else "MITSUBISHI LANCER EVOLUTION"
+	_vehicle_selector.select(_vehicle_index(id))
+	for key in _vehicle_models:
+		(_vehicle_models[key] as Node3D).visible = key == id
+	# Кузов сцены виден только у машины без своей модели.
+	_model.visible = not _vehicle_models.has(id)
+	_car_title.text = _vehicle_title(id)
 	return true
+
+
+## Кузов машины на витрине: своя модель из ресурса или кузов сцены (null).
+func _vehicle_model(id: String) -> Node3D:
+	if _vehicle_models.has(id):
+		return _vehicle_models[id] as Node3D
+	var data := config.vehicle(id) if config != null else null
+	if data == null or data.model_scene.is_empty():
+		return null
+	var model := CarModels.make_model(id)
+	if model == null:
+		_status.text = "Не удалось загрузить модель: " + data.display_name
+		return null
+	_turntable.add_child(model)
+	# Превью стоит на полу витрины, а не в координатах шасси.
+	model.position = Vector3.ZERO
+	model.visible = false
+	_vehicle_models[id] = model
+	return model
+
+
+func _vehicle_title(id: String) -> String:
+	var data := config.vehicle(id) if config != null else null
+	return data.display_name if data != null else id.to_upper()
 
 
 func _configure_preview_style() -> void:
@@ -321,7 +375,7 @@ func _on_preview_input(event: InputEvent) -> void:
 		_preview_container.accept_event()
 
 
-## Число пунктов списка для текущей машины: у Subaru свой набор пресетов.
+## Число пунктов списка для текущей машины: у каждой машины свой набор.
 func _setup_count() -> int:
 	if game != null and game.has_method("setup_count"):
 		return int(game.call("setup_count", _vehicle_id))
@@ -389,9 +443,11 @@ func _refresh() -> void:
 	_updating = true
 	_selector.select(selected_index)
 	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
-	if _vehicle_id == "subaru":
-		_description.text += ("\nПресеты Impreza: свой мотор EJ25, свой ряд передач и своя"
-			+ " подвеска. Ливреи, окраска и цвет дисков остаются у Mitsubishi.")
+	var vehicle_data := config.vehicle(_vehicle_id) if config != null else null
+	if vehicle_data != null and not vehicle_data.uses_livery_presets:
+		_description.text += ("\nПресеты этой машины: свой мотор, свой ряд передач и своя"
+			+ " подвеска. Окраска, ливреи и цвет дисков остаются у машины с"
+			+ " поддержкой окраски.")
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing
@@ -500,7 +556,11 @@ func _on_choice_changed(value: int, key: String) -> void:
 	if key == "torque_shape":
 		# В RallyCar непустая пользовательская Curve важнее формы.
 		# Вернуть исходную кривую можно первым пунктом списка.
-		var base: SetupType = game.call("get_setup_base", selected_index) as SetupType if game != null and game.has_method("get_setup_base") else config.get_setup(selected_index) as SetupType
+		var base: SetupType = (
+			game.call("get_setup_base", selected_index) as SetupType
+			if game != null and game.has_method("get_setup_base")
+			else config.get_setup(selected_index, _vehicle_id) as SetupType
+		)
 		setup.torque_curve = base.torque_curve.duplicate() as Curve if value == SetupType.TorqueShape.CUSTOM and base.torque_curve != null else null
 	_mark_changed()
 	_refresh()

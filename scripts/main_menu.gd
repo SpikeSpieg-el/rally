@@ -155,10 +155,11 @@ func _get_game() -> Node:
 ## у Impreza свои настройки, у Lancer свои.
 func _vehicle_id() -> String:
 	var game := _get_game()
+	var fallback := config.default_vehicle_id() if config != null else "mitsubishi"
 	if game == null:
-		return "mitsubishi"
-	var id := String(game.get("vehicle_id")) if game.get("vehicle_id") != null else "mitsubishi"
-	return id if config != null and config.has_vehicle(id) else "mitsubishi"
+		return fallback
+	var id := String(game.get("vehicle_id")) if game.get("vehicle_id") != null else fallback
+	return id if config != null and config.has_vehicle(id) else fallback
 
 
 func _resolve_config() -> void:

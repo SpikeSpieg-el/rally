@@ -47,10 +47,10 @@
   полосой прогресса. Виден только при `camera_mode == 2` (кабина), чтобы с
   капота и сзади не мешать. Дублируется в standalone-сцене
   `scenes/rally_cockpit.tscn.tscn`.
-* Кабина Subaru: тот же скрипт, но свой узел
-  `SubaruCockpit/Dashboard/CenterConsole/RadioHeadUnit` в
-  `scenes/subaru_cockpit.tscn`. Магнитола ставится в каждый салон отдельно:
-  общего узла у двух машин нет, поэтому салон Lancer в Impreza не появляется.
+* Магнитола живёт в салоне Lancer
+  (`RallyCockpit/Dashboard/CenterConsole/RadioHeadUnit`). Салон другой машины
+  делает автор её модели: скрипт магнитолы общий
+  (`scripts/ui/rally_cockpit_radio.gd`), достаточно повесить его на свой узел.
 * Обложка и подписи при смене трека появляются мягко; акцентный цвет
   карточки/магнитолы выбирается стабильно по хешу имени файла.
 

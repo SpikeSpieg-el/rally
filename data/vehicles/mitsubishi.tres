@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RallyVehicle" format=3 uid="uid://bvq3n8wmxs1ka"]
+
+[ext_resource type="Script" uid="uid://14v5g2inqnbr" path="res://scripts/data/rally_vehicle.gd" id="1_vehicle"]
+
+
+
+[resource]
+script = ExtResource("1_vehicle")
+id = "mitsubishi"
+display_name = "MITSUBISHI LANCER EVOLUTION"
+setup_ids = PackedStringArray(["engine_stock", "engine_group_a", "engine_atmo", "engine_rallycross", "engine_classic", "engine_sprint", "engine_endurance", "engine_hillclimb", "engine_snow", "engine_club"])
+model_scene = ""
+model_root = ""
+hide_scene_body = false
+wheel_names = Array[String]([])
+hide_model_interior = false
+uses_livery_presets = true
+engine_dir = "res://audio/engine/"
+engine_events_dir = "res://audio/vehicle/"
+engine_trim_db = 0.0
+engine_event_pitch = 1.0

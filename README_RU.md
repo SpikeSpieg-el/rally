@@ -280,21 +280,26 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 
 В гараже над витриной можно выбрать Mitsubishi Lancer Evolution или Subaru Impreza WRX STI. Выбор сохраняется между запусками и применяется при старте и повторе заезда.
 
-У каждой машины свой набор:
+Всё, что отличает одну машину от другой, описано в её ресурсе
+`data/vehicles/<id>.tres`. Добавить машину — значит положить новый `.tres` и
+ассеты; код править не нужно.
 
-* **салон** — приборка, руль, сиденья, каркас и приборы строятся отдельно
-  (`scenes/rally_cockpit.tscn.tscn` — Lancer, `scenes/subaru_cockpit.tscn` —
-  Impreza). При выборе Subaru салон Mitsubishi не просто скрывается: в сцене
-  машины его больше нет, поэтому приборка Lancer не может «протечь»;
-* **пресеты** — `data/setups/*.tres` для 4G63T и `data/setups/subaru/*.tres`
-  для EJ25. Списки не смешиваются: в гараже и меню показываются только
-  пресеты выбранной машины, а свои сохранённые настройки хранятся отдельно
-  для каждой;
-* **звук** — два банка лупов (`audio/engine/` и `audio/engine/subaru/`) и два
-  набора одиночных звуков (`audio/vehicle/` и `audio/vehicle/subaru/`).
-  Подробности — [`docs/ENGINE_AUDIO_RU.md`](docs/ENGINE_AUDIO_RU.md).
+* **кузов** — `model_scene` (сцена с импортированной моделью) и имена мешей
+  колёс `wheel_names`. Пустой `model_scene` — машина ездит на кузове сцены,
+  меняются только колёса и звук;
+* **пресеты** — `setup_ids`: id сетапов из `all_setups` в
+  `data/rally_game_config.tres`. Списки не смешиваются: в гараже и меню видны
+  только пресеты выбранной машины, а свои сохранённые настройки хранятся
+  отдельно для каждой;
+* **звук** — `engine_dir`, `engine_rpm_grid`, `engine_events_dir`,
+  `engine_trim_db` и `engine_event_pitch`. У Impreza свой банк
+  (`audio/engine/subaru/`, `audio/vehicle/subaru/`), у Lancer — общий.
+  Подробности — [`docs/ENGINE_AUDIO_RU.md`](docs/ENGINE_AUDIO_RU.md);
+* **салон** — сценой не управляется: его делает автор модели машины.
+  Приборка Lancer живёт в `scenes/rally_cockpit.tscn.tscn`.
 
-Настройки окраски, ливреи и цвета дисков пока относятся только к Mitsubishi.
+Настройки окраски, ливреи и цвета дисков пока относятся только к Mitsubishi
+(`uses_livery_presets` у машины).
 
 
 ## Быстрый старт

@@ -1,30 +1,62 @@
-## Визуальная модель Subaru из сцены, подготовленной для автомобиля.
-## Физика, камеры и настройки заезда остаются общими с Mitsubishi.
+## Кузов и колёса машины по её ресурсу (res://data/vehicles/*.tres).
+## Физика, камеры и настройки заезда общие: у машин разное только то, что
+## описано в ресурсе — модель, меши колёс и звук мотора.
 extends RefCounted
 
-const SUBARU_SCENE := "res://scenes/rally_car2.tscn"
-## Салон Subaru — отдельная сцена со своей геометрией и приборами.
-const SUBARU_COCKPIT_SCENE := "res://scenes/subaru_cockpit.tscn"
-## Как называется салон Lancer в сцене машины. Его нужно спрятать, иначе
-## из кабины Subaru видна приборка Mitsubishi.
-const LANCER_COCKPIT := "RallyCockpit"
-const SUBARU_COCKPIT := "SubaruCockpit"
-const SUBARU_WHEELS := ["3DWheel Front L_6", "3DWheel Front R_15", "3DWheel Rear L_24", "3DWheel Rear R_33"]
+const CONFIG_PATH := "res://data/rally_game_config.tres"
+## Кузов сцены заезда: его прячем, когда у машины своя модель.
+const SCENE_BODY := "low poly lance evo"
 const WHEEL_MOUNTS := ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]
 
-static func make_subaru() -> Node3D:
-	var scene := load(SUBARU_SCENE) as PackedScene
+
+## Ресурс машины по id. Прямой запуск сцены (F6) читает реестр сам.
+static func vehicle(vehicle_id: String) -> RallyVehicle:
+	if vehicle_id.is_empty():
+		return null
+	var config := _game_config()
+	if config == null:
+		return null
+	return config.vehicle(vehicle_id)
+
+
+static func _game_config() -> RallyGameConfig:
+	var loop := Engine.get_main_loop() as SceneTree
+	var game: Node = loop.root.get_node_or_null("RallyGame") if loop != null else null
+	if game != null and "config" in game:
+		var loaded := game.get("config") as RallyGameConfig
+		if loaded != null:
+			return loaded
+	if ResourceLoader.exists(CONFIG_PATH):
+		return load(CONFIG_PATH) as RallyGameConfig
+	return null
+
+
+## Модель кузова машины для витрины гаража: только кузов, без физики.
+## Машина без своей модели возвращает null — витрина покажет кузов сцены.
+static func make_model(vehicle_id: String) -> Node3D:
+	var data := vehicle(vehicle_id)
+	if data == null or data.model_scene.is_empty():
+		return null
+	var scene := load(data.model_scene) as PackedScene
 	if scene == null:
-		push_warning("Subaru: сцена модели не найдена")
+		push_warning("Машина %s: сцена модели не найдена" % vehicle_id)
 		return null
 	var source := scene.instantiate()
-	var model := source.get_node_or_null("Sketchfab_Scene") as Node3D
-	if model != null:
-		source.remove_child(model)
-		for wheel_name in SUBARU_WHEELS:
-			var wheel := model.find_child(wheel_name, true, false) as Node3D
-			if wheel != null:
-				_show_wheel_parts(wheel)
+	var model: Node3D = null
+	if data.model_root.is_empty():
+		model = source as Node3D
+	else:
+		model = source.get_node_or_null(data.model_root) as Node3D
+		if model != null:
+			source.remove_child(model)
+	if model == null:
+		push_warning("Машина %s: в сцене модели нет узла %s" % [vehicle_id, data.model_root])
+		source.free()
+		return null
+	for wheel_name in data.wheel_names:
+		var wheel := model.find_child(wheel_name, true, false) as Node3D
+		if wheel != null:
+			_show_wheel_parts(wheel)
 	source.free()
 	return model
 
@@ -38,28 +70,37 @@ static func _show_wheel_parts(node: Node) -> void:
 		_show_wheel_parts(child)
 
 
-static func install_subaru(car: Node3D) -> bool:
-	var model := make_subaru()
+## Меняет кузов машины заезда на кузов из ресурса. Возвращает false и
+## оставляет машину как есть, если модель или колёса не сошлись.
+static func install(car: Node3D, vehicle_id: String) -> bool:
+	var data := vehicle(vehicle_id)
+	if data == null or data.model_scene.is_empty():
+		return false
+	var model := make_model(vehicle_id)
 	if model == null:
 		return false
-	# Check the entire mapping before changing the existing car, so a broken
-	# imported model safely falls back to the original vehicle.
+
+	# Имена колёс и крепления проверяем до любых изменений машины: битая
+	# модель должна безопасно оставить кузов сцены, а не полмашины.
 	var wheels: Array[Node3D] = []
 	var mounts: Array[Node3D] = []
-	for i in range(SUBARU_WHEELS.size()):
-		var wheel := model.find_child(SUBARU_WHEELS[i], true, false) as Node3D
+	for i in range(mini(data.wheel_names.size(), WHEEL_MOUNTS.size())):
+		var wheel := model.find_child(data.wheel_names[i], true, false) as Node3D
 		var mount := car.get_node_or_null(WHEEL_MOUNTS[i] + "/WheelVisual") as Node3D
 		if wheel == null or mount == null:
-			push_warning("Subaru: не найдены колёса или крепления")
+			push_warning("Машина %s: не найдены колёса или крепления" % vehicle_id)
 			model.free()
 			return false
 		wheels.append(wheel)
 		mounts.append(mount)
+
 	car.add_child(model)
-	var old_model := car.get_node_or_null("low poly lance evo") as Node3D
-	if old_model != null:
-		old_model.visible = false
-	install_cockpit(car)
+	if data.hide_scene_body:
+		var old_model := car.get_node_or_null(SCENE_BODY) as Node3D
+		if old_model != null:
+			old_model.visible = false
+	if data.hide_model_interior:
+		hide_model_interior(model)
 	for i in range(wheels.size()):
 		for child in mounts[i].get_children():
 			if child is VisualInstance3D:
@@ -71,51 +112,14 @@ static func install_subaru(car: Node3D) -> bool:
 	return true
 
 
-## Меняет салон Lancer на салон Impreza. Сцена машины остаётся общей, поэтому
-## приборка Mitsubishi просто скрывается: её узлы (магнитола, брелок) остаются
-## в дереве и продолжают работать, но в кабине Subaru их не видно.
-static func install_cockpit(car: Node3D) -> bool:
-	var lancer := car.get_node_or_null(LANCER_COCKPIT) as Node3D
-	if lancer != null:
-		lancer.visible = false
-		lancer.process_mode = Node.PROCESS_MODE_DISABLED
-	var existing := car.get_node_or_null(SUBARU_COCKPIT) as Node3D
-	if existing != null:
-		existing.visible = true
-		existing.process_mode = Node.PROCESS_MODE_INHERIT
-		return true
-	if not ResourceLoader.exists(SUBARU_COCKPIT_SCENE):
-		push_warning("Subaru: сцена салона не найдена")
-		return false
-	var scene := load(SUBARU_COCKPIT_SCENE) as PackedScene
-	if scene == null:
-		push_warning("Subaru: не удалось загрузить сцену салона")
-		return false
-	var cockpit := scene.instantiate() as Node3D
-	if cockpit == null:
-		return false
-	cockpit.name = SUBARU_COCKPIT
-	# Импортированный салон Subaru — это только приборный щиток: сидений,
-	# каркаса и руля в модели нет. Если оставить их, из кабины видно
-	# «пустой» кузов и торчащий щиток. Скрываем интерьер модели, оставляя
-	# стёкла: свой салон рисует отдельная сцена.
-	hide_model_interior(car)
-	car.add_child(cockpit)
-	return true
-
-
-## Прячет интерьерные меши импортированной модели Subaru.
-## Только внутренние детали (MAT_Details_INT) — кузов, стёкла и колёса
-## остаются как есть.
-static func hide_model_interior(car: Node3D) -> void:
-	var model := car.get_node_or_null("Sketchfab_Scene") as Node3D
+## Прячет интерьерные меши импортированной модели: у некоторых моделей
+## салона нет вовсе, и его рисует отдельная сцена.
+static func hide_model_interior(model: Node3D) -> void:
 	if model == null:
 		return
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := node as MeshInstance3D
-		if mesh_instance == null:
-			continue
-		if _is_interior_mesh(mesh_instance):
+		if mesh_instance != null and _is_interior_mesh(mesh_instance):
 			mesh_instance.visible = false
 
 
