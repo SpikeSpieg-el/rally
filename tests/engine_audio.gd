@@ -39,21 +39,21 @@ func _check(condition: bool, message: String) -> void:
 
 func _read_wav_header(path: String) -> Dictionary:
 	"""Читает заголовок WAV: частота, каналы, число кадров и наличие smpl."""
-	var result := {"rate": 0, "channels": 0, "frames": 0, "has_smpl": false}
-	var file := FileAccess.open(path, FileAccess.READ)
+	var result: Dictionary = {"rate": 0, "channels": 0, "frames": 0, "has_smpl": false}
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return result
-	var bytes := file.get_buffer(file.get_length())
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
 	if bytes.size() < 44:
 		return result
-	var riff := bytes.slice(0, 4).get_string_from_ascii()
+	var riff: String = bytes.slice(0, 4).get_string_from_ascii()
 	if riff != "RIFF":
 		return result
-	var pos := 12
+	var pos: int = 12
 	while pos + 8 <= bytes.size():
-		var chunk_id := bytes.slice(pos, pos + 4).get_string_from_ascii()
-		var chunk_size := bytes.decode_u32(pos + 4)
+		var chunk_id: String = bytes.slice(pos, pos + 4).get_string_from_ascii()
+		var chunk_size: int = bytes.decode_u32(pos + 4)
 		if chunk_id == "fmt ":
 			result["channels"] = int(bytes.decode_u16(pos + 10))
 			result["rate"] = int(bytes.decode_u32(pos + 12))
@@ -66,10 +66,10 @@ func _read_wav_header(path: String) -> Dictionary:
 
 
 func _read_text(path: String) -> String:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return ""
-	var text := file.get_as_text()
+	var text: String = file.get_as_text()
 	file.close()
 	return text
 
@@ -83,37 +83,37 @@ func _run() -> void:
 	# 1. Для каждой точки сетки есть оба режима нагрузки.
 	for rpm in grid:
 		for bank in ["light", "full"]:
-			var path := "%sengine_%04d_%s.wav" % [ENGINE_DIR, int(rpm), str(bank)]
+			var path: String = "%sengine_%04d_%s.wav" % [ENGINE_DIR, int(rpm), str(bank)]
 			_check(FileAccess.file_exists(path), "нет лупа " + path)
 			_check(FileAccess.file_exists(path + ".import"),
 				"нет .import для " + path)
 			if not FileAccess.file_exists(path):
 				continue
-			var header := _read_wav_header(path)
+			var header: Dictionary = _read_wav_header(path)
 			_check(int(header["rate"]) == EXPECTED_RATE,
 				"частота дискретизации в %s должна быть %d" % [path, EXPECTED_RATE])
 			_check(int(header["channels"]) == 1, "%s должен быть моно" % path)
-			var seconds := float(header["frames"]) / float(maxi(1, int(header["rate"])))
+			var seconds: float = float(header["frames"]) / float(maxi(1, int(header["rate"])))
 			_check(seconds >= MIN_LOOP_SECONDS and seconds <= MAX_LOOP_SECONDS,
 				"длительность лупа %s вне диапазона: %.2f с" % [path, seconds])
 			_check(bool(header["has_smpl"]),
 				"в %s нет блока smpl, луп не будет бесшовным" % path)
 			# Точки зацикливания в .import должны совпадать с длиной файла.
-			var import_text := _read_text(path + ".import")
+			var import_text: String = _read_text(path + ".import")
 			_check(import_text.contains("edit/loop_mode=2"),
 				"%s должен импортироваться как луп (edit/loop_mode=2)" % path)
 			_check(import_text.contains("edit/loop_end=%d" % int(header["frames"])),
 				"в .import для %s неверная точка конца лупа" % path)
 
 	# 2. На диске нет лишних лупов: сетка в коде и в файлах совпадают.
-	var dir := DirAccess.open(ENGINE_DIR)
+	var dir: DirAccess = DirAccess.open(ENGINE_DIR)
 	_check(dir != null, "нет папки с лупами")
 	if dir != null:
 		for file_name in dir.get_files():
 			if not file_name.ends_with(".wav"):
 				continue
-			var stem := file_name.get_basename()
-			var parts := stem.split("_")
+			var stem: String = file_name.get_basename()
+			var parts: PackedStringArray = stem.split("_")
 			_check(parts.size() == 3, "неожиданное имя файла " + file_name)
 			if parts.size() != 3:
 				continue
@@ -136,19 +136,19 @@ func _run() -> void:
 	var subaru_loops: String = subaru.loops_dir(sound.ENGINE_DIR) if subaru != null else ""
 	for rpm in subaru_grid:
 		for bank in ["light", "full"]:
-			var subaru_path := "%sengine_%04d_%s.wav" % [subaru_loops, int(rpm), str(bank)]
+			var subaru_path: String = "%sengine_%04d_%s.wav" % [subaru_loops, int(rpm), str(bank)]
 			_check(FileAccess.file_exists(subaru_path), "нет лупа " + subaru_path)
 			_check(FileAccess.file_exists(subaru_path + ".import"),
 				"нет .import для " + subaru_path)
 			if not FileAccess.file_exists(subaru_path):
 				continue
-			var subaru_header := _read_wav_header(subaru_path)
+			var subaru_header: Dictionary = _read_wav_header(subaru_path)
 			_check(int(subaru_header["rate"]) == EXPECTED_RATE,
 				"частота дискретизации в %s должна быть %d" % [subaru_path, EXPECTED_RATE])
 			_check(int(subaru_header["channels"]) == 1, "%s должен быть моно" % subaru_path)
 			_check(bool(subaru_header["has_smpl"]),
 				"в %s нет блока smpl, луп не будет бесшовным" % subaru_path)
-			var subaru_import := _read_text(subaru_path + ".import")
+			var subaru_import: String = _read_text(subaru_path + ".import")
 			_check(subaru_import.contains("edit/loop_mode=2"),
 				"%s должен импортироваться как луп" % subaru_path)
 
@@ -170,10 +170,10 @@ func _run() -> void:
 		_check(FileAccess.file_exists(subaru_event), "нет звука Subaru " + subaru_event)
 		if not FileAccess.file_exists(subaru_event):
 			continue
-		var subaru_event_header := _read_wav_header(subaru_event)
+		var subaru_event_header: Dictionary = _read_wav_header(subaru_event)
 		_check(not bool(subaru_event_header["has_smpl"]),
 			"в %s не должно быть блока smpl: это одиночный звук" % subaru_event)
-		var subaru_event_import := _read_text(subaru_event + ".import")
+		var subaru_event_import: String = _read_text(subaru_event + ".import")
 		_check(subaru_event_import.contains("edit/loop_mode=1"),
 			"%s должен импортироваться без зацикливания" % subaru_event)
 
@@ -183,10 +183,10 @@ func _run() -> void:
 		var path: String = VEHICLE_DIR + str(name)
 		if not FileAccess.file_exists(path):
 			continue
-		var header := _read_wav_header(path)
+		var header: Dictionary = _read_wav_header(path)
 		_check(not bool(header["has_smpl"]),
 			"в %s не должно быть блока smpl: это одиночный звук" % path)
-		var import_text := _read_text(path + ".import")
+		var import_text: String = _read_text(path + ".import")
 		_check(import_text.contains("edit/loop_mode=1"),
 			"%s должен импортироваться без зацикливания (edit/loop_mode=1)" % path)
 
@@ -198,18 +198,18 @@ func _run() -> void:
 		"обороты из сетки должны выбирать свой луп")
 	# Сетка геометрическая, поэтому граница между точками — геометрическое
 	# среднее, а не арифметическое.
-	var low_rpm := float(grid[3])
-	var high_rpm := float(grid[4])
-	var middle := sqrt(low_rpm * high_rpm)
+	var low_rpm: float = float(grid[3])
+	var high_rpm: float = float(grid[4])
+	var middle: float = sqrt(low_rpm * high_rpm)
 	_check(sound._grid_index(int(middle * 0.99)) == 3,
 		"между точками сетки берётся нижний луп")
 	_check(sound._grid_index(int(middle * 1.01)) == 4,
 		"выше геометрической середины берётся верхний луп")
 	_check(is_equal_approx(sound._pitch_for(3, float(grid[3])), 1.0),
 		"на оборотах своей точки сетки тон не корректируется")
-	var corrected := sound._pitch_for(3, float(grid[3]) * 1.05)
+	var corrected: float = sound._pitch_for(3, float(grid[3]) * 1.05)
 	_check(corrected > 1.0, "питч-коррекция должна подтягивать тон вверх")
-	var limit := float(sound.PITCH_LIMIT)
+	var limit: float = float(sound.PITCH_LIMIT)
 	_check(absf(sound._pitch_for(3, float(grid[3]) * 2.0) - (1.0 + limit)) < 0.001,
 		"питч-коррекция ограничена, чтобы тембр не «плыл»")
 	_check(sound._to_db(0.0) <= -59.0, "нулевая громкость должна давать тишину")
@@ -220,10 +220,10 @@ func _run() -> void:
 	for i in range(grid.size() - 1):
 		_check(int(grid[i]) < int(grid[i + 1]), "сетка оборотов должна возрастать")
 	for i in range(grid.size() - 1):
-		var low := float(grid[i])
-		var high := float(grid[i + 1])
-		var middle_loop := sqrt(low * high)
-		var error := absf(middle_loop - low) / middle_loop
+		var low: float = float(grid[i])
+		var high: float = float(grid[i + 1])
+		var middle_loop: float = sqrt(low * high)
+		var error: float = absf(middle_loop - low) / middle_loop
 		_check(error <= 0.055,
 			"питч-коррекция не укладывается в предел между %d и %d об/мин"
 			% [int(low), int(high)])
@@ -232,8 +232,8 @@ func _run() -> void:
 
 	# 7. Гистерезис переключения: на границе двух точек сетки луп не должен
 	#    прыгать туда-сюда, иначе двигатель «заикается».
-	var low_index := grid.find(2850)
-	var high_index := grid.find(3080)
+	var low_index: int = grid.find(2850)
+	var high_index: int = grid.find(3080)
 	_check(low_index >= 0 and high_index == low_index + 1,
 		"в сетке должны быть точки 2850 и 3080")
 	if low_index >= 0 and high_index == low_index + 1:
@@ -267,7 +267,7 @@ func _run() -> void:
 	#    цифровые перегрузки и характерное потрескивание.
 	_check(FileAccess.file_exists("res://default_bus_layout.tres"),
 		"нет раскладки аудио-шины с ограничителем")
-	var bus_text := _read_text("res://default_bus_layout.tres")
+	var bus_text: String = _read_text("res://default_bus_layout.tres")
 	_check(bus_text.contains("AudioEffectLimiter"),
 		"в раскладке шины должен быть AudioEffectLimiter")
 
@@ -289,8 +289,8 @@ func _run() -> void:
 		"звуки машины должны идти через отдельную шину Vehicle")
 
 	# 10. Машина содержит узел звука с нужным скриптом.
-	var car := CarScene.instantiate()
-	var audio_node := car.get_node_or_null("EngineAudio")
+	var car: Node = CarScene.instantiate()
+	var audio_node: Node = car.get_node_or_null("EngineAudio")
 	_check(audio_node != null, "в сцене машины должен быть узел EngineAudio")
 	if audio_node != null:
 		_check(audio_node.get_script() == EngineSoundScript,

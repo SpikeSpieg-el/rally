@@ -15,7 +15,7 @@ extends Resource
 ## Пресеты этой машины: id сетапов из data/rally_game_config.tres.
 ## Храним id, а не пути: пресет живёт в одном месте, и добавить машину —
 ## значит перечислить её сетапы, а не копировать ресурсы.
-@export var setup_ids: PackedStringArray = []
+@export var setup_ids: Array[String] = []
 
 @export_group("Кузов")
 ## Сцена с импортированной моделью кузова. Пусто — машина ездит на кузове
@@ -57,8 +57,10 @@ func setups(config: Resource) -> Array[Resource]:
 	var result: Array[Resource] = []
 	if config == null:
 		return result
+	# find_setup() объявлен в RallyGameConfig, а параметр здесь — Resource:
+	# без явного типа GDScript не может вывести тип и падает на компиляции.
 	for id in setup_ids:
-		var setup := config.find_setup(id)
+		var setup: Resource = config.call("find_setup", id)
 		if setup != null:
 			result.append(setup)
 	return result
