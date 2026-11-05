@@ -67,6 +67,9 @@ func _run() -> void:
 	stage.track.use_baked_props = false
 	stage.track.scenery_density = 1.0
 	stage.track.terrain_seed = 4711
+	check(stage.s_scenery().density_multiplier <= 6.0, "крупные объекты не должны заполнять каждый свободный метр")
+	check(stage.s_scenery().ground_cover_density <= 2.5, "трава не должна заглушать остальное окружение")
+	check(stage.s_scenery().roadside_prop_chance < 0.5, "заборы и гоночный реквизит должны быть редкими")
 	var curve := Curve3D.new()
 	curve.add_point(Vector3.ZERO)
 	curve.add_point(Vector3(0, 0, 600))

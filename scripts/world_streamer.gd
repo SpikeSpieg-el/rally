@@ -52,6 +52,9 @@ var _retire_enqueued: Dictionary = {}
 var _jobs_since_retire: int = 0
 var _ground_material: Material
 var _busy: bool = false
+# Decoration may take many frames; it must never block road/terrain jobs.
+var _decor_busy: bool = false
+var _decor_id: int = -1
 var _priming: bool = true
 var _last_position := Vector3(INF, INF, INF)
 var _refresh_clock: float = 0.0
@@ -235,7 +238,7 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 		priority = minf(priority, float(road_priorities.get(id, INF)))
 		if not roads.has(id):
 			_pending.append({"kind": "road", "key": id, "priority": priority - TILE_SIZE * TILE_SIZE})
-		elif not roads[id].has_meta("decorated"):
+		elif not roads[id].has_meta("decorated") and id != _decor_id:
 			_pending.append({"kind": "decor", "key": id, "priority": priority + DECOR_PRIORITY_OFFSET})
 	_sort_pending()
 	for key in tiles.keys():
@@ -310,12 +313,19 @@ func _process(delta: float) -> void:
 		stage.car.angular_velocity = _saved_angular_velocity
 		_holding_car = false
 	if not _busy:
-		if not _pending.is_empty():
-			_run_job()
-		else:
+		# Keep building collision-critical geometry even while a long scenery
+		# coroutine is yielding. Only one decoration job runs at a time.
+		var next := -1
+		for i in range(_pending.size()):
+			if _pending[i].kind != "decor" or not _decor_busy:
+				next = i
+				break
+		if next >= 0:
+			_run_job(next)
+		elif not _decor_busy:
 			_retire_one()
 
-func _run_job() -> void:
+func _run_job(index: int = 0) -> void:
 	if _pending.is_empty():
 		return
 	# Interleave destruction with construction, but never in the same frame.
@@ -324,9 +334,17 @@ func _run_job() -> void:
 	if _jobs_since_retire >= retire_interval and _retire_one():
 		_jobs_since_retire = 0
 		return
-	_busy = true
+	var job: Dictionary = _pending[index]
+	_pending.remove_at(index)
 	_jobs_since_retire += 1
-	var job: Dictionary = _pending.pop_front()
+	if job.kind == "decor":
+		_decor_busy = true
+		_decor_id = int(job.key)
+		await _run_decor(job)
+		_decor_busy = false
+		_decor_id = -1
+		return
+	_busy = true
 	if job.kind == "road" and not roads.has(job.key):
 		var id: int = int(job.key)
 		var root := Node3D.new()
@@ -339,7 +357,10 @@ func _run_job() -> void:
 			_sort_pending()
 	elif job.kind == "terrain" and not tiles.has(job.key):
 		await _build_tile(job.key)
-	elif job.kind == "decor" and roads.has(job.key) and not roads[job.key].has_meta("decorated"):
+	_busy = false
+
+func _run_decor(job: Dictionary) -> void:
+	if roads.has(job.key) and not roads[job.key].has_meta("decorated"):
 		var id: int = int(job.key)
 		var root: Node3D = roads[id]
 		if stage.track.spawn_edge_posts and stage.s_spawn().edge_posts:
@@ -356,7 +377,6 @@ func _run_job() -> void:
 		if _stopping or not is_instance_valid(root):
 			return
 		root.set_meta("decorated", true)
-	_busy = false
 
 func _build_tile(key: Vector2i) -> void:
 	var sampler = _terrain_sampler if _terrain_sampler != null else stage
