@@ -1,22 +1,12 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cg6kx3ewyqkfk"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/bark.png" id="tex_bark"]
-
-[ext_resource type="Texture2D" path="res://textures/environment/wood_cut.png" id="tex_wood_cut"]
+[ext_resource type="Texture2D" uid="uid://k6hgv5lyih0o" path="res://textures/environment/bark.png" id="tex_bark"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_bark"]
+specular_mode = 2
 albedo_color = Color(0.78, 0.69, 0.58, 1)
 albedo_texture = ExtResource("tex_bark")
-roughness = 1
 metallic_specular = 0.28
-specular_mode = 2
-
-[sub_resource type="StandardMaterial3D" id="Mat_wood_cut"]
-albedo_color = Color(0.86, 0.74, 0.55, 1)
-albedo_texture = ExtResource("tex_wood_cut")
-roughness = 0.96
-metallic_specular = 0.28
-specular_mode = 2
 
 [sub_resource type="CylinderMesh" id="Mesh_side"]
 material = SubResource("Mat_bark")
@@ -26,20 +16,9 @@ height = 0.72
 radial_segments = 7
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_top"]
-material = SubResource("Mat_wood_cut")
-top_radius = 0.33
-bottom_radius = 0.33
-height = 0.06
-radial_segments = 7
-rings = 1
+[node name="Stump" type="Node3D" unique_id=889671371]
+transform = Transform3D(1.21, 0, 0, 0, 1.21, 0, 0, 0, 1.21, 0, 0, 0)
 
-[node name="Stump" type="Node3D"]
-
-[node name="Mesh_side" type="MeshInstance3D" parent="."]
+[node name="Mesh_side" type="MeshInstance3D" parent="." unique_id=339167595]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
 mesh = SubResource("Mesh_side")
-
-[node name="Mesh_top" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.73, 0)
-mesh = SubResource("Mesh_top")

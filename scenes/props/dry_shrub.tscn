@@ -1,13 +1,11 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://drxgo4b1xemgp"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/dry_branches.png" id="tex_surface"]
+[ext_resource type="Texture2D" uid="uid://b0gswmy3jpkgj" path="res://textures/environment/dry_branches.png" id="tex_surface"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_surface"]
-albedo_color = Color(1, 1, 1, 1)
-albedo_texture = ExtResource("tex_surface")
-roughness = 1
-metallic_specular = 0.28
 specular_mode = 2
+albedo_texture = ExtResource("tex_surface")
+metallic_specular = 0.28
 
 [sub_resource type="CylinderMesh" id="Mesh_0"]
 material = SubResource("Mat_surface")
@@ -49,24 +47,24 @@ height = 0.4
 radial_segments = 4
 rings = 1
 
-[node name="DryShrub" type="Node3D"]
+[node name="DryShrub" type="Node3D" unique_id=2127707804]
 
-[node name="Mesh_0" type="MeshInstance3D" parent="."]
+[node name="Mesh_0" type="MeshInstance3D" parent="." unique_id=1728392626]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.425, 0)
 mesh = SubResource("Mesh_0")
 
-[node name="Mesh_1" type="MeshInstance3D" parent="."]
+[node name="Mesh_1" type="MeshInstance3D" parent="." unique_id=1925026536]
 transform = Transform3D(0.819152, -0.5735764, 0, 0.5735764, 0.819152, 0, 0, 0, 1, 0.17, 0.52, 0)
 mesh = SubResource("Mesh_1")
 
-[node name="Mesh_2" type="MeshInstance3D" parent="."]
+[node name="Mesh_2" type="MeshInstance3D" parent="." unique_id=31951421]
 transform = Transform3D(0.7660444, 0.6427876, 0, -0.6208852, 0.7399421, 0.258819, 0.1663657, -0.1982669, 0.9659258, -0.2, 0.48, 0.06)
 mesh = SubResource("Mesh_2")
 
-[node name="Mesh_3" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.9396926, 0, -0.3420201, 0.2198463, 0.7660444, 0.6040228, 0.2620026, -0.6427876, 0.7198463, 0.04, 0.48, 0.2)
+[node name="Mesh_3" type="MeshInstance3D" parent="." unique_id=1297425377]
+transform = Transform3D(0.9396926, 0, -0.3420201, 0.2198463, 0.7660444, 0.6040228, 0.2620026, -0.6427876, 0.7198463, -0.00024076551, 0.48, 0.17882071)
 mesh = SubResource("Mesh_3")
 
-[node name="Mesh_4" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.5735764, -0.819152, 0, 0.7094065, 0.4967318, -0.5, 0.409576, 0.2867882, 0.8660254, 0.28, 0.65, -0.09)
+[node name="Mesh_4" type="MeshInstance3D" parent="." unique_id=1223456698]
+transform = Transform3D(0.6907222, -0.348912, 0.6333744, 0.7094065, 0.49673176, -0.49999997, -0.14016116, 0.79468095, 0.59062415, 0.06693718, 0.65, -0.15390506)
 mesh = SubResource("Mesh_4")

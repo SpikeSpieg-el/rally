@@ -1,13 +1,13 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://x352v4piuwv6"]
 
-[ext_resource type="Texture2D" path="res://textures/environment/plank.png" id="tex_plank"]
+[ext_resource type="Texture2D" uid="uid://iqvt05tfocjg" path="res://textures/environment/plank.png" id="tex_plank"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_plank"]
+specular_mode = 2
 albedo_color = Color(1, 0.96, 0.9, 1)
 albedo_texture = ExtResource("tex_plank")
-roughness = 0.97
 metallic_specular = 0.28
-specular_mode = 2
+roughness = 0.97
 
 [sub_resource type="BoxMesh" id="Mesh_rail_top"]
 material = SubResource("Mat_plank")
@@ -29,24 +29,24 @@ size = Vector3(0.13, 1.3, 0.13)
 material = SubResource("Mat_plank")
 size = Vector3(0.13, 1.3, 0.13)
 
-[node name="WoodenFence" type="Node3D"]
+[node name="WoodenFence" type="Node3D" unique_id=990095633]
 
-[node name="Mesh_rail_top" type="MeshInstance3D" parent="."]
+[node name="Mesh_rail_top" type="MeshInstance3D" parent="." unique_id=2129449817]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
 mesh = SubResource("Mesh_rail_top")
 
-[node name="Mesh_rail_low" type="MeshInstance3D" parent="."]
+[node name="Mesh_rail_low" type="MeshInstance3D" parent="." unique_id=816406214]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0)
 mesh = SubResource("Mesh_rail_low")
 
-[node name="Mesh_post_a" type="MeshInstance3D" parent="."]
+[node name="Mesh_post_a" type="MeshInstance3D" parent="." unique_id=2119061695]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 0.65, 0)
 mesh = SubResource("Mesh_post_a")
 
-[node name="Mesh_post_b" type="MeshInstance3D" parent="."]
+[node name="Mesh_post_b" type="MeshInstance3D" parent="." unique_id=1754930802]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
 mesh = SubResource("Mesh_post_b")
 
-[node name="Mesh_post_c" type="MeshInstance3D" parent="."]
+[node name="Mesh_post_c" type="MeshInstance3D" parent="." unique_id=462266405]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 0.65, 0)
 mesh = SubResource("Mesh_post_c")
