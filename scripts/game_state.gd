@@ -30,6 +30,7 @@ signal live_seed_changed(track_id: String, seed_value: int)
 var config: GameConfigType = null
 var track_index: int = 0
 var setup_index: int = 0
+var vehicle_id: String = "mitsubishi"
 var weather_index: int = 0
 var profile_index: int = 0
 var current_track: Resource = null
@@ -108,6 +109,8 @@ func save_conditions() -> Error:
 ## Выбор из прошлой сессии (трасса, сетап, погода, профиль) — если он есть.
 func _restore_saved_selection() -> void:
 	if _conditions.has_section("selection"):
+		var saved_vehicle := String(_conditions.get_value("selection", "vehicle_id", "mitsubishi"))
+		vehicle_id = saved_vehicle if saved_vehicle in ["mitsubishi", "subaru"] else "mitsubishi"
 		track_index = clampi(
 			int(_conditions.get_value("selection", "track_index", track_index)),
 			0, maxi(0, track_count() - 1)
@@ -136,6 +139,7 @@ func _restore_saved_selection() -> void:
 
 func _save_selection() -> void:
 	_conditions.set_value("selection", "track_index", track_index)
+	_conditions.set_value("selection", "vehicle_id", vehicle_id)
 	_conditions.set_value("selection", "setup_index", setup_index)
 	var custom_position := setup_index - config.setup_count() if config != null else -1
 	var ids := _custom_ids()
@@ -332,6 +336,17 @@ func select_track(index: int) -> void:
 	current_track = get_track(track_index)
 	_save_selection()
 	selection_changed.emit()
+
+
+func select_vehicle(id: String) -> void:
+	vehicle_id = id if id in ["mitsubishi", "subaru"] else "mitsubishi"
+	_save_selection()
+	selection_changed.emit()
+
+
+## Прямой запуск сцены сохраняет сценический автомобиль, как и setup.
+func get_race_vehicle_id() -> String:
+	return vehicle_id if _race_uses_selected_setup else "mitsubishi"
 
 
 func select_setup(index: int) -> void:
