@@ -66,6 +66,8 @@ var _saved_angular_velocity := Vector3.ZERO
 var allow_worker: bool = true
 var _terrain_sampler: Node3D = null
 var _terrain_cache = TerrainCache.new()
+# Separate main-thread cache: the worker owns _terrain_cache exclusively.
+var _scenery_height_cache = TerrainCache.new()
 var _terrain_task_id: int = -1
 var _stopping: bool = false
 var _terrain_work_max_usec: int = 0
@@ -155,6 +157,54 @@ func initialize(owner_stage: Node3D, start: Vector3) -> void:
 
 func _tile_key(point: Vector3) -> Vector2i:
 	return Vector2i(floori(point.x / TILE_SIZE), floori(point.z / TILE_SIZE))
+
+# Match the exact triangles used by streamed terrain, even before a tile has
+# finished loading. Never read the worker's cache from the main thread.
+func terrain_height(x: float, z: float) -> float:
+	var cell: float = TILE_SIZE / float(TILE_DIVISIONS)
+	var gx: int = floori(x / cell)
+	var gz: int = floori(z / cell)
+	var u: float = x / cell - float(gx)
+	var v: float = z / cell - float(gz)
+	var key := Vector2i(floori(float(gx) / TILE_DIVISIONS), floori(float(gz) / TILE_DIVISIONS))
+	var body = tiles.get(key, _retired_tiles.get(key))
+	var heights := PackedFloat32Array()
+	if is_instance_valid(body) and body.has_meta("terrain_heights"):
+		heights = body.get_meta("terrain_heights")
+	var h00: float
+	var h10: float
+	var h01: float
+	var h11: float
+	if not heights.is_empty():
+		var halo: int = TILE_DIVISIONS + 3
+		var lx: int = gx - key.x * TILE_DIVISIONS + 1
+		var lz: int = gz - key.y * TILE_DIVISIONS + 1
+		var index: int = lz * halo + lx
+		h00 = heights[index]
+		h10 = heights[index + 1]
+		h01 = heights[index + halo]
+		h11 = heights[index + halo + 1]
+	else:
+		h00 = _scenery_vertex_height(Vector2i(gx, gz), cell)
+		h10 = _scenery_vertex_height(Vector2i(gx + 1, gz), cell)
+		h01 = _scenery_vertex_height(Vector2i(gx, gz + 1), cell)
+		h11 = _scenery_vertex_height(Vector2i(gx + 1, gz + 1), cell)
+	if u + v <= 1.0:
+		return h00 + u * (h10 - h00) + v * (h01 - h00)
+	return h11 * (u + v - 1.0) + h10 * (1.0 - v) + h01 * (1.0 - u)
+
+func _scenery_vertex_height(lattice: Vector2i, cell: float) -> float:
+	var cached = _scenery_height_cache.get_sample(lattice)
+	if cached != null:
+		return cached.z
+	var x: float = float(lattice.x) * cell
+	var z: float = float(lattice.y) * cell
+	var distance: float = stage.network.distance_to_road(x, z)
+	var along: float = stage.network.along_road(x, z)
+	# TerrainJob stores heights as float32, so round the fallback identically.
+	var height: float = PackedFloat32Array([stage._height_with_sample(x, z, distance, along) - stage._road_ditch(distance)])[0]
+	_scenery_height_cache.put_sample(lattice, Vector3(distance, along, height))
+	return height
 
 func _tile_centre(key: Vector2i) -> Vector3:
 	return Vector3((float(key.x) + 0.5) * TILE_SIZE, 0.0, (float(key.y) + 0.5) * TILE_SIZE)
@@ -416,6 +466,8 @@ func _build_tile(key: Vector2i) -> void:
 	shape.set_faces(job.faces)
 	var body := StaticBody3D.new()
 	body.name = "Terrain_%d_%d" % [key.x, key.y]
+	# Retain the CPU grid for exact prop placement without GPU readback.
+	body.set_meta("terrain_heights", job.heights)
 	body.position = job.origin
 	body.add_to_group("Grass")
 	var visual := MeshInstance3D.new()

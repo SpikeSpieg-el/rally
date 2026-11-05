@@ -889,10 +889,12 @@ func _blend_height(road_y: float, base: float, distance: float, along: float) ->
 
 
 ## Высота земли «как она нарисована» — с точностью до треугольника меша
-## (сетка разбита по диагонали i00-i11). По ней садятся ассеты, разметка и
+## (треугольники разделены диагональю i10-i01). По ней садятся ассеты, разметка и
 ## внешняя кромка полотна, поэтому ничего не висит в воздухе и не тонет.
 func ground_height(x: float, z: float) -> float:
 	if _ground_grid.is_empty() or _ground_cols < 2 or _ground_rows < 2:
+		if is_instance_valid(world_streamer):
+			return world_streamer.terrain_height(x, z)
 		return height_at(x, z)
 	var fx: float = (x - _ground_origin.x) / _ground_cell
 	var fz: float = (z - _ground_origin.y) / _ground_cell
@@ -1883,6 +1885,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var placement := SceneryPlacement.new()
 	var cover_placement := SceneryPlacement.new()
 	var cover_pools: Array = []
+	var grass_pools: Array = []
 	var zone_pools: Array = []
 	for zone in range(4):
 		var pool: Array[RallyProp] = []
@@ -1896,6 +1899,11 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 			if biome == null or candidate.supports_biome(biome.id):
 				cover_pool.append(candidate)
 		cover_pools.append(cover_pool)
+		var grass_pool: Array[RallyProp] = []
+		for candidate in cover_pool:
+			if cfg.extra_grass_prop_ids.has(candidate.id):
+				grass_pool.append(candidate)
+		grass_pools.append(grass_pool)
 	var buffer := SceneryBuffer.new()
 	buffer.limit = cfg.max_instances
 	var trunks := PackedFloat32Array()
@@ -2013,72 +2021,76 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 						_scenery_cell(ux, uz, cell_size),
 						SCENERY_CELL_SPAN
 					)
-			# Собственный RNG: правки деревьев/реквизита не перетасовывают траву.
-			var cover_rng := RandomNumberGenerator.new()
-			cover_rng.seed = hash(Vector3i(roundi(distance * 100.0), int(side_sign), track.terrain_seed ^ 91753))
+			# Второй независимый проход добавляет только траву, не меняя урну
+			# крупных пропсов, цветов и грибов.
 			var biome: RallySceneryBiome = cfg.biome_for_zone(zone)
-			var cover_pool: Array[RallyProp] = cover_pools[zone]
 			var biome_density: float = biome.cover_density if biome != null else 1.0
-			var scaled_attempts: float = float(cfg.ground_cover_attempts_per_step) * cfg.ground_cover_density * density * biome_density
-			var cover_attempts: int = clampi(ceili(scaled_attempts), 0, cfg.max_attempts_per_step) if not cover_pool.is_empty() else 0
-			var cover_chance: float = clampf(cfg.ground_cover_success_chance * scaled_attempts / float(maxi(1, cover_attempts)), 0.0, 1.0)
-			for _cover_attempt in range(cover_attempts):
-				if full:
-					break
-				if streamed and Time.get_ticks_usec() >= slice_deadline:
-					await stream_clock.tick
-					if not is_instance_valid(container) or not container.is_inside_tree():
-						return
-					slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
-				if cover_rng.randf() > cover_chance:
-					continue
-				var cover: RallyProp = library.pick_cover(cover_pool, cover_rng.randf())
-				if cover == null:
-					continue
-				var near: float = minimum_offset if cover.min_offset < 0.0 else cover.min_offset
-				near = maxf(near, cfg.road_clearance)
-				var far: float = minf(cfg.max_offset, cover.max_offset) if cover.max_offset > 0.0 else cfg.max_offset
-				if far < near:
-					continue
-				var cover_point: Vector3 = center + side * ((corridor + cover_rng.randf_range(near, far)) * side_sign)
-				cover_point += dir * cover_rng.randf_range(-jitter, jitter)
-				if not terrain_rect.has_point(Vector2(cover_point.x, cover_point.z)):
-					continue
-				if network.distance_to_road(cover_point.x, cover_point.z) < corridor + cfg.road_clearance:
-					continue
-				if biome != null and cover_rng.randf() > biome.density_at(cover_point.x, cover_point.z, track.terrain_seed):
-					continue
-				var ground: float = ground_height(cover_point.x, cover_point.z)
-				if ground < cover.cover_altitude.x or ground > cover.cover_altitude.y:
-					continue
-				# Центральная разность на метре, не наклон самой дороги.
-				var dx: float = ground_height(cover_point.x + 0.5, cover_point.z) - ground_height(cover_point.x - 0.5, cover_point.z)
-				var dz: float = ground_height(cover_point.x, cover_point.z + 0.5) - ground_height(cover_point.x, cover_point.z - 0.5)
-				if rad_to_deg(atan(Vector2(dx, dz).length())) > cover.cover_max_slope:
-					continue
-				var size: float = cover_rng.randf_range(cover.size.x, cover.size.y)
-				if biome != null:
-					size *= cover_rng.randf_range(biome.cover_size.x, biome.cover_size.y)
-				var width: float = size * cover_rng.randf_range(cover.width_jitter.x, cover.width_jitter.y)
-				var height: float = size * cover_rng.randf_range(cover.height_jitter.x, cover.height_jitter.y)
-				var radius: float = clampf(cover.placement_radius * maxf(width, height), 0.2, 12.0)
-				if not placement.has_space(cover_point, radius) or not cover_placement.has_space(cover_point, radius):
-					continue
-				var yaw: float = cover_rng.randf_range(0.0, TAU) if cover.random_yaw else 0.0
-				if cover.align_to_road:
-					yaw = atan2(-dir.z, dir.x)
-				if not buffer.push(kinds.find(cover), cover_point.x, ground + cover.y_offset * size,
-					cover_point.z, yaw, width, height, width,
-					_scenery_cell(cover_point.x, cover_point.z, cell_size), SCENERY_CELL_SPAN):
-					full = true
-					break
-				# Трава не вытесняет крупные объекты следующих шагов трассы.
-				cover_placement.reserve(cover_point, radius)
+			for cover_pass in range(2):
+				var cover_rng := RandomNumberGenerator.new()
+				var seed_salt: int = 91753 if cover_pass == 0 else 489127
+				cover_rng.seed = hash(Vector3i(roundi(distance * 100.0), int(side_sign), track.terrain_seed ^ seed_salt))
+				var cover_pool: Array[RallyProp] = cover_pools[zone] if cover_pass == 0 else grass_pools[zone]
+				var cover_density: float = cfg.ground_cover_density if cover_pass == 0 else (cfg.extra_grass_density if cfg.ground_cover_density > 0.0 else 0.0)
+				var scaled_attempts: float = float(cfg.ground_cover_attempts_per_step) * cover_density * density * biome_density
+				var cover_attempts: int = clampi(ceili(scaled_attempts), 0, cfg.max_attempts_per_step) if not cover_pool.is_empty() else 0
+				var cover_chance: float = clampf(cfg.ground_cover_success_chance * scaled_attempts / float(maxi(1, cover_attempts)), 0.0, 1.0)
+				for _cover_attempt in range(cover_attempts):
+					if full:
+						break
+					if streamed and Time.get_ticks_usec() >= slice_deadline:
+						await stream_clock.tick
+						if not is_instance_valid(container) or not container.is_inside_tree():
+							return
+						slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
+					if cover_rng.randf() > cover_chance:
+						continue
+					var cover: RallyProp = library.pick_cover(cover_pool, cover_rng.randf())
+					if cover == null:
+						continue
+					var near: float = minimum_offset if cover.min_offset < 0.0 else cover.min_offset
+					near = maxf(near, cfg.road_clearance)
+					var far: float = minf(cfg.max_offset, cover.max_offset) if cover.max_offset > 0.0 else cfg.max_offset
+					if far < near:
+						continue
+					var cover_point: Vector3 = center + side * ((corridor + cover_rng.randf_range(near, far)) * side_sign)
+					cover_point += dir * cover_rng.randf_range(-jitter, jitter)
+					if not terrain_rect.has_point(Vector2(cover_point.x, cover_point.z)):
+						continue
+					if network.distance_to_road(cover_point.x, cover_point.z) < corridor + cfg.road_clearance:
+						continue
+					if biome != null and cover_rng.randf() > biome.density_at(cover_point.x, cover_point.z, track.terrain_seed):
+						continue
+					var ground: float = ground_height(cover_point.x, cover_point.z)
+					if ground < cover.cover_altitude.x or ground > cover.cover_altitude.y:
+						continue
+					# Центральная разность на метре, не наклон самой дороги.
+					var dx: float = ground_height(cover_point.x + 0.5, cover_point.z) - ground_height(cover_point.x - 0.5, cover_point.z)
+					var dz: float = ground_height(cover_point.x, cover_point.z + 0.5) - ground_height(cover_point.x, cover_point.z - 0.5)
+					if rad_to_deg(atan(Vector2(dx, dz).length())) > cover.cover_max_slope:
+						continue
+					var size: float = cover_rng.randf_range(cover.size.x, cover.size.y)
+					if biome != null:
+						size *= cover_rng.randf_range(biome.cover_size.x, biome.cover_size.y)
+					var width: float = size * cover_rng.randf_range(cover.width_jitter.x, cover.width_jitter.y)
+					var height: float = size * cover_rng.randf_range(cover.height_jitter.x, cover.height_jitter.y)
+					var radius: float = clampf(cover.placement_radius * maxf(width, height), 0.2, 12.0)
+					if not placement.has_space(cover_point, radius) or not cover_placement.has_space(cover_point, radius):
+						continue
+					var yaw: float = cover_rng.randf_range(0.0, TAU) if cover.random_yaw else 0.0
+					if cover.align_to_road:
+						yaw = atan2(-dir.z, dir.x)
+					if not buffer.push(kinds.find(cover), cover_point.x, ground + cover.y_offset * size,
+						cover_point.z, yaw, width, height, width,
+						_scenery_cell(cover_point.x, cover_point.z, cell_size), SCENERY_CELL_SPAN):
+						full = true
+						break
+					# Трава не вытесняет крупные объекты следующих шагов трассы.
+					cover_placement.reserve(cover_point, radius)
 
 		if full:
 			break
 		step_count += 1
-		attempts_since_yield += attempt_count * 2 + cfg.ground_cover_attempts_per_step * ceili(cfg.ground_cover_density * density) * 2
+		attempts_since_yield += attempt_count * 2 + cfg.ground_cover_attempts_per_step * ceili((cfg.ground_cover_density + cfg.extra_grass_density) * density) * 2
 		if light and not streamed and attempts_since_yield >= cfg.progress_attempts_per_frame:
 			attempts_since_yield = 0
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")

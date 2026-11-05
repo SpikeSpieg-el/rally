@@ -69,6 +69,9 @@ func _run() -> void:
 	stage.track.terrain_seed = 4711
 	check(stage.s_scenery().density_multiplier <= 6.0, "крупные объекты не должны заполнять каждый свободный метр")
 	check(stage.s_scenery().ground_cover_density <= 2.5, "трава не должна заглушать остальное окружение")
+	check(stage.s_scenery().extra_grass_density > 0.0, "дополнительная трава включена по умолчанию")
+	stage.scenery = stage.s_scenery().duplicate(true)
+	stage.scenery.extra_grass_density = 0.0
 	check(stage.s_scenery().roadside_prop_chance < 0.5, "заборы и гоночный реквизит должны быть редкими")
 	var curve := Curve3D.new()
 	curve.add_point(Vector3.ZERO)
@@ -102,6 +105,15 @@ func _run() -> void:
 	await stage._spawn_procedural_scenery(false)
 	var second := snapshot(stage)
 	check(first == second, "одинаковый сид должен давать одинаковые позиции")
+	stage.generated.get_node("Scenery").free()
+	stage.scenery.extra_grass_density = 2.5
+	await stage._spawn_procedural_scenery(false)
+	var grassy := snapshot(stage)
+	var base_grass: int = (first.get("Grass2", []) as Array).size() + (first.get("Grass3", []) as Array).size()
+	var extra_grass: int = (grassy.get("Grass2", []) as Array).size() + (grassy.get("Grass3", []) as Array).size()
+	check(extra_grass > base_grass, "дополнительный слой должен увеличивать количество травы")
+	for prop in stage.s_props().active_props():
+		check(first.get(prop.group_name(), []) == grassy.get(prop.group_name(), []), "дополнительная трава не меняет расстановку крупных пропсов: " + prop.id)
 	stage.generated.get_node("Scenery").free()
 	stage.track.scenery_density = 2.0
 	await stage._spawn_procedural_scenery(false)
