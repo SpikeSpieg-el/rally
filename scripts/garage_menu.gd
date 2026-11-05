@@ -12,6 +12,7 @@ const TrackType = preload("res://scripts/data/rally_track_config.gd")
 const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const Customization = preload("res://scripts/car_customization.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
 const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 
@@ -41,6 +42,8 @@ var _fields: Dictionary = {}
 var _wheel_visuals: Array[MeshInstance3D] = []
 var _wheel_bases: Array[Basis] = []
 var _model_default_y: float = 0.0
+var _subaru_preview: Node3D = null
+var _vehicle_id: String = "mitsubishi"
 
 
 func theme_cfg() -> UiThemeType:
@@ -76,6 +79,8 @@ func turntable_speed() -> float:
 @onready var _description: Label = %Description
 @onready var _status: Label = %Status
 @onready var _tabs: TabContainer = %SettingsTabs
+@onready var _vehicle_selector: OptionButton = %VehicleSelector
+@onready var _car_title: Label = $Margin/Layout/Body/ShowroomColumn/CarTitle
 @onready var _model: Node3D = %PreviewModel
 @onready var _turntable: Node3D = %Turntable
 @onready var _start: Button = %StartButton
@@ -86,6 +91,9 @@ func turntable_speed() -> float:
 
 func _ready() -> void:
 	_build_settings()
+	_vehicle_selector.add_item("MITSUBISHI LANCER EVOLUTION")
+	_vehicle_selector.add_item("SUBARU IMPREZA WRX STI")
+	_vehicle_selector.item_selected.connect(_select_vehicle)
 	_selector.item_selected.connect(_select_setup)
 	_create.pressed.connect(_create_copy)
 	_name_input.text_changed.connect(_on_name_changed)
@@ -229,6 +237,8 @@ func _request_back() -> void:
 func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	config = game_config
 	game = game_state
+	var selected_vehicle: String = String(game.get("vehicle_id")) if game != null and game.has_method("select_vehicle") else "mitsubishi"
+	_show_vehicle(selected_vehicle)
 	_configure_preview_style()
 	_dirty.clear()
 	_status.text = "Выберите пресет или создайте свой на его основе."
@@ -236,6 +246,34 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	show()
 	_select_setup(clampi(index, 0, maxi(0, _setup_count() - 1)))
 	_start.grab_focus()
+
+
+func _select_vehicle(index: int) -> void:
+	var id := "subaru" if index == 1 else "mitsubishi"
+	if not _show_vehicle(id):
+		return
+	if game != null and game.has_method("select_vehicle"):
+		game.call("select_vehicle", id)
+	_refresh()
+
+
+func _show_vehicle(id: String) -> bool:
+	if id == "subaru" and _subaru_preview == null:
+		_subaru_preview = CarModels.make_subaru()
+		if _subaru_preview == null:
+			_vehicle_selector.select(0)
+			_status.text = "Не удалось загрузить Subaru."
+			return false
+		_turntable.add_child(_subaru_preview)
+		# Превью стоит на полу витрины, а не в координатах шасси.
+		_subaru_preview.position = Vector3.ZERO
+	_vehicle_id = id
+	_vehicle_selector.select(1 if id == "subaru" else 0)
+	_model.visible = id != "subaru"
+	if _subaru_preview != null:
+		_subaru_preview.visible = id == "subaru"
+	_car_title.text = "SUBARU IMPREZA WRX STI" if id == "subaru" else "MITSUBISHI LANCER EVOLUTION"
+	return true
 
 
 func _configure_preview_style() -> void:
@@ -339,6 +377,8 @@ func _refresh() -> void:
 	_updating = true
 	_selector.select(selected_index)
 	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
+	if _vehicle_id == "subaru":
+		_description.text += "\nДля Subaru используются общие настройки физики; окраска, ливреи и цвет дисков доступны только для Mitsubishi."
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing

@@ -16,6 +16,7 @@ const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
@@ -162,6 +163,9 @@ var fall_limit_provider: Callable = Callable()
 
 
 func _ready() -> void:
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("get_race_vehicle_id") and game.call("get_race_vehicle_id") == "subaru":
+		CarModels.install_subaru(self)
 	if spawn_transform == Transform3D.IDENTITY:
 		spawn_transform = global_transform
 
