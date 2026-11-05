@@ -2,6 +2,13 @@
 
 [ext_resource type="Script" uid="uid://dcfhdv8jbxkea" path="res://scripts/data/rally_scenery_config.gd" id="1_scenery"]
 
+[ext_resource type="Script" path="res://scripts/data/rally_scenery_biome.gd" id="biome_type"]
+[ext_resource type="Resource" path="res://data/biomes/forest.tres" id="forest"]
+[ext_resource type="Resource" path="res://data/biomes/rocky.tres" id="rocky"]
+[ext_resource type="Resource" path="res://data/biomes/meadow.tres" id="meadow"]
+[ext_resource type="Resource" path="res://data/biomes/roadside.tres" id="roadside"]
+
 [resource]
 script = ExtResource("1_scenery")
 ground_cover_density = 10.9
+biomes = Array[ExtResource("biome_type")]([ExtResource("forest"), ExtResource("rocky"), ExtResource("meadow"), ExtResource("roadside")])

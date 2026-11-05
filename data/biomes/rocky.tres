@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RallySceneryBiome" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_scenery_biome.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "rocky"
+display_name = "Скалы и сухие склоны"
+zone = 1
+cover_density = 0.3
+cover_size = Vector2(0.55, 0.85)
+patch_floor = 0.15

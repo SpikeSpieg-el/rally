@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/wildflowers.png" id="tex_flowers"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_flowers"]
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("tex_flowers")
+transparency = 2
+alpha_scissor_threshold = 0.35
+cull_mode = 2
+texture_repeat = false
+roughness = 1
+metallic_specular = 0.28
+specular_mode = 2
+
+[sub_resource type="QuadMesh" id="Flowers_a"]
+material = SubResource("Mat_flowers")
+size = Vector2(1, 0.8)
+center_offset = Vector3(0, 0.4, 0)
+
+[sub_resource type="QuadMesh" id="Flowers_b"]
+material = SubResource("Mat_flowers")
+size = Vector2(1, 0.8)
+center_offset = Vector3(0, 0.4, 0)
+
+[node name="Wildflowers" type="Node3D"]
+
+[node name="Flowers_a" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("Flowers_a")
+
+[node name="Flowers_b" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 0)
+mesh = SubResource("Flowers_b")

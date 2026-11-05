@@ -1,0 +1,22 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+path="res://.godot/imported/moss_stone.png-d669282d432f6e205cadca69d36ad8a6.ctex"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://textures/environment/moss_stone.png"
+dest_files=["res://.godot/imported/moss_stone.png-d669282d432f6e205cadca69d36ad8a6.ctex"]
+
+[params]
+
+compress/mode=0
+mipmaps/generate=true
+mipmaps/limit=-1
+process/fix_alpha_border=true
+process/premult_alpha=false
+detect_3d/compress_to=0

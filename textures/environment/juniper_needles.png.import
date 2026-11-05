@@ -1,0 +1,22 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+path="res://.godot/imported/juniper_needles.png-29c3b871080fc6d1c3306e1997ba6637.ctex"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://textures/environment/juniper_needles.png"
+dest_files=["res://.godot/imported/juniper_needles.png-29c3b871080fc6d1c3306e1997ba6637.ctex"]
+
+[params]
+
+compress/mode=0
+mipmaps/generate=true
+mipmaps/limit=-1
+process/fix_alpha_border=true
+process/premult_alpha=false
+detect_3d/compress_to=0

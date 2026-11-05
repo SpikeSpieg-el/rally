@@ -12,15 +12,15 @@
 class_name RallyPropLibrary
 extends Resource
 
-## Все виды обстановки. Вес 0 или пустая сцена — вид пропускается.
+## Все виды обстановки. Вес 0 исключает вид из обычной урны, но не из заполнения.
 @export var props: Array[RallyProp] = []
 
 
-## Виды, которые реально можно расставлять (со сценой и ненулевым весом).
+## Обычные пропсы со сценой и ненулевым весом; слой заполнения исключён.
 func active_props() -> Array[RallyProp]:
 	var out: Array[RallyProp] = []
 	for prop in props:
-		if prop == null or prop.scene == null or prop.weight <= 0.0:
+		if prop == null or prop.scene == null or prop.weight <= 0.0 or prop.ground_cover:
 			continue
 		out.append(prop)
 	return out
@@ -72,3 +72,25 @@ func pick_index(list: Array[RallyProp], roll: float) -> int:
 		if value < 0.0:
 			return i
 	return list.size() - 1
+
+
+## Единый список для генератора и прогрева стриминга. Старые id поддерживаются.
+func ground_cover_props(legacy_ids: Array[String]) -> Array[RallyProp]:
+	var out: Array[RallyProp] = []
+	for prop in spawnable_props():
+		if (prop.ground_cover or legacy_ids.has(prop.id)) and prop.cover_weight > 0.0:
+			out.append(prop)
+	return out
+
+func pick_cover(list: Array[RallyProp], roll: float) -> RallyProp:
+	var total := 0.0
+	for prop in list:
+		total += maxf(0.0, prop.cover_weight)
+	if total <= 0.0:
+		return null
+	var value := clampf(roll, 0.0, 0.999999) * total
+	for prop in list:
+		value -= maxf(0.0, prop.cover_weight)
+		if value < 0.0:
+			return prop
+	return null

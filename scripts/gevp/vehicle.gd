@@ -764,7 +764,7 @@ func process_throttle(delta : float) -> void:
 	
 	## Автоматическая коробка/сцепление размыкаются на переключении.
 	## С ручной педалью газ и положение педали остаются под контролем игрока.
-	if motor_is_redline or (is_shifting and not manual_clutch_control):
+	if is_shifting and not manual_clutch_control:
 		throttle_amount = 0.0
 	if manual_clutch_control:
 		clutch_amount = clampf(clutch_input, 0.0, 1.0)
@@ -782,15 +782,12 @@ func process_motor(delta : float) -> void:
 	## Adjust torque based on throttle input, clutch input, and motor drag
 	torque_output -= drag_torque * (1.0 + (clutch_amount * (1.0 - throttle_amount)))
 	
-	## Prevent motor from outputting torque below idle or far beyond redline
-	var new_rpm := motor_rpm
-	new_rpm += ANGULAR_VELOCITY_TO_RPM * delta * torque_output / motor_moment
-	motor_is_redline = false
-	if new_rpm > max_rpm * 1.1 or new_rpm <= idle_rpm:
+	# Отсечка совпадает с max_rpm из сетапа/HUD, без скрытых +10%.
+	torque_output = _limit_motor_torque(torque_output, delta)
+	var new_rpm := motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * torque_output / motor_moment
+	if new_rpm <= idle_rpm:
 		torque_output = 0.0
-		if new_rpm > max_rpm * 1.1:
-			motor_is_redline = true
-	
+
 	motor_rpm += ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment
 	
 	## Disengage clutch when near idle
@@ -825,10 +822,29 @@ func _process_manual_motor(delta: float) -> void:
 	var effective_throttle := maxf(throttle_amount, idle_assist)
 	torque_output = get_torque_at_rpm(motor_rpm) * effective_throttle
 	torque_output -= drag_torque * (1.0 + clutch_amount * (1.0 - effective_throttle))
-	motor_is_redline = motor_rpm >= max_rpm * 1.1
-	if motor_is_redline:
-		torque_output = 0.0
-	motor_rpm = clampf(motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment, 0.0, max_rpm * 1.1)
+	torque_output = _limit_motor_torque(torque_output, delta)
+	motor_rpm = maxf(motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment, 0.0)
+
+
+## Обороты мотора, соответствующие фактическому вращению ведущих колёс.
+## Положительны и на заднем ходу: отрицательные spin и ratio сокращаются.
+func get_coupled_rpm() -> float:
+	return maxf(0.0, get_drivetrain_spin() * get_gear_ratio(current_gear) * ANGULAR_VELOCITY_TO_RPM)
+
+
+## Отсекаем сгорание, а не положение педали и не скорость кузова.
+## Гистерезис 2% не даёт состоянию дребезжать на численном пороге.
+func _limit_motor_torque(requested_torque: float, delta: float) -> float:
+	var observed_rpm := motor_rpm
+	if current_gear != 0 and not is_shifting and clutch_amount < 0.8:
+		observed_rpm = maxf(observed_rpm, get_coupled_rpm())
+	var predicted_rpm := motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * maxf(requested_torque, 0.0) / maxf(motor_moment, 0.001)
+	if observed_rpm >= max_rpm or predicted_rpm >= max_rpm:
+		motor_is_redline = true
+	elif observed_rpm < max_rpm * 0.98:
+		motor_is_redline = false
+	# Сопротивление мотора при отсечке остаётся — убирается только тяга.
+	return minf(requested_torque, 0.0) if motor_is_redline else requested_torque
 
 
 func process_clutch(delta : float):
@@ -853,6 +869,13 @@ func process_clutch(delta : float):
 	clutch_torque = ((a - b + c)/(motor_moment + drive_inertia_R)) * clutch_factor
 	clutch_torque = clampf(clutch_torque, -max_clutch_torque * clutch_factor, max_clutch_torque * clutch_factor)
 	
+	# Реакция шин в решателе сцепления могла давать положительный момент даже
+	# выше отсечки. Не позволяем этому "разгонять" машину при замершем RPM.
+	# Отрицательный момент сохраняет торможение двигателем; N и выжатая
+	# педаль не ограничивают накат, скорость кузова нигде не обрезается.
+	if get_coupled_rpm() >= max_rpm:
+		clutch_torque = minf(clutch_torque, 0.0)
+
 	## TCS responds only to driven, grounded wheels spinning under power.
 	## Reduce torque progressively instead of switching the clutch completely off:
 	## that caused repeated loss of drive on loose surfaces and during braking.
@@ -878,7 +901,7 @@ func process_clutch(delta : float):
 			motor_rpm = 0.0
 			clutch_torque = 0.0
 		else:
-			motor_rpm = clampf(new_rpm, 0.0, max_rpm * 1.1)
+			motor_rpm = maxf(new_rpm, 0.0)
 		return
 	if new_rpm < idle_rpm:
 		new_rpm = idle_rpm
@@ -886,9 +909,8 @@ func process_clutch(delta : float):
 		need_clutch = true
 	elif new_rpm > maxf(clutch_out_rpm, idle_rpm):
 		need_clutch = false
-	if new_rpm > max_rpm * 1.1:
-		new_rpm = max_rpm * 1.1
-	
+	# Колёса могут раскрутить мотор выше отсечки на спуске/понижении.
+	# Не скрываем эти реальные обороты от HUD, звука и следующего шага.
 	motor_rpm = new_rpm
 
 func process_transmission() -> void:
@@ -1138,7 +1160,9 @@ func get_gear_ratio(gear : int) -> float:
 		return 0.0
 
 func get_torque_at_rpm(lookup_rpm : float) -> float:
-	var rpm_factor = clamp(lookup_rpm / max_rpm, 0.0, 1.0)
+	if lookup_rpm >= max_rpm:
+		return 0.0
+	var rpm_factor = clamp(lookup_rpm / maxf(max_rpm, 1.0), 0.0, 1.0)
 	var torque_factor = torque_curve.sample_baked(rpm_factor)
 	return torque_factor * max_torque
 

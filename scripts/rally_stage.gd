@@ -1840,8 +1840,6 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
 	var library := s_props()
 	var pickable := library.active_props()
-	if pickable.is_empty():
-		return
 	var density: float = clampf(track.scenery_density, 0.0, 2.0)
 	# Спутник (трава, папоротник) в общую «урну» не попадает — у него вес 0,
 	# но сцена ему нужна, поэтому он едет в список видов отдельно.
@@ -1861,17 +1859,10 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 			kinds.append(companion)
 		if companion_indices.find(companion_index) < 0:
 			companion_indices.append(companion_index)
-	var ground_cover_indices: Array[int] = []
-	for ground_cover_id in cfg.ground_cover_prop_ids:
-		var ground_cover: RallyProp = library.by_id(ground_cover_id)
-		if ground_cover == null or ground_cover.scene == null:
-			continue
-		var ground_cover_index: int = kinds.find(ground_cover)
-		if ground_cover_index < 0:
-			ground_cover_index = kinds.size()
-			kinds.append(ground_cover)
-		if ground_cover_indices.find(ground_cover_index) < 0:
-			ground_cover_indices.append(ground_cover_index)
+	var covers: Array[RallyProp] = library.ground_cover_props(cfg.ground_cover_prop_ids)
+	for cover in covers:
+		if not kinds.has(cover):
+			kinds.append(cover)
 	var container := Node3D.new()
 	container.name = "Scenery"
 	var destination: Node3D = generated if chunk_parent == null else chunk_parent
@@ -1887,13 +1878,21 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var jitter: float = step * 0.5 if cfg.along_jitter_full_step else cfg.along_jitter
 	var cell_size: float = maxf(1.0, s_settings().scenery_cell_size)
 	var placement := SceneryPlacement.new()
+	var cover_placement := SceneryPlacement.new()
+	var cover_pools: Array = []
 	var zone_pools: Array = []
 	for zone in range(4):
 		var pool: Array[RallyProp] = []
+		var biome: RallySceneryBiome = cfg.biome_for_zone(zone)
 		for candidate in pickable:
-			if SceneryPlacement.allows(candidate, zone):
+			if SceneryPlacement.allows(candidate, zone) and (biome == null or candidate.supports_biome(biome.id)):
 				pool.append(candidate)
 		zone_pools.append(pool)
+		var cover_pool: Array[RallyProp] = []
+		for candidate in covers:
+			if biome == null or candidate.supports_biome(biome.id):
+				cover_pool.append(candidate)
+		cover_pools.append(cover_pool)
 	var buffer := SceneryBuffer.new()
 	buffer.limit = cfg.max_instances
 	var trunks := PackedFloat32Array()
@@ -1909,7 +1908,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var total_steps: float = maxf(1.0, (network.total_length - cfg.start_margin - cfg.end_margin) / step)
 	var full := false
 	# Нулевая плотность трассы — леса нет вовсе (ворота и знаки при этом едут).
-	while attempt_chance > 0.0 and distance < end:
+	while density > 0.0 and distance < end:
 		corridor = track.half_width_at(distance) + track.road_shoulder
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
@@ -1917,9 +1916,9 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 		for side_sign in [-1.0, 1.0]:
 			if full:
 				break
-			var zone: int = SceneryPlacement.zone_at(distance, side_sign, track.terrain_seed)
+			var zone: int = SceneryPlacement.zone_at(distance, side_sign, track.terrain_seed, cfg.biome_length)
 			var pool: Array[RallyProp] = zone_pools[zone]
-			for _attempt in range(attempt_count):
+			for _attempt in range(attempt_count if attempt_chance > 0.0 and not pool.is_empty() else 0):
 				if streamed and Time.get_ticks_usec() >= slice_deadline:
 					await stream_clock.tick
 					if not is_instance_valid(container) or not container.is_inside_tree():
@@ -1934,8 +1933,8 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 					continue
 				# Между тематическими участками оставляем переход без крупных
 				# объектов: jitter не смешивает камни, поле и лес на границе.
-				var block_position: float = fposmod(distance, 120.0)
-				if prop.category != RallyProp.Category.VEGETATION and (block_position < 8.0 or block_position > 112.0):
+				var block_position: float = fposmod(distance, maxf(1.0, cfg.biome_length))
+				if prop.category != RallyProp.Category.VEGETATION and (block_position < 8.0 or block_position > maxf(1.0, cfg.biome_length) - 8.0):
 					continue
 				var prop_index: int = pickable.find(prop)
 				var far: float = cfg.max_offset
@@ -2007,51 +2006,72 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 						_scenery_cell(ux, uz, cell_size),
 						SCENERY_CELL_SPAN
 					)
-			if not ground_cover_indices.is_empty() and cfg.ground_cover_density > 0.0:
-				var cover_attempts: int = mini(
-					cfg.max_attempts_per_step,
-					ceili(float(cfg.ground_cover_attempts_per_step) * cfg.ground_cover_density * maxf(density, 0.0))
-				)
-				var cover_chance: float = 0.0
-				if cover_attempts > 0:
-					cover_chance = clampf(
-						cfg.ground_cover_success_chance * float(cfg.ground_cover_attempts_per_step)
-							* cfg.ground_cover_density * maxf(density, 0.0) / float(cover_attempts),
-						0.0,
-						1.0
-					)
-				for _cover_attempt in range(cover_attempts):
-					if rng.randf() > cover_chance:
-						continue
-					var cover_point: Vector3 = center + side * (rng.randf_range(minimum_offset, cfg.max_offset) * side_sign)
-					cover_point += dir * rng.randf_range(-jitter, jitter)
-					if not terrain_rect.has_point(Vector2(cover_point.x, cover_point.z)):
-						continue
-					if network.distance_to_road(cover_point.x, cover_point.z) < corridor + cfg.road_clearance:
-						continue
-					var cover_radius: float = 0.2
-					if not placement.has_space(cover_point, cover_radius):
-						continue
-					var cover_size: float = rng.randf_range(cfg.undergrowth_size.x, cfg.undergrowth_size.y)
-					if not buffer.push(
-						ground_cover_indices[rng.randi_range(0, ground_cover_indices.size() - 1)],
-						cover_point.x,
-						ground_height(cover_point.x, cover_point.z),
-						cover_point.z,
-						rng.randf_range(0.0, TAU),
-						cover_size * cfg.undergrowth_width_factor,
-						cover_size,
-						cover_size * cfg.undergrowth_width_factor,
-						_scenery_cell(cover_point.x, cover_point.z, cell_size),
-						SCENERY_CELL_SPAN
-					):
-						full = true
-						break
-					placement.reserve(cover_point, cover_radius)
+			# Собственный RNG: правки деревьев/реквизита не перетасовывают траву.
+			var cover_rng := RandomNumberGenerator.new()
+			cover_rng.seed = hash(Vector3i(roundi(distance * 100.0), int(side_sign), track.terrain_seed ^ 91753))
+			var biome: RallySceneryBiome = cfg.biome_for_zone(zone)
+			var cover_pool: Array[RallyProp] = cover_pools[zone]
+			var biome_density: float = biome.cover_density if biome != null else 1.0
+			var scaled_attempts: float = float(cfg.ground_cover_attempts_per_step) * cfg.ground_cover_density * density * biome_density
+			var cover_attempts: int = clampi(ceili(scaled_attempts), 0, cfg.max_attempts_per_step) if not cover_pool.is_empty() else 0
+			var cover_chance: float = clampf(cfg.ground_cover_success_chance * scaled_attempts / float(maxi(1, cover_attempts)), 0.0, 1.0)
+			for _cover_attempt in range(cover_attempts):
+				if full:
+					break
+				if streamed and Time.get_ticks_usec() >= slice_deadline:
+					await stream_clock.tick
+					if not is_instance_valid(container) or not container.is_inside_tree():
+						return
+					slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
+				if cover_rng.randf() > cover_chance:
+					continue
+				var cover: RallyProp = library.pick_cover(cover_pool, cover_rng.randf())
+				if cover == null:
+					continue
+				var near: float = minimum_offset if cover.min_offset < 0.0 else cover.min_offset
+				near = maxf(near, cfg.road_clearance)
+				var far: float = minf(cfg.max_offset, cover.max_offset) if cover.max_offset > 0.0 else cfg.max_offset
+				if far < near:
+					continue
+				var cover_point: Vector3 = center + side * ((corridor + cover_rng.randf_range(near, far)) * side_sign)
+				cover_point += dir * cover_rng.randf_range(-jitter, jitter)
+				if not terrain_rect.has_point(Vector2(cover_point.x, cover_point.z)):
+					continue
+				if network.distance_to_road(cover_point.x, cover_point.z) < corridor + cfg.road_clearance:
+					continue
+				if biome != null and cover_rng.randf() > biome.density_at(cover_point.x, cover_point.z, track.terrain_seed):
+					continue
+				var ground: float = ground_height(cover_point.x, cover_point.z)
+				if ground < cover.cover_altitude.x or ground > cover.cover_altitude.y:
+					continue
+				# Центральная разность на метре, не наклон самой дороги.
+				var dx: float = ground_height(cover_point.x + 0.5, cover_point.z) - ground_height(cover_point.x - 0.5, cover_point.z)
+				var dz: float = ground_height(cover_point.x, cover_point.z + 0.5) - ground_height(cover_point.x, cover_point.z - 0.5)
+				if rad_to_deg(atan(Vector2(dx, dz).length())) > cover.cover_max_slope:
+					continue
+				var size: float = cover_rng.randf_range(cover.size.x, cover.size.y)
+				if biome != null:
+					size *= cover_rng.randf_range(biome.cover_size.x, biome.cover_size.y)
+				var width: float = size * cover_rng.randf_range(cover.width_jitter.x, cover.width_jitter.y)
+				var height: float = size * cover_rng.randf_range(cover.height_jitter.x, cover.height_jitter.y)
+				var radius: float = clampf(cover.placement_radius * maxf(width, height), 0.2, 12.0)
+				if not placement.has_space(cover_point, radius) or not cover_placement.has_space(cover_point, radius):
+					continue
+				var yaw: float = cover_rng.randf_range(0.0, TAU) if cover.random_yaw else 0.0
+				if cover.align_to_road:
+					yaw = atan2(-dir.z, dir.x)
+				if not buffer.push(kinds.find(cover), cover_point.x, ground + cover.y_offset * size,
+					cover_point.z, yaw, width, height, width,
+					_scenery_cell(cover_point.x, cover_point.z, cell_size), SCENERY_CELL_SPAN):
+					full = true
+					break
+				# Трава не вытесняет крупные объекты следующих шагов трассы.
+				cover_placement.reserve(cover_point, radius)
+
 		if full:
 			break
 		step_count += 1
-		attempts_since_yield += attempt_count * 2
+		attempts_since_yield += attempt_count * 2 + cfg.ground_cover_attempts_per_step * ceili(cfg.ground_cover_density * density) * 2
 		if light and not streamed and attempts_since_yield >= cfg.progress_attempts_per_frame:
 			attempts_since_yield = 0
 			_report_progress(lerpf(0.90, 0.97, minf(1.0, float(step_count) / total_steps)), "Лес, камни и знаки…")
@@ -2167,7 +2187,7 @@ func _build_scenery_multimeshes(
 		instance.position = chunk_origin
 		instance.multimesh = multimesh
 		# Мелочи исчезают раньше крупных, с запасом на радиус ячейки.
-		var small: bool = (kinds[prop_index] as RallyProp).small
+		var small: bool = (kinds[prop_index] as RallyProp).small or (kinds[prop_index] as RallyProp).ground_cover
 		instance.visibility_range_end = cfg.scenery_range_small if small else cfg.scenery_range_large
 		instance.visibility_range_end_margin = cfg.scenery_range_margin
 		instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
@@ -2999,7 +3019,7 @@ func _update_hud() -> void:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
 	if rpm_caption != null:
-		rpm_caption.text = "%d / %d ОБ/МИН" % [roundi(car.current_rpm), roundi(car.max_rpm)]
+		rpm_caption.text = "%d / %d ОБ/МИН%s" % [roundi(car.current_rpm), roundi(car.max_rpm), " · ОТСЕЧКА" if car.motor_is_redline else ""]
 	if setup_label != null:
 		var current_setup: CarSetupType = car.active_setup
 		setup_label.text = current_setup.display_name if current_setup != null else "СЦЕНИЧЕСКАЯ МАШИНА"
