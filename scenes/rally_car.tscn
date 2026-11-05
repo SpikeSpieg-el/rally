@@ -6,10 +6,8 @@
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="3_wheel"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_finkb"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="5_rv3qr"]
-[ext_resource type="Texture2D" uid="uid://bkkv8xfjypj5w" path="res://textures/mitsubishi.png" id="7_02ico"]
 [ext_resource type="Texture2D" uid="uid://ce2gjyhr8dh68" path="res://textures/mitsubishi_glossy.png" id="7_gxar1"]
-[ext_resource type="Texture2D" uid="uid://ch66w628acnj1" path="res://textures/иташа2.jpg" id="8_finkb"]
-[ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="9_02ico"]
+[ext_resource type="Texture2D" uid="uid://f4k4po1d243b" path="res://textures/11.png" id="8_yojui"]
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
@@ -448,13 +446,8 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_1n0cv")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_finkb"]
-albedo_texture = ExtResource("8_finkb")
-emission_enabled = true
-emission_texture = ExtResource("9_02ico")
-normal_enabled = true
-normal_scale = -0.23
-normal_texture = ExtResource("7_02ico")
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y2iot"]
+albedo_texture = ExtResource("8_yojui")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_es165"]
 resource_name = "low poly lance evo_Cube_001"
@@ -1118,7 +1111,7 @@ mesh = SubResource("ArrayMesh_7wfi5")
 
 [node name="Mitsubishi_Body" type="MeshInstance3D" parent="low poly lance evo" unique_id=837516741]
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
-material_override = SubResource("StandardMaterial3D_finkb")
+material_override = SubResource("StandardMaterial3D_y2iot")
 mesh = SubResource("ArrayMesh_es165")
 
 [node name="Circle" type="MeshInstance3D" parent="low poly lance evo/Mitsubishi_Body" unique_id=84476251]

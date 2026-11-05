@@ -34,7 +34,6 @@ window/stretch/aspect="expand"
 [file_customization]
 
 folder_colors={
-"res://car1/": "red",
 "res://data/": "blue"
 }
 

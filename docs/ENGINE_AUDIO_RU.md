@@ -33,7 +33,7 @@
 ```
 audio/engine/engine_<об/мин>_<light|full>.wav   58 лупов Mitsubishi 4G63T (29 точек × 2 режима)
 audio/engine/subaru/engine_<об/мин>_<light|full>.wav
-                                                56 лупов Subaru EJ25 (28 точек × 2 режима)
+												56 лупов Subaru EJ25 (28 точек × 2 режима)
 audio/vehicle/gravel_road.wav                    шорох гравия (луп, общий)
 audio/vehicle/wind.wav                           шум ветра (луп, общий)
 audio/vehicle/bov_01..03.wav                     сброс давления турбины
