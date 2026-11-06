@@ -1,14 +1,21 @@
-## Четыре независимых зоны загрязнения и эффекты контакта шин с разными покрытиями.
-## Кузов получает отдельный процедурный слой; краска не заменяется.
+## Пыль, дым, комья и капли из-под каждого колеса + слои грязи на кузове.
 ##
-## Цвета, уровни и поведение брызг/пыли лежат в RallySurfaceFxProfile,
-## а общий профиль RallyFxProfile задаёт базовую плотность и погоду.
+## Поведение: у каждого колеса два живых источника частиц —
+##   * мягкие клубы пыли/брызг (билборд-облачка, расширяются и растворяются);
+##   * комья и капли (настоящая баллистика, падают на землю).
+## Оба источника плавно меняют плотность от состояния колеса: смещение, пробуксовка,
+## мокрота, занос, ручник и поворот руля. Никогда не «дёргаются» между ступенями.
+##
+## Все числа — поля RallyFxProfile / RallySurfaceFxProfile
+## (data/stage/default_fx_profile.tres). Хотите сильнее — правьте профиль,
+## а не этот файл.
 extends Node
 
 const DirtShader = preload("res://shaders/car_dirt.gdshader")
 const SurfaceType = preload("res://scripts/road_surface.gd")
 const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SurfaceFxProfileType = preload("res://scripts/data/rally_surface_fx_profile.gd")
+const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
 const SURFACE_KINDS: Array[String] = ["gravel", "mud", "grass", "snow", "asphalt"]
 
 ## Профиль эффектов из инспектора. Пусто — значения по умолчанию ресурса.
@@ -18,15 +25,31 @@ var amounts := Vector4.ZERO
 var damp := Vector4.ZERO
 var snow_amounts := Vector4.ZERO
 var _material: ShaderMaterial
+## Комья и капли (по одному источнику на колесо). Публичное имя сохранено ради тестов.
 var _sprays: Array[GPUParticles3D] = []
+## Клубы пыли/дыма над каждым колесом.
+var _foams: Array[GPUParticles3D] = []
 var _spray_kinds: Array[String] = ["", "", "", ""]
 var _profiles: Dictionary = {}
 var _surface = SurfaceType.new()
 var _rng := RandomNumberGenerator.new()
+var _update_timer := 0.0
+var _foam_material: StandardMaterial3D
+var _grit_material: StandardMaterial3D
+## Машина, на которой установлены эффекты (нужна для пересборки профиля).
+var _car: Node3D = null
 
 
 func _p(name: String, fallback: float) -> float:
 	return float(fx.get(name)) if fx != null else fallback
+
+
+func _pi(name: String, fallback: int) -> int:
+	return int(fx.get(name)) if fx != null else fallback
+
+
+func _pb(name: String, fallback: bool) -> bool:
+	return bool(fx.get(name)) if fx != null else fallback
 
 
 func _pc(name: String, fallback: Color) -> Color:
@@ -37,9 +60,76 @@ func _pv(name: String, fallback: Vector3) -> Vector3:
 	return fx.get(name) as Vector3 if fx != null else fallback
 
 
+## Числовое поле машины без падений на тестовых заглушках.
+func _car_float(car: Object, name: String, fallback: float) -> float:
+	var value: Variant = car.get(name)
+	return float(value) if value is float or value is int else fallback
+
+
 func install(car: Node3D) -> void:
-	_load_surface_profiles()
+	_car = car
 	_rng.seed = int(Time.get_ticks_usec()) ^ int(car.get_instance_id())
+	_install_body_dirt(car)
+	_foam_material = _make_foam_material()
+	_grit_material = _make_grit_material()
+	for i in range(4):
+		var foam := _make_pool("WheelFoam%d" % i)
+		foam.draw_pass_1 = _make_foam_mesh()
+		foam.process_material = _make_foam_process()
+		car.add_child(foam)
+		_foams.append(foam)
+		var grit := _make_pool("WheelGrit%d" % i)
+		grit.draw_pass_1 = _make_grit_mesh()
+		grit.process_material = _make_grit_process()
+		car.add_child(grit)
+		_sprays.append(grit)
+	refresh_profile()
+
+
+## Применить правки профиля к уже работающим эффектам — без перезапуска заезда.
+## Количество, размеры и материал меняются на месте; уже нанесённая грязь
+## остаётся, меняются только цвета и густота слоя.
+func refresh_profile() -> void:
+	_load_surface_profiles()
+	if _car == null or _foams.is_empty():
+		return
+	_foam_material = _make_foam_material()
+	_grit_material = _make_grit_material()
+	for i in range(4):
+		var foam := _foams[i]
+		var foam_mesh := foam.draw_pass_1 as QuadMesh
+		if foam_mesh != null:
+			foam_mesh.material = _foam_material
+		var grit := _sprays[i]
+		var grit_mesh := grit.draw_pass_1 as SphereMesh
+		if grit_mesh != null:
+			grit_mesh.material = _grit_material
+		foam.fixed_fps = maxi(10, _pi("fx_physics_fps", 60))
+		grit.fixed_fps = maxi(10, _pi("fx_physics_fps", 60))
+		# Количество и размеры живут в пулах: пересобрать их под новый профиль
+		# можно только зная покрытие, с которым колесо работало до правки.
+		var kind: String = _spray_kinds[i]
+		if not kind.is_empty():
+			_configure_for_profile(i, profile_for_kind(kind))
+	_apply_body_look()
+
+
+## Цвета и густота слоя на кузове: их можно менять на ходу, геометрия не важна.
+func _apply_body_look() -> void:
+	if _material == null:
+		return
+	_material.set_shader_parameter("dirt_color", _pc("dirt_color", Color(0.3, 0.22, 0.13)))
+	_material.set_shader_parameter("snow_color", _pc("body_snow_color", Color(0.82, 0.86, 0.9)))
+	_material.set_shader_parameter("dirt_coverage", _p("body_coverage", 1.35))
+	_material.set_shader_parameter("edge_softness", _p("body_edge_softness", 0.85))
+	_material.set_shader_parameter("dirt_strength", _p("body_dirt_buildup", 1.0))
+	_material.set_shader_parameter("snow_strength", _p("body_snow_buildup", 1.0))
+	_material.set_shader_parameter("body_alpha", _p("body_alpha", 0.92))
+	_material.set_shader_parameter("body_spread", _p("body_spread", 1.0))
+
+
+## Процедурный слой поверх краски: пятна, брызги и потёки у каждого колеса.
+func _install_body_dirt(car: Node3D) -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = DirtShader
 	_material.set_shader_parameter(
@@ -50,43 +140,185 @@ func install(car: Node3D) -> void:
 			_rng.randf_range(-31.0, 31.0)
 		)
 	)
-	var model := car.get_node_or_null("low poly lance evo")
-	if model != null:
-		for child in model.get_children():
-			if child is MeshInstance3D and String(child.name).begins_with("Mitsubishi_Body"):
-				child.material_overlay = _material
-	var grain_segments: int = int(_p("spray_grain_segments", 4))
-	for i in range(4):
-		var spray := GPUParticles3D.new()
-		spray.name = "WheelSurfaceFX%d" % i
-		spray.amount = int(_p("spray_amount", 36))
-		spray.lifetime = _p("spray_lifetime", 0.55)
-		spray.emitting = false
-		spray.local_coords = false
-		spray.visibility_aabb = AABB(Vector3(-12, -6, -12), Vector3(24, 18, 24))
-		var process := ParticleProcessMaterial.new()
-		process.direction = _pv("spray_direction", Vector3(0, 0.7, -1))
-		process.spread = _p("spray_spread", 27.0)
-		process.gravity = _pv("spray_gravity", Vector3(0, -9.8, 0))
-		process.initial_velocity_min = _p("spray_speed_min", 1.5)
-		process.initial_velocity_max = _p("spray_speed_max", 5.0)
-		process.scale_min = _p("spray_scale_min", 0.4)
-		process.scale_max = _p("spray_scale_max", 1.4)
-		spray.process_material = process
-		var grain := SphereMesh.new()
-		grain.radius = _p("spray_grain_radius", 0.018)
-		grain.height = _p("spray_grain_height", 0.036)
-		grain.radial_segments = grain_segments
-		grain.rings = 1
-		var soil := StandardMaterial3D.new()
-		soil.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		soil.albedo_color = Color.WHITE
-		soil.vertex_color_use_as_albedo = true
-		soil.roughness = 1.0
-		grain.material = soil
-		spray.draw_pass_1 = grain
-		car.add_child(spray)
-		_sprays.append(spray)
+	_apply_body_look()
+	for mesh in _body_meshes(car):
+		mesh.material_overlay = _material
+
+
+## Кузовные меши обеих машин. Префиксы и исключения — поля профиля.
+func _body_meshes(car: Node) -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	var prefixes: Array = []
+	var blocked: Array = []
+	if fx != null:
+		prefixes = fx.get("dirt_body_prefixes")
+		blocked = fx.get("dirt_body_skip")
+	for child in _all_meshes(car):
+		var mesh_name := String(child.name)
+		var matches := prefixes.is_empty()
+		for prefix in prefixes:
+			if mesh_name.begins_with(String(prefix)):
+				matches = true
+				break
+		if matches and not _is_blocked_mesh(child, blocked, car):
+			result.append(child)
+	return result
+
+
+## Диски, стёкла, фары и салон грязью не покрываем.
+func _is_blocked_mesh(mesh: Node, blocked: Array, car: Node) -> bool:
+	var node: Node = mesh
+	while node != null and node != car:
+		var part := String(node.name).to_lower()
+		for word in blocked:
+			if not String(word).is_empty() and part.contains(String(word)):
+				return true
+		node = node.get_parent()
+	return false
+
+
+func _all_meshes(root: Node) -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	for child in root.get_children():
+		if child is MeshInstance3D:
+			result.append(child)
+		result.append_array(_all_meshes(child))
+	return result
+
+
+func _make_foam_material() -> StandardMaterial3D:
+	var material := DustFx.puff_material(DustFx.puff_texture(), not _pb("foam_lit", false))
+	material.emission_enabled = _pb("fx_sparkle_enabled", true)
+	material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
+	material.emission_energy_multiplier = (
+		_p("fx_sparkle_strength", 0.16) * _p("fx_sparkle_emission", 0.85)
+		+ _p("foam_emission", 0.18)
+	)
+	material.vertex_color_is_srgb = false
+	return material
+
+
+func _make_grit_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color.WHITE
+	material.vertex_color_use_as_albedo = true
+	material.roughness = 1.0 - clampf(_p("grit_specular", 0.35), 0.0, 0.9)
+	material.specular = clampf(_p("grit_specular", 0.35) * 1.6, 0.0, 1.0)
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	material.emission_enabled = _pb("fx_sparkle_enabled", true)
+	material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
+	material.emission_energy_multiplier = _p("grit_light_boost", 0.22) * 0.35
+	return material
+
+
+func _make_pool(pool_name: String) -> GPUParticles3D:
+	var pool := GPUParticles3D.new()
+	pool.name = pool_name
+	pool.emitting = false
+	pool.local_coords = false
+	pool.speed_scale = 1.0
+	pool.fixed_fps = maxi(10, _pi("fx_physics_fps", 60))
+	pool.fract_delta = true
+	pool.randomness = 0.45
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pool.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	pool.visibility_aabb = AABB(Vector3(-10, -6, -10), Vector3(20, 16, 20))
+	# Клубы и комья никогда не должны пропадать на краю экрана: запасной размер
+	# кулинг-бокса больше всего, что успевает улететь за жизнь частицы.
+	pool.extra_cull_margin = 8.0
+	return pool
+
+
+func _make_foam_mesh() -> QuadMesh:
+	var mesh := QuadMesh.new()
+	var size := maxf(0.01, _p("foam_size", 0.2))
+	mesh.size = Vector2(size, size) * 2.0
+	mesh.material = _foam_material
+	return mesh
+
+
+func _make_grit_mesh() -> SphereMesh:
+	var mesh := SphereMesh.new()
+	var grain := maxf(0.001, _p("spray_grain_radius", 0.018))
+	mesh.radius = grain
+	mesh.height = maxf(grain * 1.2, _p("spray_grain_height", 0.036))
+	mesh.radial_segments = maxi(3, _pi("spray_grain_segments", 4))
+	mesh.rings = maxi(1, _pi("spray_grain_rings", 2))
+	mesh.material = _grit_material
+	return mesh
+
+
+func _make_foam_process() -> ParticleProcessMaterial:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.2)) * _p(
+		"foam_emission_radius", 0.55
+	)
+	process.direction = _pv("foam_direction", Vector3(0.0, 0.55, 0.6))
+	process.spread = clampf(_p("foam_spread", 42.0), 0.0, 180.0)
+	process.flatness = clampf(_p("foam_flatness", 0.35), 0.0, 1.0)
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.9, 0.0))
+	process.initial_velocity_min = _p("foam_speed_min", 0.6)
+	process.initial_velocity_max = _p("foam_speed_max", 3.4)
+	process.scale_min = _p("foam_scale_min", 0.55)
+	process.scale_max = _p("foam_scale_max", 1.5)
+	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
+	process.flatness = clampf(_p("foam_flatness", 0.35), 0.0, 1.0)
+	var spin := _p("foam_spin", 35.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
+	process.turbulence_enabled = _p("foam_turbulence", 1.6) > 0.0
+	process.turbulence_noise_strength = _p("foam_turbulence", 1.6)
+	process.turbulence_noise_scale = _p("foam_turbulence_scale", 4.5)
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
+	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
+	process.damping_min = _p("foam_damping_min", 0.4)
+	process.damping_max = maxf(
+		_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6)
+	)
+	process.angle_min = 0.0
+	process.angle_max = 360.0
+	var spin := _p("foam_spin", 35.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
+	process.color_ramp = DustFx.fade_ramp()
+	process.turbulence_enabled = _p("foam_turbulence", 1.6) > 0.0
+	process.turbulence_noise_strength = _p("foam_turbulence", 1.6)
+	process.turbulence_noise_scale = _p("foam_turbulence_scale", 4.5)
+	process.turbulence_influence_min = 0.06
+	process.turbulence_influence_max = 0.22
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
+	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
+	process.damping_min = _p("foam_damping_min", 0.4)
+	process.damping_max = maxf(
+		_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6)
+	)
+	return process
+
+
+func _make_grit_process() -> ParticleProcessMaterial:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = 0.05
+	process.direction = _pv("spray_direction", Vector3(0.0, 0.7, -1.0))
+	process.spread = clampf(_p("grit_spread", 26.0), 0.0, 180.0)
+	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0))
+	process.initial_velocity_min = _p("grit_speed_min", 1.8)
+	process.initial_velocity_max = _p("grit_speed_max", 7.5)
+	process.scale_min = _p("grit_scale_min", 0.55)
+	process.scale_max = _p("grit_scale_max", 2.2)
+	process.scale_curve = DustFx.growth_curve(0.6)
+	process.color_ramp = DustFx.debris_fade()
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35) * 1.4
+	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
+	process.angle_min = 0.0
+	process.angle_max = 360.0
+	var spin := _p("grit_spin", 0.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
+	return process
 
 
 func _load_surface_profiles() -> void:
@@ -204,33 +436,6 @@ func kind_for_wheel(wheel: Object, road_name: String, snow: float) -> String:
 	return _surface.surface_kind(road_name, grass, snow)
 
 
-func _configure_spray_profile(
-	spray: GPUParticles3D, index: int, profile: RallySurfaceFxProfile
-) -> void:
-	_spray_kinds[index] = profile.kind_name()
-	spray.name = "WheelSurfaceFX_%s_%d" % [profile.kind_name().capitalize(), index]
-	spray.amount = maxi(1, roundi(_p("spray_amount", 36.0) * profile.amount_scale))
-	spray.lifetime = maxf(0.05, _p("spray_lifetime", 0.55) * profile.lifetime_scale)
-	var process := spray.process_material as ParticleProcessMaterial
-	if process != null:
-		var gravity := _pv("spray_gravity", Vector3(0, -9.8, 0))
-		process.direction = profile.direction
-		process.spread = clampf(_p("spray_spread", 27.0) * profile.spread_scale, 0.0, 90.0)
-		process.gravity = Vector3(
-			gravity.x * profile.gravity_scale.x,
-			gravity.y * profile.gravity_scale.y,
-			gravity.z * profile.gravity_scale.z
-		)
-		process.scale_min = _p("spray_scale_min", 0.4) * profile.particle_scale
-		process.scale_max = _p("spray_scale_max", 1.4) * profile.particle_scale
-		process.initial_velocity_min = _p("spray_speed_min", 1.5) * profile.velocity_scale
-		process.initial_velocity_max = _p("spray_speed_max", 5.0) * profile.velocity_scale
-	var grain := spray.draw_pass_1 as SphereMesh
-	if grain != null:
-		grain.radius = _p("spray_grain_radius", 0.018) * profile.grain_scale
-		grain.height = _p("spray_grain_height", 0.036) * profile.grain_scale
-
-
 func accumulate(
 	index: int, kind: String, wetness: float, speed: float, slip: float, delta: float
 ) -> void:
@@ -239,6 +444,7 @@ func accumulate(
 	if kind == "snow":
 		var snow_work := (
 			_p("snow_rate", 0.025)
+			* clampf(_p("fx_intensity", 1.0), 0.0, 4.0)
 			* clampf(speed / 12.0, 0.0, 2.0)
 			* (1.0 + minf(maxf(slip, 0.0), 2.0))
 			* delta
@@ -253,7 +459,14 @@ func accumulate(
 		base_rate = _p("gravel_dirt_rate", 0.018)
 	elif kind == "grass":
 		base_rate = _p("grass_dirt_rate", 0.008)
-	var rate := base_rate * lerpf(_p("damp_dry_scale", 0.35), _p("damp_wet_scale", 1.8), wetness)
+	# fx_intensity — общая «громкость»: грязь налипает в том же ритме, что
+	# растёт пыль и комья, иначе при сильных эффектах кузов остаётся чистым.
+	var intensity := clampf(_p("fx_intensity", 1.0), 0.0, 4.0)
+	var rate := (
+		base_rate
+		* lerpf(_p("damp_dry_scale", 0.35), _p("damp_wet_scale", 1.8), wetness)
+		* intensity
+	)
 	var work := rate * clampf(speed / 12.0, 0.0, 2.0) * (1.0 + clampf(slip, 0.0, 2.0)) * delta
 	amounts[index] = clampf(amounts[index] + work, 0.0, 1.0)
 	damp[index] = clampf(damp[index] + work * wetness, 0.0, 1.0)
@@ -294,10 +507,19 @@ func update(
 	if _material == null:
 		return
 	update_weather(rain, snowfall, delta)
+	if _foams.is_empty() or _sprays.is_empty():
+		return
 	var positions := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
 	var spring_scale: float = _p("dirt_center_spring_scale", 0.65)
-	for spray in _sprays:
-		spray.emitting = false
+	var emit_count: int = mini(4, wheels.size())
+	_update_timer += delta
+	# Частицы считает GPU: состояние колеса достаточно пересчитывать реже кадра,
+	# иначе на слабых машинах и в вебе тратится ЦП без видимой разницы.
+	var refresh: bool = _update_timer >= 1.0 / maxf(1.0, _p("fx_update_hz", 30.0))
+	if refresh:
+		_update_timer = 0.0
+	var steer := _car_float(car, "steer_input", 0.0)
+	var handbrake := _car_float(car, "handbrake_input", 0.0)
 	for i in range(mini(4, wheels.size())):
 		var wheel = wheels[i]
 		# Центры масок — на кузове, не на движущейся подвеске:
@@ -305,64 +527,12 @@ func update(
 		positions[i] = (
 			car.to_local(wheel.global_position) + Vector3.DOWN * wheel.spring_length * spring_scale
 		)
-		if not wheel.is_colliding() or wheel.last_collider == null or wheel.spring_force <= 0.0:
+		if not refresh:
 			continue
-		var collider: Node = wheel.last_collider
-		var grass := collider.is_in_group("Grass")
-		if not grass and not collider.is_in_group("Dirt") and not collider.is_in_group("Road"):
+		if i >= emit_count:
+			_stop_pools(i)
 			continue
-		var kind: String = kind_for_wheel(wheel, road_name, snow)
-		var speed: float = Vector2(wheel.local_velocity.x, wheel.local_velocity.z).length()
-		var slip: float = wheel.slip_vector.length()
-		accumulate(i, kind, wetness, speed, slip, delta)
-		if kind.is_empty():
-			continue
-		var profile := profile_for_kind(kind)
-		if profile == null:
-			continue
-		var spray := _sprays[i]
-		if _spray_kinds[i] != kind:
-			_configure_spray_profile(spray, i, profile)
-		if fx != null and not fx.surface_fx_enabled:
-			continue
-		if speed < _p("spray_min_speed", 3.0):
-			continue
-		var level: int = profile.level_for(speed * 3.6, slip, wetness)
-		if level <= 0:
-			continue
-		spray.global_position = wheel.last_collision_point + wheel.last_collision_normal * 0.05
-		spray.amount_ratio = profile.amount_ratio_for_level(level)
-		spray.emitting = spray.amount_ratio > 0.0
-		var process := spray.process_material as ParticleProcessMaterial
-		if process != null:
-			var velocity_tier: float = profile.velocity_scale_for_level(level)
-			var base_min: float = (
-				_p("spray_speed_min", 1.5) * profile.velocity_scale * velocity_tier
-			)
-			var base_max: float = (
-				(_p("spray_speed_max", 5.0) + speed * _p("spray_speed_factor", 0.35))
-				* profile.velocity_scale
-				* velocity_tier
-			)
-			process.direction = Vector3(
-				profile.direction.x,
-				profile.direction.y,
-				(
-					-absf(profile.direction.z)
-					* (
-						signf(wheel.local_velocity.z)
-						if not is_zero_approx(wheel.local_velocity.z)
-						else 1.0
-					)
-				)
-			)
-			process.initial_velocity_min = base_min
-			process.initial_velocity_max = clampf(
-				base_max + slip * _p("spray_slip_bonus", 3.0),
-				_p("spray_speed_floor", 2.0),
-				_p("spray_speed_cap", 10.0)
-			)
-			process.color = profile.color_for_wetness(wetness)
+		_drive_wheel(car, wheel, i, road_name, wetness, snow, delta, steer, handbrake)
 	_material.set_shader_parameter("world_to_car", car.global_transform.affine_inverse())
 	_material.set_shader_parameter("wheels", positions)
 	_material.set_shader_parameter("dirt_amount", amounts)
@@ -370,12 +540,250 @@ func update(
 	_material.set_shader_parameter("snow_amount", snow_amounts)
 
 
+## Один такт источника частиц конкретного колеса.
+func _drive_wheel(
+	car: Node3D,
+	wheel: Object,
+	index: int,
+	road_name: String,
+	wetness: float,
+	snow: float,
+	delta: float,
+	steer: float,
+	handbrake: float
+) -> void:
+	if not _wheel_has_ground(wheel):
+		_stop_pools(index)
+		return
+	var kind: String = kind_for_wheel(wheel, road_name, snow)
+	var speed: float = Vector2(wheel.local_velocity.x, wheel.local_velocity.z).length()
+	var slip: float = wheel.slip_vector.length()
+	accumulate(index, kind, wetness, speed, slip, delta)
+	var profile := profile_for_kind(kind) if not kind.is_empty() else null
+	var enabled: bool = (
+		profile != null
+		and profile.enabled
+		and (fx == null or fx.surface_fx_enabled)
+		and (speed >= _p("spray_min_speed", 3.0) * 0.5 or slip > maxf(0.55, profile.slip_start))
+	)
+	if kind == "asphalt" and wetness < 0.04 and profile != null and slip < profile.slip_start:
+		enabled = false
+	if not enabled:
+		_stop_pools(index)
+		return
+	var activity: float = profile.activity_for(speed * 3.6, slip, wetness)
+	activity = clampf(activity * _drama_boost(wheel, speed, steer, handbrake), 0.0, 1.0)
+	if activity <= 0.001:
+		_stop_pools(index)
+		return
+	if _spray_kinds[index] != kind:
+		_configure_for_profile(index, profile)
+	_place_emitters(car, wheel, index, profile, activity, wetness)
+
+
+func _wheel_has_ground(wheel: Object) -> bool:
+	var collider := wheel.get("last_collider") as Node
+	if not wheel.is_colliding() or collider == null or wheel.spring_force <= 0.0:
+		return false
+	return (
+		collider.is_in_group("Grass")
+		or collider.is_in_group("Dirt")
+		or collider.is_in_group("Road")
+	)
+
+
+## Занос, ручник, поворот руля и скорость делают шлейф зрелищнее.
+func _drama_boost(wheel: Object, speed: float, steer: float, handbrake: float) -> float:
+	var slide: float = absf(wheel.local_velocity.x) / maxf(0.6, speed)
+	var boost := 1.0
+	boost += _p("steer_boost", 0.8) * absf(steer) * 0.6
+	boost += _p("handbrake_boost", 1.0) * clampf(handbrake, 0.0, 1.0)
+	boost += _p("steer_boost", 0.8) * clampf(slide, 0.0, 1.5)
+	boost += _p("wind_pull", 0.55) * clampf(speed / 39.0, 0.0, 1.0) * 0.5
+	return boost
+
+
+## Позиция и направление источников: за колесом, по ходу будущего движения.
+func _place_emitters(
+	car: Node3D,
+	wheel: Object,
+	index: int,
+	profile: RallySurfaceFxProfile,
+	activity: float,
+	wetness: float
+) -> void:
+	var forward_sign: float = 1.0
+	if absf(wheel.local_velocity.z) > 0.2:
+		forward_sign = signf(wheel.local_velocity.z)
+	var side: float = 1.0 if index % 2 == 0 else -1.0
+	var point: Vector3 = wheel.last_collision_point
+	var normal: Vector3 = wheel.last_collision_normal
+	var basis: Basis = car.global_transform.basis.orthonormalized()
+	var splay: float = _p("side_splay", 0.35) * side
+	var foam_dir := Vector3(
+		profile.direction.x * 0.5 + splay,
+		profile.direction.y,
+		-absf(profile.direction.z) * forward_sign
+	)
+	var grit_dir := Vector3(
+		profile.direction.x * 0.5 + splay * 1.3,
+		profile.direction.y,
+		-absf(profile.direction.z) * forward_sign
+	)
+	# Плотность облака = сила колеса × настроенная полка ступени. Доля дыма и
+	# комьев делит её между двумя источниками.
+	var scaled: float = activity * profile.amount_ratio_for_activity(activity)
+	# Ступень скорости — от общей активности колеса: ровно три настроенные полки.
+	var level: float = profile.velocity_scale_for_level(_level_of(activity))
+	# Доля дыма и комьев задаётся профилем покрытия через плотность каждого
+	# источника: дым гуще на мокром, комья — на рыхлом.
+	var smoke: float = scaled * clampf(profile.smoke_share, 0.0, 1.0)
+	var grits: float = scaled * clampf(profile.grit_share, 0.0, 1.0)
+	_emit_foam(
+		index, profile, smoke, level, wetness,
+		point + normal * 0.06 + Vector3.UP * _p("foam_height", 0.09), basis, foam_dir
+	)
+	_emit_grit(
+		index, profile, grits, level, wetness,
+		point + normal * 0.04, basis, grit_dir
+	)
+
+
+## Плавная заливка источника: плотность = amount × amount_ratio.
+## density — доля облака для этого источника, level — скорость ступени,
+## strength — общая активность (нужна для отдельных кривых покрытия).
+func _emit_foam(
+	index: int,
+	profile: RallySurfaceFxProfile,
+	density: float,
+	level: float,
+	wetness: float,
+	point: Vector3,
+	basis: Basis,
+	direction: Vector3
+) -> void:
+	var pool := _foams[index]
+	var process := pool.process_material as ParticleProcessMaterial
+	var wet_boost := 1.0 + _p("foam_wet_boost", 1.7) * clampf(wetness, 0.0, 1.0) * 0.35
+	var ratio := clampf(density * wet_boost, 0.0, 1.0)
+	pool.amount_ratio = ratio
+	process.direction = direction
+	process.initial_velocity_min = _p("foam_speed_min", 0.6) * profile.velocity_scale * level
+	process.initial_velocity_max = maxf(
+		process.initial_velocity_min,
+		_p("foam_speed_max", 3.4) * profile.velocity_scale * level
+	)
+	var color: Color = profile.color_for_wetness(wetness)
+	color.a *= clampf(_p("foam_alpha", 0.42), 0.0, 1.0) * clampf(profile.particle_tint, 0.05, 3.0)
+	process.color = color
+	pool.global_transform = Transform3D(basis, point)
+	pool.emitting = ratio > 0.0
+
+
+func _emit_grit(
+	index: int,
+	profile: RallySurfaceFxProfile,
+	density: float,
+	level: float,
+	wetness: float,
+	point: Vector3,
+	basis: Basis,
+	direction: Vector3
+) -> void:
+	var pool := _sprays[index]
+	var process := pool.process_material as ParticleProcessMaterial
+	pool.amount_ratio = clampf(density, 0.0, 1.0)
+	process.direction = direction
+	var burst: float = maxf(0.05, profile.burst_scale)
+	var speed_min: float = _p("grit_speed_min", 1.8) * profile.velocity_scale * level * burst
+	var speed_max: float = _p("grit_speed_max", 7.5) * profile.velocity_scale * level * burst
+	process.initial_velocity_min = maxf(0.0, speed_min)
+	process.initial_velocity_max = maxf(speed_min, speed_max)
+	var color: Color = profile.color_for_wetness(wetness)
+	color.a *= clampf(profile.particle_tint, 0.05, 3.0)
+	process.color = color
+	pool.global_transform = Transform3D(basis, point)
+	pool.emitting = pool.amount_ratio > 0.0
+
+
+## Ступень для скорости частиц: чем активнее колесо, тем дальше летит выброс.
+func _level_of(strength: float) -> int:
+	if strength <= 0.001:
+		return 1
+	return clampi(ceili(clampf(strength, 0.0, 1.0) * 3.0), 1, 3)
+
+
+## Выключить оба источника колеса. Уже вылетевшая пыль доживает свой век
+## и плавно растворяется: резкого обрыва облака нет.
+func _stop_pools(index: int) -> void:
+	for pool in [_foams[index], _sprays[index]]:
+		if pool != null:
+			pool.emitting = false
+
+
+## Пересчитать размер источника и материалы под покрытие (редко, при смене типа).
+func _configure_for_profile(index: int, profile: RallySurfaceFxProfile) -> void:
+	_spray_kinds[index] = profile.kind_name()
+	var amount_scale: float = clampf(_p("fx_intensity", 1.0), 0.0, 4.0)
+	_configure_foam(index, profile, amount_scale)
+	_configure_grit(index, profile, amount_scale)
+
+
+## Клубы: количество, жизнь, размер плоскости и разлёт под покрытие.
+func _configure_foam(index: int, profile: RallySurfaceFxProfile, amount_scale: float) -> void:
+	var foam := _foams[index]
+	foam.name = "WheelFoam_%s_%d" % [profile.kind_name().capitalize(), index]
+	foam.amount = maxi(1, roundi(_p("foam_amount", 60) * amount_scale * profile.amount_scale))
+	foam.lifetime = maxf(0.1, _p("foam_lifetime", 1.35) * profile.lifetime_scale)
+	var quad := foam.draw_pass_1 as QuadMesh
+	if quad != null:
+		var size := maxf(0.01, _p("foam_size", 0.2)) * profile.particle_scale
+		quad.size = Vector2(size, size) * 2.0
+	var process := foam.process_material as ParticleProcessMaterial
+	if process == null:
+		return
+	process.spread = clampf(_p("foam_spread", 42.0) * profile.spread_scale, 0.0, 180.0)
+	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.2)) * _p(
+		"foam_emission_radius", 0.55
+	)
+	process.scale_min = _p("foam_scale_min", 0.55) * profile.particle_scale
+	process.scale_max = _p("foam_scale_max", 1.5) * profile.particle_scale
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.9, 0.0)) * profile.gravity_scale
+	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
+
+
+## Комья: количество, жизнь, размер зерна и разлёт под покрытие.
+func _configure_grit(index: int, profile: RallySurfaceFxProfile, amount_scale: float) -> void:
+	var grit := _sprays[index]
+	grit.name = "WheelGrit_%s_%d" % [profile.kind_name().capitalize(), index]
+	grit.amount = maxi(1, roundi(_p("grit_amount", 80) * amount_scale * profile.amount_scale))
+	grit.lifetime = maxf(0.05, _p("grit_lifetime", 0.95) * profile.lifetime_scale)
+	var grain := grit.draw_pass_1 as SphereMesh
+	if grain != null:
+		var radius := maxf(0.002, _p("spray_grain_radius", 0.018) * profile.grain_scale)
+		grain.radius = radius
+		grain.height = maxf(radius * 1.2, _p("spray_grain_height", 0.036) * profile.grain_scale)
+		grain.radial_segments = maxi(3, _pi("spray_grain_segments", 4))
+		grain.rings = maxi(1, _pi("spray_grain_rings", 2))
+	var process := grit.process_material as ParticleProcessMaterial
+	if process == null:
+		return
+	process.spread = clampf(_p("grit_spread", 26.0) * profile.spread_scale, 0.0, 180.0)
+	process.scale_min = _p("grit_scale_min", 0.55) * profile.particle_scale
+	process.scale_max = _p("grit_scale_max", 2.2) * profile.particle_scale
+	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0)) * profile.gravity_scale
+	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
+	var spin := _p("grit_spin", 0.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
+
+
 func clear() -> void:
 	amounts = Vector4.ZERO
 	damp = Vector4.ZERO
 	snow_amounts = Vector4.ZERO
-	for spray in _sprays:
-		spray.emitting = false
+	for pool in _sprays + _foams:
+		pool.emitting = false
 	if _material != null:
 		_material.set_shader_parameter("dirt_amount", amounts)
 		_material.set_shader_parameter("damp_amount", damp)

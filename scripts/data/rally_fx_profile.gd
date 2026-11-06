@@ -12,6 +12,18 @@
 class_name RallyFxProfile
 extends Resource
 
+@export_group("Сила и производительность")
+## Множитель общего числа частиц эффектов колёс: 1 — заводской, 2 — вдвое гуще.
+@export_range(0.0, 4.0, 0.05) var fx_intensity: float = 1.0
+## Сколько раз в секунду пересчитывать частицы из состояния колеса.
+@export_range(10.0, 60.0, 1.0) var fx_update_hz: float = 30.0
+@export var fx_physics_fps: int = 60
+## Светящиеся точки на поднятых частицах: «солнечная пыль» на сквозняке.
+@export var fx_sparkle_enabled: bool = true
+@export_range(0.0, 2.0, 0.01) var fx_sparkle_strength: float = 0.16
+@export var fx_sparkle_color: Color = Color(1.0, 0.86, 0.58, 1.0)
+@export_range(0.0, 3.0, 0.05) var fx_sparkle_emission: float = 0.85
+
 @export_group("Следы шин")
 ## Сколько отрезков хранит один буфер (больше — длиннее следы, дороже).
 @export_range(16, 2048, 16) var chunk_size: int = 128
@@ -70,6 +82,26 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var soil_wet_darken: float = 0.6
 
 @export_group("Грязь и пыль на кузове")
+## Какие меши кузова пачкаются: префиксы имён. Пусто — старый список из кода.
+@export var dirt_body_prefixes: PackedStringArray = PackedStringArray(["Mitsubishi_Body"])
+## Меши, которые грязь не трогает (стёкла, фары, салон, диски).
+@export var dirt_body_skip: PackedStringArray = PackedStringArray(
+	["glass", "light", "window", "interior", "wheel", "tire", "hub"]
+)
+## Цвет сухой пыли на кузове и снежного налёта.
+@export var dirt_color: Color = Color(0.32, 0.235, 0.14, 1.0)
+@export var body_snow_color: Color = Color(0.80, 0.85, 0.90, 1.0)
+## Насколько густо кузов покрывается пылью (1 — заводской вид).
+@export_range(0.2, 3.0, 0.05) var body_coverage: float = 1.35
+## Мягкость краёв пятен: больше — грязь расползается плавнее.
+@export_range(0.1, 2.0, 0.05) var body_edge_softness: float = 0.85
+## Общая сила слоя грязи и снега поверх уже заданной физики налипания.
+@export_range(0.0, 3.0, 0.05) var body_dirt_buildup: float = 1.0
+@export_range(0.0, 3.0, 0.05) var body_snow_buildup: float = 1.0
+## Непрозрачность слоя при полном налипании (1 — почти сплошная грязь).
+@export_range(0.0, 1.0, 0.01) var body_alpha: float = 0.92
+## Насколько далеко от колеса расходится пятно по кузову (1 — заводской вид).
+@export_range(0.2, 3.0, 0.05) var body_spread: float = 1.0
 ## Порог скорости, ниже которого кузов не пачкается, м/с.
 @export_range(0.0, 10.0, 0.05) var dirt_min_speed: float = 1.0
 ## Скорость налипания на гравии, грязи и траве, ед/с.
@@ -90,30 +122,100 @@ extends Resource
 @export_range(0.0, 1.0, 0.001) var snow_melt: float = 0.004
 ## Смещение центров «пятен» на кузове относительно подвески.
 @export_range(0.0, 1.0, 0.01) var dirt_center_spring_scale: float = 0.65
-## Габариты облака брызг из-под колеса (x, y, z).
-@export var spray_amount: int = 36
-@export_range(0.05, 5.0, 0.05) var spray_lifetime: float = 0.55
+
+
+@export_group("Брызги из-под колеса (общие)")
+## Резервное направление выброса для старых ресурсов без профилей покрытий.
 @export var spray_direction: Vector3 = Vector3(0.0, 0.7, -1.0)
-@export_range(0.0, 90.0, 1.0) var spray_spread: float = 27.0
-@export var spray_gravity: Vector3 = Vector3(0.0, -9.8, 0.0)
-@export_range(0.0, 20.0, 0.05) var spray_speed_min: float = 1.5
-@export_range(0.0, 40.0, 0.05) var spray_speed_max: float = 5.0
-@export_range(0.1, 4.0, 0.05) var spray_scale_min: float = 0.4
-@export_range(0.1, 4.0, 0.05) var spray_scale_max: float = 1.4
 ## Размер крупинки грунта, м.
 @export_range(0.001, 0.2, 0.001) var spray_grain_radius: float = 0.018
 @export_range(0.001, 0.4, 0.001) var spray_grain_height: float = 0.036
 @export_range(1, 16, 1) var spray_grain_segments: int = 4
-@export_range(0.0, 5.0, 0.01) var spray_speed_factor: float = 0.35
-@export_range(0.0, 20.0, 0.01) var spray_slip_bonus: float = 3.0
-@export_range(0.0, 100.0, 0.5) var spray_speed_floor: float = 2.0
-@export_range(0.0, 100.0, 0.5) var spray_speed_cap: float = 10.0
+## Сколько колец у зерна комья (2 — самый дешёвый вид «крупинки»).
+@export_range(1, 8, 1) var spray_grain_rings: int = 2
 @export_range(0.0, 30.0, 0.1) var spray_min_speed: float = 3.0
 @export_range(0.0, 1.0, 0.01) var spray_slip_threshold: float = 0.18
 @export_range(0.0, 1.0, 0.01) var spray_wet_threshold: float = 0.3
 @export var spray_dry_color: Color = Color(0.36, 0.26, 0.15)
 @export var spray_wet_color: Color = Color(0.12, 0.075, 0.035)
 @export var spray_snow_color: Color = Color(0.90, 0.94, 1.0)
+
+@export_group("Дым и облака над колесом")
+## Высота точки выброса над точкой контакта шины, м.
+@export_range(0.0, 1.0, 0.01) var foam_height: float = 0.09
+## Сколько живёт клуб и насколько он вырастает за жизнь.
+@export_range(0.2, 6.0, 0.05) var foam_lifetime: float = 1.35
+@export_range(1.0, 6.0, 0.05) var foam_growth: float = 3.1
+## Радиус пятна рождения клубов как доля размера клуба (1 — по всему клубу).
+@export_range(0.05, 2.0, 0.01) var foam_emission_radius: float = 0.55
+## Размер клуба (радиус базовой меш-плоскости), м.
+@export_range(0.02, 2.0, 0.005) var foam_size: float = 0.2
+@export_range(0.1, 4.0, 0.05) var foam_scale_min: float = 0.55
+@export_range(0.1, 4.0, 0.05) var foam_scale_max: float = 1.5
+## Куда и с какой силой летят клубы (направление в будущее движения дороги).
+@export var foam_direction: Vector3 = Vector3(0.0, 0.55, 0.6)
+@export_range(0.0, 90.0, 1.0) var foam_spread: float = 42.0
+@export_range(0.0, 20.0, 0.05) var foam_speed_min: float = 0.6
+@export_range(0.0, 40.0, 0.05) var foam_speed_max: float = 3.4
+## Гравитация клубов: почти невесомые клубы висят и расходятся.
+@export var foam_gravity: Vector3 = Vector3(0.0, -0.9, 0.0)
+## Сколько всего клубов на одно колесо (база; уровни и покрытия масштабируют).
+@export_range(1, 600, 1) var foam_amount: int = 52
+## Во сколько раз клубы гуще на мокром покрытии и сколько даёт мокрота.
+@export_range(0.0, 4.0, 0.05) var foam_wet_boost: float = 1.7
+@export_range(0.0, 1.0, 0.01) var foam_alpha: float = 0.42
+## Есть ли у клубов светящиеся пылинки внутри.
+@export var foam_sparkle: bool = true
+## Клубы принимают свет (false — простой непрозрачный по свету цвет, дешевле).
+@export var foam_lit: bool = false
+## Сколько своего света у клубов (видно на снегу и в тени).
+@export_range(0.0, 2.0, 0.01) var foam_emission: float = 0.18
+## Насколько клубы сплющены по вертикали (0 — шар, 1 — плоский блин).
+@export_range(0.0, 1.0, 0.01) var foam_flatness: float = 0.35
+## Скорость вращения клубов вокруг своей оси, °/с.
+@export_range(0.0, 180.0, 1.0) var foam_spin: float = 35.0
+## Клубы закручивает турбулентностью: 0 — ровные шары, 3 — клубящаяся стена.
+@export_range(0.0, 4.0, 0.05) var foam_turbulence: float = 1.6
+## Масштаб турбулентных завихрений: меньше — крупные вихри, больше — мелкая рябь.
+@export_range(0.5, 20.0, 0.1) var foam_turbulence_scale: float = 4.5
+## Замедление клубов: 0 — летят до конца, 3 — быстро повисают в воздухе.
+@export_range(0.0, 5.0, 0.05) var foam_damping_min: float = 0.4
+@export_range(0.0, 5.0, 0.05) var foam_damping_max: float = 1.6
+## Разброс жизни клубов: 0 — все гаснут одновременно, 1 — вразнобой.
+@export_range(0.0, 1.0, 0.01) var foam_lifetime_randomness: float = 0.35
+
+@export_group("Комья и капли из-под колеса")
+## Сколько живёт комок и насколько отличается по размеру.
+@export_range(0.1, 4.0, 0.05) var grit_lifetime: float = 0.95
+@export_range(0.0, 90.0, 1.0) var grit_spread: float = 26.0
+@export_range(0.0, 40.0, 0.05) var grit_speed_min: float = 1.8
+@export_range(0.0, 60.0, 0.05) var grit_speed_max: float = 7.5
+## Тяжесть комьев: настоящая баллистика, комья падают на землю.
+@export var grit_gravity: Vector3 = Vector3(0.0, -11.0, 0.0)
+@export_range(0.5, 4.0, 0.05) var grit_scale_min: float = 0.55
+@export_range(0.5, 6.0, 0.05) var grit_scale_max: float = 2.2
+## Сколько всего комьев на одно колесо (уровни и покрытия масштабируют).
+@export_range(1, 600, 1) var grit_amount: int = 68
+## Светятся ли отлетающие капли/комья собственным бликом (вода и снег — да).
+@export_range(0.0, 1.0, 0.01) var grit_specular: float = 0.35
+## Крупинки «загораются» на солнце: подсветка вершинных цветов частиц.
+@export_range(0.0, 2.0, 0.01) var grit_light_boost: float = 0.22
+## Разброс жизни комьев: комья не исчезают все разом.
+@export_range(0.0, 1.0, 0.01) var grit_lifetime_randomness: float = 0.5
+## Скорость вращения комьев в полёте, °/с.
+@export_range(0.0, 360.0, 1.0) var grit_spin: float = 0.0
+
+@export_group("Разлёт частиц по колёсам")
+## Первые секунды после выброса частица ещё идёт по инерции машины.
+@export_range(0.0, 1.0, 0.01) var inherit_velocity_ratio: float = 0.35
+## Поток воздуха сдувает пыль назад относительно машины.
+@export_range(0.0, 3.0, 0.05) var wind_pull: float = 0.55
+## Пыль разлетается в стороны от колеса (0 — строго по ходу, больше — шире).
+@export_range(0.0, 2.0, 0.01) var side_splay: float = 0.35
+## Насколько выброс усиливается на повороте руля.
+@export_range(0.0, 3.0, 0.05) var steer_boost: float = 0.8
+## Вклад ручника: машина боком — самый зрелищный шлейф.
+@export_range(0.0, 3.0, 0.05) var handbrake_boost: float = 1.0
 
 @export_group("Отдельные эффекты покрытий")
 ## Включает эффекты контакта шин с гравием, грязью, травой, снегом и асфальтом.
@@ -133,11 +235,24 @@ extends Resource
 @export var dust_gravity: Vector3 = Vector3(0.0, -4.5, 0.0)
 @export_range(0.1, 5.0, 0.05) var dust_scale_min: float = 0.45
 @export_range(0.1, 5.0, 0.05) var dust_scale_max: float = 1.65
-@export var dust_color: Color = Color(0.43, 0.35, 0.25, 0.48)
+@export var dust_color: Color = Color(0.43, 0.35, 0.25, 0.55)
+## Сплющенность облака по вертикали (0 — шар, 1 — плоский блин).
+@export_range(0.0, 1.0, 0.01) var dust_flatness: float = 0.4
+## Вращение клубов облака в полёте, °/с.
+@export_range(0.0, 180.0, 1.0) var dust_spin: float = 25.0
+## Масштаб завихрений: меньше — крупные вихри, больше — мелкая рябь.
+@export_range(0.5, 20.0, 0.1) var dust_turbulence_scale: float = 3.5
+## Сила влияния завихрений на частицу (доля от скорости).
+@export_range(0.0, 1.0, 0.01) var dust_turbulence_influence: float = 0.3
+## Разброс жизни облака и его торможение в воздухе.
+@export_range(0.0, 1.0, 0.01) var dust_lifetime_randomness: float = 0.4
+@export_range(0.0, 5.0, 0.05) var dust_damping_min: float = 0.3
+@export_range(0.0, 5.0, 0.05) var dust_damping_max: float = 1.2
+## Насколько облако за кормой раздувается за жизнь частицы.
+@export_range(1.0, 6.0, 0.05) var dust_growth: float = 2.8
+## Завихрения в шлейфе: 0 — ровный поток, 3 — клубящаяся стена пыли.
+@export_range(0.0, 4.0, 0.05) var dust_turbulence: float = 1.8
 @export_range(0.001, 1.0, 0.001) var dust_radius: float = 0.11
-@export_range(0.001, 2.0, 0.001) var dust_height: float = 0.22
-@export_range(1, 16, 1) var dust_segments: int = 6
-@export_range(1, 16, 1) var dust_rings: int = 3
 @export_range(0.0, 100.0, 0.5) var dust_min_speed_kmh: float = 8.0
 @export_range(0.0, 3.0, 0.01) var dust_slip_threshold: float = 0.32
 @export_range(0.0, 1.0, 0.01) var dust_handbrake_slip: float = 0.85

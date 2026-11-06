@@ -46,6 +46,16 @@ enum Kind { GRAVEL, MUD, GRASS, SNOW, ASPHALT }
 @export_range(0.1, 3.0, 0.05) var level_2_velocity_scale: float = 1.0
 @export_range(0.1, 3.0, 0.05) var level_3_velocity_scale: float = 1.35
 
+@export_group("Видимость и вклад")
+## Во сколько раз дым гуще/прозрачнее, чем задано в профиле эффектов.
+@export_range(0.2, 3.0, 0.05) var particle_tint: float = 1.0
+## Сколько «работы» колесо превращает в дым/клубы (1 — как у гравия).
+@export_range(0.0, 1.0, 0.01) var smoke_share: float = 0.55
+## Сколько работы превращается в комья и капли (1 — как у гравия).
+@export_range(0.0, 1.0, 0.01) var grit_share: float = 0.55
+## Множитель скорости выброса (комочки летят быстрее/медленнее).
+@export_range(0.05, 4.0, 0.05) var burst_scale: float = 1.0
+
 
 func kind_name() -> String:
 	match kind:
@@ -85,6 +95,28 @@ func level_for(speed_kmh: float, slip: float, wetness: float) -> int:
 	if activity < maxf(level_2_threshold, level_3_threshold):
 		return 2
 	return 3
+
+
+## Плавная плотность по «силе» колеса: три полки из level_*_amount_ratio,
+## между порогами — линейная интерполяция. Без ступенек: облако не «дёргается»,
+## но три настроенных значения плотности реально работают.
+func amount_ratio_for_activity(activity: float) -> float:
+	var value := clampf(activity, 0.0, 1.0)
+	if value <= level_1_threshold:
+		return 0.0
+	var points := [
+		Vector2(level_1_threshold, level_1_amount_ratio),
+		Vector2(maxf(level_1_threshold, level_2_threshold), level_2_amount_ratio),
+		Vector2(maxf(level_2_threshold, level_3_threshold), level_3_amount_ratio),
+		Vector2(1.0, level_3_amount_ratio),
+	]
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		if value <= b.x or i == points.size() - 2:
+			var span: float = maxf(b.x - a.x, 0.0001)
+			return clampf(lerpf(a.y, b.y, clampf((value - a.x) / span, 0.0, 1.0)), 0.0, 1.0)
+	return clampf(level_3_amount_ratio, 0.0, 1.0)
 
 
 func amount_ratio_for_level(level: int) -> float:
