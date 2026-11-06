@@ -58,6 +58,8 @@ func _read_wav_header(path: String) -> Dictionary:
 			result["channels"] = int(bytes.decode_u16(pos + 10))
 			result["rate"] = int(bytes.decode_u32(pos + 12))
 		elif chunk_id == "data":
+			# Половина размера чанка: деление намеренно целое (кадры, не секунды).
+			@warning_ignore("integer_division")
 			result["frames"] = chunk_size / 2
 		elif chunk_id == "smpl":
 			result["has_smpl"] = true

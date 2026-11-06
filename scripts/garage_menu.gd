@@ -346,11 +346,13 @@ func _configure_preview_style() -> void:
 	_preview_container.stretch_shrink = layout().garage_retro_shrink if enabled else 1
 	_preview_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if enabled else CanvasItem.TEXTURE_FILTER_PARENT_NODE
 	_retro_rect.visible = enabled
-	var material := _retro_rect.material as ShaderMaterial
-	if material != null and selected_track != null:
+	# Не material: это свойство Control, и локальная переменная с тем же
+	# именем даёт предупреждение о затенении на каждом кадре.
+	var retro := _retro_rect.material as ShaderMaterial
+	if retro != null and selected_track != null:
 		var cfg := layout()
 		Ps1Materials.configure_post_effect(
-			material, enabled, cfg.garage_retro_strength, float(cfg.garage_retro_resolution_y),
+			retro, enabled, cfg.garage_retro_strength, float(cfg.garage_retro_resolution_y),
 			selected_track.color_banding, selected_track.dither_fog
 		)
 
@@ -497,8 +499,8 @@ func _refresh() -> void:
 
 
 func _format_number(value: float, field: Dictionary) -> String:
-	var scale: float = float(field.get("display_scale", 1.0))
-	var step: float = float(field["step"]) * scale
+	var display_scale: float = float(field.get("display_scale", 1.0))
+	var step: float = float(field["step"]) * display_scale
 	var decimals := 0
 	if step < 0.01:
 		decimals = 3
@@ -507,7 +509,7 @@ func _format_number(value: float, field: Dictionary) -> String:
 	elif step < 1.0:
 		decimals = 1
 	var format := "%0." + str(decimals) + "f"
-	var text: String = format % (value * scale)
+	var text: String = format % (value * display_scale)
 	var unit: String = field.get("unit", "")
 	return text if unit.is_empty() else text + " " + unit
 

@@ -161,8 +161,10 @@ func _rebuild(force_build: bool) -> void:
 	if track.checkpoint_interval > 0.0 and _length > 0.0:
 		var d: float = track.checkpoint_interval
 		while d < _length - 40.0:
-			var p: Vector3 = curve.sample_baked(d)
-			_checkpoints.append(Vector2(p.x, p.z))
+			# Отдельное имя от p выше: та объявлена в соседнем блоке, и повтор
+			# даёт CONFUSABLE_LOCAL_DECLARATION.
+			var mark: Vector3 = curve.sample_baked(d)
+			_checkpoints.append(Vector2(mark.x, mark.z))
 			d += track.checkpoint_interval
 
 

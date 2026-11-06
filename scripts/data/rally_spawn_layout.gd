@@ -120,11 +120,11 @@ extends Resource
 
 ## Дистанции контрольных арок: свои из инспектора или автоматические по
 ## интервалу трассы. Возвращает метры от начала кривой.
-func resolve_checkpoint_distances(length: float, track_interval: float, start_distance: float) -> PackedFloat32Array:
+func resolve_checkpoint_distances(length: float, track_interval: float, from_distance: float) -> PackedFloat32Array:
 	var result := PackedFloat32Array()
 	if not checkpoints or length <= 0.0:
 		return result
-	var limit: float = maxf(start_distance, length - checkpoint_end_margin)
+	var limit: float = maxf(from_distance, length - checkpoint_end_margin)
 	if not custom_checkpoint_distances.is_empty():
 		for value in custom_checkpoint_distances:
 			if value > 0.0 and value < limit:
@@ -133,7 +133,7 @@ func resolve_checkpoint_distances(length: float, track_interval: float, start_di
 		return result
 	if track_interval <= 0.0:
 		return result
-	var distance: float = maxf(track_interval, start_distance + track_interval)
+	var distance: float = maxf(track_interval, from_distance + track_interval)
 	while distance < limit:
 		result.append(distance)
 		distance += track_interval

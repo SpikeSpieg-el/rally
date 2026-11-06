@@ -13,12 +13,24 @@
      проверяется число аргументов. Текстовый формат строгий: `Color(r, g, b)`
      не читается, нужен четвёртый аргумент — альфа. Именно так однажды
      посыпались все сцены пропсов ("Expected 4 arguments for constructor");
+  3б) uniform-массивы шейдеров — у `uniform vec3 wheels[4] = …` в Godot 4 нет
+     значений по умолчанию: такой шейдер не компилируется целиком, поэтому
+     car_dirt.gdshader однажды молча перестал красить кузов (в консоли —
+     «Shader compilation failed»). Массивы обязан выставлять код;
   4) профили эффектов — у RallyFxProfile / RallySurfaceFxProfile не бывает
      двух полей с одним именем (дубль — ошибка компиляции, а не «переопределение»),
      каждый uniform car_dirt.gdshader выставляется кодом и наоборот;
   5) строгий GDScript — `static func` не вызывает нестатические функции (движок
      падает с «Cannot call non-static function»), а `:=` не выводит тип из
      тернарника с null или из `.get()` без приведения («Cannot infer the type»);
+  5б) имена параметров и локальных переменных не затеняют члены базовых
+     классов (SHADOWED_VARIABLE / SHADOWED_VARIABLE_BASE_CLASS): `name`,
+     `position`, `size`, `basis`, `material`, `top`/`bottom` и прочие. Раньше
+     такой шум забивал консоль так, что настоящие ошибки в ней не читались;
+  5в) значения enum'ов не берутся прямо из Array — элемент Array это Variant,
+     и движок предупреждает INT_AS_ENUM_WITHOUT_CAST;
+  5 г) клуб пыли на пике жизни не крупнее машины: при 5.6 м он рождается под
+     аркой и виден «сквозь кузов» (жалоба про пыль, проходящую сквозь кузов);
   6) повторное объявление локальной переменной в одной области видимости — это
      parse-ошибка, из-за которой скрипт нельзя даже preload'ить (так один раз
      «упал» surface_effects.gd, и каскадом посыпались машина и этап).
@@ -240,6 +252,36 @@ FX_PROFILES = [
 ]
 DIRT_SHADER = "shaders/car_dirt.gdshader"
 SURFACE_EFFECTS = "scripts/surface_effects.gd"
+SHADERS_DIR = "shaders"
+
+
+def check_shader_arrays():
+    """Uniform-массивы без значений по умолчанию.
+
+    Godot 4 отвергает `uniform vec3 wheels[4] = vec3[4](...)` с ошибкой
+    «Setting default values to uniform arrays is not supported». Шейдер при
+    этом не компилируется целиком: вместо слоя грязи на кузове остаётся голая
+    краска, а в консоли — «Shader compilation failed». Такое не всплывает до
+    запуска заезда, поэтому проверяем здесь.
+    """
+    errors = []
+    root = os.path.join(ROOT, SHADERS_DIR)
+    for name in sorted(os.listdir(root)):
+        if not name.endswith(".gdshader"):
+            continue
+        rel = "%s/%s" % (SHADERS_DIR, name)
+        with open(os.path.join(root, name), encoding="utf-8") as handle:
+            lines = handle.read().split("\n")
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped.startswith("uniform ") or "[" not in stripped or "=" not in stripped:
+                continue
+            errors.append(
+                "%s:%d: у uniform-массива есть значение по умолчанию — Godot не "
+                "скомпилирует шейдер: %s"
+                % (rel, index + 1, stripped.rstrip(";"))
+            )
+    return errors
 
 
 def check_fx_profiles():
@@ -355,6 +397,288 @@ def _duplicate_locals(rel, lines):
     return problems
 
 
+# Свойства StandardMaterial3D, которых в Godot 4 не существует.
+# `specular` (из Godot 3.x) стал `metallic_specular`; обращение к старому имени
+# движок перехватывает как 3.x-совместимость и сыплет
+# «Godot 3.x SpatialMaterial remapped parameter not found: specular».
+BAD_MATERIAL_PROPS = {
+    "specular": "metallic_specular",
+    "flags_transparent": "transparency",
+    "params_cull_mode": "cull_mode",
+    "params_billboard_mode": "billboard_mode",
+    "params_depth_draw_mode": "depth_draw_mode",
+    "flags_no_depth_test": "no_depth_test",
+}
+
+MATERIAL_HOLDERS = ("material", "mat", "paint", "base", "visual", "instance")
+
+
+def check_material_props():
+    """Свойства материала по именам Godot 4, а не по старому 3.x-API."""
+    errors = []
+    pattern = re.compile(r"\b(\w+)\.(%s)\s*=(?!=)"
+                         % "|".join(sorted(BAD_MATERIAL_PROPS)), re.M)
+    for base, _dirs, names in os.walk(ROOT):
+        if os.sep + ".git" in base or os.sep + "tools" in base:
+            continue
+        for name in names:
+            if not name.endswith(".gd"):
+                continue
+            path = os.path.join(base, name)
+            with open(path, encoding="utf-8") as handle:
+                code = handle.read()
+            for match in pattern.finditer(code):
+                holder = match.group(1)
+                if holder not in MATERIAL_HOLDERS:
+                    continue
+                line = code[: match.start()].count("\n") + 1
+                errors.append(
+                    "%s:%d: %s.%s — в Godot 4 это %s"
+                    % (os.path.relpath(path, ROOT), line, holder,
+                       match.group(2), BAD_MATERIAL_PROPS[match.group(2)])
+                )
+    return errors
+
+
+# Члены базовых классов, на которые GDScript ругается предупреждением
+# SHADOWED_VARIABLE_BASE_CLASS, если назвать ими параметр или локальную
+# переменную. Предупреждение не мешает игре, но забивает консоль так, что
+# настоящие ошибки в ней не видны — поэтому имена держим свободными.
+BASE_MEMBERS = {
+    "Node": {"name", "owner"},
+    "Node2D": {"position", "rotation", "scale", "name"},
+    "Node3D": {
+        "position", "rotation", "rotation_degrees", "scale", "quaternion",
+        "basis", "transform", "global_transform", "global_basis",
+        "global_position", "global_rotation", "global_rotation_degrees",
+        "visible", "top_level", "name",
+    },
+    "Control": {
+        "position", "size", "rotation", "scale", "pivot_offset", "focus_mode",
+        "visible", "modulate", "self_modulate", "theme", "material", "name",
+    },
+    "CanvasItem": {"material", "modulate", "self_modulate", "visible", "z_index"},
+    "Resource": {"resource_name", "resource_path", "resource_local_to_scene"},
+    "RigidBody3D": {"mass", "linear_velocity", "angular_velocity", "gravity_scale"},
+    "Camera3D": {"fov", "current", "near", "far"},
+    "RayCast3D": {"target_position"},
+    "MeshInstance3D": {"mesh", "material_override", "material_overlay", "skeleton"},
+}
+
+FUNC_RE = re.compile(r"^(?:\s*static\s+)?func\s+(\w+)\s*\(", re.M)
+EXTENDS_RE = re.compile(r"^extends\s+([\w\"/.]+)", re.M)
+
+
+def _signature(code, start):
+    """Строка сигнатуры с продолжениями — до закрывающей скобки."""
+    depth = 0
+    index = start
+    while index < len(code):
+        char = code[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return code[start:index + 1]
+        index += 1
+    return code[start:]
+
+
+def _argument_names(signature):
+    inner = signature[1:-1] if signature.startswith("(") else signature
+    names = []
+    depth = 0
+    current = ""
+    for char in inner + ",":
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        if char == "," and depth == 0:
+            match = re.match(r"\s*(?:var\s+)?(\w+)", current)
+            if match:
+                names.append(match.group(1))
+            current = ""
+        else:
+            current += char
+    return names
+
+
+def check_shadowed_names():
+    """Параметры и локальные переменные не занимают имена членов базовых классов."""
+    errors = []
+    for base, _dirs, names in os.walk(ROOT):
+        if os.sep + ".git" in base or os.sep + "tools" in base:
+            continue
+        for name in names:
+            if not name.endswith(".gd"):
+                continue
+            path = os.path.join(base, name)
+            with open(path, encoding="utf-8") as handle:
+                code = handle.read()
+            extends = EXTENDS_RE.search(code)
+            if not extends:
+                continue
+            native = extends.group(1).split("/")[-1].strip('"')
+            reserved = BASE_MEMBERS.get(native)
+            if not reserved:
+                continue
+            rel = os.path.relpath(path, ROOT)
+            members = set(re.findall(
+                r"^(?:@export[^\n]*\s)?(?:static\s+)?var\s+(\w+)", code, re.M))
+            for match in FUNC_RE.finditer(code):
+                signature = _signature(code, match.end() - 1)
+                for argument in _argument_names(signature):
+                    if argument in reserved:
+                        line = code[: match.start()].count("\n") + 1
+                        errors.append(
+                            "%s:%d: параметр %r затеняет %s.%s (SHADOWED_VARIABLE_BASE_CLASS)"
+                            % (rel, line, argument, native, argument))
+                # локальные переменные внутри тела функции
+                body_start = code.find("\n", code.find(":", match.end()))
+                if body_start < 0:
+                    continue
+                body_end = code.find("\nfunc ", body_start)
+                if body_end < 0:
+                    body_end = len(code)
+                body = code[body_start:body_end]
+                # Только строки с отступом: `var` в нулевой колонке — поле класса,
+                # и повторять его имя локальной переменной законно.
+                for local in re.finditer(r"^[ \t]+var\s+(\w+)", body, re.M):
+                    local_name = local.group(1)
+                    if local_name in reserved:
+                        line = code[: body_start + local.start()].count("\n") + 1
+                        errors.append(
+                            "%s:%d: переменная %r затеняет %s.%s (SHADOWED_VARIABLE_BASE_CLASS)"
+                            % (rel, line, local_name, native, local_name))
+                    elif local_name in members:
+                        line = code[: body_start + local.start()].count("\n") + 1
+                        errors.append(
+                            "%s:%d: переменная %r затеняет поле класса (SHADOWED_VARIABLE)"
+                            % (rel, line, local_name))
+    return errors
+
+
+def check_enum_assignments():
+    """Значение enum'а нельзя брать из нетипизированного массива или int-поля.
+
+    Godot 4 предупреждает «Integer used when an enum value is expected»
+    (INT_AS_ENUM_WITHOUT_CAST): элемент `Array` — это Variant, и присваивание
+    такого элемента в поле-enum теряет тип. Помогает явная локальная
+    переменная с типом enum.
+    """
+    errors = []
+    # имена полей-enum проекта: <ресурс>.<поле> встречается как .field = ...;
+    enum_fields = set()
+    for base, _dirs, names in os.walk(ROOT):
+        if os.sep + ".git" in base or os.sep + "tools" in base:
+            continue
+        for name in names:
+            if not name.endswith(".gd"):
+                continue
+            with open(os.path.join(base, name), encoding="utf-8") as handle:
+                code = handle.read()
+            for match in re.finditer(r"^enum\s+\w+\s*\{([^}]*)\}", code, re.M | re.S):
+                members = re.findall(r"(\w+)\s*(?:=|,|$)", match.group(1))
+                if members:
+                    enum_fields.add(match.group(1))
+    pattern = re.compile(
+        r"^\s*[\w.\[\]()]+\.(\w+)\s*=\s*\[[^\]]*\]\s*\[", re.M)
+    for base, _dirs, names in os.walk(ROOT):
+        if os.sep + ".git" in base or os.sep + "tools" in base:
+            continue
+        for name in names:
+            if not name.endswith(".gd"):
+                continue
+            path = os.path.join(base, name)
+            with open(path, encoding="utf-8") as handle:
+                code = handle.read()
+            for match in pattern.finditer(code):
+                line = code[: match.start()].count("\n") + 1
+                errors.append(
+                    "%s:%d: значение enum'а берётся прямо из Array — нужна "
+                    "локальная переменная с типом enum (INT_AS_ENUM_WITHOUT_CAST)"
+                    % (os.path.relpath(path, ROOT), line)
+                )
+    return errors
+
+
+# Кузов машины в координатах модели: половина ширины и высота. Клуб пыли,
+# который на пике жизни выходит за эти пределы, рождается под аркой и читается
+# как «пыль сквозь кузов» (камера видит центр билборда ближе к себе, чем
+# боковину). Значения — из scenes/rally_car.tscn (меши Mitsubishi_Body*).
+BODY_HALF_WIDTH = 1.22
+BODY_HEIGHT = 1.70
+# Насколько клуб может быть крупнее кузова, прежде чем это станет артефактом.
+PUFF_BUDGET = 1.9
+
+
+def _tres_value(path, key, default):
+    pattern = re.compile(r"^%s\s*=\s*([^\n#]+)" % re.escape(key), re.M)
+    with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
+        match = pattern.search(handle.read())
+    if not match:
+        return default
+    raw = match.group(1).strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _gd_value(path, key, default):
+    pattern = re.compile(
+        r"^@export[^\n]*\bvar\s+%s\s*:\s*float\s*=\s*([-\d.]+)" % re.escape(key), re.M)
+    with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
+        match = pattern.search(handle.read())
+    if not match:
+        return default
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return default
+
+
+def check_puff_size():
+    """Клуб пыли не должен быть крупнее машины.
+
+    Размер на пике жизни: сторона квада (foam_size × 2) × scale_max ×
+    foam_growth × particle_scale конкретного покрытия. При 0.26/1.85/3.4/1.7
+    это было 5.6 м — длиннее всей машины, и пыль «проходила сквозь кузов».
+    """
+    defaults = "scripts/data/rally_fx_profile.gd"
+    foam_size = _tres_value("data/stage/default_fx_profile.tres", "foam_size",
+                            _gd_value(defaults, "foam_size", 0.165))
+    growth = _tres_value("data/stage/default_fx_profile.tres", "foam_growth",
+                         _gd_value(defaults, "foam_growth", 2.4))
+    scale_max = _tres_value("data/stage/default_fx_profile.tres", "foam_scale_max",
+                            _gd_value(defaults, "foam_scale_max", 1.35))
+    errors = []
+    budget = BODY_HEIGHT * PUFF_BUDGET
+    with open(os.path.join(ROOT, "data/stage/default_fx_profile.tres"), encoding="utf-8") as handle:
+        lines = handle.read().split("\n")
+    scales = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("particle_scale"):
+            try:
+                scales.append((index + 1, float(stripped.split("=")[1])))
+            except (IndexError, ValueError):
+                continue
+    if not scales:
+        scales = [(0, 1.0)]
+    for line_number, particle_scale in scales:
+        peak = foam_size * 2.0 * scale_max * growth * particle_scale
+        if peak > budget:
+            errors.append(
+                "data/stage/default_fx_profile.tres:%d: клуб пыли %.2f м на пике "
+                "(бюджет %.2f м) — крупнее машины, будет виден сквозь кузов"
+                % (line_number, peak, budget)
+            )
+    return errors
+
+
 def check_gdscript_strict():
     """Две ошибки, которые gdparse пропускает, а движок — нет."""
     errors = []
@@ -430,6 +754,11 @@ def main():
         + check_resources()
         + check_constructors()
         + check_fx_profiles()
+        + check_shader_arrays()
+        + check_material_props()
+        + check_shadowed_names()
+        + check_enum_assignments()
+        + check_puff_size()
         + check_gdscript_strict()
     )
     if errors:

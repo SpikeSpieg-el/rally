@@ -291,8 +291,8 @@ func get_track(index: int) -> Resource:
 	return config.get_track(index) if config != null else null
 
 
-func get_setup(index: int, vehicle_id: String = "") -> Resource:
-	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+func get_setup(index: int, for_vehicle: String = "") -> Resource:
+	var vehicle := for_vehicle if not for_vehicle.is_empty() else self.vehicle_id
 	if config == null or index < 0 or index >= setup_count(vehicle):
 		return null
 	if index < base_setup_count(vehicle):
@@ -323,16 +323,16 @@ func track_count() -> int:
 
 
 ## Число готовых пресетов выбранной машины.
-func base_setup_count(vehicle_id: String = "") -> int:
-	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+func base_setup_count(for_vehicle: String = "") -> int:
+	var vehicle := for_vehicle if not for_vehicle.is_empty() else self.vehicle_id
 	return config.setup_count(vehicle) if config != null else 0
 
 
 ## Все пункты списка для машины: готовые пресеты плюс её собственные записи.
-func setup_count(vehicle_id: String = "") -> int:
+func setup_count(for_vehicle: String = "") -> int:
 	if config == null:
 		return 0
-	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+	var vehicle := for_vehicle if not for_vehicle.is_empty() else self.vehicle_id
 	return config.setup_count(vehicle) + _custom_ids(vehicle).size()
 
 
@@ -388,14 +388,14 @@ func get_custom_setup(index: int) -> CarSetupType:
 ## Свои пресеты хранятся отдельно для каждой машины: правка одной машины не
 ## должна подменять настройки другой. Старые записи лежат под ключом «ids»
 ## и принадлежат машине по умолчанию — так их видит прежнее сохранение.
-func _custom_ids(vehicle_id: String = "") -> Array:
-	var vehicle := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+func _custom_ids(for_vehicle: String = "") -> Array:
+	var vehicle := for_vehicle if not for_vehicle.is_empty() else self.vehicle_id
 	var ids: Variant = _conditions.get_value("custom_garage", _ids_key(vehicle), [])
 	return ids if ids is Array else []
 
 
-func _find_base(id: String, vehicle_id: String = "") -> CarSetupType:
-	var target := vehicle_id if not vehicle_id.is_empty() else self.vehicle_id
+func _find_base(id: String, for_vehicle: String = "") -> CarSetupType:
+	var target := for_vehicle if not for_vehicle.is_empty() else self.vehicle_id
 	if config != null:
 		for resource in config.setups_for(target):
 			var base := resource as CarSetupType
@@ -415,8 +415,8 @@ func get_setup_base(index: int) -> CarSetupType:
 
 
 ## Ключ списка пользовательских пресетов: у каждой машины свой.
-func _ids_key(vehicle_id: String) -> String:
-	return "ids" if vehicle_id == _default_vehicle() else vehicle_id + "_ids"
+func _ids_key(for_vehicle: String) -> String:
+	return "ids" if for_vehicle == _default_vehicle() else for_vehicle + "_ids"
 
 
 func _copy_conditions() -> ConfigFile:

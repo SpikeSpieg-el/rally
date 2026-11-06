@@ -118,19 +118,30 @@ func _bind_controls() -> void:
 		)
 	if screen_box != null and effects != null and effects.screen() != null:
 		screen_box.item_selected.connect(func(index: int) -> void:
-			effects.screen().look = [ScreenLook.Look.CLEAN, ScreenLook.Look.SOFT_PS1, ScreenLook.Look.CLASSIC_PS1][index]
+			# Элемент массива — Variant, а поле ждёт enum: без явного типа
+			# движок ругается «Integer used when an enum value is expected».
+			var chosen: ScreenLook.Look = [
+				ScreenLook.Look.CLEAN, ScreenLook.Look.SOFT_PS1, ScreenLook.Look.CLASSIC_PS1
+			][index]
+			effects.screen().look = chosen
 		)
 	if feel_box != null and effects != null and effects.speed() != null:
 		feel_box.item_selected.connect(func(index: int) -> void:
-			effects.speed().feel = [SpeedFeel.Feel.OFF, SpeedFeel.Feel.COMFORT, SpeedFeel.Feel.EXPRESSIVE, SpeedFeel.Feel.ARCADE][index]
+			var chosen: SpeedFeel.Feel = [
+				SpeedFeel.Feel.OFF, SpeedFeel.Feel.COMFORT,
+				SpeedFeel.Feel.EXPRESSIVE, SpeedFeel.Feel.ARCADE
+			][index]
+			effects.speed().feel = chosen
 		)
 	if rain_box != null and effects != null:
 		rain_box.item_selected.connect(func(index: int) -> void:
-			var value: int = [Precip.Preset.LIGHT, Precip.Preset.STEADY, Precip.Preset.HEAVY][index]
+			# Тип — сам enum, а не int: иначе движок ругается
+			# «Integer used when an enum value is expected».
+			var chosen: Precip.Preset = [Precip.Preset.LIGHT, Precip.Preset.STEADY, Precip.Preset.HEAVY][index]
 			if effects.rain() != null:
-				effects.rain().preset = value
+				effects.rain().preset = chosen
 			if effects.snow() != null:
-				effects.snow().preset = value
+				effects.snow().preset = chosen
 		)
 	if compare != null:
 		compare.toggled.connect(func(value: bool) -> void: compare_original = value)

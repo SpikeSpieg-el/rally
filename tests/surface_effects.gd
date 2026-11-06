@@ -162,6 +162,30 @@ func _run() -> void:
 	effects.snow_amounts = Vector4.ONE * 0.3
 	effects.update(car, [], "gravel", 1.0, 0.0, 1.0, 1.0, 0.0)
 	check(effects.damp.x > 0.0, "осадки обновляют налёт даже без контакта с дорогой")
+	# Ранний выход при пустых пулах частиц не должен съедать слой грязи на
+	# кузове: раньше update() возвращался до записи uniforms, и кузов оставался
+	# чистым (жалоба «сломалось отображение грязи на машине»).
+	var bare = Effects.new()
+	var bare_car := Node3D.new()
+	var bare_body := MeshInstance3D.new()
+	bare_body.name = "Mitsubishi_Body_003"
+	bare_body.mesh = BoxMesh.new()
+	bare_car.add_child(bare_body)
+	bare.install(bare_car)
+	var primed: Variant = bare._material.get_shader_parameter("world_to_car")
+	check(
+		primed is Transform3D,
+		"матрица кузова выставлена ещё до первого update(): грязь не «съезжает» на первом кадре"
+	)
+	bare.amounts = Vector4.ONE * 0.42
+	bare.update(bare_car, [], "gravel", 1.0, 0.0, 0.5, 0.0, 0.0)
+	check(
+		bare._material.get_shader_parameter("dirt_amount") == bare.amounts,
+		"грязь на кузове обновляется и без пулов частиц"
+	)
+	bare.clear()
+	bare_car.free()
+	bare.free()
 	check(effects.snow_amounts.x > 0.0 and effects._material.get_shader_parameter("snow_amount") == effects.snow_amounts, "снежный налёт передаётся в шейдер")
 	var stage = Stage.new()
 	var track = Track.new()

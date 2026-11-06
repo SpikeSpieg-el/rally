@@ -169,14 +169,16 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	for player in _event_players:
-		var audio := player as AudioStreamPlayer3D
-		if audio != null:
-			audio.stop()
+		var event_audio := player as AudioStreamPlayer3D
+		if event_audio != null:
+			event_audio.stop()
 	for bank in _banks:
 		for entry in bank.players:
-			var audio := entry as AudioStreamPlayer3D
-			if audio != null:
-				audio.stop()
+			# Своё имя, а не audio: одноимённая переменная в соседнем блоке —
+			# предупреждение CONFUSABLE_LOCAL_DECLARATION.
+			var bank_audio := entry as AudioStreamPlayer3D
+			if bank_audio != null:
+				bank_audio.stop()
 	if _road_player != null:
 		_road_player.stop()
 	if _wind_player != null:

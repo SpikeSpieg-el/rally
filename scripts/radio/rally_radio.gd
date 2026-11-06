@@ -294,7 +294,8 @@ func _begin_crossfade(duration: float) -> void:
 	var stream := _load_stream(String(tracks[index]["path"]))
 	if stream == null:
 		return
-	var outgoing := _players[_active]
+	# _active ещё не переключён: это и есть затухающий трек, отдельная
+	# переменная не нужна (осталась бы объявленной, но неиспользованной).
 	_incoming = 1 - _active
 	var incoming := _players[_incoming]
 	incoming.stream = stream

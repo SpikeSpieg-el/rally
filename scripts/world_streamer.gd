@@ -212,14 +212,14 @@ func _tile_centre(key: Vector2i) -> Vector3:
 func _plan_distance_squared(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x, a.z).distance_squared_to(Vector2(b.x, b.z))
 
-func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
-	_last_position = position
+func _request(centre_pos: Vector3, radius: float = LOAD_RADIUS) -> void:
+	_last_position = centre_pos
 	_wanted_roads.clear()
 	_wanted_tiles.clear()
 	_pending.clear()
 	var tile_priorities: Dictionary = {}
 	var road_priorities: Dictionary = {}
-	var centre: Vector2i = _tile_key(position)
+	var centre: Vector2i = _tile_key(centre_pos)
 	var forward := Vector2.ZERO
 	var velocity := Vector3.ZERO
 	if stage.car != null:
@@ -231,10 +231,10 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 		for x in range(-reach, reach + 1):
 			var key: Vector2i = centre + Vector2i(x, z)
 			var tile_centre: Vector3 = _tile_centre(key)
-			var distance_squared: float = _plan_distance_squared(position, tile_centre)
+			var distance_squared: float = _plan_distance_squared(centre_pos, tile_centre)
 			if distance_squared > pow(radius + TILE_SIZE * 0.71, 2.0):
 				continue
-			var offset := Vector2(tile_centre.x - position.x, tile_centre.z - position.z)
+			var offset := Vector2(tile_centre.x - centre_pos.x, tile_centre.z - centre_pos.z)
 			var priority: float = distance_squared - offset.dot(forward) * 180.0
 			if key == centre:
 				priority -= 2000000.0
@@ -242,8 +242,8 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 
 	# Дополнительный коридор следует изгибам, а не направлению взгляда:
 	# шпильки и подъёмы подгружаются даже когда они за ближайшим поворотом.
-	if stage.track != null and stage.track.procedural and stage.network.distance_to_road(position.x, position.z) < 80.0:
-		var along: float = stage.network.along_road(position.x, position.z)
+	if stage.track != null and stage.track.procedural and stage.network.distance_to_road(centre_pos.x, centre_pos.z) < 80.0:
+		var along: float = stage.network.along_road(centre_pos.x, centre_pos.z)
 		var tangent: Vector3 = stage.network.direction_at(along)
 		var direction: float = -1.0 if velocity.length_squared() > 4.0 and velocity.dot(tangent) < -1.0 else 1.0
 		var speed: float = Vector2(velocity.x, velocity.z).length()
@@ -283,8 +283,8 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 			roads[id] = _retired_roads[id]
 			_retired_roads.erase(id)
 		var road_centre: Vector3 = _road_centres[id]
-		var offset := Vector2(road_centre.x - position.x, road_centre.z - position.z)
-		var priority: float = _plan_distance_squared(position, road_centre) - offset.dot(forward) * 180.0
+		var offset := Vector2(road_centre.x - centre_pos.x, road_centre.z - centre_pos.z)
+		var priority: float = _plan_distance_squared(centre_pos, road_centre) - offset.dot(forward) * 180.0
 		priority = minf(priority, float(road_priorities.get(id, INF)))
 		if not roads.has(id):
 			_pending.append({"kind": "road", "key": id, "priority": priority - TILE_SIZE * TILE_SIZE})
@@ -292,11 +292,11 @@ func _request(position: Vector3, radius: float = LOAD_RADIUS) -> void:
 			_pending.append({"kind": "decor", "key": id, "priority": priority + DECOR_PRIORITY_OFFSET})
 	_sort_pending()
 	for key in tiles.keys():
-		if not _wanted_tiles.has(key) and _plan_distance_squared(position, _tile_centre(key)) > KEEP_RADIUS * KEEP_RADIUS:
+		if not _wanted_tiles.has(key) and _plan_distance_squared(centre_pos, _tile_centre(key)) > KEEP_RADIUS * KEEP_RADIUS:
 			_schedule_retirement("terrain", key, tiles[key])
 			tiles.erase(key)
 	for id in roads.keys():
-		if not _wanted_roads.has(id) and _plan_distance_squared(position, _road_centres[id]) > KEEP_RADIUS * KEEP_RADIUS:
+		if not _wanted_roads.has(id) and _plan_distance_squared(centre_pos, _road_centres[id]) > KEEP_RADIUS * KEEP_RADIUS:
 			_schedule_retirement("road", id, roads[id])
 			roads.erase(id)
 
@@ -335,7 +335,7 @@ func _retire_one() -> bool:
 func _process(delta: float) -> void:
 	if _priming or _stopping or stage == null or not stage._stage_live or stage.car == null or stage.is_paused:
 		return
-	var position: Vector3 = stage.to_local(stage.car.global_position)
+	var car_pos: Vector3 = stage.to_local(stage.car.global_position)
 	_refresh_clock += delta
 	# The frame clock completes jobs after this scheduling decision, so a
 	# mesh/collider commit and a new job do not share the same frame.
