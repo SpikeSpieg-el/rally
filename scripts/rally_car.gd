@@ -935,7 +935,9 @@ func _update_gravel_particles() -> void:
 	gravel_particles.amount_ratio = strength
 	gravel_particles.emitting = strength > 0.0
 	if process != null:
-		var profile := surface_effects.profile_for_kind(dust_kind) if is_instance_valid(surface_effects) else null
+		var profile: RallySurfaceFxProfile = null
+		if is_instance_valid(surface_effects):
+			profile = surface_effects.profile_for_kind(dust_kind)
 		var color: Color = cfg.dust_color
 		if profile != null:
 			color = profile.color_for_wetness(wetness)

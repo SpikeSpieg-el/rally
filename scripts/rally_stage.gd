@@ -1354,7 +1354,9 @@ func _make_ground_material() -> ShaderMaterial:
 	# его шейдер и параметры целиком в инспекторе.
 	if ground_material_override is ShaderMaterial:
 		return ground_material_override as ShaderMaterial
-	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
+	var surfaces: RallySurfaceLooks = null
+	if fx_nodes != null:
+		surfaces = fx_nodes.surfaces()
 	if surfaces != null and surfaces.ground_material != null:
 		_ground_material = surfaces.ground_material
 	elif s_settings().ground_material is ShaderMaterial:
@@ -1610,7 +1612,9 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 func _make_road_material() -> ShaderMaterial:
 	# Материал полотна один на сцену: свой (из сцены/настроек) или
 	# сгенерированный — в обоих случаях живёт между пересборками.
-	var surfaces := fx_nodes.surfaces() if fx_nodes != null else null
+	var surfaces: RallySurfaceLooks = null
+	if fx_nodes != null:
+		surfaces = fx_nodes.surfaces()
 	var road_override: Material = road_material_override
 	if road_override == null and surfaces != null:
 		road_override = surfaces.road_material

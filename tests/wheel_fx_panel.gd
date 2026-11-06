@@ -43,7 +43,7 @@ func _run() -> void:
 		if int(property.get("usage", 0)) & PROPERTY_USAGE_EDITOR == 0:
 			continue
 		var field := String(property["name"])
-		if field in panel.HIDDEN_FIELDS or field.begins_with("_") or field == "script":
+		if field in FxPanel.HIDDEN_FIELDS or field.begins_with("_") or field == "script":
 			continue
 		if int(property.get("hint", 0)) == PROPERTY_HINT_ENUM:
 			continue
@@ -87,7 +87,7 @@ func _run() -> void:
 		if int(property.get("usage", 0)) & PROPERTY_USAGE_EDITOR == 0:
 			continue
 		var field := String(property["name"])
-		if field in panel.HIDDEN_FIELDS or field.begins_with("_") or field == "script":
+		if field in FxPanel.HIDDEN_FIELDS or field.begins_with("_") or field == "script":
 			continue
 		if int(property.get("type")) not in [
 			TYPE_BOOL, TYPE_COLOR, TYPE_FLOAT, TYPE_INT, TYPE_VECTOR3, TYPE_AABB

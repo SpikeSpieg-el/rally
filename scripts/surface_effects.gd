@@ -265,24 +265,8 @@ func _make_foam_process() -> ParticleProcessMaterial:
 	process.scale_min = _p("foam_scale_min", 0.55)
 	process.scale_max = _p("foam_scale_max", 1.5)
 	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
-	process.flatness = clampf(_p("foam_flatness", 0.35), 0.0, 1.0)
-	var spin := _p("foam_spin", 35.0)
-	process.angular_velocity_min = -spin
-	process.angular_velocity_max = spin
-	process.turbulence_enabled = _p("foam_turbulence", 1.6) > 0.0
-	process.turbulence_noise_strength = _p("foam_turbulence", 1.6)
-	process.turbulence_noise_scale = _p("foam_turbulence_scale", 4.5)
-	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
-	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
-	process.damping_min = _p("foam_damping_min", 0.4)
-	process.damping_max = maxf(
-		_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6)
-	)
 	process.angle_min = 0.0
 	process.angle_max = 360.0
-	var spin := _p("foam_spin", 35.0)
-	process.angular_velocity_min = -spin
-	process.angular_velocity_max = spin
 	process.color_ramp = DustFx.fade_ramp()
 	process.turbulence_enabled = _p("foam_turbulence", 1.6) > 0.0
 	process.turbulence_noise_strength = _p("foam_turbulence", 1.6)
@@ -292,9 +276,10 @@ func _make_foam_process() -> ParticleProcessMaterial:
 	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
 	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
 	process.damping_min = _p("foam_damping_min", 0.4)
-	process.damping_max = maxf(
-		_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6)
-	)
+	process.damping_max = maxf(_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6))
+	var spin := _p("foam_spin", 35.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
 	return process
 
 
@@ -559,7 +544,9 @@ func _drive_wheel(
 	var speed: float = Vector2(wheel.local_velocity.x, wheel.local_velocity.z).length()
 	var slip: float = wheel.slip_vector.length()
 	accumulate(index, kind, wetness, speed, slip, delta)
-	var profile := profile_for_kind(kind) if not kind.is_empty() else null
+	var profile: RallySurfaceFxProfile = null
+	if not kind.is_empty():
+		profile = profile_for_kind(kind)
 	var enabled: bool = (
 		profile != null
 		and profile.enabled
