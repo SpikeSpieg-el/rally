@@ -219,6 +219,13 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
    старая дорога».
 6. **Только редактор.** Плагин `@tool`, в игре он ничего не делает; игровые
    параметры он не читает и не меняет.
+7. **Тип писать явно.** Параметры `studio` в `studio_view.gd` и `dock.gd`
+   намеренно без типа (иначе цикл `preload` между `studio.gd` и
+   `studio_view.gd`). Следствие: `var at := studio.project_point(...)` **не
+   собирается** — движок отвечает «Cannot infer the type of "at" variable».
+   Пишите `var at: Vector2 = studio.project_point(...)`. То же правило для
+   обращений к полям (`studio.length` — Variant). Этот класс ошибок ловит
+   `tests/test_track_studio.py`, не дожидаясь запуска редактора.
 
 Новый параметр редактора: поле с `##`-комментарием в
 `RallyTrackStudioSettings` → использовать в `studio_view.gd`/`studio.gd` →

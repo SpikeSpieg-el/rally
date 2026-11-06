@@ -113,6 +113,24 @@ func _check_materials(effects: RallyVisualEffects) -> void:
 	stage.free()
 
 
+## Этап берёт эффекты из сцены: не создаёт свои копии узлов и материалов.
+func _check_stage_integration(effects: RallyVisualEffects) -> void:
+	var stage := Stage.new()
+	stage.fx_nodes = effects
+	stage.settings = Settings.new()
+	stage.track = Forest.duplicate()
+	stage.weather = Rain
+	var car_position := Vector3.ZERO
+	var velocity := Vector3(100, 0, -100)
+	_check(stage._anchor_for(car_position, velocity) == effects.anchor_for(car_position, velocity),
+		"этап спрашивает область осадков у сцены эффектов")
+	_check(effects.rain() != null and effects.snow() != null and effects.screen() != null,
+		"узлы эффектов остаются на месте после запроса этапа")
+	_check(effects.surfaces().ground_material != null and effects.surfaces().road_material != null,
+		"материалы земли и полотна живут в сцене эффектов")
+	stage.free()
+
+
 func _check_migration(effects: RallyVisualEffects) -> void:
 	var legacy := Settings.new()
 	legacy.retro_resolution_height = 360

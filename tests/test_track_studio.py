@@ -35,6 +35,54 @@ def members(source):
     return found
 
 
+def function_returns(source):
+    """Имя функции -> есть ли аннотация возврата (`-> Type`)."""
+    result = {}
+    for match in re.finditer(r"^func (\w+)\(", source, re.M):
+        index = match.end() - 1
+        depth = 0
+        while index < len(source):
+            char = source[index]
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            index += 1
+        tail = source[index + 1:index + 80]
+        tail = tail.split(":", 1)[0].strip()
+        result[match.group(1)] = tail.startswith("->")
+    return result
+
+
+def untyped_inference_risks(source):
+    """`var x := studio.метод()` без типа не собирается.
+
+    GDScript выводит тип только у выражений с известным типом. Нетипизированный
+    параметр (`studio`) делает и поле, и результат вызова Variant'ом — даже если
+    у метода есть `-> Type`: компилятор не знает класс получателя и падает с
+    «Cannot infer the type of x variable». Ловим именно это, плюс вызовы
+    собственных функций без аннотации возврата.
+    """
+    returns = function_returns(source)
+    risks = []
+    for number, line in enumerate(source.split("\n"), 1):
+        match = re.search(r"var (\w+) := (.*)$", line)
+        if not match:
+            continue
+        expression = match.group(2)
+        if " as " in expression:
+            continue  # приведение типа задаёт тип явно
+        if re.match(r"(studio|_studio)\.", expression):
+            risks.append("%d: %s" % (number, line.strip()))
+            continue
+        local_call = re.match(r"([A-Za-z_]\w*)\(", expression)
+        if local_call and local_call.group(1) in returns and not returns[local_call.group(1)]:
+            risks.append("%d: %s" % (number, line.strip()))
+    return risks
+
+
 def static_signatures(source):
     """Имя -> (всего параметров, обязательных)."""
     result = {}
@@ -133,6 +181,17 @@ class TrackStudioTest(unittest.TestCase):
         block = block[:block.index("[sub_resource", 10)] if "[sub_resource" in block[10:] else block
         self.assertIn("preview_in_editor = true", block)
         self.assertIn("stage_forest_route2.tres", scene)
+
+    def test_no_untyped_inference_in_plugin(self):
+        """`var x := studio.метод()` не собирается: тип приходится писать явно."""
+        for rel in ("addons/rally_track_studio/studio.gd",
+                    "addons/rally_track_studio/studio_view.gd",
+                    "addons/rally_track_studio/dock.gd",
+                    "addons/rally_track_studio/plugin.gd",
+                    "scripts/track/route_analysis.gd",
+                    "tests/track_studio.gd"):
+            risks = untyped_inference_risks(read(rel))
+            self.assertEqual(risks, [], "%s: выведите тип явно: %s" % (rel, risks))
 
     def test_undo_methods_are_public_and_idempotent_names(self):
         source = read("addons/rally_track_studio/studio.gd")
