@@ -31,6 +31,12 @@ func _initialize() -> void:
 	assert(settings.mode_names.size() == 4, "четыре режима: трасса, полотно, лес, зоны")
 	assert(settings.surface_names.size() == settings.surface_colors.size(), "покрытия и цвета сходятся")
 	assert(settings.hints_route.size() > 0 and settings.hints_props.size() > 0)
+	# Быстродействие разметки: подсказка под курсором и «призрак» точки по
+	# умолчанию выключены, а полигоны рисуются мелкими выпуклыми кусками.
+	assert(not settings.show_cursor, "подсказка под курсором выключена по умолчанию")
+	assert(not settings.show_ghost_point, "призрак новой точки выключен по умолчанию")
+	assert(settings.profile_fill_max_quads >= 16, "заливка профиля — столбики")
+	assert(settings.min_polygon_area > 0.0, "мелкие полигоны отбрасываются")
 
 	var samples: Dictionary = Analysis.sample_curve(_straight(), settings.sample_step, settings.max_samples)
 	var length: float = float(samples.get("length", 0.0))

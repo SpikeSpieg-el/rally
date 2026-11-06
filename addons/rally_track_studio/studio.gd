@@ -50,6 +50,9 @@ var warnings: Array = []
 var stats: Dictionary = {}
 var length: float = 0.0
 var route_ready: bool = false
+## Счётчик пересборок анализа: по нему отрисовка понимает, что кэш проекций
+## выборок устарел (правку сделали, камеру не двигали).
+var route_version: int = 0
 
 # Экранные области HUD: по ним клики не проваливаются в мир.
 var overlay_size := Vector2(1280.0, 720.0)
@@ -324,6 +327,7 @@ func _refresh_analysis() -> void:
 		length = 0.0
 		return
 	samples = Analysis.sample_curve(curve, settings.sample_step, settings.max_samples)
+	route_version += 1
 	length = float(samples.get("length", 0.0))
 	route_ready = length > 0.0
 	if not route_ready:
@@ -431,8 +435,8 @@ func forward_input(camera: Camera3D, event: InputEvent) -> int:
 		var period := int(1000.0 / maxf(4.0, settings.hover_hz))
 		if now - _last_hover_ms >= period:
 			_last_hover_ms = now
-			_update_hover(camera, motion.position)
-			_request_redraw()
+			if _update_hover(camera, motion.position):
+				_request_redraw()
 		return INPUT_PASS
 	if event is InputEventMouseButton:
 		return _on_mouse_button(camera, event as InputEventMouseButton)
@@ -724,16 +728,30 @@ func _delete_hovered() -> int:
 
 # ------------------------------------------------------------------ подсказка под курсором
 
-func _update_hover(camera: Camera3D, screen_pos: Vector2) -> void:
+## Пересчитать подсказку под курсором. Возвращает true, если изменилось
+## что-то видимое: только тогда стоит просить редактор перерисовать вьюпорт.
+## Иначе каждое движение мыши по пустому месту гонит полную перерисовку.
+func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool:
+	var old_valid: bool = hover_valid
+	var old_control: int = hover_control
+	var old_zone: int = hover_zone
+	var old_section: int = hover_section
+	var old_distance: float = hover_distance
+	var old_point: Vector3 = hover_point
+	var old_brush: Vector3 = hover_brush
+	var old_ghost: Vector3 = hover_new_point
+	var had_any: bool = hover_valid or hover_control >= 0 or hover_zone >= 0 \
+		or hover_brush_valid or hover_new_valid
 	hover_valid = false
 	hover_control = -1
 	hover_zone = -1
+	hover_section = -1
 	hover_brush_valid = false
 	hover_new_valid = false
 	if camera == null or not route_ready:
-		return
+		return had_any
 	if profile_rect.has_point(screen_pos) or hud_rect.has_point(screen_pos) or warnings_rect.has_point(screen_pos):
-		return
+		return had_any
 	var sample_index := _nearest_sample_screen(camera, screen_pos, settings.insert_radius_px)
 	if sample_index >= 0:
 		hover_distance = _sample_distance(sample_index)
@@ -758,11 +776,23 @@ func _update_hover(camera: Camera3D, screen_pos: Vector2) -> void:
 		if bool(ground.get("ok", false)):
 			hover_brush = ground["point"]
 			hover_brush_valid = true
-	elif mode == Modes.Mode.ROUTE and not hover_valid:
+	elif mode == Modes.Mode.ROUTE and settings.show_ghost_point and not hover_valid:
 		var ghost := _ray_ground(camera, screen_pos)
 		if bool(ghost.get("ok", false)):
 			hover_new_point = ghost["point"]
 			hover_new_valid = true
+	if old_valid != hover_valid or old_control != hover_control or old_zone != hover_zone \
+			or old_section != hover_section:
+		return true
+	if hover_valid and old_point.distance_squared_to(hover_point) > 0.01:
+		return true
+	if hover_brush_valid and old_brush.distance_squared_to(hover_brush) > 0.01:
+		return true
+	if hover_new_valid and old_ghost.distance_squared_to(hover_new_point) > 0.01:
+		return true
+	if absf(old_distance - hover_distance) > 0.25:
+		return true
+	return false
 
 
 func _hud_contains(point: Vector2) -> bool:
@@ -806,9 +836,13 @@ func _nearest_sample_screen(camera: Camera3D, screen_pos: Vector2, limit_px: flo
 	var best := -1
 	var best_dist := limit_px
 	for i in range(points.size()):
-		if camera.is_position_behind(points[i]):
+		# Проверка по фрустуму в разы дешевле проекции: при наведении мыши
+		# этот цикл идёт 24 раза в секунду по ~1800 выборкам.
+		if not camera.is_position_in_frustum(points[i]):
 			continue
 		var screen := project_point(camera, points[i])
+		if absf(screen.x - screen_pos.x) > best_dist or absf(screen.y - screen_pos.y) > best_dist:
+			continue
 		var dist := screen.distance_to(screen_pos)
 		if dist < best_dist:
 			best_dist = dist
@@ -867,17 +901,19 @@ func _ray_ground(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
 	var t: float = maxf(0.5, camera.near * 4.0)
 	var prev_t: float = t
 	var prev_diff: float = origin.y + dir.y * t - _ground_y(origin + dir * t)
+	# Шаг марша растёт вместе с t: у камеры он 2 м, в километре — 8 % пути.
+	# Точное пересечение всё равно уточняется делением пополам.
 	var limit: float = 2600.0
 	var guard: int = 0
-	while t < limit and guard < 200:
+	while t < limit and guard < 96:
 		guard += 1
-		t += maxf(0.75, t * 0.03)
+		t += maxf(2.0, t * 0.08)
 		var p: Vector3 = origin + dir * t
 		var diff: float = p.y - _ground_y(p)
 		if diff <= 0.0 and prev_diff > 0.0:
 			var lo: float = prev_t
 			var hi: float = t
-			for _step in range(16):
+			for _step in range(12):
 				var mid: float = (lo + hi) * 0.5
 				var q: Vector3 = origin + dir * mid
 				if q.y - _ground_y(q) > 0.0:
