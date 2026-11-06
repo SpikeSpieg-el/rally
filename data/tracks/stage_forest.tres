@@ -2,13 +2,13 @@
 
 [ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
 [ext_resource type="Curve3D" uid="uid://cnkrnb4gwuihg" path="res://data/tracks/stage_forest_route.tres" id="2_curve"]
+[ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_ve6sl"]
 
 [resource]
 script = ExtResource("1_script")
-id = "forest_stage"
+id = "forest_stage2"
 display_name = "НОЧНОЙ ЛЕС"
-description = "Ночной лес, лунный свет и фары. Ручная трасса: быстрые дуги, два шпилька, шифт на спуске, гребни и трамплин на подъёме. Дорога вписана в рельеф насыпью и выемкой — резких бугров и «стеклянных» стыков нет."
-target_time = 175.0
+description = "Ночной лес2 , лунный свет и фары. Ручная трасса"
 road_curve = ExtResource("2_curve")
 road_half_width = 5.0
 road_shoulder = 2.0
@@ -30,9 +30,9 @@ bumps_amplitude = 0.0
 bumps_wavelength = 12.0
 bumps_roughness = 0.0
 bumps_cross = 0.0
-checkpoint_interval = 420.0
 procedural_scenery = true
 scenery_density = 0.9
+checkpoint_interval = 420.0
 ground_color = Color(0.3, 0.38, 0.23, 1)
 ground_color_2 = Color(0.42, 0.45, 0.28, 1)
 rock_color = Color(0.3, 0.31, 0.32, 1)
@@ -44,7 +44,6 @@ fog_color = Color(0.16, 0.18, 0.2, 1)
 fog_near = 55.0
 fog_far = 260.0
 night_mode = true
-star_intensity = 0.8
 sun_color = Color(0.64, 0.74, 1, 1)
 ambient_color = Color(0.48, 0.56, 0.72, 1)
 ambient_energy = 0.85
@@ -55,9 +54,4 @@ volumetric_fog_density = 0.0025
 sun_energy = 0.48
 sun_pitch = -34.0
 sun_yaw = 38.0
-grip_scale = 1.20
-ps1_style = true
-flat_shading = true
-dither_fog = true
-color_banding = 5
-sky_flat = true
+grip_scale = 1.2
