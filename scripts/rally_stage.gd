@@ -35,6 +35,7 @@ extends Node3D
 
 const CarType = preload("res://scripts/rally_car.gd")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
+const WheelFxSettings = preload("res://scripts/ui/wheel_fx_settings.gd")
 const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
@@ -218,6 +219,8 @@ var input_settings = null
 var resume_button: Button = null
 var again_button: Button = null
 var pause_buttons: Array[Button] = []
+## Экран «Колёса, пыль и грязь»: правит RallyFxProfile прямо в паузе.
+var wheel_fx_settings: WheelFxSettings = null
 var speed_rect: ColorRect = null
 
 
@@ -272,10 +275,16 @@ func _load_resources() -> void:
 		spawn_layout = _load_resource(DEFAULT_SPAWN_PATH) as SpawnLayoutType
 	if spawn_layout == null:
 		spawn_layout = SpawnLayoutType.new()
+	# Профиль эффектов — общий ресурс проекта, а не «своя копия» на каждый заезд:
+	# иначе сохранённые в паузе настройки и правки инспектора не доживали бы до
+	# следующего запуска трассы.
 	if fx_profile == null:
 		fx_profile = _load_resource(DEFAULT_FX_PATH) as FxProfileType
 	if fx_profile == null:
 		fx_profile = FxProfileType.new()
+	# Настройки, сохранённые в паузе («Колёса, пыль и грязь»), живут в user://
+	# и перекрывают заводские значения .tres, не меняя файл в репозитории.
+	WheelFxSettings.apply_saved(fx_profile)
 	if scenery == null:
 		scenery = _load_resource(DEFAULT_SCENERY_PATH) as SceneryType
 	if scenery == null:
@@ -3058,6 +3067,7 @@ func _setup_hud() -> void:
 	results_label = _hud_node("RallyHUD/ResultsPanel/Box/ResultsLabel") as Label
 	var buttons := [
 		["RallyHUD/PausePanel/Box/ControlsButton", "controls_pressed"],
+		["RallyHUD/PausePanel/Box/WheelFxButton", "wheel_fx_pressed"],
 		["RallyHUD/PausePanel/Box/ResumeButton", "resume_pressed"],
 		["RallyHUD/PausePanel/Box/RestartButton", "restart_pressed"],
 		["RallyHUD/PausePanel/Box/MenuButton", "menu_pressed"],
@@ -3131,6 +3141,8 @@ func _on_button_pressed(action: String) -> void:
 	match action:
 		"controls_pressed":
 			_open_input_settings()
+		"wheel_fx_pressed":
+			_open_wheel_fx_settings()
 		"resume_pressed":
 			_on_resume_pressed()
 		"restart_pressed":
@@ -3362,9 +3374,15 @@ func _process(delta: float) -> void:
 		_set_paused(not is_paused)
 		return
 	if is_paused:
-		# B/○ на геймпаде и Esc на клавиатуре закрывают паузу.
+		# B/○ на геймпаде и Esc на клавиатуре закрывают паузу, но сначала —
+		# открытое поверх неё окно настроек эффектов.
+		# Окно эффектов ловит Esc первым и закрывается само; при закрытом
+		# окне Esc по-прежнему снимает паузу.
 		if Input.is_action_just_pressed("ui_cancel"):
-			_set_paused(false)
+			if (wheel_fx_settings == null or not wheel_fx_settings.visible) and (
+				input_settings == null or not input_settings.visible
+			):
+				_set_paused(false)
 		return
 	_update_route_weather(delta)
 	if not stage_finished:
@@ -3498,9 +3516,25 @@ func _set_paused(value: bool) -> void:
 	else:
 		if input_settings != null and input_settings.visible:
 			input_settings.close()
+		if wheel_fx_settings != null and wheel_fx_settings.visible:
+			wheel_fx_settings.close()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if car != null and car.mouse_look_enabled else Input.MOUSE_MODE_VISIBLE
 		if not stage_finished and is_inside_tree():
 			get_viewport().gui_release_focus()
+
+
+## Панель эффектов колёс: работает на паузе и меняет живой ресурс этапа.
+func _open_wheel_fx_settings() -> void:
+	var hud_root := _hud_node("RallyHUD") as Control
+	if hud_root == null:
+		return
+	if wheel_fx_settings == null:
+		wheel_fx_settings = WheelFxSettings.new()
+		wheel_fx_settings.name = "WheelFxSettings"
+		hud_root.add_child(wheel_fx_settings)
+	# Окно всегда выше панели паузы, радио и HUD.
+	hud_root.move_child(wheel_fx_settings, hud_root.get_child_count() - 1)
+	wheel_fx_settings.open_with(s_fx(), car)
 
 
 func _open_input_settings() -> void:

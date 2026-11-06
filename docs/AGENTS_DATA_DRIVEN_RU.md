@@ -32,7 +32,7 @@ material.set_shader_parameter("wet_darken", 0.35)
 Хорошо (сейчас так и надо делать):
 
 ```gdscript
-particles.amount = fx_config().spray_amount       # RallyFxProfile
+particles.amount = fx_config().foam_amount        # RallyFxProfile
 camera.fov = f().chase_fov                         # RallyCarFeelConfig
 label.text = layout().start_button_text            # RallyMenuLayout
 material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
@@ -69,7 +69,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallySpawnLayout` | `data/stage/default_spawn_layout.tres` | расстановка: старт, финиш, КПП, ворота, столбики, знаки, отступы и зазоры |
 | `RallySceneryConfig` | `data/stage/default_scenery.tres` | раскладка обстановки: шаг, плотность (×30), отступы, дальность, потолок объектов |
 | `RallyPropLibrary` + `RallyProp` | `data/stage/default_prop_library.tres` | КАКИЕ сцены ставить: вес, размер, тень, спутник и коллизия каждого вида |
-| `RallyFxProfile` | `data/stage/default_fx_profile.tres` | следы шин, комья, грязь на кузове, пыль/брызги, зоны мокрого/сухого полотна, колеи, снег |
+| `RallyFxProfile` + `RallySurfaceFxProfile` (кладка `surface_fx_profiles`) | `data/stage/default_fx_profile.tres` | сила всех эффектов, клубы и комья из-под каждого колеса, облако пыли за кормой, слои грязи/мокроты/снега на кузове, свечение пылинок, отдельный профиль для асфальта, гравия, грязи, травы и снега (три уровня интенсивности) |
 | `RallyCarFeelConfig` | `data/car/default_car_feel.tres` | камера, FOV, клиренс и посадка модели, отклик руля, свободный обзор, скорость эталона |
 | `RallyUiTheme` | `data/ui/default_ui_theme.tres` | палитра, шрифты, отступы, стили кнопок/панелей всех меню и HUD |
 | `RallyMenuLayout` | `data/ui/default_menu_layout.tres` | тексты, подсказки, горячие клавиши, скорость витрины гаража, сообщения о сиде |
@@ -79,10 +79,71 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallyPrecipitationEffect` | `scenes/effects/rain.tscn`, `snow.tscn` | дождь и снег как отдельные GPUParticles3D |
 | `RallySurfaceLooks` | `scenes/effects/surface_looks.tscn` | материалы земли и дороги в сцене |
 | `RallyVisualEffects` | `scenes/effects/visual_effects.tscn` | контейнер визуальных эффектов и область осадков |
+| `RallyDustFx` (помощник, не ресурс) | `scripts/effects/rally_dust_fx.gd` | общие заготовки частиц: процедурное облачко, кривые жизни/роста, материал; кэш один на процесс |
+| `RallyWheelFxSettings` (экран, не ресурс) | `scripts/ui/wheel_fx_settings.gd` | живая правка полей `RallyFxProfile` в паузе: строки строятся из инспектора, значения сохраняются в `user://rally_wheel_fx.cfg` |
 
 Дополнительно: погодное окружение — `data/tracks/night_environment.tres`
 (`WorldEnvironment`), миникарта и превью трассы — `@export` прямо на узлах
 (`mini_map.gd`, `stage_preview.gd`), HUD-сцена и `GaugeBar` — тоже `@export`.
+
+## 3а. Эффекты колёс — поля `RallyFxProfile`
+
+Всё, что летит из-под колёс и оседает на кузове, настраивается в одном месте —
+`data/stage/default_fx_profile.tres`. Группы полей в инспекторе:
+
+| Группа | Что настраивает |
+| --- | --- |
+| `Сила и производительность` | `fx_intensity` (общая громкость эффектов, ×), `fx_update_hz`, `fx_physics_fps`, свечение пылинок `fx_sparkle_*` |
+| `Следы шин` | `chunk_*`, `min/max_distance`, `flush_interval`, `soil_spacing`, `min_looseness`, `min_speed` |
+| `Цвета следов и комьев` | `spray_*_color`, `gravel/wet_soil_color`, `soil_lighten`, `soil_wet_darken` |
+| `Грязь и пыль на кузове` | `dirt_color`, `body_snow_color`, `body_coverage`, `body_alpha`, `body_spread`, `body_edge_softness`, `body_dirt_buildup`, `body_snow_buildup`, скорости налипания `*_dirt_rate`, `damp_*_scale`, `rain_*`, `snow_*`, `dirt_body_prefixes`, `dirt_body_skip` |
+| `Брызги из-под колеса (общие)` | `spray_grain_radius/height/segments/rings` (вид крупинки), `spray_min_speed`, `spray_slip/wet_threshold`, `spray_dry/wet/snow_color`, `spray_direction` — общие значения для покрытий без своего профиля |
+| `Дым и облака над колесом` | `foam_*`: высота, жизнь, раздувание, размер, направление, разлёт, скорость, тяжесть, плотность, надбавка на мокром, альфа, свечение, сплющенность, вращение, турбулентность, торможение, разброс жизни |
+| `Комья и капли из-под колеса` | `grit_*`: жизнь, разлёт, скорость, тяжесть, размеры зерна, количество, блеск, подсветка, разброс жизни, вращение |
+| `Разлёт частиц по колёсам` | `side_splay`, `inherit_velocity_ratio`, `wind_pull`, `steer_boost`, `handbrake_boost` |
+| `Пыль из-под задних колёс` | `dust_*`: плотность, жизнь, размер, цвет, скорость, форма коробки выброса, порог скорости и пробуксовки, раздувание, завихрения, `dust_aabb`, `dust_handbrake_slip` |
+| `Скользкие полосы на трассе` / `Физика грунта` | зоны сцепления, колея и накат |
+
+Каждый профиль покрытия (`surface_fx_profiles[i]`, тип
+`RallySurfaceFxProfile`) задаёт своё: цвета сухого и мокрого пятна, доли дыма и
+комьев (`smoke_share`, `grit_share`), плотность цвета `particle_tint`, силу
+выброса `burst_scale`, масштабы количества/жизни/разлёта/скорости/размера,
+вклад скорости, пробуксовки и мокроты и три порога. Плотность между порогами
+растёт плавно (`amount_ratio_for_activity`), а скорость выброса берётся из трёх
+настроенных ступеней (`velocity_scale_for_level`) — облако не «дёргается».
+
+Порядок профилей фиксирован: `gravel`, `mud`, `grass`, `snow`, `asphalt`.
+Покрытие под конкретным колесом берётся из `rally_stage.surface_kind_at()`.
+
+### Правка на ходу
+
+Пауза (Esc) → кнопка **«КОЛЁСА, ПЫЛЬ И ГРЯЗЬ»**. Окно
+`scripts/ui/wheel_fx_settings.gd` строит поля прямо по инспектору ресурсов:
+группы становятся заголовками, у каждого числа слайдер с точным значением,
+булевы поля — переключатели, цвета — палитра, векторы — три спинбокса.
+Сверху четыре готовых варианта: «Спокойно», «Заводской», «Зрелищно»,
+«Как в Dakar».
+
+Изменения применяются к живому ресурсу этапа сразу (заезд на паузе):
+панель зовёт `surface_effects.refresh_profile()` и `_setup_gravel_particles()`,
+поэтому новый размер клубов, цвет, количество и слой на кузове видны в том же
+кадре — без перезапуска трассы. Настройки сохраняются в
+`user://rally_wheel_fx.cfg` и подгружаются при старте заезда
+(`WheelFxSettings.apply_saved`), файл `.tres` в репозитории не меняется.
+Кнопка «Сбросить к заводским» перечитывает `.tres` через
+`CACHE_MODE_IGNORE`. Новые экспорты в профилях появляются в окне сами, код
+окна править не нужно — отдельного списка полей нет.
+
+### Единицы измерения
+
+- `*_amount` — **частиц на одно колесо**; умножается на `fx_intensity` и на
+  `amount_scale` покрытия, для GPU это лишь верхняя граница пула.
+- Размеры — в метрах (`foam_size` — сторона билборда, `grit_scale_*` —
+  множитель к радиусу зерна `spray_grain_radius`).
+- Скорости — в м/с, разлёт — в градусах, тяжесть — в м/с² (`grit_gravity`
+  по умолчанию ≈ −11, реальная баллистика).
+- `fx_intensity` больше 2 требует поднять `fx_physics_fps`, иначе комья
+  «плывут»: симуляция считается на этой частоте.
 
 ## 4. Как добавить новый настраиваемый параметр
 

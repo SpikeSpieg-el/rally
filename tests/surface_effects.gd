@@ -67,6 +67,31 @@ func _run() -> void:
 		effects.effect_level_for("gravel", 45.0, 1.0, 0.0) == 3,
 		"сильная пробуксовка поднимает пыль до третьего уровня"
 	)
+	# Плотность растёт плавно: три настроенные полки реально влияют на облако,
+	# но между порогами нет ступенек — источник не «дёргается».
+	var gravel := effects.profile_for_kind("gravel")
+	var zero_ratio: bool = (
+		is_zero_approx(gravel.amount_ratio_for_activity(0.0))
+		and is_zero_approx(gravel.amount_ratio_for_activity(gravel.level_1_threshold))
+	)
+	check(zero_ratio, "ниже первого порога частиц нет")
+	var ratio_low: float = gravel.amount_ratio_for_activity(gravel.level_1_threshold + 0.01)
+	var ratio_mid: float = gravel.amount_ratio_for_activity(gravel.level_2_threshold)
+	var ratio_high: float = gravel.amount_ratio_for_activity(1.0)
+	check(
+		ratio_low > 0.0 and ratio_low < ratio_mid and ratio_mid < ratio_high,
+		"плотность растёт монотонно вместе с силой колеса"
+	)
+	check(
+		is_equal_approx(ratio_high, gravel.level_3_amount_ratio),
+		"на полной силе плотность равна настроенной третьей ступени"
+	)
+	var before_mid: float = gravel.amount_ratio_for_activity(gravel.level_2_threshold - 0.02)
+	var after_mid: float = gravel.amount_ratio_for_activity(gravel.level_2_threshold + 0.02)
+	check(
+		before_mid < after_mid,
+		"между ступенями плотность меняется плавно, а не скачком"
+	)
 	for kind in ["gravel", "mud", "grass", "snow", "asphalt"]:
 		var profile := effects.profile_for_kind(kind)
 		var low_slip: float = lerpf(profile.slip_start, profile.slip_full, 0.3)

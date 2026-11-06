@@ -18,6 +18,7 @@ const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
+const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
 # Шины начинают создавать боковую силу раньше и сохраняют тягу на гравии.
@@ -813,40 +814,69 @@ func _update_handbrake_grip(delta: float) -> void:
 		wheel.current_cof = lerpf(wheel.current_cof, target_grip, clampf(response * delta, 0.0, 1.0))
 
 
+## Пересобрать заднее облако по текущему профилю — например, после правки
+## ползунков в паузе. Живые частицы не трогаются: меняется только шаблон.
+func refresh_dust_cloud() -> void:
+	_setup_gravel_particles()
+
+
 func _setup_gravel_particles() -> void:
 	if gravel_particles == null:
 		return
 	var cfg := fx_config()
 	if not cfg.dust_enabled:
 		gravel_particles.emitting = false
+		gravel_particles.amount_ratio = 0.0
 		return
+	# Задний шлейф: не одинокий «шарик», а густое облако с ростом и растворением.
 	gravel_particles.amount = cfg.dust_amount
 	gravel_particles.lifetime = cfg.dust_lifetime
+	gravel_particles.local_coords = false
+	gravel_particles.fixed_fps = maxi(10, cfg.fx_physics_fps)
+	gravel_particles.fract_delta = true
+	gravel_particles.randomness = 0.5
+	gravel_particles.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	gravel_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var process_material := ParticleProcessMaterial.new()
 	process_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	process_material.emission_box_extents = cfg.dust_emission_extents
 	process_material.direction = cfg.dust_direction
 	process_material.spread = cfg.dust_spread
+	process_material.flatness = cfg.dust_flatness
 	process_material.initial_velocity_min = cfg.dust_speed_min
 	process_material.initial_velocity_max = cfg.dust_speed_max
 	process_material.gravity = cfg.dust_gravity
 	process_material.scale_min = cfg.dust_scale_min
 	process_material.scale_max = cfg.dust_scale_max
+	process_material.scale_curve = DustFx.growth_curve(cfg.dust_growth)
 	process_material.color = cfg.dust_color
+	process_material.color_ramp = DustFx.fade_ramp()
+	process_material.angle_min = 0.0
+	process_material.angle_max = 360.0
+	process_material.angular_velocity_min = -cfg.dust_spin
+	process_material.angular_velocity_max = cfg.dust_spin
+	process_material.turbulence_enabled = cfg.dust_turbulence > 0.0
+	process_material.turbulence_noise_strength = cfg.dust_turbulence
+	process_material.turbulence_noise_scale = cfg.dust_turbulence_scale
+	process_material.turbulence_influence_min = cfg.dust_turbulence_influence * 0.2
+	process_material.turbulence_influence_max = cfg.dust_turbulence_influence
+	process_material.inherit_velocity_ratio = cfg.inherit_velocity_ratio
+	process_material.lifetime_randomness = cfg.dust_lifetime_randomness
+	process_material.damping_min = cfg.dust_damping_min
+	process_material.damping_max = maxf(cfg.dust_damping_min, cfg.dust_damping_max)
 	gravel_particles.process_material = process_material
 
-	var dust_material := StandardMaterial3D.new()
-	dust_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dust_material.albedo_color = cfg.dust_color
-	dust_material.roughness = 1.0
-	var dust_mesh := SphereMesh.new()
-	dust_mesh.radius = cfg.dust_radius
-	dust_mesh.height = cfg.dust_height
-	dust_mesh.radial_segments = cfg.dust_segments
-	dust_mesh.rings = cfg.dust_rings
-	dust_mesh.surface_set_material(0, dust_material)
+	var dust_material := DustFx.puff_material(DustFx.puff_texture(), true)
+	dust_material.emission_enabled = cfg.fx_sparkle_enabled
+	dust_material.emission = cfg.fx_sparkle_color
+	dust_material.emission_energy_multiplier = cfg.fx_sparkle_strength * 0.7
+	var dust_mesh := QuadMesh.new()
+	var dust_size := maxf(0.01, cfg.dust_radius)
+	dust_mesh.size = Vector2(dust_size, dust_size) * 2.0
+	dust_mesh.material = dust_material
 	gravel_particles.draw_pass_1 = dust_mesh
 	gravel_particles.visibility_aabb = cfg.dust_aabb
+	gravel_particles.extra_cull_margin = 8.0
 	gravel_particles.emitting = false
 
 
@@ -856,6 +886,7 @@ func _update_gravel_particles() -> void:
 	var cfg := fx_config()
 	if not cfg.dust_enabled:
 		gravel_particles.emitting = false
+		gravel_particles.amount_ratio = 0.0
 		return
 	var road_name: String = "Гравий"
 	var wetness: float = 0.0
@@ -868,6 +899,7 @@ func _update_gravel_particles() -> void:
 	var gravel_level: int = 0
 	var rear_contact: bool = false
 	var gravel_contact: bool = false
+	var dust_kind: String = ""
 	for wheel: WheelType in rear_axle.wheels:
 		if not wheel.is_colliding():
 			continue
@@ -875,8 +907,9 @@ func _update_gravel_particles() -> void:
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
 		if is_instance_valid(surface_effects):
 			var kind: String = surface_effects.kind_for_wheel(wheel, road_name, snow)
-			if kind == "gravel":
+			if kind == "gravel" or kind == "mud":
 				gravel_contact = true
+				dust_kind = kind
 				gravel_level = maxi(
 					gravel_level,
 					surface_effects.effect_level_for(kind, speed_kmh, rear_slip, wetness)
@@ -886,18 +919,29 @@ func _update_gravel_particles() -> void:
 		if gravel_contact and is_instance_valid(surface_effects):
 			gravel_level = maxi(
 				gravel_level,
-				surface_effects.effect_level_for("gravel", speed_kmh, rear_slip, wetness)
+				surface_effects.effect_level_for(dust_kind, speed_kmh, rear_slip, wetness)
 			)
-	# Это дополнительный плотный шлейф только для сухого гравия;
-	# мелкие брызги/пыль для остальных покрытий обслуживает SurfaceEffects.
-	gravel_particles.emitting = (
-		rear_contact
-		and gravel_contact
-		and gravel_level >= 2
-		and wetness < 0.55
-		and speed_kmh > cfg.dust_min_speed_kmh
-		and rear_slip > cfg.dust_slip_threshold
-	)
+	# Дополнительный плотный шлейф для сухого рыхлого покрытия. Мелкую пыль и
+	# брызги у самих колёс обслуживает SurfaceEffects; здесь — общее облако
+	# за кормой, заметное в зеркалах и на повторах.
+	var process := gravel_particles.process_material as ParticleProcessMaterial
+	var strength := 0.0
+	if rear_contact and gravel_contact and wetness < 0.75:
+		var speed_gate: float = smoothstep(cfg.dust_min_speed_kmh * 0.6, cfg.dust_min_speed_kmh, speed_kmh)
+		var slip_gate: float = smoothstep(cfg.dust_slip_threshold * 0.5, cfg.dust_slip_threshold, rear_slip)
+		strength = clampf(maxf(speed_gate, slip_gate) * (0.4 + 0.6 * float(gravel_level) / 3.0), 0.0, 1.0)
+		if slip_gate <= 0.0 and speed_gate <= 0.0:
+			strength = 0.0
+	gravel_particles.amount_ratio = strength
+	gravel_particles.emitting = strength > 0.0
+	if process != null:
+		var profile := surface_effects.profile_for_kind(dust_kind) if is_instance_valid(surface_effects) else null
+		var color: Color = cfg.dust_color
+		if profile != null:
+			color = profile.color_for_wetness(wetness)
+			color.a = cfg.dust_color.a
+		process.color = color
+		process.initial_velocity_max = cfg.dust_speed_max + speed_kmh * 0.035
 
 
 func _apply_initial_camera_fov() -> void:

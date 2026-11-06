@@ -12,7 +12,10 @@
   3) конструкторы — у `Color()`, `Vector3()`, `Transform3D()` и прочих
      проверяется число аргументов. Текстовый формат строгий: `Color(r, g, b)`
      не читается, нужен четвёртый аргумент — альфа. Именно так однажды
-     посыпались все сцены пропсов ("Expected 4 arguments for constructor").
+     посыпались все сцены пропсов ("Expected 4 arguments for constructor");
+  4) профили эффектов — у RallyFxProfile / RallySurfaceFxProfile не бывает
+     двух полей с одним именем (дубль — ошибка компиляции, а не «переопределение»),
+     каждый uniform car_dirt.gdshader выставляется кодом и наоборот.
 
 Запуск:  python3 tools/check_project.py
 Код выхода: 0 — чисто, 1 — есть проблемы.
@@ -221,8 +224,71 @@ def check_constructors():
     return errors
 
 
+FX_CONSUMERS = [
+    "scripts/surface_effects.gd",
+    "scripts/rally_car.gd",
+    "scripts/ui/wheel_fx_settings.gd",
+]
+FX_PROFILES = [
+    "scripts/data/rally_fx_profile.gd",
+    "scripts/data/rally_surface_fx_profile.gd",
+]
+DIRT_SHADER = "shaders/car_dirt.gdshader"
+SURFACE_EFFECTS = "scripts/surface_effects.gd"
+
+
+def check_fx_profiles():
+    """Дубли полей в профилях эффектов и рассинхрон uniform'ов шейдера грязи."""
+    errors = []
+    for rel in FX_PROFILES:
+        path = os.path.join(ROOT, rel)
+        with open(path, encoding="utf-8") as handle:
+            names = re.findall(r"^@export[^\n]*?\bvar\s+(\w+)", handle.read(), re.M)
+        seen = set()
+        for name in names:
+            if name in seen:
+                errors.append("%s: поле %s объявлено дважды" % (rel, name))
+            seen.add(name)
+    # Код читает поля профиля по строкам (_p("имя"), _pv("имя"), cfg.имя):
+    # опечатка не всплывёт до заезда, поэтому сверяем имена здесь.
+    known = set()
+    for rel in FX_PROFILES:
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as handle:
+            known.update(re.findall(r"^@export[^\n]*?\bvar\s+(\w+)", handle.read(), re.M))
+    for rel in FX_CONSUMERS:
+        path = os.path.join(ROOT, rel)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as handle:
+            code = handle.read()
+        used = set(re.findall(r'_p[bcv]?\("(\w+)"', code))
+        used.update(re.findall(r'\bcfg\.(\w+)', code))
+        for name in sorted(used - known):
+            errors.append("%s: поле %r нет в профиле эффектов" % (rel, name))
+    shader_path = os.path.join(ROOT, DIRT_SHADER)
+    code_path = os.path.join(ROOT, SURFACE_EFFECTS)
+    if os.path.exists(shader_path) and os.path.exists(code_path):
+        with open(shader_path, encoding="utf-8") as handle:
+            shader = handle.read()
+        with open(code_path, encoding="utf-8") as handle:
+            code = handle.read()
+        uniforms = set(re.findall(r"^uniform\s+\w+\s+(\w+)", shader, re.M))
+        set_params = set(re.findall(r'set_shader_parameter\("(\w+)"', code))
+        # uniform без значения по умолчанию обязан быть выставлен из кода,
+        # иначе на кузове будет мусор вместо слоя грязи.
+        for name in sorted(uniforms - set_params):
+            line = re.search(r"^uniform\s+\w+\s+%s\b[^;]*;" % re.escape(name), shader, re.M)
+            if line and "=" not in line.group(0):
+                errors.append("%s: uniform %s не выставляется из %s"
+                              % (DIRT_SHADER, name, SURFACE_EFFECTS))
+        for name in sorted(set_params - uniforms):
+            errors.append("%s: код выставляет %r, но такого uniform нет в %s"
+                          % (SURFACE_EFFECTS, name, DIRT_SHADER))
+    return errors
+
+
 def main():
-    errors = check_pulpits() + check_resources() + check_constructors()
+    errors = check_pulpits() + check_resources() + check_constructors() + check_fx_profiles()
     if errors:
         for item in errors:
             print(item)
