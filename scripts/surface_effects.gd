@@ -40,29 +40,31 @@ var _grit_material: StandardMaterial3D
 var _car: Node3D = null
 
 
-func _p(name: String, fallback: float) -> float:
-	return float(fx.get(name)) if fx != null else fallback
+## Поле профиля по имени. Параметр называется field, а не name: name — это
+## свойство самого Node, и GDScript ругается на его затенение в каждом геттере.
+func _p(field: String, fallback: float) -> float:
+	return float(fx.get(field)) if fx != null else fallback
 
 
-func _pi(name: String, fallback: int) -> int:
-	return int(fx.get(name)) if fx != null else fallback
+func _pi(field: String, fallback: int) -> int:
+	return int(fx.get(field)) if fx != null else fallback
 
 
-func _pb(name: String, fallback: bool) -> bool:
-	return bool(fx.get(name)) if fx != null else fallback
+func _pb(field: String, fallback: bool) -> bool:
+	return bool(fx.get(field)) if fx != null else fallback
 
 
-func _pc(name: String, fallback: Color) -> Color:
-	return fx.get(name) as Color if fx != null else fallback
+func _pc(field: String, fallback: Color) -> Color:
+	return fx.get(field) as Color if fx != null else fallback
 
 
-func _pv(name: String, fallback: Vector3) -> Vector3:
-	return fx.get(name) as Vector3 if fx != null else fallback
+func _pv(field: String, fallback: Vector3) -> Vector3:
+	return fx.get(field) as Vector3 if fx != null else fallback
 
 
 ## Числовое поле машины без падений на тестовых заглушках.
-func _car_float(car: Object, name: String, fallback: float) -> float:
-	var value: Variant = car.get(name)
+func _car_float(car: Object, field: String, fallback: float) -> float:
+	var value: Variant = car.get(field)
 	return float(value) if value is float or value is int else fallback
 
 
@@ -141,6 +143,14 @@ func _install_body_dirt(car: Node3D) -> void:
 		)
 	)
 	_apply_body_look()
+	# Матрица и массивы колёс нужны уже на первом кадре: без них шейдер
+	# считает позиции по нулевому world_to_car, и грязь на миг «съезжает»
+	# с кузова (или не видна вовсе, если update() ещё не вызывался).
+	_material.set_shader_parameter("world_to_car", car.global_transform.affine_inverse())
+	_material.set_shader_parameter("wheels", PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]))
+	_material.set_shader_parameter("dirt_amount", Vector4.ZERO)
+	_material.set_shader_parameter("damp_amount", Vector4.ZERO)
+	_material.set_shader_parameter("snow_amount", Vector4.ZERO)
 	for mesh in _body_meshes(car):
 		mesh.material_overlay = _material
 
@@ -203,8 +213,12 @@ func _make_grit_material() -> StandardMaterial3D:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.albedo_color = Color.WHITE
 	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0 - clampf(_p("grit_specular", 0.35), 0.0, 0.9)
-	material.specular = clampf(_p("grit_specular", 0.35) * 1.6, 0.0, 1.0)
+	# В Godot 4 свойство называется metallic_specular: `specular` — это
+	# команда материала шейдера, и запись в него из GDScript не проходит
+	# (движок сыплет «remapped parameter not found: specular»).
+	var gloss: float = clampf(_p("grit_specular", 0.35), 0.0, 0.9)
+	material.roughness = 1.0 - gloss
+	material.metallic_specular = clampf(gloss * 1.6, 0.0, 1.0)
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	material.emission_enabled = _pb("fx_sparkle_enabled", true)
@@ -492,8 +506,6 @@ func update(
 	if _material == null:
 		return
 	update_weather(rain, snowfall, delta)
-	if _foams.is_empty() or _sprays.is_empty():
-		return
 	var positions := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
 	var spring_scale: float = _p("dirt_center_spring_scale", 0.65)
 	var emit_count: int = mini(4, wheels.size())
@@ -505,24 +517,32 @@ func update(
 		_update_timer = 0.0
 	var steer := _car_float(car, "steer_input", 0.0)
 	var handbrake := _car_float(car, "handbrake_input", 0.0)
-	for i in range(mini(4, wheels.size())):
+	for i in range(emit_count):
 		var wheel = wheels[i]
 		# Центры масок — на кузове, не на движущейся подвеске:
 		# уже нанесённые пятна не сдвигаются на кочках.
 		positions[i] = (
 			car.to_local(wheel.global_position) + Vector3.DOWN * wheel.spring_length * spring_scale
 		)
-		if not refresh:
-			continue
-		if i >= emit_count:
-			_stop_pools(i)
-			continue
-		_drive_wheel(car, wheel, i, road_name, wetness, snow, delta, steer, handbrake)
+	# Слой грязи на кузове — раньше источников частиц и без раннего выхода:
+	# иначе при отсутствии пулов (тесты, отключённые эффекты, машина без
+	# частиц) грязь не обновлялась вовсе и кузов оставался чистым.
 	_material.set_shader_parameter("world_to_car", car.global_transform.affine_inverse())
 	_material.set_shader_parameter("wheels", positions)
 	_material.set_shader_parameter("dirt_amount", amounts)
 	_material.set_shader_parameter("damp_amount", damp)
 	_material.set_shader_parameter("snow_amount", snow_amounts)
+	if _foams.is_empty() or _sprays.is_empty():
+		return
+	if not refresh:
+		return
+	for i in range(4):
+		if i < emit_count:
+			_drive_wheel(car, wheels[i], i, road_name, wetness, snow, delta, steer, handbrake)
+		else:
+			# Колёс меньше четырёх (недонастроенная машина): лишние источники
+			# гасим, иначе они висят с последней ненулевой плотностью.
+			_stop_pools(i)
 
 
 ## Один такт источника частиц конкретного колеса.
@@ -626,13 +646,25 @@ func _place_emitters(
 	# источника: дым гуще на мокром, комья — на рыхлом.
 	var smoke: float = scaled * clampf(profile.smoke_share, 0.0, 1.0)
 	var grits: float = scaled * clampf(profile.grit_share, 0.0, 1.0)
+	# Вынос источника наружу от кузова. Точка контакта лежит ПОД аркой, и
+	# билборд-клуб радиусом до метра рождался внутри железа: камера видела его
+	# сквозь кузов, потому что частица оказывалась ближе к камере, чем стенка.
+	# Сдвигаем рождение на ширину колеи наружу и чуть назад по ходу — клуб
+	# выходит из-под крыла, как настоящая пыль, а не «сквозь» машину.
+	var outward: Vector3 = basis.x * splay * _p("spawn_outward", 1.25)
+	# Нос машины смотрит в -Z, поэтому «назад по ходу» = -forward_sign * basis.z:
+	# при движении вперёд forward_sign = -1 и сдвиг уходит в +Z, за корму.
+	var rearward: Vector3 = basis.z * (_p("spawn_behind", 0.55) * -forward_sign)
+	var spawn: Vector3 = point + outward + rearward
+	# Пол под источником: не даём клубу родиться ниже земли на уклоне.
+	spawn.y = maxf(spawn.y, point.y)
 	_emit_foam(
 		index, profile, smoke, level, wetness,
-		point + normal * 0.06 + Vector3.UP * _p("foam_height", 0.09), basis, foam_dir
+		spawn + normal * 0.06 + Vector3.UP * _p("foam_height", 0.09), basis, foam_dir
 	)
 	_emit_grit(
 		index, profile, grits, level, wetness,
-		point + normal * 0.04, basis, grit_dir
+		spawn + normal * 0.04, basis, grit_dir
 	)
 
 

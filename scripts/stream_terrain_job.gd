@@ -65,6 +65,8 @@ func advance(budget_usec: int) -> bool:
 			return false
 		if phase == 0:
 			var x: int = cursor % halo
+			# Деление намеренно целое: это индекс строки в решётке.
+			@warning_ignore("integer_division")
 			var z: int = cursor / halo
 			var px: float = origin.x + float(x - 1) * cell
 			var pz: float = origin.z + float(z - 1) * cell
@@ -89,6 +91,7 @@ func advance(budget_usec: int) -> bool:
 				cursor = 0
 		elif phase == 1:
 			var x: int = cursor % width
+			@warning_ignore("integer_division")
 			var z: int = cursor / width
 			var h: int = (z + 1) * halo + x + 1
 			var point := Vector3(float(x) * cell, heights[h], float(z) * cell)
@@ -104,6 +107,7 @@ func advance(budget_usec: int) -> bool:
 				cursor = 0
 		else:
 			var x: int = cursor % divisions
+			@warning_ignore("integer_division")
 			var z: int = cursor / divisions
 			var i: int = z * width + x
 			var offset: int = cursor * 6

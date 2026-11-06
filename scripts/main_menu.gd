@@ -94,7 +94,8 @@ func _apply_theme() -> void:
 	if bar != null:
 		bar.color = t.accent
 		bar.offset_bottom = float(t.accent_bar_height)
-	var content := get_node_or_null("Content") as Control
+	# Поле content (см. @onready выше) уже указывает на этот узел: локальная
+	# переменная с тем же именем только затеняла его.
 	if content != null:
 		content.offset_left = float(t.content_margin_horizontal)
 		content.offset_top = float(t.content_margin_vertical)
@@ -253,8 +254,8 @@ func _make_choice_button(text: String, tip: String, action: Callable) -> Button:
 ## внутри левой колонки: число пресетов задаётся конфигом, менять .tscn
 ## при добавлении новой погоды не нужно.
 func _build_conditions_ui() -> void:
-	var left := get_node_or_null("Content/Body/Left") as VBoxContainer
-	if left == null:
+	var left_column := get_node_or_null("Content/Body/Left") as VBoxContainer
+	if left_column == null:
 		return
 	if _conditions_box != null:
 		_conditions_box.queue_free()
@@ -264,10 +265,10 @@ func _build_conditions_ui() -> void:
 	var box := VBoxContainer.new()
 	box.name = "ConditionsBox"
 	box.add_theme_constant_override("separation", t.chip_separation)
-	left.add_child(box)
-	var button_row := left.get_node_or_null("ButtonRow")
+	left_column.add_child(box)
+	var button_row := left_column.get_node_or_null("ButtonRow")
 	if button_row != null:
-		left.move_child(box, button_row.get_index())
+		left_column.move_child(box, button_row.get_index())
 	_conditions_box = box
 
 	# --- «Живая лента»: видимый и сохраняемый сид -------------------------
@@ -410,17 +411,21 @@ func _connect_focus_navigation() -> void:
 	_update_dynamic_focus()
 
 
-func _set_focus_neighbors(control: Control, top: Control, bottom: Control, left: Control, right: Control) -> void:
+## Соседи фокуса по сторонам. Имена параметров не top/bottom/left/right: это
+## свойства Control, и GDScript ругается на их затенение.
+func _set_focus_neighbors(
+	control: Control, above: Control, below: Control, before: Control, after: Control
+) -> void:
 	if control == null:
 		return
-	if top != null:
-		control.focus_neighbor_top = control.get_path_to(top)
-	if bottom != null:
-		control.focus_neighbor_bottom = control.get_path_to(bottom)
-	if left != null:
-		control.focus_neighbor_left = control.get_path_to(left)
-	if right != null:
-		control.focus_neighbor_right = control.get_path_to(right)
+	if above != null:
+		control.focus_neighbor_top = control.get_path_to(above)
+	if below != null:
+		control.focus_neighbor_bottom = control.get_path_to(below)
+	if before != null:
+		control.focus_neighbor_left = control.get_path_to(before)
+	if after != null:
+		control.focus_neighbor_right = control.get_path_to(after)
 
 
 ## Соседи, которые зависят от текущего выбора трассы/конфигурации.
@@ -574,8 +579,10 @@ func _refresh() -> void:
 ## Карточка заезда: трасса + выбранные погода и характер полотна + мотор.
 ## Итоговые цифры (ширина, кочки, сцепление) уже перемножены — ровно те,
 ## с которыми начнётся заезд.
+## Текст карточки трассы. Настройка машины в строку не входит — данные о ней
+## висят рядом на своих индикаторах, поэтому параметр помечен подчёркиванием.
 func _track_info_text(
-	track: TrackConfigType, setup: CarSetupType, weather: WeatherType, profile: ProfileType
+	track: TrackConfigType, _setup: CarSetupType, weather: WeatherType, profile: ProfileType
 ) -> String:
 	var length_value: float = track.get_route_length()
 	var length_line: String = "ДЛИНА: %.0f м" % length_value

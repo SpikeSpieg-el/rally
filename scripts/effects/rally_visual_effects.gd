@@ -54,7 +54,10 @@ func configure_screen(track: Resource) -> void:
 		rect.configure_for_track(track)
 
 
-func update_speed(speed_kmh: float, track: Resource) -> void:
+## Каждый кадр заезда: экранный фильтр скорости получает текущую скорость.
+## Трасса осталась в подписи ради совместимости со старыми вызовами, но
+## фильтру она не нужна — параметр с подчёркиванием, чтобы не было предупреждения.
+func update_speed(speed_kmh: float, _track: Resource = null) -> void:
 	var rect := screen()
 	if rect != null:
 		rect.set_preview_speed(speed_kmh)

@@ -9,7 +9,12 @@ render_mode blend_mix, depth_draw_never, cull_disabled;
 //   body_coverage — густота покрытия (1 — заводской вид, больше — грязнее);
 //   body_edge_softness — мягкость краёв пятен.
 uniform mat4 world_to_car;
-uniform vec3 wheels[4] = vec3[4](vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+// Значений по умолчанию у массивов быть не может: Godot 4 отвергает
+// `uniform vec3 wheels[4] = vec3[4](...)` целиком («Setting default values to
+// uniform arrays is not supported»), шейдер не компилируется, и вместо слоя
+// грязи на кузове остаётся голая краска. Массивы обязан выставлять код —
+// SurfaceEffects делает это каждый кадр в update().
+uniform vec3 wheels[4];
 uniform vec4 dirt_amount = vec4(0.0);
 uniform vec4 damp_amount = vec4(0.0);
 uniform vec4 snow_amount = vec4(0.0);

@@ -99,7 +99,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `Брызги из-под колеса (общие)` | `spray_grain_radius/height/segments/rings` (вид крупинки), `spray_min_speed`, `spray_slip/wet_threshold`, `spray_dry/wet/snow_color`, `spray_direction` — общие значения для покрытий без своего профиля |
 | `Дым и облака над колесом` | `foam_*`: высота, жизнь, раздувание, размер, направление, разлёт, скорость, тяжесть, плотность, надбавка на мокром, альфа, свечение, сплющенность, вращение, турбулентность, торможение, разброс жизни |
 | `Комья и капли из-под колеса` | `grit_*`: жизнь, разлёт, скорость, тяжесть, размеры зерна, количество, блеск, подсветка, разброс жизни, вращение |
-| `Разлёт частиц по колёсам` | `side_splay`, `inherit_velocity_ratio`, `wind_pull`, `steer_boost`, `handbrake_boost` |
+| `Разлёт частиц по колёсам` | `side_splay`, `spawn_outward`, `spawn_behind`, `inherit_velocity_ratio`, `wind_pull`, `steer_boost`, `handbrake_boost` |
 | `Пыль из-под задних колёс` | `dust_*`: плотность, жизнь, размер, цвет, скорость, форма коробки выброса, порог скорости и пробуксовки, раздувание, завихрения, `dust_aabb`, `dust_handbrake_slip` |
 | `Скользкие полосы на трассе` / `Физика грунта` | зоны сцепления, колея и накат |
 

@@ -188,7 +188,6 @@ var _noise_detail: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
 ## Запечённые меши ассетов обстановки на время одной сборки (по пути сцены).
 var _prop_mesh_cache: Dictionary = {}
-var _terrain_collider_stride: int = 1
 
 # HUD-узлы живут в scenes/ui/rally_hud.tscn (разметка правится в редакторе),
 # в _setup_hud() мы только находим их по путям и держим ссылки для _update_hud.
@@ -2169,6 +2168,8 @@ func _build_scenery_multimeshes(
 			if not is_instance_valid(container) or not container.is_inside_tree():
 				return
 			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
+		# Ключ ячейки упакован как prop_index * SPAN + cell: деление целое.
+		@warning_ignore("integer_division")
 		var prop_index: int = int(key) / SCENERY_CELL_SPAN
 		var cell: int = int(key) % SCENERY_CELL_SPAN
 		if prop_index < 0 or prop_index >= kinds.size():
@@ -2199,10 +2200,10 @@ func _build_scenery_multimeshes(
 		for n in range(indices.size()):
 			var o2: int = int(indices[n]) * SceneryBuffer.STRIDE
 			var world := Vector3(buffer.data[o2], buffer.data[o2 + 1], buffer.data[o2 + 2])
-			var basis := Basis(Vector3.UP, buffer.data[o2 + 3]) * Basis.from_scale(
+			var item_basis := Basis(Vector3.UP, buffer.data[o2 + 3]) * Basis.from_scale(
 				Vector3(buffer.data[o2 + 4], buffer.data[o2 + 5], buffer.data[o2 + 6])
 			)
-			multimesh.set_instance_transform(n, Transform3D(basis, world - chunk_origin))
+			multimesh.set_instance_transform(n, Transform3D(item_basis, world - chunk_origin))
 			var shade: float = cfg.scenery_shade_base + cfg.scenery_shade_spread * TrackConfigType.hash_noise(world.x, world.z)
 			multimesh.set_instance_color(n, Color(shade, shade, shade, 1.0))
 			if streamed and n % 16 == 15 and Time.get_ticks_usec() >= slice_deadline:
@@ -2212,6 +2213,7 @@ func _build_scenery_multimeshes(
 				slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
 		var instance := MultiMeshInstance3D.new()
 		var cell_x: int = (cell % SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
+		@warning_ignore("integer_division")
 		var cell_z: int = (cell / SCENERY_CELL_WIDTH) - SCENERY_CELL_BIAS
 		instance.name = "Cell_%d_%d" % [cell_x, cell_z]
 		instance.position = chunk_origin
@@ -2237,6 +2239,8 @@ func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: 
 		return
 	var bodies: Dictionary = {}
 	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
+	# В плоском массиве стволов по пять чисел на ствол.
+	@warning_ignore("integer_division")
 	for i in range(trunks.size() / 5):
 		if streamed and Time.get_ticks_usec() >= slice_deadline:
 			await stream_clock.tick
@@ -2822,19 +2826,19 @@ func _effective_fog_color() -> Color:
 ## частицы не наследуют движение машины и закрываются геометрией сцены.
 ## Все коэффициенты — из RallyStageSettings; статическая точка входа
 ## нужна тестам, сцена зовёт _anchor_for() с теми же настройками.
-static func precipitation_anchor(position: Vector3, velocity: Vector3) -> Vector3:
+static func precipitation_anchor(car_position: Vector3, velocity: Vector3) -> Vector3:
 	var cfg: StageSettingsType = null
 	if ResourceLoader.exists(DEFAULT_SETTINGS_PATH):
 		cfg = ResourceLoader.load(DEFAULT_SETTINGS_PATH) as StageSettingsType
 	if cfg == null:
 		cfg = StageSettingsType.new()
 	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(cfg.anchor_velocity_limit) * cfg.anchor_velocity_lead
-	var center := position + lead
+	var center := car_position + lead
 	# Перемещение области порциями не двигает уже существующие частицы.
 	var grid: float = maxf(0.5, cfg.anchor_grid)
 	return Vector3(
 		roundf(center.x / grid) * grid,
-		position.y + cfg.anchor_height,
+		car_position.y + cfg.anchor_height,
 		roundf(center.z / grid) * grid
 	)
 
@@ -2861,15 +2865,15 @@ func _setup_precipitation() -> void:
 
 ## Мировая точка рождения осадков для позиции/скорости машины. Отдельный
 ## метод: сцена использует его и в _process, а тесты проверяют без GPU.
-func _anchor_for(position: Vector3, velocity: Vector3) -> Vector3:
+func _anchor_for(car_position: Vector3, velocity: Vector3) -> Vector3:
 	_bind_visual_effects()
 	if fx_nodes != null:
-		return fx_nodes.anchor_for(position, velocity)
+		return fx_nodes.anchor_for(car_position, velocity)
 	var cfg := s_settings()
 	if cfg == null:
-		return precipitation_anchor(position, velocity)
+		return precipitation_anchor(car_position, velocity)
 	var lead := Vector3(velocity.x, 0.0, velocity.z).limit_length(cfg.anchor_velocity_limit) * cfg.anchor_velocity_lead
-	var center := position + lead
+	var center := car_position + lead
 	var grid: float = maxf(0.5, cfg.anchor_grid)
 	return Vector3(
 		roundf(center.x / grid) * grid,
@@ -3344,12 +3348,17 @@ func _update_route_weather(delta: float) -> void:
 			next_weather.set(key, from_color.lerp(section.weather.get(key), blend))
 	if blend < 0.5:
 		next_weather.precipitation = previous.precipitation
-	var previous_precipitation: int = weather.precipitation if weather != null else -1
+	# Тип — сам enum, а не int: присваивание enum'а в int-переменную движок
+	# помечает предупреждением INT_AS_ENUM_WITHOUT_CAST.
+	var previous_precipitation: WeatherType.Precipitation = (
+		weather.precipitation if weather != null else WeatherType.Precipitation.NONE
+	)
+	var had_weather: bool = weather != null
 	var previous_intensity: float = _route_particles_intensity
 	weather = next_weather
 	_configure_world()
 	# Частицы пересоздаются только при заметном изменении, не каждый кадр.
-	if previous_precipitation != weather.precipitation or absf(previous_intensity - weather.precipitation_intensity) > 0.02:
+	if not had_weather or previous_precipitation != weather.precipitation or absf(previous_intensity - weather.precipitation_intensity) > 0.02:
 		_setup_precipitation()
 		_route_particles_intensity = weather.precipitation_intensity
 	if _road_material != null:

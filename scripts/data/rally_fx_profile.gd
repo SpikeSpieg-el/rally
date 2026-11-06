@@ -145,13 +145,18 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var foam_height: float = 0.09
 ## Сколько живёт клуб и насколько он вырастает за жизнь.
 @export_range(0.2, 6.0, 0.05) var foam_lifetime: float = 1.35
-@export_range(1.0, 6.0, 0.05) var foam_growth: float = 3.1
+@export_range(1.0, 6.0, 0.05) var foam_growth: float = 2.4
 ## Радиус пятна рождения клубов как доля размера клуба (1 — по всему клубу).
 @export_range(0.05, 2.0, 0.01) var foam_emission_radius: float = 0.55
 ## Размер клуба (радиус базовой меш-плоскости), м.
-@export_range(0.02, 2.0, 0.005) var foam_size: float = 0.2
+## Размер клуба: сторона квада = foam_size × 2, и на пике жизни клуб ещё
+## растёт в foam_scale_max × particle_scale × foam_growth раз. Держите итог
+## около 1–1.8 м: клуб крупнее машины рождается под аркой и читается как
+## «пыль сквозь кузов», потому что камера видит его центр ближе к себе, чем
+## боковину. Проверяется в tools/check_project.py::check_puff_size.
+@export_range(0.02, 2.0, 0.005) var foam_size: float = 0.165
 @export_range(0.1, 4.0, 0.05) var foam_scale_min: float = 0.55
-@export_range(0.1, 4.0, 0.05) var foam_scale_max: float = 1.5
+@export_range(0.1, 4.0, 0.05) var foam_scale_max: float = 1.35
 ## Куда и с какой силой летят клубы (направление в будущее движения дороги).
 @export var foam_direction: Vector3 = Vector3(0.0, 0.55, 0.6)
 @export_range(0.0, 90.0, 1.0) var foam_spread: float = 42.0
@@ -212,6 +217,12 @@ extends Resource
 @export_range(0.0, 3.0, 0.05) var wind_pull: float = 0.55
 ## Пыль разлетается в стороны от колеса (0 — строго по ходу, больше — шире).
 @export_range(0.0, 2.0, 0.01) var side_splay: float = 0.35
+## Насколько источник вынесен наружу от кузова, м. Точка контакта шины лежит
+## под аркой, и клуб рождался бы внутри железа — его видно «сквозь» кузов.
+## 0 — источник ровно в точке контакта, 1.25 — облако выходит из-под крыла.
+@export_range(0.0, 3.0, 0.05) var spawn_outward: float = 1.25
+## Насколько источник сдвинут назад по ходу движения, м: пыль летит за машину.
+@export_range(0.0, 3.0, 0.05) var spawn_behind: float = 0.55
 ## Насколько выброс усиливается на повороте руля.
 @export_range(0.0, 3.0, 0.05) var steer_boost: float = 0.8
 ## Вклад ручника: машина боком — самый зрелищный шлейф.

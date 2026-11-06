@@ -520,10 +520,10 @@ func apply_track_grip(grip_scale: float, rolling_scale: float, offroad_grip: flo
 
 
 ## Единый запрос контакта: накат/колея + существующие локальные скользкие зоны.
-func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float, speed: float, delta: float) -> Dictionary:
+func surface_contact(point: Vector3, grass: bool, load_ratio: float, slip: float, speed_mps: float, delta: float) -> Dictionary:
 	var stage := get_parent()
 	if stage != null and stage.has_method("surface_contact"):
-		return stage.call("surface_contact", point, grass, load_ratio, slip, speed, delta)
+		return stage.call("surface_contact", point, grass, load_ratio, slip, speed_mps, delta)
 	return {"grip": 1.0, "rolling": 1.0, "depth": 0.0}
 
 

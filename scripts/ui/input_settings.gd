@@ -160,6 +160,8 @@ func _new_scroll(title: String) -> VBoxContainer:
 	scroll.add_child(margin)
 	var content := VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Половина вертикального отступа: деление целое намеренно (пиксели).
+	@warning_ignore("integer_division")
 	content.add_theme_constant_override("separation", maxi(1, t.overlay_margin_vertical / 2))
 	margin.add_child(content)
 	return content

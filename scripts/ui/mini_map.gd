@@ -67,8 +67,8 @@ func set_route(new_route: PackedVector2Array, new_checkpoints: PackedVector2Arra
 	queue_redraw()
 
 
-func set_car(position: Vector2, heading: float) -> void:
-	car_position = position
+func set_car(car_pos: Vector2, heading: float) -> void:
+	car_position = car_pos
 	car_heading = heading
 	has_car = true
 	queue_redraw()

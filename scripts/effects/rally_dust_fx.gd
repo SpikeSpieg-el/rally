@@ -102,6 +102,11 @@ static func puff_material(texture: Texture2D, unshaded: bool = true) -> Standard
 	material.albedo_texture = texture
 	material.albedo_color = Color.WHITE
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Глубину клуб не пишет осознанно: у билборда одна глубина на весь квад, и
+	# запись превратила бы соседние клубы в жёсткие вырезанные диски. Глубинный
+	# ТЕСТ при этом включён, поэтому клуб всё равно прячется за тем, что уже
+	# нарисовано до него. Просвечивание сквозь кузов лечится не здесь, а
+	# размером клуба и выносом источника (spawn_outward/spawn_behind в профиле).
 	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	material.disable_receive_shadows = true
 	material.roughness = 1.0

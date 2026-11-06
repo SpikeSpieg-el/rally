@@ -63,12 +63,12 @@ func _apply_profile() -> void:
 	_chunk_count = maxi(1, fx.chunk_count)
 
 
-func _p(name: String, fallback: float) -> float:
-	return float(fx.get(name)) if fx != null else fallback
+func _p(field: String, fallback: float) -> float:
+	return float(fx.get(field)) if fx != null else fallback
 
 
-func _pc(name: String, fallback: Color) -> Color:
-	return fx.get(name) as Color if fx != null else fallback
+func _pc(field: String, fallback: Color) -> Color:
+	return fx.get(field) as Color if fx != null else fallback
 
 
 func break_trails() -> void:
