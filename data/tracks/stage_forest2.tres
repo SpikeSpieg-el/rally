@@ -4,6 +4,30 @@
 [ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_5pxf1"]
 [ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="3_lxkbn"]
 
+[sub_resource type="Resource" id="Resource_5pxf1"]
+script = ExtResource("2_5pxf1")
+start_distance = 40.0
+title = "Участок 2"
+half_width = 3.6583304
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
+[sub_resource type="Resource" id="Resource_lxkbn"]
+script = ExtResource("2_5pxf1")
+start_distance = 3640.0
+title = "Участок 3"
+half_width = 5.3990693
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
+[sub_resource type="Resource" id="Resource_kgtpe"]
+script = ExtResource("2_5pxf1")
+start_distance = 3720.0
+title = "Участок 1"
+half_width = 2.5
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
 [resource]
 script = ExtResource("3_lxkbn")
 id = "forest_stage"
@@ -14,16 +38,17 @@ road_curve = ExtResource("1_kgtpe")
 road_half_width = 5.0
 road_shoulder = 2.0
 road_camber = 0.08
+route_sections = Array[ExtResource("2_5pxf1")]([SubResource("Resource_5pxf1"), SubResource("Resource_lxkbn"), SubResource("Resource_kgtpe")])
 terrain_margin = 130.0
 terrain_cell = 3.25
 terrain_seed = 4858
-hills_height = 16.0
+hills_height = 46.5
 hills_frequency = 0.0042
 ridge_height = 12.0
 ridge_frequency = 0.0019
 max_terrain_slope_deg = 32.0
 road_ditch_depth = 0.3
-detail_height = 0.3
+detail_height = 1.06
 embankment_slope_deg = 22.0
 embankment_min_width = 5.0
 embankment_max_width = 40.0

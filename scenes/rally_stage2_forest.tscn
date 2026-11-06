@@ -1,4 +1,4 @@
-[gd_scene format=4 uid="uid://cgx3vs41racug"]
+[gd_scene format=3 uid="uid://cgx3vs41racug"]
 
 [ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_4lm8b"]
 [ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_anrkf"]
@@ -78,7 +78,7 @@ shader_parameter/gravel_texture_smooth = ExtResource("8_131bs")
 shader_parameter/ps1_textures = true
 shader_parameter/vertex_snap = 0.15
 shader_parameter/resolution_y = 270.0
-shader_parameter/section_surfaces = false
+shader_parameter/section_surfaces = true
 shader_parameter/loose_relief = 1.0
 shader_parameter/detail_strength = 0.16
 shader_parameter/track_strength = 0.12
@@ -86,7 +86,7 @@ shader_parameter/road_roughness = 0.92
 shader_parameter/wetness = 0.0
 shader_parameter/snow_cover = 0.0
 shader_parameter/zone_offset = 1.5
-shader_parameter/stage_length = 3667.4187
+shader_parameter/stage_length = 3755.0098
 shader_parameter/zone_period = 240.0
 shader_parameter/zone_start = 150.0
 shader_parameter/zone_end_margin = 40.0
@@ -119,7 +119,6 @@ shader_parameter/puddle_mix = 0.8
 
 [sub_resource type="Resource" id="Resource_sodgx"]
 script = ExtResource("9_s8cey")
-preview_in_editor = true
 show_debug_info = true
 retro_color_bits_override = 5
 ground_material = SubResource("ShaderMaterial_anrkf")
@@ -127,7 +126,7 @@ road_material = SubResource("ShaderMaterial_la1kg")
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_irfyo"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_f54rb"]
 resource_local_to_scene = true
 shader = ExtResource("20_73q23")
 shader_parameter/retro_strength = 1.0
@@ -172,12 +171,6 @@ directional_shadow_max_distance = 120.0
 [node name="Terrain" type="StaticBody3D" parent="." unique_id=1380247706]
 physics_material_override = SubResource("PhysicsMaterial_gxar1")
 
-[node name="TerrainMesh" type="MeshInstance3D" parent="Terrain" unique_id=451298522]
-material_override = SubResource("ShaderMaterial_anrkf")
-
-[node name="TerrainCollider" type="CollisionShape3D" parent="Terrain" unique_id=1777040949]
-debug_color = Color(0, 0.6, 0.69803923, 0.019607844)
-
 [node name="Generated" type="Node3D" parent="." unique_id=1137851449]
 
 [node name="Route" type="Path3D" parent="." unique_id=1159324951]
@@ -194,7 +187,7 @@ setup_override = ExtResource("18_qjsix")
 
 [node name="SpeedShaderRect" parent="HUD" unique_id=1844040114 instance=ExtResource("19_i7eha")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_irfyo")
+material = SubResource("ShaderMaterial_f54rb")
 
 [node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("21_7ywov")]
 
@@ -2023,3 +2016,18 @@ transform = Transform3D(0.99937, 0, -0.03548, 0, 1, 0, 0.03548, 0, 0.99937, 556.
 
 [node name="Sign_006" parent="Props" unique_id=486341341 groups=["Props"] instance=ExtResource("26_1vmxe")]
 transform = Transform3D(-0.99937, 0, 0.03548, 0, 1, 0, -0.03548, 0, -0.99937, 556.3787, 14.01304, 243.2994)
+
+[node name="FirTree" type="Node3D" parent="Props" unique_id=114964074 instance=ExtResource("23_y84j3")]
+transform = Transform3D(-0.5503162, 0, -1.4999444, 0, 1.5459166, 0, 1.4999444, 0, -0.5503162, 139.45949, 28.76117, 277.55072)
+
+[node name="@Node3D@27630" type="Node3D" parent="Props" unique_id=1983605949 instance=ExtResource("23_y84j3")]
+transform = Transform3D(0.43134686, 0, 0.72730577, 0, 0.7607532, 0, -0.72730577, 0, 0.43134686, 136.47997, 28.76117, 280.3688)
+
+[node name="@Node3D@27631" type="Node3D" parent="Props" unique_id=1119663592 instance=ExtResource("23_y84j3")]
+transform = Transform3D(0.5042887, 0, 0.67926896, 0, 0.7489944, 0, -0.67926896, 0, 0.5042887, 136.14203, 28.76117, 285.19687)
+
+[node name="@Node3D@27632" type="Node3D" parent="Props" unique_id=243055308 instance=ExtResource("23_y84j3")]
+transform = Transform3D(0.66623074, 0, 0.83108366, 0, 1.1270702, 0, -0.83108366, 0, 0.66623074, 139.05371, 28.76117, 275.26587)
+
+[node name="@Node3D@27633" type="Node3D" parent="Props" unique_id=869197497 instance=ExtResource("23_y84j3")]
+transform = Transform3D(0.1249769, 0, 1.1211843, 0, 1.1011695, 0, -1.1211843, 0, 0.1249769, 134.86737, 28.76117, 280.02267)
