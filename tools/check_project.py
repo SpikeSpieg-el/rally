@@ -15,7 +15,13 @@
      посыпались все сцены пропсов ("Expected 4 arguments for constructor");
   4) профили эффектов — у RallyFxProfile / RallySurfaceFxProfile не бывает
      двух полей с одним именем (дубль — ошибка компиляции, а не «переопределение»),
-     каждый uniform car_dirt.gdshader выставляется кодом и наоборот.
+     каждый uniform car_dirt.gdshader выставляется кодом и наоборот;
+  5) строгий GDScript — `static func` не вызывает нестатические функции (движок
+     падает с «Cannot call non-static function»), а `:=` не выводит тип из
+     тернарника с null или из `.get()` без приведения («Cannot infer the type»);
+  6) повторное объявление локальной переменной в одной области видимости — это
+     parse-ошибка, из-за которой скрипт нельзя даже preload'ить (так один раз
+     «упал» surface_effects.gd, и каскадом посыпались машина и этап).
 
 Запуск:  python3 tools/check_project.py
 Код выхода: 0 — чисто, 1 — есть проблемы.
@@ -287,8 +293,146 @@ def check_fx_profiles():
     return errors
 
 
+def _opens_scope(code: str) -> bool:
+    """Строка открывает блок: if/else/for/match/arm-метка/лямбда — всё это `:`."""
+    stripped = code.strip()
+    return stripped.endswith(":")
+
+
+def _duplicate_locals(rel, lines):
+    """Повтор `var имя` в одной области видимости.
+
+    В соседних ветках if/for одно и то же имя объявлять можно — движок это
+    разрешает. Ошибка только внутри одного блока (так один раз «упал»
+    surface_effects.gd: дубль `var spin`, и каскадом посыпались машина и этап).
+    """
+    problems = []
+    head_re = re.compile(r"^(\t*)(?:static )?func (\w+)\(")
+    index = 0
+    while index < len(lines):
+        head = head_re.match(lines[index])
+        if not head:
+            index += 1
+            continue
+        func_indent = len(head.group(1))
+        fname = head.group(2)
+        # Тело кончается на первой непустой строке без отступа тела:
+        # следующая функция, класс, поле или директива.
+        body_end = index + 1
+        while body_end < len(lines):
+            probe = lines[body_end]
+            stripped = probe.strip()
+            if stripped and not stripped.startswith("#"):
+                indent = len(probe) - len(probe.lstrip("\t"))
+                if indent <= func_indent:
+                    break
+            body_end += 1
+        stack = [(0, {})]  # (отступ блока, {имя: строка объявления})
+        for lineno in range(index + 1, body_end):
+            code = lines[lineno].split("#", 1)[0].rstrip()
+            if not code.strip() or code.lstrip().startswith("@"):
+                continue
+            indent = len(code) - len(code.lstrip("\t"))
+            while len(stack) > 1 and indent <= stack[-1][0]:
+                stack.pop()
+            if _opens_scope(code):
+                stack.append((indent, {}))
+            scope = stack[-1][1]
+            for hit in re.finditer(r"\bvar (\w+)", code):
+                name = hit.group(1)
+                earlier = None
+                for _, block in reversed(stack):
+                    if name in block:
+                        earlier = block[name]
+                        break
+                if earlier is not None:
+                    problems.append(
+                        "%s:%d: в %s() переменная '%s' уже объявлена в строке %d"
+                        % (rel, lineno + 1, fname, name, earlier)
+                    )
+                else:
+                    scope[name] = lineno + 1
+        index = body_end
+    return problems
+
+
+def check_gdscript_strict():
+    """Две ошибки, которые gdparse пропускает, а движок — нет."""
+    errors = []
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in (".git", ".godot", "__pycache__")]
+        for name in files:
+            if not name.endswith(".gd"):
+                continue
+            path = os.path.join(base, name)
+            rel = os.path.relpath(path, ROOT)
+            with open(path, encoding="utf-8") as handle:
+                lines = handle.read().splitlines()
+            errors.extend(_static_calls_nonstatic(rel, lines))
+            errors.extend(_infer_from_variant(rel, lines))
+            errors.extend(_duplicate_locals(rel, lines))
+    return errors
+
+
+def _static_calls_nonstatic(rel, lines):
+    """static func не имеет self: вызов обычного метода — ошибка компиляции."""
+    text = "\n".join(lines)
+    instance_methods = set(re.findall(r"^func (\w+)\(", text, re.M))
+    if not instance_methods:
+        return []
+    errors = []
+    index = 0
+    while index < len(lines):
+        head = re.match(r"static func (\w+)\(", lines[index])
+        if not head:
+            index += 1
+            continue
+        fname = head.group(1)
+        body_end = index + 1
+        while body_end < len(lines) and not re.match(
+            r"^(static )?func ", lines[body_end]
+        ):
+            body_end += 1
+        for lineno in range(index + 1, body_end):
+            code = lines[lineno].split("#", 1)[0]
+            for call in re.findall(r"(?<![\w.\"])([A-Za-z_]\w*)\(", code):
+                if call in instance_methods:
+                    errors.append(
+                        "%s:%d: static %s() зовёт нестатический %s()"
+                        % (rel, lineno + 1, fname, call)
+                    )
+        index = body_end
+    return errors
+
+
+def _infer_from_variant(rel, lines):
+    """`var x := ... if c else null` и `var x := obj.get(k)` не выводят тип."""
+    errors = []
+    for lineno, line in enumerate(lines, 1):
+        code = line.split("#", 1)[0]
+        match = re.match(r"\s*var \w+ := (.+)$", code)
+        if not match:
+            continue
+        rhs = match.group(1).strip()
+        if re.search(r"\belse\s+null\b", rhs):
+            errors.append(
+                "%s:%d: := из тернарника с null — укажите тип явно" % (rel, lineno)
+            )
+        elif re.search(r"\.get\([^()]*\)\s*$", rhs) and " as " not in rhs:
+            errors.append(
+                "%s:%d: := из .get() без приведения — тип не выводится" % (rel, lineno)
+            )
+    return errors
+
+
 def main():
-    errors = check_pulpits() + check_resources() + check_constructors() + check_fx_profiles()
+    errors = (
+        check_pulpits()
+        + check_resources()
+        + check_constructors()
+        + check_fx_profiles()
+        + check_gdscript_strict()
+    )
     if errors:
         for item in errors:
             print(item)

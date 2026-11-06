@@ -68,6 +68,8 @@ func open_with(profile: RallyFxProfile, target_car: Node = null) -> void:
 	car = target_car
 	if fx != null:
 		_load_saved()
+	# Если узел ещё не в дереве, _ready() не успел собрать окно.
+	_build()
 	_kill_fade()
 	_closing = false
 	_rebuild_rows()
@@ -561,7 +563,8 @@ func _set_status(text: String) -> void:
 
 
 ## Экспорты ресурса, которые можно показывать: без внутренних полей и массивов.
-func _is_visible_export(property: Dictionary, _resource: Resource) -> bool:
+## static: вызывается из static exported_names() и из static apply_saved().
+static func _is_visible_export(property: Dictionary, _resource: Resource) -> bool:
 	if int(property.get("usage", 0)) & PROPERTY_USAGE_EDITOR == 0:
 		return false
 	if String(property.get("group", "")) in HIDDEN_GROUPS:
@@ -592,7 +595,7 @@ static func exported_names(resource: Resource) -> Array[String]:
 	return names
 
 
-func _has_property(resource: Resource, field: String) -> bool:
+static func _has_property(resource: Resource, field: String) -> bool:
 	for property in resource.get_property_list():
 		if String(property["name"]) == field:
 			return true
