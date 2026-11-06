@@ -336,7 +336,10 @@ func _draw_sections(studio, points: PackedVector3Array, visible: PackedByteArray
 			var side := Vector3(dir.z, 0.0, -dir.x)
 			var half: float = studio.half_width_at(distance)
 			for which in [-1, 1]:
-				var at := studio.project_point(_camera, point + side * half * float(which))
+				# studio — намеренно нетипизированный параметр (иначе цикл
+				# preload между studio.gd и studio_view.gd), поэтому тип
+				# результата указываем явно: GDScript не выводит его сам.
+				var at: Vector2 = studio.project_point(_camera, point + side * half * float(which))
 				if _inside(at):
 					_overlay.draw_circle(at, 3.5, _st.road_edge_color)
 					_overlay.draw_arc(at, 4.5, 0.0, TAU, 12, _with_alpha(_st.panel_bg, 0.9), 1.2, true)

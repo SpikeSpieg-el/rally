@@ -134,7 +134,7 @@ func _make_row(entry: Dictionary) -> HBoxContainer:
 	return row
 
 
-func _resource():
+func _resource() -> Resource:
 	if _studio == null:
 		return null
 	return _studio.track
