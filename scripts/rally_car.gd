@@ -292,6 +292,16 @@ func f() -> FeelConfigType:
 	return feel
 
 
+## Пересобрать готовые эффекты под текущий профиль: облако пыли за кормой и
+## всё, что делает SurfaceEffects. Нужно, когда профиль подставляет сцена —
+## к этому моменту частицы уже собраны под дефолт самой машины.
+func refresh_fx_profile() -> void:
+	_setup_gravel_particles()
+	if surface_effects != null:
+		surface_effects.fx = fx_config()
+		surface_effects.refresh_profile()
+
+
 ## Профиль эффектов (никогда null).
 func fx_config() -> RallyFxProfile:
 	if fx == null:
@@ -812,12 +822,6 @@ func _update_handbrake_grip(delta: float) -> void:
 		var target_grip: float = surface_grip * lerpf(1.0, 0.55, clampf(handbrake_input, 0.0, 1.0))
 		var response: float = 16.0 if handbrake_input > 0.1 else 7.0
 		wheel.current_cof = lerpf(wheel.current_cof, target_grip, clampf(response * delta, 0.0, 1.0))
-
-
-## Пересобрать заднее облако по текущему профилю — например, после правки
-## ползунков в паузе. Живые частицы не трогаются: меняется только шаблон.
-func refresh_dust_cloud() -> void:
-	_setup_gravel_particles()
 
 
 func _setup_gravel_particles() -> void:
