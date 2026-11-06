@@ -20,6 +20,17 @@ var _st: SettingsType = null
 var _font: Font = null
 var _panel_style: StyleBoxFlat = null
 
+# Кэш проекций: пока камера и трасса не менялись, пересчитывать 1800 выборок
+# на каждую перерисовку (а её просят на каждое движение мыши) бессмысленно.
+var _cache_valid := false
+var _cache_key := 0
+var _cache_count := 0
+var _cache_screen := PackedVector2Array()
+var _cache_left := PackedVector2Array()
+var _cache_right := PackedVector2Array()
+var _cache_visible := PackedByteArray()
+var _cache_depth := PackedFloat32Array()
+
 
 func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType) -> void:
 	_overlay = overlay
@@ -43,30 +54,21 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 		return
 	var count: int = points.size()
 	var dists: PackedFloat32Array = studio.samples.get("distances", PackedFloat32Array())
-	var screen := PackedVector2Array()
-	var left_edge := PackedVector2Array()
-	var right_edge := PackedVector2Array()
-	var visible := PackedByteArray()
-	var depth := PackedFloat32Array()
-	screen.resize(count)
-	left_edge.resize(count)
-	right_edge.resize(count)
-	visible.resize(count)
-	depth.resize(count)
-	var cam_pos: Vector3 = camera.global_position
-	for i in range(count):
-		var behind: bool = camera.is_position_behind(points[i])
-		visible[i] = 0 if behind else 1
-		var distance: float = dists[i] if i < dists.size() else 0.0
-		var dir: Vector3 = Analysis.direction_at(points, i)
-		var side := Vector3(dir.z, 0.0, -dir.x)
-		var half: float = studio.half_width_at(distance)
-		if behind:
-			continue
-		screen[i] = studio.project_point(camera, points[i])
-		left_edge[i] = studio.project_point(camera, points[i] + side * half)
-		right_edge[i] = studio.project_point(camera, points[i] - side * half)
-		depth[i] = cam_pos.distance_to(points[i])
+	var key: int = hash([
+		hash(camera.global_transform), int(camera.fov * 10.0),
+		int(studio.overlay_size.x), int(studio.overlay_size.y),
+		int(studio.route_version), count
+	])
+	if not (_cache_valid and key == _cache_key and _cache_count == count):
+		_project_samples(camera, studio, points, dists)
+		_cache_valid = true
+		_cache_key = key
+		_cache_count = count
+	var screen: PackedVector2Array = _cache_screen
+	var left_edge: PackedVector2Array = _cache_left
+	var right_edge: PackedVector2Array = _cache_right
+	var visible: PackedByteArray = _cache_visible
+	var depth: PackedFloat32Array = _cache_depth
 	if _st.show_ribbon:
 		_draw_ribbon(studio, screen, left_edge, right_edge, visible, depth, dists)
 	_draw_edges(left_edge, right_edge, visible, depth)
@@ -79,7 +81,8 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 		_draw_sections(studio, points, visible)
 	if _st.show_pace_notes:
 		_draw_corners(studio)
-	_draw_zones(studio)
+	var markers: Array = studio.zone_markers()
+	_draw_zones(studio, markers)
 	if _st.show_warnings:
 		_draw_warning_markers(studio)
 	if studio.mode == Modes.Mode.ROUTE:
@@ -92,7 +95,7 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 	if _st.show_cursor:
 		_draw_cursor(studio)
 	if _st.show_profile:
-		_draw_profile(studio)
+		_draw_profile(studio, markers)
 	if _st.show_hud:
 		_draw_hud(studio)
 		_draw_warnings_panel(studio)
@@ -129,11 +132,36 @@ func _tri_area(a: Vector2, b: Vector2, c: Vector2) -> float:
 	return 0.5 * ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
 
 
+## Выпуклый ли четырёхугольник. «Бабочка» (полотно сложилось на шпильке или
+## стрелка повёрнута ребром) — не полигон для триангуляции: Godot печатает
+## «Invalid polygon data» на каждый кадр.
+func _quad_is_convex(a: Vector2, b: Vector2, c: Vector2, d: Vector2) -> bool:
+	# Знаки поворотов на всех четырёх углах должны совпадать.
+	var first: float = (b - a).cross(c - b)
+	if is_zero_approx(first):
+		return false
+	var second: float = (c - b).cross(d - c)
+	if is_zero_approx(second):
+		return false
+	var third: float = (d - c).cross(a - d)
+	if is_zero_approx(third):
+		return false
+	var fourth: float = (a - d).cross(b - a)
+	if is_zero_approx(fourth):
+		return false
+	var positive: bool = first > 0.0
+	if (second > 0.0) != positive or (third > 0.0) != positive or (fourth > 0.0) != positive:
+		return false
+	return true
+
+
 ## Четырёхугольник полотна. Вырожденные (площадь ~0) и вывернутые полигоны
 ## Godot не триангулирует и сыплет «Invalid polygon data, triangulation
 ## failed» на каждый кадр — поэтому фильтруем и выравниваем обход.
 func _draw_quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, color: Color) -> void:
 	if not (_in_picture(a) and _in_picture(b) and _in_picture(c) and _in_picture(d)):
+		return
+	if not _quad_is_convex(a, b, c, d):
 		return
 	var area: float = _tri_area(a, b, c) + _tri_area(a, c, d)
 	if absf(area) < _st.min_polygon_area:
@@ -154,16 +182,6 @@ func _draw_triangle(a: Vector2, b: Vector2, c: Vector2, color: Color) -> void:
 		_overlay.draw_colored_polygon(PackedVector2Array([c, b, a]), color)
 		return
 	_overlay.draw_colored_polygon(PackedVector2Array([a, b, c]), color)
-
-
-func _polygon_area(points: PackedVector2Array) -> float:
-	var total: float = 0.0
-	var count: int = points.size()
-	for i in range(count):
-		var a: Vector2 = points[i]
-		var b: Vector2 = points[(i + 1) % count]
-		total += a.x * b.y - b.x * a.y
-	return absf(total) * 0.5
 
 
 func _fade(value: float) -> float:
@@ -454,8 +472,8 @@ func _draw_warning_markers(studio) -> void:
 
 # ------------------------------------------------------------------ зоны
 
-func _draw_zones(studio) -> void:
-	for marker in studio.zone_markers():
+func _draw_zones(studio, markers: Array) -> void:
+	for marker in markers:
 		var distance := float(marker.get("distance", 0.0))
 		var kind := String(marker.get("kind", ""))
 		var index := int(marker.get("index", 0))
@@ -575,7 +593,10 @@ func _draw_cursor(studio) -> void:
 		box.position.x = studio.mouse_pos.x - box.size.x - 12.0
 	if box.position.y + box.size.y > _overlay.size.y - 6.0:
 		box.position.y = studio.mouse_pos.y - box.size.y - 12.0
-	_panel(box, _st.road_edge_color, _st.panel_bg)
+	# Простая заливка вместо StyleBoxFlat с тенью: подсказка ездит за мышью,
+	# а тень перерисовывается на каждом движении курсора.
+	_overlay.draw_rect(box, _st.panel_bg)
+	_overlay.draw_rect(box, _st.road_edge_color, false, 1.0)
 	_overlay.draw_circle(studio.mouse_pos + Vector2(8.0, 6.0), 2.5, _st.hover_color)
 	var y: float = box.position.y + pad + _small_size()
 	var first := true
@@ -606,7 +627,17 @@ func _local_radius(distance: float) -> float:
 
 # ------------------------------------------------------------------ профиль
 
-func _draw_profile(studio) -> void:
+func _bin_x(inner: Rect2, index: int, count: int) -> float:
+	if count < 2:
+		return inner.position.x
+	return inner.position.x + inner.size.x * (float(index) / float(count - 1))
+
+
+func _bin_y(inner: Rect2, baseline: float, value: float, low: float, span: float) -> float:
+	return baseline - inner.size.y * clampf((value - low) / span, 0.0, 1.0)
+
+
+func _draw_profile(studio, markers: Array) -> void:
 	var area: Vector2 = _overlay.size
 	var height: float = minf(_st.profile_height, area.y * 0.34)
 	var rect := Rect2(
@@ -632,16 +663,27 @@ func _draw_profile(studio) -> void:
 	var span: float = maxf(1.0, high - low)
 	var baseline: float = inner.position.y + inner.size.y
 	var top_y: float = inner.position.y
-	var fill := PackedVector2Array()
-	fill.append(Vector2(inner.position.x, baseline))
-	for i in range(values.size()):
-		var t: float = float(i) / float(values.size() - 1)
-		var x: float = inner.position.x + inner.size.x * t
-		var y: float = baseline - inner.size.y * clampf((values[i] - low) / span, 0.0, 1.0)
-		fill.append(Vector2(x, y))
-	fill.append(Vector2(inner.position.x + inner.size.x, baseline))
-	if _polygon_area(fill) > _st.min_polygon_area:
-		_overlay.draw_colored_polygon(fill, _with_alpha(_st.accent_color, 0.14))
+	# Заливка профиля — столбики-трапеции, а не один полигон на 500 вершин.
+	# Godot триангулирует многоугольник отсечением ушей за O(n²): на 500 точках
+	# это миллионы проверок в каждом кадре (отсюда тормоза), а на ровных
+	# участках профиля появляются коллинеарные вершины, и триангуляция падает
+	# с «Invalid polygon data» на каждую перерисовку. Трапеция всегда выпуклая.
+	var fill_color: Color = _with_alpha(_st.accent_color, 0.14)
+	var columns: int = values.size() - 1
+	var stride: int = maxi(1, int(ceil(float(columns) / float(_st.profile_fill_max_quads))))
+	var column: int = 0
+	while column < columns:
+		var next: int = mini(columns, column + stride)
+		var x0: float = _bin_x(inner, column, values.size())
+		var x1: float = _bin_x(inner, next, values.size())
+		_draw_quad(
+			Vector2(x0, baseline),
+			Vector2(x0, _bin_y(inner, baseline, values[column], low, span)),
+			Vector2(x1, _bin_y(inner, baseline, values[next], low, span)),
+			Vector2(x1, baseline),
+			fill_color
+		)
+		column = next
 	var line := PackedVector2Array()
 	for i in range(values.size()):
 		var t: float = float(i) / float(values.size() - 1)
@@ -686,7 +728,7 @@ func _draw_profile(studio) -> void:
 		var color: Color = _severity_color(int(corner.get("severity", 4)))
 		_overlay.draw_line(Vector2(x, baseline - 8.0), Vector2(x, baseline), _with_alpha(color, 0.85), 2.0, true)
 	# зоны
-	for marker in studio.zone_markers():
+	for marker in markers:
 		var distance: float = float(marker.get("distance", 0.0))
 		var x: float = inner.position.x + inner.size.x * clampf(distance / maxf(studio.length, 0.001), 0.0, 1.0)
 		var kind := String(marker.get("kind", ""))
@@ -827,6 +869,37 @@ func _draw_warnings_panel(studio) -> void:
 		y += _small_size() + 7.0
 	if studio.warnings.size() > shown:
 		_text(Vector2(rect.position.x + 20.0, y), "и ещё %d…" % (studio.warnings.size() - shown), _with_alpha(_st.muted_color, 0.8), _small_size() - 1)
+
+
+## Пересчитать экранные координаты выборок: сначала отсечение по фрустуму
+## (дёшево), потом unproject_position (дорого). Раньше проецировались все
+## выборки трассы, включая те, что за спиной камеры.
+func _project_samples(camera: Camera3D, studio, points: PackedVector3Array,
+		dists: PackedFloat32Array) -> void:
+	var count: int = points.size()
+	_cache_screen.resize(count)
+	_cache_left.resize(count)
+	_cache_right.resize(count)
+	_cache_visible.resize(count)
+	_cache_depth.resize(count)
+	var cam_pos: Vector3 = camera.global_position
+	for i in range(count):
+		_cache_visible[i] = 0
+		var point: Vector3 = points[i]
+		if not camera.is_position_in_frustum(point):
+			continue
+		var projected: Vector2 = studio.project_point(camera, point)
+		if not _in_picture(projected):
+			continue
+		var distance: float = dists[i] if i < dists.size() else 0.0
+		var dir: Vector3 = Analysis.direction_at(points, i)
+		var side := Vector3(dir.z, 0.0, -dir.x)
+		var half: float = studio.half_width_at(distance)
+		_cache_screen[i] = projected
+		_cache_left[i] = studio.project_point(camera, point + side * half)
+		_cache_right[i] = studio.project_point(camera, point - side * half)
+		_cache_depth[i] = cam_pos.distance_to(point)
+		_cache_visible[i] = 1
 
 
 func _draw_empty(studio) -> void:

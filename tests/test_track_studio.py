@@ -205,11 +205,61 @@ class TrackStudioTest(unittest.TestCase):
             if "draw_colored_polygon" not in line or line.strip().startswith("#"):
                 continue
             calls += 1
-            window = "\n".join(lines[max(0, number - 6):number + 1])
-            guarded = ("_in_picture" in window or "_polygon_area" in window
-                       or "_draw_quad" in window or "_draw_triangle" in window)
+            window = "\n".join(lines[max(0, number - 12):number + 1])
+            guarded = ("_in_picture" in window or "_draw_quad" in window
+                       or "_draw_triangle" in window or "_quad_is_convex" in window)
             self.assertTrue(guarded, "полигон без проверки: строка %d" % (number + 1))
         self.assertGreater(calls, 0, "разметка должна что-то заливать")
+        # Никаких «одним полигоном на 500 вершин»: у Godot отсечение ушей за
+        # O(n^2), а на ровном профиле он ещё и падает с Invalid polygon data.
+        # Два вызова в _draw_quad и два в _draw_triangle — и ни одного мимо них.
+        self.assertEqual(calls, 4, "заливать можно только через _draw_quad/_draw_triangle")
+
+    def test_quads_are_convex(self):
+        """Четырёхугольник-«бабочка» тоже роняет триангуляцию."""
+        view = read("addons/rally_track_studio/studio_view.gd")
+        self.assertIn("func _quad_is_convex(", view)
+        self.assertIn("_quad_is_convex(a, b, c, d)", view)
+
+    def test_profile_fill_is_trapezoids(self):
+        """Заливка профиля — столбики из _draw_quad, а не один огромный полигон."""
+        view = read("addons/rally_track_studio/studio_view.gd")
+        block = view[view.index("func _draw_profile("):]
+        block = block[:block.index("\nfunc ")]
+        self.assertNotIn("draw_colored_polygon", block)
+        self.assertIn("_draw_quad(", block)
+        self.assertIn("_st.profile_fill_max_quads", block)
+        settings = read("scripts/data/rally_track_studio_settings.gd")
+        self.assertIn("var profile_fill_max_quads", settings)
+
+    def test_projections_are_frustum_culled_and_cached(self):
+        """unproject_position зовём только для того, что в кадре, и кэшируем."""
+        view = read("addons/rally_track_studio/studio_view.gd")
+        self.assertIn("func _project_samples(", view)
+        self.assertIn("is_position_in_frustum", view)
+        self.assertIn("_cache_key", view)
+        studio = read("addons/rally_track_studio/studio.gd")
+        self.assertIn("route_version", studio)
+        hover = studio[studio.index("func _nearest_sample_screen("):]
+        hover = hover[:hover.index("\nfunc ")]
+        self.assertIn("is_position_in_frustum", hover,
+                      "поиск подсказки перебирает всю трассу — без отсечения лагает")
+        self.assertIn("func _nearest_sample_screen(camera: Camera3D, screen_pos: Vector2, limit_px: float) -> int",
+                      studio)
+
+    def test_hover_redraw_is_gated(self):
+        """Перерисовку просим только когда подсказка правда изменилась."""
+        studio = read("addons/rally_track_studio/studio.gd")
+        self.assertIn("func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool", studio)
+        self.assertIn("if _update_hover(camera, motion.position):", studio)
+
+    def test_cursor_hint_is_off_by_default(self):
+        """Подсказка ездит за мышью и тормозит редактор — по умолчанию выключена."""
+        settings = read("scripts/data/rally_track_studio_settings.gd")
+        self.assertIn("var show_cursor: bool = false", settings)
+        self.assertIn("var show_ghost_point: bool = false", settings)
+        resource = read("data/editor/track_studio.tres")
+        self.assertNotIn("show_cursor", resource, "в .tres не должно быть переопределения")
 
     def test_forest_scene_has_no_baked_geometry(self):
         """Запечённая земля в .tscn — это десятки мегабайт и медленное сохранение."""
