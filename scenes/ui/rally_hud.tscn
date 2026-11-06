@@ -615,16 +615,6 @@ theme_override_styles/hover = SubResource("SB_button_hover")
 theme_override_styles/focus = SubResource("SB_button_focus")
 text = "НАСТРОИТЬ УПРАВЛЕНИЕ"
 
-[node name="WheelFxButton" type="Button" parent="PausePanel/Box" unique_id=1332987654]
-custom_minimum_size = Vector2(260, 42)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("SB_button")
-theme_override_styles/pressed = SubResource("SB_button_pressed")
-theme_override_styles/hover = SubResource("SB_button_hover")
-theme_override_styles/focus = SubResource("SB_button_focus")
-text = "КОЛЁСА, ПЫЛЬ И ГРЯЗЬ"
-
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2

@@ -233,7 +233,6 @@ def check_constructors():
 FX_CONSUMERS = [
     "scripts/surface_effects.gd",
     "scripts/rally_car.gd",
-    "scripts/ui/wheel_fx_settings.gd",
 ]
 FX_PROFILES = [
     "scripts/data/rally_fx_profile.gd",
