@@ -193,6 +193,37 @@ class TrackStudioTest(unittest.TestCase):
             risks = untyped_inference_risks(read(rel))
             self.assertEqual(risks, [], "%s: выведите тип явно: %s" % (rel, risks))
 
+    def test_all_polygons_are_guarded(self):
+        """Каждый draw_colored_polygon должен быть защищён от вырожденных данных.
+
+        Иначе Godot сыплет «Invalid polygon data, triangulation failed» на
+        каждый кадр — это и был лог на 2740 строк и просадка редактора.
+        """
+        lines = read("addons/rally_track_studio/studio_view.gd").split("\n")
+        calls = 0
+        for number, line in enumerate(lines):
+            if "draw_colored_polygon" not in line or line.strip().startswith("#"):
+                continue
+            calls += 1
+            window = "\n".join(lines[max(0, number - 6):number + 1])
+            guarded = ("_in_picture" in window or "_polygon_area" in window
+                       or "_draw_quad" in window or "_draw_triangle" in window)
+            self.assertTrue(guarded, "полигон без проверки: строка %d" % (number + 1))
+        self.assertGreater(calls, 0, "разметка должна что-то заливать")
+
+    def test_forest_scene_has_no_baked_geometry(self):
+        """Запечённая земля в .tscn — это десятки мегабайт и медленное сохранение."""
+        rel = "scenes/rally_stage2_forest.tscn"
+        scene = read(rel)
+        self.assertNotIn('[sub_resource type="ArrayMesh"', scene)
+        self.assertNotIn('[sub_resource type="ConcavePolygonShape3D"', scene)
+        size = os.path.getsize(os.path.join(ROOT, rel))
+        self.assertLess(size, 1_000_000, "сцена ЛЕС2 весит %d байт" % size)
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("func _ensure_terrain_parts", stage)
+        self.assertIn("terrain_mesh.owner = null", stage)
+        self.assertIn("terrain_collider.owner = null", stage)
+
     def test_undo_methods_are_public_and_idempotent_names(self):
         source = read("addons/rally_track_studio/studio.gd")
         for name in ("apply_curve_state", "apply_sections", "apply_section_state",

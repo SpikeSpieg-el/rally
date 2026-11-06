@@ -113,6 +113,59 @@ func _inside(screen: Vector2) -> bool:
 		and screen.x < _overlay.size.x + 200.0 and screen.y < _overlay.size.y + 200.0
 
 
+## Точка пригодна для отрисовки: конечные числа и не «улетела» за экран.
+##
+## Проекция точки рядом с камерой даёт координаты в тысячи пикселей, и
+## draw_colored_polygon() рисует из них гигантские клинья — это и были
+## артефакты, заливавшие пол-вьюпорта.
+func _in_picture(point: Vector2) -> bool:
+	if not is_finite(point.x) or not is_finite(point.y):
+		return false
+	var limit: Vector2 = _overlay.size * 3.0 + Vector2(400.0, 400.0)
+	return absf(point.x) <= limit.x and absf(point.y) <= limit.y
+
+
+func _tri_area(a: Vector2, b: Vector2, c: Vector2) -> float:
+	return 0.5 * ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
+
+
+## Четырёхугольник полотна. Вырожденные (площадь ~0) и вывернутые полигоны
+## Godot не триангулирует и сыплет «Invalid polygon data, triangulation
+## failed» на каждый кадр — поэтому фильтруем и выравниваем обход.
+func _draw_quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, color: Color) -> void:
+	if not (_in_picture(a) and _in_picture(b) and _in_picture(c) and _in_picture(d)):
+		return
+	var area: float = _tri_area(a, b, c) + _tri_area(a, c, d)
+	if absf(area) < _st.min_polygon_area:
+		return
+	if area < 0.0:
+		_overlay.draw_colored_polygon(PackedVector2Array([d, c, b, a]), color)
+		return
+	_overlay.draw_colored_polygon(PackedVector2Array([a, b, c, d]), color)
+
+
+func _draw_triangle(a: Vector2, b: Vector2, c: Vector2, color: Color) -> void:
+	if not (_in_picture(a) and _in_picture(b) and _in_picture(c)):
+		return
+	var area: float = _tri_area(a, b, c)
+	if absf(area) < _st.min_polygon_area:
+		return
+	if area < 0.0:
+		_overlay.draw_colored_polygon(PackedVector2Array([c, b, a]), color)
+		return
+	_overlay.draw_colored_polygon(PackedVector2Array([a, b, c]), color)
+
+
+func _polygon_area(points: PackedVector2Array) -> float:
+	var total: float = 0.0
+	var count: int = points.size()
+	for i in range(count):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[(i + 1) % count]
+		total += a.x * b.y - b.x * a.y
+	return absf(total) * 0.5
+
+
 func _fade(value: float) -> float:
 	return clampf(1.0 - value / maxf(50.0, _st.fade_distance), _st.far_alpha_floor, 1.0)
 
@@ -197,17 +250,19 @@ func _severity_color(severity: int) -> Color:
 func _draw_ribbon(studio, screen: PackedVector2Array, left_edge: PackedVector2Array,
 		right_edge: PackedVector2Array, visible: PackedByteArray, depth: PackedFloat32Array,
 		dists: PackedFloat32Array) -> void:
-	for i in range(screen.size() - 1):
-		if visible[i] == 0 or visible[i + 1] == 0:
-			continue
-		var alpha: float = _st.ribbon_alpha * _fade(depth[i])
-		if alpha <= 0.01:
-			continue
-		var color: Color = studio.surface_color(dists[i]) if i < dists.size() else _st.road_edge_color
-		var quad := PackedVector2Array([
-			left_edge[i], right_edge[i], right_edge[i + 1], left_edge[i + 1],
-		])
-		_overlay.draw_colored_polygon(quad, _with_alpha(color, alpha))
+	# Шаг по выборке: на длинной трассе 2-метровые полоски на экране уже
+	# неразличимы, а каждая — отдельный вызов триангуляции. 700 квадов хватает.
+	var count: int = screen.size()
+	var stride: int = maxi(1, int(ceil(float(count) / 700.0)))
+	var i: int = 0
+	while i + stride < count:
+		var j: int = i + stride
+		if visible[i] != 0 and visible[j] != 0:
+			var alpha: float = _st.ribbon_alpha * _fade(depth[i])
+			if alpha > 0.01:
+				var color: Color = studio.surface_color(dists[i]) if i < dists.size() else _st.road_edge_color
+				_draw_quad(left_edge[i], right_edge[i], right_edge[j], left_edge[j], _with_alpha(color, alpha))
+		i = j
 
 
 func _draw_edges(left_edge: PackedVector2Array, right_edge: PackedVector2Array,
@@ -244,6 +299,8 @@ func _draw_dashes(screen: PackedVector2Array, visible: PackedByteArray,
 		var distance: float = dists[i] if i < dists.size() else 0.0
 		if fposmod(distance, period) > dash:
 			continue
+		if not (_in_picture(screen[i]) and _in_picture(screen[i + 1])):
+			continue
 		var alpha: float = _fade(depth[i]) * 0.9
 		if alpha <= 0.05:
 			continue
@@ -265,7 +322,7 @@ func _draw_direction(points: PackedVector3Array, visible: PackedByteArray, dists
 			var right: Vector2 = _studio.project_point(_camera, point - side * 1.7)
 			if _inside(tip) and _inside(back):
 				var color := _with_alpha(_st.road_edge_color, 0.55 * _fade(_camera.global_position.distance_to(point)))
-				_overlay.draw_colored_polygon(PackedVector2Array([tip, left, back, right]), color)
+				_draw_quad(tip, left, back, right, color)
 		distance += step
 
 
@@ -318,6 +375,8 @@ func _draw_sections(studio, points: PackedVector3Array, visible: PackedByteArray
 		var half: float = studio.half_width_at(distance) + 2.0
 		var a: Vector2 = studio.project_point(_camera, point + side * half)
 		var b: Vector2 = studio.project_point(_camera, point - side * half)
+		if not (_in_picture(a) and _in_picture(b)):
+			continue
 		var raw_color = section.get("road_color")
 		var tint: Color = _st.road_edge_color
 		if raw_color is Color:
@@ -383,9 +442,12 @@ func _draw_warning_markers(studio) -> void:
 			continue
 		var color: Color = _st.danger_color if int(warning.get("severity", 1)) >= 2 else _st.warning_color
 		var icon: float = _st.warning_icon_radius
-		_overlay.draw_colored_polygon(PackedVector2Array([
-			at + Vector2(0.0, -icon), at + Vector2(icon * 0.86, icon * 0.72), at + Vector2(-icon * 0.86, icon * 0.72),
-		]), _with_alpha(color, 0.92))
+		_draw_triangle(
+			at + Vector2(0.0, -icon),
+			at + Vector2(icon * 0.86, icon * 0.72),
+			at + Vector2(-icon * 0.86, icon * 0.72),
+			_with_alpha(color, 0.92)
+		)
 		_overlay.draw_line(at + Vector2(0.0, -2.0), at + Vector2(0.0, 1.5), _st.panel_bg, 1.4, false)
 		_overlay.draw_circle(at + Vector2(0.0, 3.2), 0.8, _st.panel_bg)
 
@@ -560,7 +622,7 @@ func _draw_profile(studio) -> void:
 	var inner := Rect2(rect.position + Vector2(12.0, 12.0), rect.size - Vector2(24.0, 34.0))
 	if inner.size.x < 20.0 or inner.size.y < 10.0:
 		return
-	var bins: int = clampi(int(inner.size.x / 3.0), 32, 1200)
+	var bins: int = clampi(int(inner.size.x / 4.0), 32, 512)
 	var data: Dictionary = Analysis.profile(studio.samples, bins)
 	var values: PackedFloat32Array = data.get("values", PackedFloat32Array())
 	if values.size() < 2:
@@ -578,7 +640,8 @@ func _draw_profile(studio) -> void:
 		var y: float = baseline - inner.size.y * clampf((values[i] - low) / span, 0.0, 1.0)
 		fill.append(Vector2(x, y))
 	fill.append(Vector2(inner.position.x + inner.size.x, baseline))
-	_overlay.draw_colored_polygon(fill, _with_alpha(_st.accent_color, 0.14))
+	if _polygon_area(fill) > _st.min_polygon_area:
+		_overlay.draw_colored_polygon(fill, _with_alpha(_st.accent_color, 0.14))
 	var line := PackedVector2Array()
 	for i in range(values.size()):
 		var t: float = float(i) / float(values.size() - 1)
@@ -632,9 +695,12 @@ func _draw_profile(studio) -> void:
 			color = _st.start_color
 		elif kind == "finish":
 			color = _st.finish_color
-		_overlay.draw_colored_polygon(PackedVector2Array([
-			Vector2(x, top_y + 4.0), Vector2(x + 4.0, top_y - 3.0), Vector2(x - 4.0, top_y - 3.0),
-		]), color)
+		_draw_triangle(
+			Vector2(x, top_y + 4.0),
+			Vector2(x + 4.0, top_y - 3.0),
+			Vector2(x - 4.0, top_y - 3.0),
+			color
+		)
 		_overlay.draw_line(Vector2(x, top_y + 4.0), Vector2(x, baseline), _with_alpha(color, 0.35), 1.0, false)
 	# курсор
 	var cursor_distance: float = studio.hover_distance if studio.hover_valid else studio.selected_distance

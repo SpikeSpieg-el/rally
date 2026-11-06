@@ -150,6 +150,9 @@ extends Resource
 @export_range(8, 26, 1) var small_font_size: int = 11
 ## Толщина линий разметки, px.
 @export_range(1.0, 6.0, 0.5) var line_width: float = 1.6
+## Минимальная площадь полигона разметки, px². Мельче — не рисуем: такие
+## полигоны Godot не может триангулировать и печатает ошибки на каждый кадр.
+@export_range(0.0, 8.0, 0.1) var min_polygon_area: float = 0.6
 ## Толщина кромки полотна, px.
 @export_range(1.0, 6.0, 0.5) var edge_width: float = 2.2
 ## Радиус точки маршрута, px.

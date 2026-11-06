@@ -106,8 +106,10 @@ const DEFAULT_PROP_LIBRARY_PATH := "res://data/stage/default_prop_library.tres"
 @onready var world_environment: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 @onready var sun_light: DirectionalLight3D = get_node_or_null("SunLight") as DirectionalLight3D
 @onready var terrain: StaticBody3D = get_node_or_null("Terrain") as StaticBody3D
-@onready var terrain_mesh: MeshInstance3D = get_node_or_null("Terrain/TerrainMesh") as MeshInstance3D
-@onready var terrain_collider: CollisionShape3D = get_node_or_null("Terrain/TerrainCollider") as CollisionShape3D
+## Меш и коллизия земли создаются в рантайме (см. _ensure_terrain_parts):
+## иначе редактор вшивает запечённый меш в .tscn при каждом сохранении.
+var terrain_mesh: MeshInstance3D = null
+var terrain_collider: CollisionShape3D = null
 @onready var generated: Node3D = get_node_or_null("Generated") as Node3D
 @onready var hud: CanvasLayer = get_node_or_null("HUD") as CanvasLayer
 
@@ -1044,7 +1046,38 @@ func normal_at(x: float, z: float, eps: float = 1.0) -> Vector3:
 # ---------------------------------------------------------------- рельеф
 
 
+## Узлы меша и коллизии земли. Создаются кодом и намеренно НЕ принадлежат
+## сцене (`owner == null`): запечённый меш земли — это мегабайты base64 в
+## .tscn, из-за которых сцена ЛЕС2 распухала до десятков мегабайт и медленно
+## сохранялась. Геометрия всё равно пересобирается на каждом запуске.
+func _ensure_terrain_parts() -> void:
+	if terrain == null or not is_instance_valid(terrain):
+		terrain = get_node_or_null("Terrain") as StaticBody3D
+	if terrain == null:
+		return
+	if terrain_mesh == null or not is_instance_valid(terrain_mesh):
+		terrain_mesh = terrain.get_node_or_null("TerrainMesh") as MeshInstance3D
+		if terrain_mesh == null:
+			var created_mesh := MeshInstance3D.new()
+			created_mesh.name = "TerrainMesh"
+			terrain.add_child(created_mesh)
+			terrain_mesh = created_mesh
+	if terrain_collider == null or not is_instance_valid(terrain_collider):
+		terrain_collider = terrain.get_node_or_null("TerrainCollider") as CollisionShape3D
+		if terrain_collider == null:
+			var created_collider := CollisionShape3D.new()
+			created_collider.name = "TerrainCollider"
+			created_collider.debug_color = Color(0.0, 0.6, 0.698, 0.02)
+			terrain.add_child(created_collider)
+			terrain_collider = created_collider
+	if terrain_mesh.owner != null:
+		terrain_mesh.owner = null
+	if terrain_collider.owner != null:
+		terrain_collider.owner = null
+
+
 func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0) -> void:
+	_ensure_terrain_parts()
 	if terrain == null or terrain_mesh == null or terrain_collider == null:
 		push_warning("RallyStage: узлы Terrain не найдены.")
 		return
