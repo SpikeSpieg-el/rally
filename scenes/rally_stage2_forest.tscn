@@ -119,7 +119,7 @@ shader_parameter/puddle_mix = 0.8
 
 [sub_resource type="Resource" id="Resource_sodgx"]
 script = ExtResource("9_s8cey")
-preview_in_editor = false
+preview_in_editor = true
 show_debug_info = true
 retro_color_bits_override = 5
 ground_material = SubResource("ShaderMaterial_anrkf")
