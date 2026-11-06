@@ -79,6 +79,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallyPrecipitationEffect` | `scenes/effects/rain.tscn`, `snow.tscn` | дождь и снег как отдельные GPUParticles3D |
 | `RallySurfaceLooks` | `scenes/effects/surface_looks.tscn` | материалы земли и дороги в сцене |
 | `RallyVisualEffects` | `scenes/effects/visual_effects.tscn` | контейнер визуальных эффектов и область осадков |
+| `RallyTrackStudioSettings` | `data/editor/track_studio.tres` | оформление и пороги редакторской «Студии трассы»: цвета разметки, кегли, шаги насечек, подписи поворотов, предупреждения, радиусы захвата мышью, тексты подсказок. Геймплейных полей здесь нет |
 | `RallyDustFx` (помощник, не ресурс) | `scripts/effects/rally_dust_fx.gd` | общие заготовки частиц: процедурное облачко, кривые жизни/роста, материал; кэш один на процесс |
 
 Дополнительно: погодное окружение — `data/tracks/night_environment.tres`
@@ -184,6 +185,57 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 6. Текстуры пропсов лежат в `textures/environment/` и генерируются
    `tools/make_prop_textures.py`; сцены — `tools/make_prop_scenes.py`.
 
+## 4б. Редакторские инструменты — плагины, а не меню
+
+Правка карты не должна требовать запуска игры. Поэтому инструменты живут в
+`addons/` и работают в 3D-вьюпорте редактора:
+
+| Файл | Роль |
+| --- | --- |
+| `addons/rally_track_studio/plugin.cfg` + `plugin.gd` | `EditorPlugin`: панель инструментов, док, ввод из вьюпорта, `Ctrl+R`, сохранение |
+| `addons/rally_track_studio/studio.gd` | состояние и правки: выбор, драг, undo, сохранение `.tres`, пересборка |
+| `addons/rally_track_studio/studio_view.gd` | вся отрисовка разметки поверх вьюпорта (2D-слой, не 3D-меши) |
+| `addons/rally_track_studio/dock.gd` | док «Мир трассы»: ползунки рельефа, насыпи, сцепления, тумана и экспозиции |
+| `addons/rally_track_studio/studio_modes.gd` | номера режимов (трасса, полотно, лес, зоны) |
+| `scripts/track/route_analysis.gd` | математика разметки: выборка, кривизна, повороты, предупреждения, профиль |
+
+Правила для инструментов редактора те же, что и для игры:
+
+1. **Никаких чисел в коде.** Всё оформление и пороги — поля
+   `RallyTrackStudioSettings`, файл `data/editor/track_studio.tres`.
+2. **Инструмент не хранит данные.** Он правит те же ресурсы, которые читает
+   `RallyStage` (`RallyTrackConfig.road_curve`, `route_sections`,
+   `RallySpawnLayout`, `RallyPropLibrary`) и узлы сцены (`Props`). Дублировать
+   состояние в плагине нельзя: иначе редактор и игра разойдутся.
+3. **Каждая правка — `EditorUndoRedoManager`.** Одно движение мыши = одна
+   запись `Ctrl+Z`; методы `apply_curve_state`, `apply_sections`,
+   `apply_section_state`, `apply_spawn_state`, `_attach_node`, `_detach_node`
+   вызываются и кодом, и историей, поэтому обязаны быть идемпотентными.
+4. **Тяжёлое — по требованию.** Пересборка мира (`rebuild_preview`) не
+   запускается на каждое движение мыши: мгновенную картинку рисует 2D-слой.
+   Сборка идёт по `Ctrl+R` или по таймеру `auto_rebuild`.
+5. **Сохранение — часть правки.** Правленые `.tres` пишутся на диск сразу
+   (`save_resources_on_commit`), иначе получается «сохранил сцену — а в игре
+   старая дорога».
+6. **Только редактор.** Плагин `@tool`, в игре он ничего не делает; игровые
+   параметры он не читает и не меняет.
+
+Новый параметр редактора: поле с `##`-комментарием в
+`RallyTrackStudioSettings` → использовать в `studio_view.gd`/`studio.gd` →
+по желанию вынести в `.tres`. Новый параметр мира, который нужно крутить
+ползунком: строка в `ROWS` дока `dock.gd` (диапазоны повторяют
+`@export_range` ресурса) — код дока от этого не меняется.
+
+Проверка в два слоя:
+
+* `tests/track_studio.gd` — в редакторе/headless: математика разметки, поля
+  дока против реального `RallyTrackConfig`, включённый плагин и
+  `preview_in_editor` у ЛЕС2.
+* `tests/test_track_studio.py` — без движка: имена полей настроек и членов
+  студии, арность вызовов `RallyRouteAnalysis`, состав `ROWS` дока,
+  включённость плагина. Это единственная проверка плагина там, где Godot
+  недоступен.
+
 ## 5. Шейдеры
 
 - Параметр оформляется как `uniform` с осмысленным дефолтом и
@@ -246,5 +298,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 - [ ] Поле сгруппировано (`@export_group`) или лежит в подходящей группе.
 - [ ] `.tres` обновлён, если нужен нестандартный дефолт.
 - [ ] Экспорт в сцене позволяет переопределить ресурс.
+- [ ] Инструменты редактора лежат в `addons/`, их настройки — в `@tool`-ресурсе
+      и `.tres`, а не в константах плагина.
 - [ ] `gdparse` чистый, тесты не ссылаются на удалённые поля.
 - [ ] В этом документе обновлена таблица, если появился новый ресурс.
