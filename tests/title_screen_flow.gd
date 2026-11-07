@@ -63,12 +63,12 @@ func _run() -> void:
 	var f9 := InputEventKey.new()
 	f9.keycode = KEY_F9
 	f9.pressed = true
-	driver._unhandled_key_input(f9)
-	check(driver._is_recording, "F9 начинает запись")
+	driver._unhandled_key_input(f7)
+	check(driver._is_recording, "F7 начинает запись")
 	Input.action_press("throttle")
 	await _steps(80)
 	Input.action_release("throttle")
-	driver._unhandled_key_input(f9)
+	driver._unhandled_key_input(f7)
 	check(not driver._is_recording, "F9 останавливает запись")
 	var saved := ResourceLoader.load(driver.recording_path) as Recording
 	check(saved != null and saved.valid() and saved.frame_count() > 10, "запись физического ввода сохранена")

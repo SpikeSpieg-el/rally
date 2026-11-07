@@ -51,7 +51,7 @@ func _ready() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if mode == Mode.RECORD and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F9:
+	if mode == Mode.RECORD and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F7:
 		if _is_recording:
 			finish_recording()
 		else:
