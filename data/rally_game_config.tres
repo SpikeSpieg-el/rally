@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://c734g8vb6d4mw" path="res://scripts/data/rally_game_config.gd" id="1_script"]
 [ext_resource type="Resource" uid="uid://b7vnrvvmjm6mv" path="res://data/tracks/stage_forest.tres" id="2_t"]
-[ext_resource type="Resource" uid="uid://cv4pevamak2q7" path="res://data/tracks/stage_pereval.tres" id="3_t"]
 [ext_resource type="Resource" uid="uid://cnarc7d21g6m8" path="res://data/tracks/stage_north_arc.tres" id="4_t"]
 [ext_resource type="Resource" uid="uid://cdynmic4gfak2" path="res://data/tracks/stage_dynamic.tres" id="5_t"]
 [ext_resource type="Resource" uid="uid://d1gcoahqqwnvf" path="res://data/setups/engine_stock.tres" id="6_setup"]
@@ -39,7 +38,7 @@
 script = ExtResource("1_script")
 title = "RALLY"
 subtitle = "7 ПОГОД • 4 ХАРАКТЕРА ТРАССЫ • 10 ПРЕСЕТОВ"
-tracks = Array[Resource]([ExtResource("2_t"), ExtResource("3_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("mountain100")])
+tracks = Array[Resource]([ExtResource("2_t"), ExtResource("4_t"), ExtResource("5_t"), ExtResource("mountain100")])
 vehicles = Array[Resource]([ExtResource("v1"), ExtResource("v2")])
 all_setups = Array[Resource]([ExtResource("6_setup"), ExtResource("7_setup"), ExtResource("8_setup"), ExtResource("engine_rallycross"), ExtResource("engine_classic"), ExtResource("engine_sprint"), ExtResource("engine_endurance"), ExtResource("engine_hillclimb"), ExtResource("engine_snow"), ExtResource("engine_club"), ExtResource("subaru1"), ExtResource("subaru2"), ExtResource("subaru3"), ExtResource("subaru4"), ExtResource("subaru5")])
 weather_presets = Array[Resource]([ExtResource("w1"), ExtResource("w2"), ExtResource("w3"), ExtResource("w4"), ExtResource("w5"), ExtResource("w6"), ExtResource("w7")])

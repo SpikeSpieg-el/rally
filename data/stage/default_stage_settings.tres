@@ -6,3 +6,5 @@
 [resource]
 script = ExtResource("1_settings")
 retro_style_strength = 0.05
+speed_fx_start_kmh = 38.0
+speed_fx_full_kmh = 259.0
