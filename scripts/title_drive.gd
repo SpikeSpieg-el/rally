@@ -144,7 +144,11 @@ func _surface_vertex(surface: SurfaceTool, d: float, lateral: float, road: bool)
 
 
 func _build_surface(road: bool) -> void:
-	var lanes: Array[float] = [-7.0, -5.0, -2.5, 0.0, 2.5, 5.0, 7.0] if road else [-75.0, -48.0, -28.0, -16.0, -7.0, 0.0, 7.0, 16.0, 28.0, 48.0, 75.0]
+	# Литералы внутри тернарного выражения становятся нетипизированным Array;
+	# PackedFloat32Array делает обе ветки одного конкретного типа в рантайме.
+	var lanes := PackedFloat32Array([-75.0, -48.0, -28.0, -16.0, -7.0, 0.0, 7.0, 16.0, 28.0, 48.0, 75.0])
+	if road:
+		lanes = PackedFloat32Array([-7.0, -5.0, -2.5, 0.0, 2.5, 5.0, 7.0])
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rows := ceili((BUILD_END - BUILD_START) / ROAD_STEP)
