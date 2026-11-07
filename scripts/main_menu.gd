@@ -26,6 +26,7 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @onready var track_list: BoxContainer = get_node_or_null("Content/Body/Left/TrackList") as BoxContainer
 @onready var setup_list: BoxContainer = get_node_or_null("Content/Body/Left/SetupList") as BoxContainer
 @onready var start_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/StartButton") as Button
+@onready var back_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/BackButton") as Button
 @onready var quit_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/QuitButton") as Button
 @onready var controls_button: Button = get_node_or_null("Content/Body/Left/ButtonRow/ControlsButton") as Button
 @onready var preview: Control = get_node_or_null("Content/Body/Right/Preview") as Control
@@ -369,6 +370,8 @@ func _build_conditions_ui() -> void:
 func _connect_signals() -> void:
 	if start_button != null and not start_button.pressed.is_connected(_on_start_pressed):
 		start_button.pressed.connect(_on_start_pressed)
+	if back_button != null and not back_button.pressed.is_connected(_on_back_to_title):
+		back_button.pressed.connect(_on_back_to_title)
 	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_pressed):
 		quit_button.pressed.connect(_on_quit_pressed)
 	if controls_button != null and not controls_button.pressed.is_connected(_open_input_settings):
@@ -406,8 +409,9 @@ func _connect_focus_navigation() -> void:
 	var track_focus: Control = track_buttons[clampi(selected_track, 0, track_buttons.size() - 1)] if not track_buttons.is_empty() else null
 	var first_track: Control = track_buttons[0] if not track_buttons.is_empty() else null
 	_set_focus_neighbors(start_button, track_focus, first_track, quit_button, controls_button)
-	_set_focus_neighbors(controls_button, track_focus, first_track, start_button, quit_button)
-	_set_focus_neighbors(quit_button, track_focus, first_track, controls_button, start_button)
+	_set_focus_neighbors(controls_button, track_focus, first_track, start_button, back_button)
+	_set_focus_neighbors(back_button, track_focus, first_track, controls_button, quit_button)
+	_set_focus_neighbors(quit_button, track_focus, first_track, back_button, start_button)
 	_update_dynamic_focus()
 
 
@@ -757,6 +761,16 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if _transitioning or (garage != null and garage.visible):
+		return
+	if input_settings != null and input_settings.blocks_actions():
+		return
+	if event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_on_back_to_title()
+
+
 func _select_track_shortcut(index: int) -> void:
 	if index < 0 or index >= track_buttons.size():
 		return
@@ -915,6 +929,11 @@ func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
 		game.call("start_race")
 	else:
 		get_tree().change_scene_to_file(config.stage_scene)
+
+
+func _on_back_to_title() -> void:
+	if not _transitioning:
+		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 
 
 func _on_quit_pressed() -> void:
