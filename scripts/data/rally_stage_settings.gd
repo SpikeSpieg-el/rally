@@ -160,6 +160,11 @@ extends Resource
 @export_range(0.0, 1000.0, 5.0) var scenery_range_small: float = 240.0
 ## Запас на затухание дальности (fade margin).
 @export_range(0.0, 200.0, 1.0) var scenery_range_margin: float = 35.0
+## Три уровня геометрии у деревьев/камней: переключение по экранному размеру.
+## LOD не меняет исходные сцены пропсов и их коллизии.
+@export var scenery_lod_enabled: bool = true
+## Больше 1 — сохранять подробный меш дальше, меньше 1 — упрощать раньше.
+@export_range(0.1, 4.0, 0.1) var scenery_lod_bias: float = 1.0
 ## Размер пространственной ячейки MultiMesh, м (меньше — точнее отсечение).
 @export_range(16.0, 512.0, 8.0) var scenery_cell_size: float = 128.0
 ## Разброс яркости объектов в ячейке (0 — все одинаковые).

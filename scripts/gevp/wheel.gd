@@ -160,6 +160,11 @@ var surface_grip := 1.0
 var surface_rolling := 1.0
 var surface_depth := 0.0
 
+# Вертикальная стена не является дорогой, даже если она на слое грунта.
+# Основные препятствия вынесены на слой 2, поэтому луч доходит до грунта.
+func has_ground_contact() -> bool:
+	return is_colliding() and get_collision_normal().dot(Vector3.UP) > 0.25
+
 func process_forces(opposite_compression : float, braking : bool, delta : float) -> float:
 	force_raycast_update()
 	surface_kind = ""
@@ -168,7 +173,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 	previous_global_position = global_position
 	
 	## Determine the surface the tire is on. Uses node groups
-	if is_colliding():
+	if has_ground_contact():
 		last_collider = get_collider()
 		last_collision_point = get_collision_point()
 		last_collision_normal = get_collision_normal()
@@ -192,7 +197,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 	surface_grip = 1.0
 	surface_rolling = 1.0
 	var target_depth := 0.0
-	if is_colliding() and last_collider != null and vehicle != null and vehicle.has_method("surface_contact"):
+	if has_ground_contact() and last_collider != null and vehicle != null and vehicle.has_method("surface_contact"):
 		var grass: bool = last_collider.is_in_group("Grass")
 		var road: bool = last_collider.is_in_group("Dirt") or last_collider.is_in_group("Road")
 		if grass or road:
@@ -206,7 +211,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 	surface_depth = move_toward(surface_depth, target_depth, delta * 0.12)
 	var compression := process_suspension(opposite_compression, delta)
 	
-	if is_colliding() and last_collider:
+	if has_ground_contact() and last_collider:
 		process_tires(braking, delta)
 		var contact: Vector3 = last_collision_point - vehicle.global_position
 		if spring_force > 0.0:
@@ -237,7 +242,7 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 		return 0.0
 
 func process_suspension(opposite_compression : float, delta : float) -> float:
-	if is_colliding() and last_collider:
+	if has_ground_contact() and last_collider:
 		spring_current_length = last_collision_point.distance_to(global_position) - tire_radius + surface_depth
 	else:
 		spring_current_length = spring_length

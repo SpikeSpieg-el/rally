@@ -708,7 +708,7 @@ func _update_driving_feedback(controller: Node) -> void:
 	var contacts := 0
 	var roughness := 0.0
 	for wheel: WheelType in wheel_array:
-		if not wheel.is_colliding():
+		if not wheel.has_ground_contact():
 			continue
 		contacts += 1
 		match wheel.surface_type:
@@ -905,7 +905,7 @@ func _update_gravel_particles() -> void:
 	var gravel_contact: bool = false
 	var dust_kind: String = ""
 	for wheel: WheelType in rear_axle.wheels:
-		if not wheel.is_colliding():
+		if not wheel.has_ground_contact():
 			continue
 		rear_contact = true
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
@@ -1061,7 +1061,7 @@ func _update_action_camera(delta: float) -> void:
 
 	# Проверка стен: отключаем попадание луча в Area3D (триггеры/чекпоинты) и саму машину,
 	# а дистанцию сглаживаем, чтобы камера не прыгала мгновенно.
-	var query := PhysicsRayQueryParameters3D.create(pivot, ideal_cam_pos, 1, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(pivot, ideal_cam_pos, 3, [get_rid()])
 	query.collide_with_areas = false
 	query.hit_from_inside = false
 	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
