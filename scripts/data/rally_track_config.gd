@@ -49,18 +49,27 @@ func half_width_at(distance: float) -> float:
 	# используются и мешем дороги, и рельефом, и расчётом сцепления.
 	if procedural and route_sections.is_empty():
 		return _live_half_width(distance)
-	var previous: float = road_half_width
+	var from_width: float = road_half_width
+	var target_width: float = road_half_width
+	var transition_start: float = 0.0
+	var transition_length: float = 0.0
 	for section in route_sections:
 		if section == null:
 			continue
 		if section.start_distance > distance:
 			break
-		var blend: float = smoothstep(section.start_distance, section.start_distance + maxf(20.0, section.transition_length), distance)
-		var width: float = lerpf(previous, section.half_width, blend)
-		if distance < section.start_distance + section.transition_length:
-			return width
-		previous = section.half_width
-	return previous
+		# Если переходы перекрываются, следующий начинается с фактической
+		# ширины в своей точке, а не игнорируется предыдущим переходом.
+		if transition_length > 0.0:
+			from_width = lerpf(from_width, target_width, smoothstep(transition_start, transition_start + transition_length, section.start_distance))
+		else:
+			from_width = target_width
+		target_width = section.half_width
+		transition_start = section.start_distance
+		transition_length = maxf(0.0, section.transition_length)
+	if transition_length <= 0.0:
+		return target_width
+	return lerpf(from_width, target_width, smoothstep(transition_start, transition_start + transition_length, distance))
 
 
 func _live_half_width(distance: float) -> float:

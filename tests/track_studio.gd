@@ -112,7 +112,8 @@ func _initialize() -> void:
 
 	# «ЛЕС2» открывается в редакторе, а плагин включён в проекте.
 	var scene_text := FileAccess.get_file_as_string("res://scenes/rally_stage2_forest.tscn")
-	assert(scene_text.contains("preview_in_editor = true"), "у лесного этапа включён предпросмотр в редакторе")
+	var stage_settings_text := FileAccess.get_file_as_string("res://scripts/data/rally_stage_settings.gd")
+	assert(not scene_text.contains("preview_in_editor = false") and (scene_text.contains("preview_in_editor = true") or stage_settings_text.contains("var preview_in_editor: bool = true")), "у лесного этапа включён предпросмотр в редакторе")
 	assert(scene_text.contains("stage_forest_route2.tres"), "сцена ссылается на кривую ЛЕС2")
 	var project_text := FileAccess.get_file_as_string("res://project.godot")
 	assert(project_text.contains("addons/rally_track_studio/plugin.cfg"), "плагин включён в проекте")

@@ -92,6 +92,7 @@ var _last_mouse := Vector2.ZERO
 var _hover_ground_pos := Vector2(-10000.0, -10000.0)
 var _hover_ground := Vector3.ZERO
 var _hover_ground_ok: bool = false
+var _hover_ground_terrain: bool = false
 var _hover_ground_camera := Transform3D.IDENTITY
 
 var _curve_before: Dictionary = {}
@@ -103,6 +104,10 @@ var _drag_index: int = -1
 var _drag_side: int = 1
 var _stroke_nodes: Array = []
 var _stroke_last := Vector3.ZERO
+var _stroke_grid: Dictionary = {}
+var _width_distance: float = 0.0
+var _road_cells: Dictionary = {}
+const ROAD_CELL_SIZE := 32.0
 var _rebuild_timer: float = 0.0
 var _curve_hash_value: int = 0
 var _signature_timer: float = 0.0
@@ -189,7 +194,9 @@ func _reset_scene() -> void:
 	track = null
 	spawn = null
 	prop_library = null
+	_hover_ground_ok = false
 	samples = {}
+	_road_cells.clear()
 	corners = []
 	warnings = []
 	stats = {}
@@ -327,6 +334,14 @@ func _refresh_analysis() -> void:
 		length = 0.0
 		return
 	samples = Analysis.sample_curve(curve, settings.sample_step, settings.max_samples)
+	_road_cells.clear()
+	var road_points: PackedVector3Array = samples.get("points", PackedVector3Array())
+	for i in range(road_points.size()):
+		var p := road_points[i]
+		var key := Vector2i(floori(p.x / ROAD_CELL_SIZE), floori(p.z / ROAD_CELL_SIZE))
+		if not _road_cells.has(key):
+			_road_cells[key] = []
+		_road_cells[key].append(i)
 	route_version += 1
 	length = float(samples.get("length", 0.0))
 	route_ready = length > 0.0
@@ -552,7 +567,8 @@ func _press_road(camera: Camera3D, event: InputEventMouseButton) -> int:
 	if not handle.is_empty():
 		var distance: float = float(handle.get("distance", 0.0))
 		_sections_before = track.route_sections.duplicate()
-		_section = _section_for_edit(distance)
+		_section = _width_section_for_edit(distance)
+		_width_distance = distance
 		_section_before = _section_state(_section)
 		_drag_side = int(handle.get("side", 1))
 		drag_kind = "width"
@@ -571,7 +587,9 @@ func _press_road(camera: Camera3D, event: InputEventMouseButton) -> int:
 func _press_props(camera: Camera3D, event: InputEventMouseButton) -> int:
 	var ground := _ray_ground(camera, event.position)
 	_stroke_nodes = []
-	if not bool(ground.get("ok", false)):
+	_stroke_grid.clear()
+	if not bool(ground.get("ok", false)) or not bool(ground.get("terrain", false)):
+		toast("Рельеф ещё не собран или не найден под кистью")
 		return INPUT_PASS
 	_stroke_last = ground["point"]
 	_place_brush(ground["point"])
@@ -752,7 +770,9 @@ func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool:
 		return had_any
 	if profile_rect.has_point(screen_pos) or hud_rect.has_point(screen_pos) or warnings_rect.has_point(screen_pos):
 		return had_any
-	var sample_index := _nearest_sample_screen(camera, screen_pos, settings.insert_radius_px)
+	var sample_index := -1
+	if mode != Modes.Mode.PROPS:
+		sample_index = _nearest_sample_screen(camera, screen_pos, settings.insert_radius_px)
 	if sample_index >= 0:
 		hover_distance = _sample_distance(sample_index)
 		hover_point = _sample_point(sample_index)
@@ -888,60 +908,72 @@ func surface_color(distance: float) -> Color:
 	return settings.road_edge_color
 
 
+func _terrain_ray(from: Vector3, to: Vector3) -> Dictionary:
+	if stage == null or not stage is Node3D or not stage.is_inside_tree():
+		return {}
+	var world: World3D = (stage as Node3D).get_world_3d()
+	if world == null:
+		return {}
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	# Деревья и дорожные объекты не должны перехватывать кисть.
+	var excluded: Array[RID] = []
+	for _i in range(12):
+		query.exclude = excluded
+		var hit := world.direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var collider = hit.get("collider")
+		if collider is Node and (collider.name == "Terrain" or String(collider.name).begins_with("Terrain_")):
+			return hit
+		var rid: RID = hit.get("rid", RID())
+		if not rid.is_valid():
+			break
+		excluded.append(rid)
+	return {}
+
+
 func _ray_ground(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
 	if camera == null:
-		return {"ok": false, "point": Vector3.ZERO}
-	if _hover_ground_ok and _hover_ground_pos.distance_to(screen_pos) < 2.0 \
+		return {"ok": false}
+	if _hover_ground_ok and _hover_ground_pos.distance_to(screen_pos) < 1.0 \
 			and _hover_ground_camera.is_equal_approx(camera.global_transform):
-		return {"ok": true, "point": _hover_ground}
-	var origin: Vector3 = camera.project_ray_origin(screen_pos)
-	var dir: Vector3 = camera.project_ray_normal(screen_pos)
-	if dir.y > -0.02:
-		return {"ok": false, "point": Vector3.ZERO}
-	var t: float = maxf(0.5, camera.near * 4.0)
-	var prev_t: float = t
-	var prev_diff: float = origin.y + dir.y * t - _ground_y(origin + dir * t)
-	# Шаг марша растёт вместе с t: у камеры он 2 м, в километре — 8 % пути.
-	# Точное пересечение всё равно уточняется делением пополам.
-	var limit: float = 2600.0
-	var guard: int = 0
-	while t < limit and guard < 96:
-		guard += 1
-		t += maxf(2.0, t * 0.08)
-		var p: Vector3 = origin + dir * t
-		var diff: float = p.y - _ground_y(p)
-		if diff <= 0.0 and prev_diff > 0.0:
-			var lo: float = prev_t
-			var hi: float = t
-			for _step in range(12):
-				var mid: float = (lo + hi) * 0.5
-				var q: Vector3 = origin + dir * mid
-				if q.y - _ground_y(q) > 0.0:
-					lo = mid
-				else:
-					hi = mid
-			var hit: Vector3 = origin + dir * hi
-			_hover_ground = hit
-			_hover_ground_ok = true
-			_hover_ground_pos = screen_pos
-			_hover_ground_camera = camera.global_transform
-			return {"ok": true, "point": hit}
-		prev_t = t
-		prev_diff = diff
-	var plane_y: float = 0.0
-	if curve != null and curve.point_count > 0:
-		plane_y = curve.get_point_position(curve.point_count - 1).y
-	if absf(dir.y) < 0.0001:
-		return {"ok": false, "point": Vector3.ZERO}
-	var plane_t: float = (plane_y - origin.y) / dir.y
-	if plane_t > 0.0 and plane_t < 6000.0:
-		var point: Vector3 = origin + dir * plane_t
-		_hover_ground = point
-		_hover_ground_ok = true
-		_hover_ground_pos = screen_pos
-		_hover_ground_camera = camera.global_transform
-		return {"ok": true, "point": point}
-	return {"ok": false, "point": Vector3.ZERO}
+		return {"ok": true, "point": _hover_ground, "terrain": _hover_ground_terrain}
+	var origin := camera.project_ray_origin(screen_pos)
+	var dir := camera.project_ray_normal(screen_pos)
+	var hit := _terrain_ray(origin, origin + dir * 6000.0)
+	var point: Vector3
+	var terrain_found := not hit.is_empty()
+	if terrain_found:
+		point = hit["position"]
+	else:
+		# Если коллайдер ещё строится, используем только готовую сетку высот.
+		# Не вызываем ground_height на каждом шаге луча: вне сетки он может
+		# запускать дорогой процедурный поиск по всей трассе.
+		if dir.y >= -0.02:
+			return {"ok": false}
+		var plane_y := curve.get_point_position(curve.point_count - 1).y if curve != null and curve.point_count > 0 else 0.0
+		var t := (plane_y - origin.y) / dir.y
+		if t <= 0.0 or t > 6000.0:
+			return {"ok": false}
+		point = origin + dir * t
+		if stage.has_method("editor_cached_ground_height"):
+			# Несколько итераций проекции на сетку вместо сотен дорогих проб.
+			for _i in range(4):
+				var height: Dictionary = stage.call("editor_cached_ground_height", point.x, point.z)
+				if height.is_empty():
+					terrain_found = false
+					break
+				terrain_found = true
+				t = (float(height["height"]) - origin.y) / dir.y
+				if t <= 0.0 or t > 6000.0:
+					return {"ok": false}
+				point = origin + dir * t
+	_hover_ground = point
+	_hover_ground_terrain = terrain_found
+	_hover_ground_ok = terrain_found
+	_hover_ground_pos = screen_pos
+	_hover_ground_camera = camera.global_transform
+	return {"ok": true, "point": point, "terrain": terrain_found}
 
 
 func _ground_y(point: Vector3) -> float:
@@ -1179,6 +1211,41 @@ func _section_for_edit(distance: float) -> Resource:
 	return created
 
 
+# Ручка задаёт ширину именно в своём километраже, а не в ближайшем
+# начале чужого участка. Переход заканчивается под выбранной ручкой.
+func _width_section_for_edit(distance: float) -> Resource:
+	for section in track.route_sections:
+		if section != null and absf(section.start_distance - distance) < 0.1:
+			return section
+	for section in track.route_sections:
+		if section != null and absf(section.start_distance + section.transition_length - distance) < 0.1:
+			return section
+	var previous_start := -1.0
+	for section in track.route_sections:
+		if section != null and section.start_distance < distance:
+			previous_start = maxf(previous_start, section.start_distance)
+	var start := minf(distance, maxf(maxf(0.0, distance - settings.section_transition), previous_start + 0.01))
+	var created := SectionType.new()
+	created.start_distance = start
+	created.transition_length = maxf(0.0, distance - start)
+	created.title = "Участок %d" % (track.route_sections.size() + 1)
+	var previous = track.section_at(distance)
+	created.surface_name = previous.surface_name if previous != null else track.surface_name
+	created.road_color = previous.road_color if previous != null else track.road_color
+	created.half_width = track.half_width_at(distance)
+	if previous != null:
+		created.grip = previous.grip
+		created.rolling = previous.rolling
+		created.weather = previous.weather
+	var insert_at := track.route_sections.size()
+	for i in range(track.route_sections.size()):
+		if track.route_sections[i] != null and track.route_sections[i].start_distance > start:
+			insert_at = i
+			break
+	track.route_sections.insert(insert_at, created)
+	return created
+
+
 func _section_state(section: Resource) -> Dictionary:
 	if section == null:
 		return {}
@@ -1202,8 +1269,7 @@ func apply_section_state(section: Resource, state: Dictionary) -> void:
 	if color is Color:
 		section.set("road_color", color)
 	section.set("transition_length", float(state.get("transition", 100.0)))
-	_dirty = true
-	_request_redraw()
+	_road_changed()
 
 
 ## Восстанавливает список участков (создание/удаление). UndoRedo-совместимо.
@@ -1211,8 +1277,7 @@ func apply_sections(target: TrackType, snapshot: Array) -> void:
 	if target == null:
 		return
 	target.route_sections.assign(snapshot)
-	_dirty = true
-	_request_redraw()
+	_road_changed()
 
 
 func _nearest_width_handle(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
@@ -1222,9 +1287,17 @@ func _nearest_width_handle(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
 	var distance: float = 0.0
 	var best: Dictionary = {}
 	var best_dist: float = settings.handle_radius_px * 1.6
+	var points: PackedVector3Array = samples.get("points", PackedVector3Array())
+	if points.is_empty():
+		return {}
+	var sample_step: float = maxf(0.25, float(samples.get("step", 1.0)))
 	while distance <= length:
-		var center := Analysis.point_at_distance(samples, distance)
-		var direction := _direction_at_distance(distance)
+		var index := clampi(roundi(distance / sample_step), 0, points.size() - 1)
+		var center: Vector3 = points[index]
+		if not camera.is_position_in_frustum(center):
+			distance += step
+			continue
+		var direction := Analysis.direction_at(points, index)
 		var side := Vector3(direction.z, 0.0, -direction.x)
 		var half := half_width_at(distance)
 		for which in [-1, 1]:
@@ -1240,9 +1313,9 @@ func _nearest_width_handle(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
 
 
 func _direction_at_distance(distance: float) -> Vector3:
-	var nearest := Analysis.nearest(samples, Analysis.point_at_distance(samples, distance))
-	var index := int(nearest.get("index", 0))
 	var points: PackedVector3Array = samples.get("points", PackedVector3Array())
+	var step: float = maxf(0.25, float(samples.get("step", 1.0)))
+	var index := clampi(roundi(distance / step), 0, maxi(0, points.size() - 1))
 	return Analysis.direction_at(points, index)
 
 
@@ -1313,8 +1386,7 @@ func _commit_section(label: String) -> void:
 		return
 	var after := _section_state(_section)
 	if not _section_changed(_section_before, after):
-		_dirty = true
-		_request_redraw()
+		apply_sections(track, _sections_before)
 		return
 	var ur := host.get_undo_redo()
 	ur.create_action("Студия трассы: " + label)
@@ -1322,8 +1394,8 @@ func _commit_section(label: String) -> void:
 	ur.add_do_method(self, "apply_section_state", _section, after)
 	ur.add_undo_method(self, "apply_sections", track, _sections_before.duplicate())
 	ur.add_undo_method(self, "apply_section_state", _section, _section_before)
-	ur.add_do_method(self, "_after_edit")
-	ur.add_undo_method(self, "_after_edit")
+	ur.add_do_method(self, "_after_road_edit")
+	ur.add_undo_method(self, "_after_road_edit")
 	ur.commit_action()
 
 
@@ -1464,52 +1536,90 @@ func _place_brush(world_point: Vector3) -> void:
 	if list.is_empty():
 		toast("В библиотеке пропсов нет сцен")
 		return
-	var props_root := _props_root()
-	if props_root == null:
+	if _stroke_nodes.size() >= settings.brush_max_per_stroke or scene_root == null or stage == null:
 		return
-	var placed: int = 0
 	var radius: float = maxf(1.0, settings.brush_radius)
-	var attempts: int = int(maxf(1.0, radius * 2.0))
+	var spacing: float = maxf(0.5, settings.brush_spacing)
+	var attempts: int = mini(80, int(maxf(1.0, radius * 2.0)))
 	for _i in range(attempts):
-		if placed >= settings.brush_max_per_stroke:
+		if _stroke_nodes.size() >= settings.brush_max_per_stroke:
 			break
+		if randf() > settings.brush_chance:
+			continue
 		var angle := randf() * TAU
 		var distance := sqrt(randf()) * radius
 		var candidate := world_point + Vector3(cos(angle) * distance, 0.0, sin(angle) * distance)
+		if not _stroke_has_space(candidate, spacing):
+			continue
 		if settings.brush_avoid_road and _too_close_to_road(candidate):
 			continue
-		if randf() > settings.brush_chance:
-			continue
-		if _stroke_last.distance_to(candidate) < settings.brush_spacing and placed > 0:
-			continue
+		var height: Dictionary = {}
+		if stage.has_method("editor_cached_ground_height"):
+			height = stage.call("editor_cached_ground_height", candidate.x, candidate.z)
+		if not height.is_empty():
+			candidate.y = float(height["height"])
+		else:
+			var hit := _terrain_ray(candidate + Vector3.UP * 500.0, candidate - Vector3.UP * 500.0)
+			if hit.is_empty():
+				continue
+			candidate.y = (hit["position"] as Vector3).y
 		var prop: PropType = list[brush_index % list.size()]
 		var node := _instantiate_prop(prop, candidate)
 		if node == null:
 			continue
 		_stroke_nodes.append(node)
-		_stroke_last = candidate
-		placed += 1
-	if placed > 0:
-		_request_redraw()
+		var key := Vector2i(floori(candidate.x / spacing), floori(candidate.z / spacing))
+		if not _stroke_grid.has(key):
+			_stroke_grid[key] = []
+		_stroke_grid[key].append(candidate)
+	_request_redraw()
+
+
+func _stroke_has_space(point: Vector3, spacing: float) -> bool:
+	var key := Vector2i(floori(point.x / spacing), floori(point.z / spacing))
+	for x in range(-1, 2):
+		for z in range(-1, 2):
+			for other in _stroke_grid.get(key + Vector2i(x, z), []):
+				var delta: Vector3 = point - other
+				if delta.x * delta.x + delta.z * delta.z < spacing * spacing:
+					return false
+	return true
 
 
 func _too_close_to_road(world_point: Vector3) -> bool:
 	if not route_ready:
 		return false
-	var nearest := Analysis.nearest(samples, world_point)
-	var offset := absf(float(nearest.get("offset", 0.0)))
-	return offset < half_width_at(float(nearest.get("distance", 0.0))) + settings.brush_road_margin
+	var points: PackedVector3Array = samples.get("points", PackedVector3Array())
+	var dists: PackedFloat32Array = samples.get("distances", PackedFloat32Array())
+	var sample_step: float = float(samples.get("step", 1.0))
+	# Допуск на расстояние между сэмплами не оставляет дыр у края дороги.
+	var max_distance: float = maxf(settings.max_half_width, track.road_half_width if track != null else 0.0) + settings.brush_road_margin + sample_step * 0.5
+	if track != null:
+		for section in track.route_sections:
+			if section != null:
+				max_distance = maxf(max_distance, section.half_width + settings.brush_road_margin + sample_step * 0.5)
+	var key := Vector2i(floori(world_point.x / ROAD_CELL_SIZE), floori(world_point.z / ROAD_CELL_SIZE))
+	var reach := ceili(max_distance / ROAD_CELL_SIZE)
+	for x in range(-reach, reach + 1):
+		for z in range(-reach, reach + 1):
+			for i in _road_cells.get(key + Vector2i(x, z), []):
+				var dx: float = points[i].x - world_point.x
+				var dz: float = points[i].z - world_point.z
+				var limit: float = half_width_at(dists[i]) + settings.brush_road_margin + sample_step * 0.5
+				if dx * dx + dz * dz < limit * limit:
+					return true
+	return false
 
 
 func _props_root() -> Node3D:
-	if scene_root == null:
+	if scene_root == null or stage == null:
 		return null
-	var existing := scene_root.get_node_or_null("Props") as Node3D
+	var existing := stage.get_node_or_null("StudioProps") as Node3D
 	if existing != null:
 		return existing
 	var created := Node3D.new()
-	created.name = "Props"
-	scene_root.add_child(created)
+	created.name = "StudioProps"
+	stage.add_child(created)
 	created.owner = scene_root
 	return created
 
@@ -1526,12 +1636,12 @@ func _instantiate_prop(prop: PropType, world_point: Vector3) -> Node3D:
 	node.scale = Vector3(size_roll * width, size_roll * height, size_roll * width)
 	if prop.random_yaw:
 		node.rotation.y = randf() * TAU
-	node.position = Vector3(world_point.x, world_point.y + prop.y_offset * size_roll, world_point.z)
 	var props_root := _props_root()
 	if props_root == null:
 		node.free()
 		return null
 	props_root.add_child(node)
+	node.global_position = Vector3(world_point.x, world_point.y + prop.y_offset * size_roll, world_point.z)
 	node.owner = scene_root
 	return node
 
@@ -1551,8 +1661,8 @@ func _commit_props_placed() -> void:
 		ur.add_undo_method(self, "_detach_node", node)
 	ur.add_do_method(self, "_mark_scene_dirty")
 	ur.add_undo_method(self, "_mark_scene_dirty")
-	ur.add_do_method(self, "_after_edit")
-	ur.add_undo_method(self, "_after_edit")
+	ur.add_do_method(self, "_after_props_edit")
+	ur.add_undo_method(self, "_after_props_edit")
 	ur.commit_action()
 	_stroke_nodes = []
 
@@ -1560,23 +1670,24 @@ func _commit_props_placed() -> void:
 func _commit_props_erased(node: Node3D) -> void:
 	if host == null or scene_root == null or node == null:
 		return
-	var props_root := _props_root()
+	var props_root := node.get_parent()
+	if props_root == null:
+		return
 	var ur := host.get_undo_redo()
 	ur.create_action("Студия трассы: убрать обстановку")
 	ur.add_do_method(self, "_detach_node", node)
 	ur.add_undo_method(self, "_attach_node", node, props_root, scene_root)
-	ur.add_do_reference(node)
+	ur.add_undo_reference(node)
 	ur.add_do_method(self, "_mark_scene_dirty")
 	ur.add_undo_method(self, "_mark_scene_dirty")
-	ur.add_do_method(self, "_after_edit")
-	ur.add_undo_method(self, "_after_edit")
+	ur.add_do_method(self, "_after_props_edit")
+	ur.add_undo_method(self, "_after_props_edit")
 	ur.commit_action()
 
 
 func _detach_node(node: Node) -> void:
 	if node != null and is_instance_valid(node) and node.get_parent() != null:
 		node.get_parent().remove_child(node)
-	_dirty = true
 	_request_redraw()
 
 
@@ -1587,32 +1698,32 @@ func _attach_node(node: Node, parent: Node, owner_node: Node) -> void:
 		return
 	parent.add_child(node)
 	node.owner = owner_node
-	_dirty = true
 	_request_redraw()
 
 
 func _erase_prop(camera: Camera3D, screen_pos: Vector2) -> bool:
-	var props_root: Node3D = null
-	if scene_root != null:
-		props_root = scene_root.get_node_or_null("Props") as Node3D
-	if props_root == null:
+	if stage == null:
 		return false
 	var best: Node3D = null
 	var best_dist := settings.brush_radius
-	for child in props_root.get_children():
-		var node := child as Node3D
-		if node == null:
+	# Старые мазки лежали в Props, новые хранятся отдельно от запечённого леса.
+	for root_name in ["StudioProps", "ManualProps", "Props"]:
+		var props_root := stage.get_node_or_null(root_name) as Node3D
+		if props_root == null:
 			continue
-		var world := node.global_position
-		if camera.is_position_behind(world):
-			continue
-		var dist := project_point(camera, world).distance_to(screen_pos)
-		if dist < best_dist:
-			best_dist = dist
-			best = node
+		for child in props_root.get_children():
+			var node := child as Node3D
+			if node == null:
+				continue
+			var world := node.global_position
+			if camera.is_position_behind(world):
+				continue
+			var dist := project_point(camera, world).distance_to(screen_pos)
+			if dist < best_dist:
+				best_dist = dist
+				best = node
 	if best == null:
 		return false
-	_detach_node(best)
 	_commit_props_erased(best)
 	return true
 
@@ -1641,7 +1752,8 @@ func _apply_drag(camera: Camera3D, screen_pos: Vector2) -> void:
 			_drag_zone(camera, screen_pos, "finish")
 		"checkpoint":
 			_drag_zone(camera, screen_pos, "checkpoint")
-	_update_hover(camera, screen_pos)
+	if drag_kind != "paint" and drag_kind != "width" and drag_kind != "section_start":
+		_update_hover(camera, screen_pos)
 
 
 func _end_drag() -> void:
@@ -1679,11 +1791,12 @@ func _cancel_drag() -> void:
 		"paint":
 			for node in _stroke_nodes:
 				_detach_node(node)
+				node.free()
 			_stroke_nodes = []
+			_stroke_grid.clear()
 	drag_kind = ""
 	_drag_index = -1
 	_section = null
-	_dirty = true
 	_request_redraw()
 
 
@@ -1726,17 +1839,29 @@ func _pixels_per_meter(camera: Camera3D, world: Vector3) -> float:
 
 
 func _drag_width(camera: Camera3D, screen_pos: Vector2) -> void:
-	if _section == null:
+	if _section == null or camera == null:
 		return
-	var ground := _ray_ground(camera, screen_pos)
-	if not bool(ground.get("ok", false)):
+	# Пересекаем луч с горизонтальной плоскостью выбранной ручки. Рельеф,
+	# другая петля трассы и ближайший сэмпл не меняют выбранный участок.
+	var center := Analysis.point_at_distance(samples, _width_distance)
+	var points: PackedVector3Array = samples.get("points", PackedVector3Array())
+	var step: float = maxf(0.25, float(samples.get("step", 1.0)))
+	var index := clampi(roundi(_width_distance / step), 0, points.size() - 1)
+	center = points[index]
+	var direction := Analysis.direction_at(points, index)
+	var side := Vector3(direction.z, 0.0, -direction.x) * float(_drag_side)
+	var origin := camera.project_ray_origin(screen_pos)
+	var ray := camera.project_ray_normal(screen_pos)
+	if absf(ray.y) < 0.0001:
 		return
-	var nearest := Analysis.nearest(samples, ground["point"])
-	var offset := absf(float(nearest.get("offset", 0.0)))
-	var width := clampf(offset, settings.min_half_width, settings.max_half_width)
+	var t := (center.y - origin.y) / ray.y
+	if t <= 0.0:
+		return
+	var width := clampf((origin + ray * t - center).dot(side), settings.min_half_width, settings.max_half_width)
+	if absf(float(_section.get("start_distance")) - _width_distance) < 0.1:
+		_section.set("transition_length", 0.0)
 	_section.set("half_width", width)
-	_dirty = true
-	_request_redraw()
+	_road_changed()
 
 
 ## Километраж под курсором (или -1, если луч не нашёл землю).
@@ -1758,12 +1883,16 @@ func _drag_section_start(camera: Camera3D, screen_pos: Vector2) -> void:
 	var distance := _distance_at_screen(camera, screen_pos)
 	if distance < 0.0:
 		distance = hover_distance
-	distance = clampf(distance, 0.0, length)
+	var lower := 0.0
+	var upper := length
+	if _drag_index > 0 and track.route_sections[_drag_index - 1] != null:
+		lower = track.route_sections[_drag_index - 1].start_distance + 0.01
+	if _drag_index + 1 < track.route_sections.size() and track.route_sections[_drag_index + 1] != null:
+		upper = track.route_sections[_drag_index + 1].start_distance - 0.01
 	var step: float = maxf(1.0, settings.width_handle_step * 0.1)
-	distance = round(distance / step) * step
+	distance = clampf(round(distance / step) * step, lower, maxf(lower, upper))
 	_section.set("start_distance", distance)
-	_dirty = true
-	_request_redraw()
+	_road_changed()
 
 
 func _drag_zone(camera: Camera3D, screen_pos: Vector2, kind: String) -> void:
@@ -1790,8 +1919,10 @@ func _drag_zone(camera: Camera3D, screen_pos: Vector2, kind: String) -> void:
 
 
 func _paint_drag(camera: Camera3D, screen_pos: Vector2) -> void:
+	if _stroke_nodes.size() >= settings.brush_max_per_stroke:
+		return
 	var ground := _ray_ground(camera, screen_pos)
-	if not bool(ground.get("ok", false)):
+	if not bool(ground.get("ok", false)) or not bool(ground.get("terrain", false)):
 		return
 	var point: Vector3 = ground["point"]
 	if _stroke_last.distance_to(point) < settings.brush_spacing:
@@ -1805,12 +1936,13 @@ func _paint_drag(camera: Camera3D, screen_pos: Vector2) -> void:
 func rebuild_stage() -> void:
 	if stage == null or not is_instance_valid(stage) or not stage.has_method("rebuild_preview"):
 		return
-	# Сборка мира асинхронная и идёт по кадрам: плагин только запускает её.
-	# Точное время печатает сам RallyStage в панель «Вывод».
+	# В редакторе сборка может быть синхронной и тяжёлой; вызываем её
+	# только по явному запросу или при включённой автосборке.
 	building = true
 	_building_timer = maxf(0.5, settings.build_feedback_seconds)
 	var started := Time.get_ticks_msec()
 	stage.call("rebuild_preview")
+	_hover_ground_ok = false
 	last_build_seconds = float(Time.get_ticks_msec() - started) / 1000.0
 	needs_rebuild = false
 	_dirty = true
@@ -1828,6 +1960,24 @@ func _after_edit() -> void:
 	needs_rebuild = true
 	_save_resources()
 	_schedule_rebuild()
+	_request_redraw()
+
+
+# Полотно меняет только проекции, а не геометрию осевой и её анализ.
+func _road_changed() -> void:
+	route_version += 1
+	_request_redraw()
+
+
+func _after_road_edit() -> void:
+	_road_changed()
+	needs_rebuild = true
+	_save_resources()
+	_schedule_rebuild()
+
+
+func _after_props_edit() -> void:
+	_mark_scene_dirty()
 	_request_redraw()
 
 

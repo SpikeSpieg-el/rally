@@ -55,7 +55,7 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 	var count: int = points.size()
 	var dists: PackedFloat32Array = studio.samples.get("distances", PackedFloat32Array())
 	var key: int = hash([
-		hash(camera.global_transform), int(camera.fov * 10.0),
+		hash(camera.global_transform), hash(camera.get_camera_projection()),
 		int(studio.overlay_size.x), int(studio.overlay_size.y),
 		int(studio.route_version), count
 	])
