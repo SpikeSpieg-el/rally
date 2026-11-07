@@ -8,7 +8,9 @@ enum Mode { AUTO, PLAYBACK, RECORD }
 ## Готовая запись в проекте. Если её нет, читается запись из user://.
 @export var recording: Recording
 @export_file("*.tres", "*.res") var recording_path := "user://menu_drive.tres"
-@export_range(1.0, 180.0, 1.0, "suffix:s") var max_record_seconds := 120.0
+## Включайте только если пользовательская запись сделана для текущей трассы.
+@export var allow_user_recording_fallback := true
+@export_range(1.0, 180.0, 1.0, "suffix:s") var max_record_seconds := 180.0
 @export_range(0.0, 3.0, 0.1, "suffix:s") var replay_fade_seconds := 0.6
 @export_group("Автопилот (если записи нет)")
 @export_range(5.0, 80.0, 1.0, "suffix:km/h") var target_speed := 30.0
@@ -36,7 +38,7 @@ func _ready() -> void:
 	process_physics_priority = -100
 	if recording != null and recording.valid():
 		_source = recording
-	elif not recording_path.is_empty() and ResourceLoader.exists(recording_path):
+	elif allow_user_recording_fallback and not recording_path.is_empty() and ResourceLoader.exists(recording_path):
 		var loaded := ResourceLoader.load(recording_path) as Recording
 		if loaded != null and loaded.valid():
 			_source = loaded
@@ -114,7 +116,9 @@ func _read_player() -> void:
 
 func _play(delta: float) -> void:
 	var count := _source.frame_count()
-	var frame := int(_time * float(_source.physics_fps))
+	# Сумма шагов delta не всегда представима точно: без эпсилон-коррекции
+	# индекс иногда повторял кадр и сбивал физическое воспроизведение.
+	var frame := int(_time * float(_source.physics_fps) + 0.0001)
 	if frame >= count:
 		_time = 0.0
 		frame = 0

@@ -5,9 +5,11 @@ extends Path3D
 
 @export_range(2.0, 20.0, 0.1) var half_width := 5.5
 @export_range(0.5, 8.0, 0.5) var sample_step := 2.0
+@export_range(0.5, 6.0, 0.5, "suffix:m") var shoulder_width := 3.0
 @export var road_material: Material
 @export var road_color := Color(0.40, 0.33, 0.24)
 @export_tool_button("Пересобрать дорогу") var rebuild_button = rebuild
+var _rebuild_pending := false
 
 
 func _ready() -> void:
@@ -17,10 +19,13 @@ func _ready() -> void:
 
 
 func _queue_rebuild() -> void:
-	call_deferred("rebuild")
+	if not _rebuild_pending:
+		_rebuild_pending = true
+		call_deferred("rebuild")
 
 
 func rebuild() -> void:
+	_rebuild_pending = false
 	if curve == null or curve.point_count < 2:
 		return
 	var visual := get_node_or_null("RoadMesh") as MeshInstance3D
@@ -43,15 +48,17 @@ func rebuild() -> void:
 		var after := curve.sample_baked(fposmod(d + 0.5, length), true)
 		var direction := (after - before).normalized()
 		var side := Vector3(direction.z, 0.0, -direction.x).normalized()
-		for lateral in [-half_width, 0.0, half_width]:
-			vertices.append(point + side * lateral)
-			normals.append(Vector3.UP)
-			colors.append(road_color if lateral == 0.0 else road_color.darkened(0.12))
+		var normal := direction.cross(side).normalized()
+		for lateral in [-half_width - shoulder_width, -half_width, 0.0, half_width, half_width + shoulder_width]:
+			var is_shoulder: bool = absf(lateral) > half_width + 0.01
+			vertices.append(point + side * lateral + Vector3.DOWN * (0.55 if is_shoulder else 0.0))
+			normals.append(normal)
+			colors.append(road_color.darkened(0.25) if is_shoulder else road_color)
 			uvs.append(Vector2(lateral, d))
 	for i in range(rows):
-		for lane in range(2):
-			var a := i * 3 + lane
-			var b := a + 3
+		for lane in range(4):
+			var a := i * 5 + lane
+			var b := a + 5
 			indices.append_array(PackedInt32Array([a, a + 1, b, a + 1, b + 1, b]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
