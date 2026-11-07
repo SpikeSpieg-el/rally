@@ -969,7 +969,7 @@ func _update_gravel_particles() -> void:
 			color = profile.color_for_wetness(wetness)
 			color.a = cfg.dust_color.a
 		process.color = color
-		process.initial_velocity_max = cfg.dust_speed_max + speed_kmh * 0.035
+		process.initial_velocity_max = cfg.dust_speed_max + speed_kmh * 0.012
 
 
 func _apply_initial_camera_fov() -> void:

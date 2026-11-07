@@ -158,12 +158,16 @@ extends Resource
 @export_range(0.1, 4.0, 0.05) var foam_scale_min: float = 0.55
 @export_range(0.1, 4.0, 0.05) var foam_scale_max: float = 1.35
 ## Куда и с какой силой летят клубы (направление в будущее движения дороги).
-@export var foam_direction: Vector3 = Vector3(0.0, 0.55, 0.6)
+## Вертикальный подброс намеренно небольшой: клуб должен подниматься выбросом
+## и сразу оседать, а не висеть над колесом.
+@export var foam_direction: Vector3 = Vector3(0.0, 0.42, 0.6)
 @export_range(0.0, 90.0, 1.0) var foam_spread: float = 42.0
-@export_range(0.0, 20.0, 0.05) var foam_speed_min: float = 0.6
-@export_range(0.0, 40.0, 0.05) var foam_speed_max: float = 3.4
-## Гравитация клубов: почти невесомые клубы висят и расходятся.
-@export var foam_gravity: Vector3 = Vector3(0.0, -0.9, 0.0)
+@export_range(0.0, 20.0, 0.05) var foam_speed_min: float = 0.4
+@export_range(0.0, 40.0, 0.05) var foam_speed_max: float = 2.4
+## Гравитация клубов: выброс поднимает облако, а тяжесть возвращает его к земле.
+## Слишком слабая гравитация вместе с демпфированием давала «невесомые»
+## клубы, замирающие в воздухе.
+@export var foam_gravity: Vector3 = Vector3(0.0, -2.8, 0.0)
 ## Сколько всего клубов на одно колесо (база; уровни и покрытия масштабируют).
 @export_range(1, 600, 1) var foam_amount: int = 52
 ## Во сколько раз клубы гуще на мокром покрытии и сколько даёт мокрота.
@@ -184,19 +188,27 @@ extends Resource
 ## Масштаб турбулентных завихрений: меньше — крупные вихри, больше — мелкая рябь.
 @export_range(0.5, 20.0, 0.1) var foam_turbulence_scale: float = 4.5
 ## Замедление клубов: 0 — летят до конца, 3 — быстро повисают в воздухе.
-@export_range(0.0, 5.0, 0.05) var foam_damping_min: float = 0.4
-@export_range(0.0, 5.0, 0.05) var foam_damping_max: float = 1.6
+## Держим умеренным: сильное демпфирование гасит скорость и оставляет пыль
+## висеть на месте, как в невесомости, а нулевое превращает клуб в снаряд.
+@export_range(0.0, 5.0, 0.05) var foam_damping_min: float = 0.2
+@export_range(0.0, 5.0, 0.05) var foam_damping_max: float = 0.7
 ## Разброс жизни клубов: 0 — все гаснут одновременно, 1 — вразнобой.
 @export_range(0.0, 1.0, 0.01) var foam_lifetime_randomness: float = 0.35
 
 @export_group("Комья и капли из-под колеса")
 ## Сколько живёт комок и насколько отличается по размеру.
 @export_range(0.1, 4.0, 0.05) var grit_lifetime: float = 0.95
-@export_range(0.0, 90.0, 1.0) var grit_spread: float = 26.0
-@export_range(0.0, 40.0, 0.05) var grit_speed_min: float = 1.8
-@export_range(0.0, 60.0, 0.05) var grit_speed_max: float = 7.5
+@export_range(0.0, 90.0, 1.0) var grit_spread: float = 42.0
+## Начальная скорость комьев. Не «выстрел»: комок должен выпрыгивать
+## из-под колеса и быстро терять скорость в воздухе.
+@export_range(0.0, 40.0, 0.05) var grit_speed_min: float = 0.7
+@export_range(0.0, 60.0, 0.05) var grit_speed_max: float = 3.6
 ## Тяжесть комьев: настоящая баллистика, комья падают на землю.
 @export var grit_gravity: Vector3 = Vector3(0.0, -11.0, 0.0)
+## Сопротивление воздуха: без него круглые крупинки летят ровными
+## траекториями, как пули. С торможением они «клюют» вниз и падают.
+@export_range(0.0, 5.0, 0.05) var grit_damping_min: float = 0.5
+@export_range(0.0, 5.0, 0.05) var grit_damping_max: float = 1.4
 @export_range(0.5, 4.0, 0.05) var grit_scale_min: float = 0.55
 @export_range(0.5, 6.0, 0.05) var grit_scale_max: float = 2.2
 ## Сколько всего комьев на одно колесо (уровни и покрытия масштабируют).
@@ -239,11 +251,11 @@ extends Resource
 @export_range(0, 5000, 1) var dust_amount: int = 64
 @export_range(0.05, 5.0, 0.05) var dust_lifetime: float = 0.9
 @export var dust_emission_extents: Vector3 = Vector3(0.78, 0.05, 0.24)
-@export var dust_direction: Vector3 = Vector3(0.0, 0.42, -1.0)
+@export var dust_direction: Vector3 = Vector3(0.0, 0.34, -1.0)
 @export_range(0.0, 90.0, 1.0) var dust_spread: float = 32.0
-@export_range(0.0, 20.0, 0.05) var dust_speed_min: float = 1.2
-@export_range(0.0, 40.0, 0.05) var dust_speed_max: float = 4.2
-@export var dust_gravity: Vector3 = Vector3(0.0, -4.5, 0.0)
+@export_range(0.0, 20.0, 0.05) var dust_speed_min: float = 0.9
+@export_range(0.0, 40.0, 0.05) var dust_speed_max: float = 3.2
+@export var dust_gravity: Vector3 = Vector3(0.0, -6.5, 0.0)
 @export_range(0.1, 5.0, 0.05) var dust_scale_min: float = 0.45
 @export_range(0.1, 5.0, 0.05) var dust_scale_max: float = 1.65
 @export var dust_color: Color = Color(0.43, 0.35, 0.25, 0.55)
@@ -254,11 +266,11 @@ extends Resource
 ## Масштаб завихрений: меньше — крупные вихри, больше — мелкая рябь.
 @export_range(0.5, 20.0, 0.1) var dust_turbulence_scale: float = 3.5
 ## Сила влияния завихрений на частицу (доля от скорости).
-@export_range(0.0, 1.0, 0.01) var dust_turbulence_influence: float = 0.3
+@export_range(0.0, 1.0, 0.01) var dust_turbulence_influence: float = 0.22
 ## Разброс жизни облака и его торможение в воздухе.
 @export_range(0.0, 1.0, 0.01) var dust_lifetime_randomness: float = 0.4
-@export_range(0.0, 5.0, 0.05) var dust_damping_min: float = 0.3
-@export_range(0.0, 5.0, 0.05) var dust_damping_max: float = 1.2
+@export_range(0.0, 5.0, 0.05) var dust_damping_min: float = 0.25
+@export_range(0.0, 5.0, 0.05) var dust_damping_max: float = 0.7
 ## Насколько облако за кормой раздувается за жизнь частицы.
 @export_range(1.0, 6.0, 0.05) var dust_growth: float = 2.8
 ## Завихрения в шлейфе: 0 — ровный поток, 3 — клубящаяся стена пыли.

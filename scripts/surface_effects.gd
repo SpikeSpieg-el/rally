@@ -270,27 +270,27 @@ func _make_foam_process() -> ParticleProcessMaterial:
 	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.2)) * _p(
 		"foam_emission_radius", 0.55
 	)
-	process.direction = _pv("foam_direction", Vector3(0.0, 0.55, 0.6))
+	process.direction = _pv("foam_direction", Vector3(0.0, 0.42, 0.6))
 	process.spread = clampf(_p("foam_spread", 42.0), 0.0, 180.0)
 	process.flatness = clampf(_p("foam_flatness", 0.35), 0.0, 1.0)
-	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.9, 0.0))
-	process.initial_velocity_min = _p("foam_speed_min", 0.6)
-	process.initial_velocity_max = _p("foam_speed_max", 3.4)
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -2.8, 0.0))
+	process.initial_velocity_min = _p("foam_speed_min", 0.4)
+	process.initial_velocity_max = _p("foam_speed_max", 2.4)
 	process.scale_min = _p("foam_scale_min", 0.55)
 	process.scale_max = _p("foam_scale_max", 1.5)
 	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
 	process.angle_min = 0.0
 	process.angle_max = 360.0
 	process.color_ramp = DustFx.fade_ramp()
-	process.turbulence_enabled = _p("foam_turbulence", 1.6) > 0.0
-	process.turbulence_noise_strength = _p("foam_turbulence", 1.6)
+	process.turbulence_enabled = _p("foam_turbulence", 1.2) > 0.0
+	process.turbulence_noise_strength = _p("foam_turbulence", 1.2)
 	process.turbulence_noise_scale = _p("foam_turbulence_scale", 4.5)
-	process.turbulence_influence_min = 0.06
-	process.turbulence_influence_max = 0.22
+	process.turbulence_influence_min = 0.05
+	process.turbulence_influence_max = 0.16
 	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
 	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
-	process.damping_min = _p("foam_damping_min", 0.4)
-	process.damping_max = maxf(_p("foam_damping_min", 0.4), _p("foam_damping_max", 1.6))
+	process.damping_min = _p("foam_damping_min", 0.2)
+	process.damping_max = maxf(_p("foam_damping_min", 0.2), _p("foam_damping_max", 0.7))
 	var spin := _p("foam_spin", 35.0)
 	process.angular_velocity_min = -spin
 	process.angular_velocity_max = spin
@@ -300,18 +300,24 @@ func _make_foam_process() -> ParticleProcessMaterial:
 func _make_grit_process() -> ParticleProcessMaterial:
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	process.emission_sphere_radius = 0.05
+	process.emission_sphere_radius = 0.09
 	process.direction = _pv("spray_direction", Vector3(0.0, 0.7, -1.0))
-	process.spread = clampf(_p("grit_spread", 26.0), 0.0, 180.0)
+	process.spread = clampf(_p("grit_spread", 42.0), 0.0, 180.0)
 	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0))
-	process.initial_velocity_min = _p("grit_speed_min", 1.8)
-	process.initial_velocity_max = _p("grit_speed_max", 7.5)
+	process.initial_velocity_min = _p("grit_speed_min", 0.7)
+	process.initial_velocity_max = _p("grit_speed_max", 3.6)
 	process.scale_min = _p("grit_scale_min", 0.55)
 	process.scale_max = _p("grit_scale_max", 2.2)
 	process.scale_curve = DustFx.growth_curve(0.6)
 	process.color_ramp = DustFx.debris_fade()
-	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35) * 1.4
+	# Крупинки почти не наследуют скорость машины: иначе на трассе они
+	# вылетают вперёд ровным лучом и читаются как выстрел, а не как грунт
+	# из-под колеса.
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35) * 0.8
 	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
+	# Торможение о воздух: комья теряют скорость и падают, а не летят по прямой.
+	process.damping_min = _p("grit_damping_min", 0.5)
+	process.damping_max = maxf(_p("grit_damping_min", 0.5), _p("grit_damping_max", 1.4))
 	process.angle_min = 0.0
 	process.angle_max = 360.0
 	var spin := _p("grit_spin", 0.0)
@@ -687,10 +693,10 @@ func _emit_foam(
 	var ratio := clampf(density * wet_boost, 0.0, 1.0)
 	pool.amount_ratio = ratio
 	process.direction = direction
-	process.initial_velocity_min = _p("foam_speed_min", 0.6) * profile.velocity_scale * level
+	process.initial_velocity_min = _p("foam_speed_min", 0.4) * profile.velocity_scale * level
 	process.initial_velocity_max = maxf(
 		process.initial_velocity_min,
-		_p("foam_speed_max", 3.4) * profile.velocity_scale * level
+		_p("foam_speed_max", 2.4) * profile.velocity_scale * level
 	)
 	var color: Color = profile.color_for_wetness(wetness)
 	color.a *= clampf(_p("foam_alpha", 0.42), 0.0, 1.0) * clampf(profile.particle_tint, 0.05, 3.0)
@@ -714,8 +720,8 @@ func _emit_grit(
 	pool.amount_ratio = clampf(density, 0.0, 1.0)
 	process.direction = direction
 	var burst: float = maxf(0.05, profile.burst_scale)
-	var speed_min: float = _p("grit_speed_min", 1.8) * profile.velocity_scale * level * burst
-	var speed_max: float = _p("grit_speed_max", 7.5) * profile.velocity_scale * level * burst
+	var speed_min: float = _p("grit_speed_min", 0.7) * profile.velocity_scale * level * burst
+	var speed_max: float = _p("grit_speed_max", 3.6) * profile.velocity_scale * level * burst
 	process.initial_velocity_min = maxf(0.0, speed_min)
 	process.initial_velocity_max = maxf(speed_min, speed_max)
 	var color: Color = profile.color_for_wetness(wetness)
@@ -767,7 +773,9 @@ func _configure_foam(index: int, profile: RallySurfaceFxProfile, amount_scale: f
 	)
 	process.scale_min = _p("foam_scale_min", 0.55) * profile.particle_scale
 	process.scale_max = _p("foam_scale_max", 1.5) * profile.particle_scale
-	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.9, 0.0)) * profile.gravity_scale
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -2.8, 0.0)) * profile.gravity_scale
+	process.damping_min = _p("foam_damping_min", 0.2)
+	process.damping_max = maxf(_p("foam_damping_min", 0.2), _p("foam_damping_max", 0.7))
 	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
 
 
@@ -787,11 +795,13 @@ func _configure_grit(index: int, profile: RallySurfaceFxProfile, amount_scale: f
 	var process := grit.process_material as ParticleProcessMaterial
 	if process == null:
 		return
-	process.spread = clampf(_p("grit_spread", 26.0) * profile.spread_scale, 0.0, 180.0)
+	process.spread = clampf(_p("grit_spread", 42.0) * profile.spread_scale, 0.0, 180.0)
 	process.scale_min = _p("grit_scale_min", 0.55) * profile.particle_scale
 	process.scale_max = _p("grit_scale_max", 2.2) * profile.particle_scale
 	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0)) * profile.gravity_scale
 	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
+	process.damping_min = _p("grit_damping_min", 0.5)
+	process.damping_max = maxf(_p("grit_damping_min", 0.5), _p("grit_damping_max", 1.4))
 	var spin := _p("grit_spin", 0.0)
 	process.angular_velocity_min = -spin
 	process.angular_velocity_max = spin
