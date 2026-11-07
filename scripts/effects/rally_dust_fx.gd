@@ -105,8 +105,9 @@ static func puff_material(texture: Texture2D, unshaded: bool = true) -> Standard
 	# Глубину клуб не пишет осознанно: у билборда одна глубина на весь квад, и
 	# запись превратила бы соседние клубы в жёсткие вырезанные диски. Глубинный
 	# ТЕСТ при этом включён, поэтому клуб всё равно прячется за тем, что уже
-	# нарисовано до него. Просвечивание сквозь кузов лечится не здесь, а
-	# размером клуба и выносом источника (spawn_outward/spawn_behind в профиле).
+	# нарисовано до него. Просвечивание сквозь кузов лечится не выносом
+	# источника (пыль должна рождаться у колеса), а размером клуба: бюджет
+	# foam_size × foam_growth проверяется в tools/check_project.py.
 	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	material.disable_receive_shadows = true
 	material.roughness = 1.0

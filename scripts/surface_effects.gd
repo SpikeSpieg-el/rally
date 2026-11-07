@@ -30,6 +30,10 @@ var _sprays: Array[GPUParticles3D] = []
 ## Клубы пыли/дыма над каждым колесом.
 var _foams: Array[GPUParticles3D] = []
 var _spray_kinds: Array[String] = ["", "", "", ""]
+## Цвет и вид пятна, накопленного каждым колесом. Свои у гравия, грязи,
+## травы и асфальта: колесо плавно переходит на цвет нового покрытия.
+var _dirt_colors: Array[Color] = []
+var _dirt_looks: Array[Vector4] = []
 var _profiles: Dictionary = {}
 var _surface = SurfaceType.new()
 var _rng := RandomNumberGenerator.new()
@@ -71,6 +75,7 @@ func _car_float(car: Object, field: String, fallback: float) -> float:
 func install(car: Node3D) -> void:
 	_car = car
 	_rng.seed = int(Time.get_ticks_usec()) ^ int(car.get_instance_id())
+	_reset_dirt_look()
 	_install_body_dirt(car)
 	_foam_material = _make_foam_material()
 	_grit_material = _make_grit_material()
@@ -130,6 +135,72 @@ func _apply_body_look() -> void:
 	_material.set_shader_parameter("body_spread", _p("body_spread", 1.0))
 
 
+## Чистый кузов: каждое колесо начинает с общего цвета пыли из профиля.
+func _reset_dirt_look() -> void:
+	var color := _pc("dirt_color", Color(0.32, 0.235, 0.14))
+	_dirt_colors.resize(4)
+	_dirt_looks.resize(4)
+	for i in range(4):
+		_dirt_colors[i] = color
+		_dirt_looks[i] = Vector4.ONE
+	_write_dirt_look()
+
+
+## Передать в шейдер цвет и вид пятна каждого колеса.
+func _write_dirt_look() -> void:
+	if _material == null or _dirt_colors.size() < 4 or _dirt_looks.size() < 4:
+		return
+	var colors := PackedVector3Array()
+	var looks := PackedVector4Array()
+	for i in range(4):
+		var color: Color = _dirt_colors[i]
+		colors.append(Vector3(color.r, color.g, color.b))
+		looks.append(_dirt_looks[i])
+	_material.set_shader_parameter("dirt_colors", colors)
+	_material.set_shader_parameter("dirt_looks", looks)
+
+
+## Скорость налипания конкретного покрытия: своё поле профиля, иначе общее
+## gravel/mud/grass_dirt_rate. Асфальт по умолчанию не пачкает кузов.
+func _body_dirt_rate(kind: String, profile: RallySurfaceFxProfile) -> float:
+	if profile != null and profile.body_dirt_rate >= 0.0:
+		return profile.body_dirt_rate
+	match kind:
+		"gravel":
+			return _p("gravel_dirt_rate", 0.018)
+		"mud":
+			return _p("mud_dirt_rate", 0.045)
+		"grass":
+			return _p("grass_dirt_rate", 0.008)
+		_:
+			return 0.0
+
+
+## Плавно перевести пятно колеса на цвет и характер нового покрытия.
+## Чистое колесо сразу берёт цвет покрытия; уже грязное — по доле свежего
+## налипания, поэтому гравийная пыль не перекрашивает налипшую грязь.
+func _blend_dirt_look(
+	index: int, profile: RallySurfaceFxProfile, work: float, before: float
+) -> void:
+	if profile == null or work <= 0.0:
+		return
+	if _dirt_colors.size() < 4 or _dirt_looks.size() < 4:
+		_reset_dirt_look()
+	var target_color: Color = profile.body_dirt_color
+	var target_look := Vector4(
+		profile.body_dirt_coverage,
+		profile.body_dirt_spread,
+		profile.body_dirt_alpha,
+		0.0
+	)
+	var blend: float = (
+		1.0 if before < 0.005 else clampf(work / maxf(before + work, 0.001), 0.0, 1.0)
+	)
+	_dirt_colors[index] = _dirt_colors[index].lerp(target_color, blend)
+	_dirt_looks[index] = _dirt_looks[index].lerp(target_look, blend)
+	_write_dirt_look()
+
+
 ## Процедурный слой поверх краски: пятна, брызги и потёки у каждого колеса.
 func _install_body_dirt(car: Node3D) -> void:
 	_material = ShaderMaterial.new()
@@ -151,6 +222,7 @@ func _install_body_dirt(car: Node3D) -> void:
 	_material.set_shader_parameter("dirt_amount", Vector4.ZERO)
 	_material.set_shader_parameter("damp_amount", Vector4.ZERO)
 	_material.set_shader_parameter("snow_amount", Vector4.ZERO)
+	_write_dirt_look()
 	for mesh in _body_meshes(car):
 		mesh.material_overlay = _material
 
@@ -456,14 +528,13 @@ func accumulate(
 		)
 		snow_amounts[index] = clampf(snow_amounts[index] + snow_work, 0.0, 1.0)
 		return
-	if kind == "asphalt":
+	if kind.is_empty():
+		return
+	var profile := profile_for_kind(kind)
+	var base_rate: float = _body_dirt_rate(kind, profile)
+	if base_rate <= 0.0:
 		return
 	wetness = clampf(wetness, 0.0, 1.0)
-	var base_rate: float = _p("mud_dirt_rate", 0.045)
-	if kind == "gravel":
-		base_rate = _p("gravel_dirt_rate", 0.018)
-	elif kind == "grass":
-		base_rate = _p("grass_dirt_rate", 0.008)
 	# fx_intensity — общая «громкость»: грязь налипает в том же ритме, что
 	# растёт пыль и комья, иначе при сильных эффектах кузов остаётся чистым.
 	var intensity := clampf(_p("fx_intensity", 1.0), 0.0, 4.0)
@@ -473,8 +544,10 @@ func accumulate(
 		* intensity
 	)
 	var work := rate * clampf(speed / 12.0, 0.0, 2.0) * (1.0 + clampf(slip, 0.0, 2.0)) * delta
-	amounts[index] = clampf(amounts[index] + work, 0.0, 1.0)
+	var before: float = amounts[index]
+	amounts[index] = clampf(before + work, 0.0, 1.0)
 	damp[index] = clampf(damp[index] + work * wetness, 0.0, 1.0)
+	_blend_dirt_look(index, profile, work, before)
 
 
 ## Осадки воздействуют на уже нанесённый налёт даже когда машина стоит.
@@ -652,15 +725,15 @@ func _place_emitters(
 	# источника: дым гуще на мокром, комья — на рыхлом.
 	var smoke: float = scaled * clampf(profile.smoke_share, 0.0, 1.0)
 	var grits: float = scaled * clampf(profile.grit_share, 0.0, 1.0)
-	# Вынос источника наружу от кузова. Точка контакта лежит ПОД аркой, и
-	# билборд-клуб радиусом до метра рождался внутри железа: камера видела его
-	# сквозь кузов, потому что частица оказывалась ближе к камере, чем стенка.
-	# Сдвигаем рождение на ширину колеи наружу и чуть назад по ходу — клуб
-	# выходит из-под крыла, как настоящая пыль, а не «сквозь» машину.
-	var outward: Vector3 = basis.x * splay * _p("spawn_outward", 1.25)
-	# Нос машины смотрит в -Z, поэтому «назад по ходу» = -forward_sign * basis.z:
-	# при движении вперёд forward_sign = -1 и сдвиг уходит в +Z, за корму.
-	var rearward: Vector3 = basis.z * (_p("spawn_behind", 0.55) * -forward_sign)
+	# Вынос источника от центра колеса к внешней боковине шины. Раньше здесь
+	# было произведение на splay (до 0.44 м) плюс полметра назад — пыль
+	# рождалась заметно в стороне от колеса. Теперь смещение задаётся в метрах
+	# напрямую и держится в пределах ширины покрышки.
+	var outward: Vector3 = basis.x * side * _p("spawn_outward", 0.12)
+	# Перед машины смотрит в +Z (колёса FL/FR стоят на z = +1.9), поэтому
+	# «назад по ходу» = -forward_sign * basis.z: при движении вперёд
+	# forward_sign = +1 и сдвиг уходит в -Z, за корму.
+	var rearward: Vector3 = basis.z * (_p("spawn_behind", 0.05) * -forward_sign)
 	var spawn: Vector3 = point + outward + rearward
 	# Пол под источником: не даём клубу родиться ниже земли на уклоне.
 	spawn.y = maxf(spawn.y, point.y)
@@ -811,6 +884,7 @@ func clear() -> void:
 	amounts = Vector4.ZERO
 	damp = Vector4.ZERO
 	snow_amounts = Vector4.ZERO
+	_reset_dirt_look()
 	for pool in _sprays + _foams:
 		pool.emitting = false
 	if _material != null:

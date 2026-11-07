@@ -24,6 +24,20 @@ enum Kind { GRAVEL, MUD, GRASS, SNOW, ASPHALT }
 @export_range(0.1, 4.0, 0.05) var particle_scale: float = 1.0
 @export_range(0.1, 4.0, 0.05) var grain_scale: float = 1.0
 
+@export_group("Загрязнение кузова")
+## Цвет пыли/грязи, которую это покрытие оставляет на кузове. Гравий — светлая
+## пыль, грязь — тёмный налипший слой, трава — зеленоватый налёт.
+@export var body_dirt_color: Color = Color(0.32, 0.235, 0.14, 1.0)
+## Скорость налипания на кузов, ед/с. Отрицательное значение — брать общее
+## gravel/mud/grass_dirt_rate из RallyFxProfile (старые ресурсы).
+@export_range(-1.0, 0.5, 0.001) var body_dirt_rate: float = -1.0
+## Густота пятна на кузове: множитель к общей body_coverage.
+@export_range(0.05, 3.0, 0.05) var body_dirt_coverage: float = 1.0
+## Насколько далеко от колеса расходится пятно: множитель к body_spread.
+@export_range(0.2, 3.0, 0.05) var body_dirt_spread: float = 1.0
+## Предел непрозрачности слоя от этого покрытия: множитель к body_alpha.
+@export_range(0.0, 1.0, 0.01) var body_dirt_alpha: float = 1.0
+
 @export_group("Реакция на движение")
 ## Вклад обычного движения, пробуксовки и мокроты в силу выброса.
 @export_range(0.0, 1.0, 0.01) var speed_weight: float = 0.60

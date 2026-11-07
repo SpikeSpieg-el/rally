@@ -4,6 +4,71 @@
 [ext_resource type="Curve3D" uid="uid://cnkrnb4gwuihg" path="res://data/tracks/stage_forest_route.tres" id="2_curve"]
 [ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_ve6sl"]
 
+[sub_resource type="Resource" id="Resource_gfha5"]
+script = ExtResource("2_ve6sl")
+start_distance = 740.0
+title = "Участок 2"
+half_width = 2.5
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
+[sub_resource type="Resource" id="Resource_dfi7e"]
+script = ExtResource("2_ve6sl")
+start_distance = 740.01
+title = "Участок 3"
+surface_name = "Грязь"
+half_width = 2.5
+road_color = Color(0.42, 0.29, 0.19, 1)
+transition_length = 59.99000000000001
+
+[sub_resource type="Resource" id="Resource_7uqyg"]
+script = ExtResource("2_ve6sl")
+start_distance = 776.0
+title = "Участок 4"
+half_width = 5.101868
+road_color = Color(0.62, 0.5, 0.32, 1)
+transition_length = 99.98000000000002
+
+[sub_resource type="Resource" id="Resource_xajco"]
+script = ExtResource("2_ve6sl")
+start_distance = 880.0
+title = "Участок 8"
+half_width = 3.9308853
+road_color = Color(0.62, 0.5, 0.32, 1)
+transition_length = 0.0
+
+[sub_resource type="Resource" id="Resource_ot66i"]
+script = ExtResource("2_ve6sl")
+start_distance = 1060.0
+title = "Участок 6"
+half_width = 5.787676
+road_color = Color(0.62, 0.5, 0.32, 1)
+transition_length = 140.0
+
+[sub_resource type="Resource" id="Resource_a3hu1"]
+script = ExtResource("2_ve6sl")
+start_distance = 1300.0
+title = "Участок 7"
+half_width = 2.7928205
+road_color = Color(0.62, 0.5, 0.32, 1)
+transition_length = 140.0
+
+[sub_resource type="Resource" id="Resource_nppj4"]
+script = ExtResource("2_ve6sl")
+start_distance = 1480.0
+title = "Участок 5"
+half_width = 3.7832184
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 0.0
+
+[sub_resource type="Resource" id="Resource_ve6sl"]
+script = ExtResource("2_ve6sl")
+start_distance = 2140.0
+title = "Участок 1"
+half_width = 2.5
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
 [resource]
 script = ExtResource("1_script")
 id = "forest_stage2"
@@ -14,6 +79,7 @@ road_half_width = 5.0
 road_shoulder = 2.0
 road_camber = 0.08
 offroad_grip = 0.9
+route_sections = Array[ExtResource("2_ve6sl")]([SubResource("Resource_gfha5"), SubResource("Resource_dfi7e"), SubResource("Resource_7uqyg"), SubResource("Resource_xajco"), SubResource("Resource_ot66i"), SubResource("Resource_a3hu1"), SubResource("Resource_nppj4"), SubResource("Resource_ve6sl")])
 terrain_margin = 130.0
 terrain_seed = 4711
 hills_height = 16.0

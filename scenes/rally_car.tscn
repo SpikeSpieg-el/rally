@@ -1072,7 +1072,7 @@ material_override = SubResource("StandardMaterial3D_g12nq")
 mesh = SubResource("ArrayMesh_268vy")
 
 [node name="GravelParticles" type="GPUParticles3D" parent="." unique_id=1966451970]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, -2.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, -1.5)
 emitting = false
 amount = 128
 lifetime = 1.1

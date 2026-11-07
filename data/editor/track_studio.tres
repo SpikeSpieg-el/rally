@@ -6,7 +6,7 @@
 script = ExtResource("1_settings")
 surface_names = PackedStringArray("Гравий", "Асфальт", "Грязь", "Снег", "Трава")
 surface_colors = PackedColorArray(0.62, 0.5, 0.32, 1, 0.36, 0.38, 0.42, 1, 0.42, 0.29, 0.19, 1, 0.86, 0.9, 0.95, 1, 0.33, 0.45, 0.22, 1)
-brush_radius = 14.0
+brush_radius = 23.0
 brush_prop_ids = PackedStringArray()
 mode_names = PackedStringArray("ТРАССА", "ПОЛОТНО", "ЛЕС", "ЗОНЫ")
 hints_route = PackedStringArray("ЛКМ — тянуть точку, клик по линии — вставить", "свободное место — добавить точку в конец", "Shift+тянуть — высота, ПКМ — удалить точку", "S — сгладить, Ctrl+R — собрать, Esc — отмена")

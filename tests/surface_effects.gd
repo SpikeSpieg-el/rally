@@ -47,6 +47,20 @@ func _run() -> void:
 		effects.profile_for_kind("gravel").dry_color != effects.profile_for_kind("mud").dry_color,
 		"покрытия отличаются цветом и характером частиц"
 	)
+	var gravel_body := effects.profile_for_kind("gravel")
+	var mud_body := effects.profile_for_kind("mud")
+	check(
+		gravel_body.body_dirt_color != mud_body.body_dirt_color,
+		"у гравия и грязи разный цвет налёта на кузове"
+	)
+	check(
+		gravel_body.body_dirt_rate < mud_body.body_dirt_rate,
+		"гравийная пыль налипает медленнее грязи"
+	)
+	check(
+		mud_body.body_dirt_coverage > gravel_body.body_dirt_coverage,
+		"грязь даёт более плотное пятно, чем гравий"
+	)
 	check(
 		effects.effect_level_for("asphalt", 80.0, 0.0, 0.0) == 0,
 		"сухой асфальт не пылит при обычном движении"
@@ -109,6 +123,16 @@ func _run() -> void:
 	effects.accumulate(1, "gravel", 0.0, 12.0, 0.0, 1.0)
 	check(effects.amounts.y > 0.0 and effects.amounts.y < effects.amounts.x, "сухая пыль накапливается медленнее грязи")
 	check(effects.damp.y == 0.0, "сухая пыль не становится мокрой")
+	check(
+		effects._dirt_colors[0] != effects._dirt_colors[1],
+		"каждое колесо хранит цвет покрытия, по которому ехало"
+	)
+	check(
+		effects._dirt_looks[0].x > effects._dirt_looks[1].x,
+		"пятно грязи плотнее гравийной пыли"
+	)
+	effects.accumulate(3, "", 0.0, 12.0, 0.0, 1.0)
+	check(effects.amounts.w == 0.0, "без распознанного покрытия кузов не пачкается")
 	effects.accumulate(2, "mud", 1.0, 100.0, 100.0, 10000.0)
 	check(effects.amounts.z == 1.0 and effects.damp.z == 1.0, "насыщение ограничено")
 	var previous_dirt: float = effects.amounts.x
@@ -154,6 +178,16 @@ func _run() -> void:
 	other_car.free()
 	other_effects.free()
 	check(body.material_overlay != null, "грязь — отдельный слой на кузове")
+	var shader_colors: Variant = effects._material.get_shader_parameter("dirt_colors")
+	var shader_looks: Variant = effects._material.get_shader_parameter("dirt_looks")
+	check(
+		shader_colors is PackedVector3Array and (shader_colors as PackedVector3Array).size() == 4,
+		"шейдер получает цвет пятна для каждого колеса"
+	)
+	check(
+		shader_looks is PackedVector4Array and (shader_looks as PackedVector4Array).size() == 4,
+		"шейдер получает густоту и прозрачность пятна для каждого колеса"
+	)
 	check(body.material_override == paint and paint.albedo_color == Color.RED, "исходная краска не меняется")
 	check(effects._sprays.size() == 4, "каждое колесо имеет собственный выброс грунта")
 	var soil_mesh := effects._sprays[0].draw_pass_1 as SphereMesh

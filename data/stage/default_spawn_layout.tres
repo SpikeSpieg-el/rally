@@ -5,5 +5,4 @@
 [resource]
 script = ExtResource("1_layout")
 start_distance = 25.992683
-finish_margin = 25.992676
 custom_checkpoint_distances = PackedFloat32Array(420, 840, 1073.7168, 1260, 1529.5967, 1680, 2100, 2520, 2940, 3360)

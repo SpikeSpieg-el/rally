@@ -6,7 +6,7 @@
 shader = ExtResource("1_sky")
 shader_parameter/sky_top_color = Color(0.035, 0.045, 0.075, 1)
 shader_parameter/sky_horizon_color = Color(0.13, 0.16, 0.19, 1)
-shader_parameter/star_intensity = 0.8
+shader_parameter/star_intensity = 1.61600007676
 
 [sub_resource type="Sky" id="NightSky"]
 sky_material = SubResource("NightSkyMaterial")

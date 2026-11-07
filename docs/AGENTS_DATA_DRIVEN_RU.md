@@ -96,7 +96,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `Сила и производительность` | `fx_intensity` (общая громкость эффектов, ×), `fx_update_hz`, `fx_physics_fps`, свечение пылинок `fx_sparkle_*` |
 | `Следы шин` | `chunk_*`, `min/max_distance`, `flush_interval`, `soil_spacing`, `min_looseness`, `min_speed` |
 | `Цвета следов и комьев` | `spray_*_color`, `gravel/wet_soil_color`, `soil_lighten`, `soil_wet_darken` |
-| `Грязь и пыль на кузове` | `dirt_color`, `body_snow_color`, `body_coverage`, `body_alpha`, `body_spread`, `body_edge_softness`, `body_dirt_buildup`, `body_snow_buildup`, скорости налипания `*_dirt_rate`, `damp_*_scale`, `rain_*`, `snow_*`, `dirt_body_prefixes`, `dirt_body_skip` |
+| `Грязь и пыль на кузове` | `dirt_color`, `body_snow_color`, `body_coverage`, `body_alpha`, `body_spread`, `body_edge_softness`, `body_dirt_buildup`, `body_snow_buildup`, скорости налипания `*_dirt_rate`, `damp_*_scale`, `rain_*`, `snow_*`, `dirt_body_prefixes`, `dirt_body_skip`. У каждого покрытия свои `body_dirt_color/rate/coverage/spread/alpha` |
 | `Брызги из-под колеса (общие)` | `spray_grain_radius/height/segments/rings` (вид крупинки), `spray_min_speed`, `spray_slip/wet_threshold`, `spray_dry/wet/snow_color`, `spray_direction` — общие значения для покрытий без своего профиля |
 | `Дым и облака над колесом` | `foam_*`: высота, жизнь, раздувание, размер, направление, разлёт, скорость, тяжесть, плотность, надбавка на мокром, альфа, свечение, сплющенность, вращение, турбулентность, торможение, разброс жизни |
 | `Комья и капли из-под колеса` | `grit_*`: жизнь, разлёт, скорость, тяжесть, размеры зерна, количество, блеск, подсветка, разброс жизни, вращение |
@@ -111,6 +111,14 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 вклад скорости, пробуксовки и мокроты и три порога. Плотность между порогами
 растёт плавно (`amount_ratio_for_activity`), а скорость выброса берётся из трёх
 настроенных ступеней (`velocity_scale_for_level`) — облако не «дёргается».
+
+Тот же профиль покрытия отвечает и за налёт на кузове: `body_dirt_color` —
+цвет пятна, `body_dirt_rate` — скорость налипания, `body_dirt_coverage`,
+`body_dirt_spread` и `body_dirt_alpha` — густота, разлёт и предел
+непрозрачности относительно общих `body_*`. Поэтому гравий оставляет светлую
+полупрозрачную пыль, грязь — тёмный плотный слой, трава — слабый зеленоватый
+налёт, а асфальт по умолчанию не пачкает кузов. Колесо хранит цвет покрытия,
+по которому ехало, и плавно перекрашивается при смене дороги.
 
 Порядок профилей фиксирован: `gravel`, `mud`, `grass`, `snow`, `asphalt`.
 Покрытие под конкретным колесом берётся из `rally_stage.surface_kind_at()`.
