@@ -21,6 +21,16 @@ func _run() -> void:
 	current_scene = title
 	await process_frame
 	var drive = title.get_node("WorldViewport/TitleDrive")
+	# Проверяем обе ветки _build_surface до обращения к машине: при ошибке
+	# сборки тест должен завершиться с FAIL, а не упасть на null.position.
+	var terrain := drive.get_node_or_null("Terrain") as MeshInstance3D
+	var road := drive.get_node_or_null("Road") as MeshInstance3D
+	_check(terrain != null and terrain.mesh != null, "рельеф стартового экрана построен")
+	_check(road != null and road.mesh != null, "дорога стартового экрана построена")
+	_check(drive.car != null and drive.camera != null, "машина и камера созданы")
+	if terrain == null or road == null or drive.car == null or drive.camera == null:
+		quit(1)
+		return
 	var initial_position: Vector3 = drive.car.position
 	drive._process(1.0)
 	_check(drive.car.position.distance_to(initial_position) > 1.0, "машина движется по трассе")
@@ -28,8 +38,7 @@ func _run() -> void:
 	_check(drive.car.position.distance_to(drive._point(drive.distance)) < 0.2, "машина следует оси игровой трассы")
 	_check(title.world_viewport.size.x <= 960 and title.world_viewport.size.y <= 540, "размер 3D-превью ограничен")
 	_check(title.preview.get_parent() == title, "интерфейс не находится в 3D-превью")
-	var road := drive.get_node("Road") as MeshInstance3D
-	_check(road != null and road.material_override is ShaderMaterial, "дорога использует игровой шейдер")
+	_check(road.material_override is ShaderMaterial, "дорога использует игровой шейдер")
 	var batches := 0
 	var colliders := 0
 	for child in drive.get_children():
