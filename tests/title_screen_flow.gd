@@ -27,10 +27,26 @@ func _run() -> void:
 	var car = stage.get_node("RallyCar")
 	var driver = stage.get_node("Driver")
 	var track = stage.get_node("Track")
+	var terrain = stage.get_node("Ground")
 	driver.mode = Driver.Mode.AUTO
 	car.reset_to_spawn()
 	check(car is RigidBody3D and car.cinematic_mode, "меню использует настоящую физическую машину")
 	check(track.get_node("RoadMesh").mesh != null, "видимая дорога построена")
+	check(terrain.get_node("Mesh").mesh != null and terrain.get_node("CollisionShape3D").shape != null, "рельеф и коллизия построены")
+	var low := INF
+	var high := -INF
+	for point in terrain._heights:
+		low = minf(low, point)
+		high = maxf(high, point)
+	check(high - low > 10.0, "рельеф не плоский")
+	var road_low := INF
+	var road_high := -INF
+	for i in range(track.curve.point_count):
+		var height: float = track.curve.get_point_position(i).y
+		road_low = minf(road_low, height)
+		road_high = maxf(road_high, height)
+	check(road_high - road_low > 8.0, "у дороги есть подъёмы и спуски")
+	check(stage.get_node("Props").get_child_count() > 100, "расставлено лесное окружение")
 	check(track.get_node("RoadSurface/CollisionShape3D").shape != null, "у дороги есть физическая коллизия")
 	check(track.curve.get_point_position(0).distance_to(track.curve.get_point_position(track.curve.point_count - 1)) < 0.01, "трасса замкнута")
 	check(stage.get_node("Cinematography/Camera3D").current, "активна кинематографическая камера")

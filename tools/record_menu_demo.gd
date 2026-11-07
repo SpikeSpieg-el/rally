@@ -16,8 +16,10 @@ func _run() -> void:
 	var car = stage.get_node("RallyCar")
 	var route: Path3D = stage.get_node("Track")
 	driver.mode = Driver.Mode.AUTO
-	driver.recording_path = "res://data/menu/demo_drive.tres"
-	driver.max_record_seconds = 75.0
+	# Сначала пишем во временный файл, чтобы не уничтожить прежнюю запись,
+	# если автомобиль не прошёл изменённую трассу.
+	driver.recording_path = "user://menu_demo_candidate.tres"
+	driver.max_record_seconds = 150.0
 	driver.begin_recording()
 	var worst_distance := 0.0
 	var previous: Vector3 = car.global_position
@@ -44,4 +46,12 @@ func _run() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(driver.recording_path))
 		quit(1)
 		return
+	var destination := ProjectSettings.globalize_path("res://data/menu/demo_drive.tres")
+	var result := DirAccess.copy_absolute(ProjectSettings.globalize_path(driver.recording_path), destination)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(driver.recording_path))
+	if result != OK:
+		printerr("Не удалось скопировать проверенную запись: ", result)
+		quit(1)
+		return
+	print("Проверенная запись: ", destination)
 	quit(0)

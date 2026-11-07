@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/menu/menu_track.gd" id="track_script"]
 [ext_resource type="Script" path="res://scripts/menu/menu_driver.gd" id="driver_script"]
@@ -7,22 +7,21 @@
 [ext_resource type="PackedScene" path="res://scenes/rally_car.tscn" id="car"]
 [ext_resource type="Resource" path="res://data/setups/11_gravel.tres" id="setup"]
 [ext_resource type="Resource" path="res://data/menu/demo_drive.tres" id="recording"]
+[ext_resource type="Script" path="res://scripts/menu/menu_terrain.gd" id="terrain_script"]
+[ext_resource type="Script" path="res://scripts/menu/menu_scenery.gd" id="scenery_script"]
+[ext_resource type="Shader" path="res://shaders/forest_ground.gdshader" id="ground_shader"]
+[ext_resource type="Texture2D" path="res://textures/environment/rock.png" id="rock_tex"]
 [ext_resource type="Shader" path="res://shaders/gravel_road.gdshader" id="road_shader"]
 [ext_resource type="Texture2D" path="res://textures/environment/gravel.png" id="gravel"]
 [ext_resource type="Texture2D" path="res://textures/environment/forest_floor.png" id="ground"]
-[ext_resource type="PackedScene" path="res://scenes/props/pine_tree.tscn" id="pine"]
-[ext_resource type="PackedScene" path="res://scenes/props/fir_tree.tscn" id="fir"]
-[ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="bush"]
-[ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="rock"]
-[ext_resource type="PackedScene" path="res://scenes/props/sponsor_banner.tscn" id="banner"]
 
 [sub_resource type="Curve3D" id="Curve_loop"]
 bake_interval = 1.0
 _data = {
-"points": PackedVector3Array(-30.38, 0, 0, 30.38, 0, 0, 0, 0, -55, 0, 0, -30.38, 0, 0, 30.38, 55, 0, 0, 30.38, 0, 0, -30.38, 0, 0, 0, 0, 55, 0, 0, 30.38, 0, 0, -30.38, -55, 0, 0, -30.38, 0, 0, 30.38, 0, 0, 0, 0, -55),
-"tilts": PackedFloat32Array(0, 0, 0, 0, 0)
+"points": PackedVector3Array(-14.04, -0.72, 11.16, 14.04, 0.72, -11.16, -145, 0, -85, -22.86, -1.26, 3.6, 22.86, 1.26, -3.6, -82, 3, -87, -24.12, -1.44, -0.36, 24.12, 1.44, 0.36, -18, 7, -105, -24.66, -1.08, -9.72, 24.66, 1.08, 9.72, 52, 11, -85, -16.38, 0.18, -15.84, 16.38, -0.18, 15.84, 119, 13, -51, 3.06, 1.08, -18.36, -3.06, -1.08, 18.36, 143, 10, 3, 17.64, 1.08, -8.46, -17.64, -1.08, 8.46, 102, 7, 51, 20.16, 1.08, 3.6, -20.16, -1.08, -3.6, 45, 4, 50, 20.16, 1.08, 0.9, -20.16, -1.08, -0.9, -10, 1, 31, 22.5, 0.72, 0.54, -22.5, -0.72, -0.54, -67, -2, 45, 16.74, -0.18, 12.6, -16.74, 0.18, -12.6, -135, -3, 28, 1.8, -0.54, 20.34, -1.8, 0.54, -20.34, -160, -1, -25, -14.04, -0.72, 11.16, 14.04, 0.72, -11.16, -145, 0, -85),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
-point_count = 5
+point_count = 13
 
 [sub_resource type="ShaderMaterial" id="RoadMaterial"]
 shader = ExtResource("road_shader")
@@ -30,19 +29,16 @@ shader_parameter/gravel_texture = ExtResource("gravel")
 shader_parameter/gravel_texture_smooth = ExtResource("gravel")
 shader_parameter/ps1_textures = true
 
-[sub_resource type="StandardMaterial3D" id="GroundMaterial"]
-albedo_color = Color(0.42, 0.49, 0.32, 1)
-albedo_texture = ExtResource("ground")
-texture_filter = 0
-uv1_scale = Vector3(50, 50, 1)
-roughness = 1.0
-
-[sub_resource type="PlaneMesh" id="GroundMesh"]
-material = SubResource("GroundMaterial")
-size = Vector2(300, 300)
-
-[sub_resource type="BoxShape3D" id="GroundCollision"]
-size = Vector3(300, 1, 300)
+[sub_resource type="ShaderMaterial" id="GroundMaterial"]
+shader = ExtResource("ground_shader")
+shader_parameter/ground_texture = ExtResource("ground")
+shader_parameter/ground_texture_smooth = ExtResource("ground")
+shader_parameter/rock_texture = ExtResource("rock_tex")
+shader_parameter/rock_texture_smooth = ExtResource("rock_tex")
+shader_parameter/ground_color = Color(0.3, 0.38, 0.23, 1)
+shader_parameter/ground_color_2 = Color(0.42, 0.45, 0.28, 1)
+shader_parameter/road_edge_color = Color(0.31, 0.25, 0.17, 1)
+shader_parameter/rock_color = Color(0.3, 0.31, 0.32, 1)
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial"]
 sky_top_color = Color(0.25, 0.36, 0.48, 1)
@@ -71,17 +67,18 @@ environment = SubResource("Environment")
 rotation_degrees = Vector3(-35, 105, 0)
 light_color = Color(1, 0.87, 0.72, 1)
 light_energy = 1.25
-shadow_enabled = false
+shadow_enabled = true
+directional_shadow_mode = 0
+directional_shadow_max_distance = 90.0
 
 [node name="Ground" type="StaticBody3D" parent="." groups=["Grass"]]
-position = Vector3(0, -0.18, 0)
+script = ExtResource("terrain_script")
+ground_material = SubResource("GroundMaterial")
 
 [node name="Mesh" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("GroundMesh")
+cast_shadow = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
-position = Vector3(0, -0.5, 0)
-shape = SubResource("GroundCollision")
 
 [node name="Track" type="Path3D" parent="."]
 curve = SubResource("Curve_loop")
@@ -96,8 +93,8 @@ cast_shadow = 0
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Track/RoadSurface"]
 
 [node name="RallyCar" parent="." instance=ExtResource("car")]
-position = Vector3(0, 0.8, -55)
-rotation_degrees = Vector3(0, 90, 0)
+position = Vector3(-145, 0.8, -85)
+rotation_degrees = Vector3(0, 128.5, 0)
 cinematic_mode = true
 cinematic_input_path = NodePath("../Driver")
 mouse_look_enabled = false
@@ -110,6 +107,10 @@ script = null
 [node name="Driver" type="Node" parent="."]
 script = ExtResource("driver_script")
 recording = ExtResource("recording")
+allow_user_recording_fallback = false
+target_speed = 27.0
+lookahead = 13.0
+steering_gain = 2.8
 
 [node name="Cinematography" type="Node3D" parent="."]
 script = ExtResource("director_script")
@@ -124,462 +125,67 @@ fov = 46.0
 [node name="Aerial" type="Node3D" parent="Cinematography/Shots"]
 script = ExtResource("shot_script")
 duration = 11.0
-fov = 44.0
+fov = 48.0
+follow_car = true
+framing_offset = 8.0
 
 [node name="Start" type="Marker3D" parent="Cinematography/Shots/Aerial"]
-position = Vector3(105, 75, -115)
+position = Vector3(26, 24, -36)
 
 [node name="End" type="Marker3D" parent="Cinematography/Shots/Aerial"]
-position = Vector3(35, 50, -90)
+position = Vector3(38, 20, -20)
 
 [node name="Tracking" type="Node3D" parent="Cinematography/Shots"]
 script = ExtResource("shot_script")
 duration = 9.0
 fov = 52.0
 follow_car = true
-framing_offset = 6.0
+framing_offset = 5.0
 
 [node name="Start" type="Marker3D" parent="Cinematography/Shots/Tracking"]
-position = Vector3(25, 18, -24)
+position = Vector3(15, 10, -20)
 
 [node name="End" type="Marker3D" parent="Cinematography/Shots/Tracking"]
-position = Vector3(33, 12, -8)
+position = Vector3(26, 9, -8)
 
 [node name="ForestSweep" type="Node3D" parent="Cinematography/Shots"]
 script = ExtResource("shot_script")
 duration = 10.0
-fov = 52.0
+fov = 48.0
+follow_car = true
+framing_offset = 8.0
 
 [node name="Start" type="Marker3D" parent="Cinematography/Shots/ForestSweep"]
-position = Vector3(-100, 30, -85)
+position = Vector3(-28, 18, -18)
 
 [node name="End" type="Marker3D" parent="Cinematography/Shots/ForestSweep"]
-position = Vector3(-90, 20, 30)
+position = Vector3(-30, 16, 12)
 
 [node name="AcrossLoop" type="Node3D" parent="Cinematography/Shots"]
 script = ExtResource("shot_script")
 duration = 10.0
 fov = 48.0
+follow_car = true
+framing_offset = 8.0
 
 [node name="Start" type="Marker3D" parent="Cinematography/Shots/AcrossLoop"]
-position = Vector3(-15, 45, 105)
+position = Vector3(32, 24, 20)
 
 [node name="End" type="Marker3D" parent="Cinematography/Shots/AcrossLoop"]
-position = Vector3(75, 30, 85)
+position = Vector3(12, 17, 28)
 
 [node name="Roadside" type="Node3D" parent="Cinematography/Shots"]
 script = ExtResource("shot_script")
 duration = 9.0
 fov = 55.0
+follow_car = true
+framing_offset = 5.0
 
 [node name="Start" type="Marker3D" parent="Cinematography/Shots/Roadside"]
-position = Vector3(82, 12, 30)
+position = Vector3(-18, 9, 22)
 
 [node name="End" type="Marker3D" parent="Cinematography/Shots/Roadside"]
-position = Vector3(55, 18, -55)
+position = Vector3(-28, 12, 6)
 
 [node name="Props" type="Node3D" parent="."]
-
-[node name="Pine00" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-110.33, 0, 84.19)
-rotation_degrees = Vector3(0, 21.4, 0)
-scale = Vector3(1.082, 1.082, 1.082)
-
-[node name="Fir01" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-76.27, 0, -29.42)
-rotation_degrees = Vector3(0, 296.9, 0)
-scale = Vector3(0.771, 0.771, 0.771)
-
-[node name="Fir02" parent="Props" instance=ExtResource("fir")]
-position = Vector3(106.63, 0, -8.91)
-rotation_degrees = Vector3(0, 48.8, 0)
-scale = Vector3(1.051, 1.051, 1.051)
-
-[node name="Pine03" parent="Props" instance=ExtResource("pine")]
-position = Vector3(76.68, 0, 48.82)
-rotation_degrees = Vector3(0, 278.9, 0)
-scale = Vector3(0.783, 0.783, 0.783)
-
-[node name="Fir04" parent="Props" instance=ExtResource("fir")]
-position = Vector3(55.15, 0, 87.23)
-rotation_degrees = Vector3(0, 70.3, 0)
-scale = Vector3(0.775, 0.775, 0.775)
-
-[node name="Fir05" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-57.63, 0, 89.18)
-rotation_degrees = Vector3(0, 198.2, 0)
-scale = Vector3(0.889, 0.889, 0.889)
-
-[node name="Pine06" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-65.30, 0, -49.78)
-rotation_degrees = Vector3(0, 35.9, 0)
-scale = Vector3(1.013, 1.013, 1.013)
-
-[node name="Fir07" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-70.88, 0, -105.40)
-rotation_degrees = Vector3(0, 315.8, 0)
-scale = Vector3(1.190, 1.190, 1.190)
-
-[node name="Fir08" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-115.03, 0, -72.78)
-rotation_degrees = Vector3(0, 238.0, 0)
-scale = Vector3(1.078, 1.078, 1.078)
-
-[node name="Pine09" parent="Props" instance=ExtResource("pine")]
-position = Vector3(69.52, 0, 25.30)
-rotation_degrees = Vector3(0, 321.8, 0)
-scale = Vector3(0.871, 0.871, 0.871)
-
-[node name="Fir10" parent="Props" instance=ExtResource("fir")]
-position = Vector3(103.55, 0, -74.81)
-rotation_degrees = Vector3(0, 70.1, 0)
-scale = Vector3(0.978, 0.978, 0.978)
-
-[node name="Fir11" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-95.16, 0, 96.91)
-rotation_degrees = Vector3(0, 316.1, 0)
-scale = Vector3(0.862, 0.862, 0.862)
-
-[node name="Pine12" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-82.58, 0, -69.97)
-rotation_degrees = Vector3(0, 98.1, 0)
-scale = Vector3(0.871, 0.871, 0.871)
-
-[node name="Fir13" parent="Props" instance=ExtResource("fir")]
-position = Vector3(0.18, 0, 127.19)
-rotation_degrees = Vector3(0, 134.7, 0)
-scale = Vector3(0.767, 0.767, 0.767)
-
-[node name="Fir14" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-51.37, 0, -73.72)
-rotation_degrees = Vector3(0, 360.0, 0)
-scale = Vector3(0.832, 0.832, 0.832)
-
-[node name="Pine15" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-49.34, 0, 130.03)
-rotation_degrees = Vector3(0, 257.7, 0)
-scale = Vector3(1.016, 1.016, 1.016)
-
-[node name="Fir16" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-82.53, 0, 70.83)
-rotation_degrees = Vector3(0, 294.2, 0)
-scale = Vector3(0.948, 0.948, 0.948)
-
-[node name="Fir17" parent="Props" instance=ExtResource("fir")]
-position = Vector3(75.06, 0, 63.93)
-rotation_degrees = Vector3(0, 321.7, 0)
-scale = Vector3(1.061, 1.061, 1.061)
-
-[node name="Pine18" parent="Props" instance=ExtResource("pine")]
-position = Vector3(121.23, 0, 62.74)
-rotation_degrees = Vector3(0, 113.0, 0)
-scale = Vector3(0.799, 0.799, 0.799)
-
-[node name="Fir19" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-65.02, 0, 54.22)
-rotation_degrees = Vector3(0, 31.0, 0)
-scale = Vector3(1.159, 1.159, 1.159)
-
-[node name="Fir20" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-68.40, 0, 77.52)
-rotation_degrees = Vector3(0, 16.3, 0)
-scale = Vector3(1.109, 1.109, 1.109)
-
-[node name="Pine21" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-110.78, 0, -70.06)
-rotation_degrees = Vector3(0, 143.9, 0)
-scale = Vector3(0.752, 0.752, 0.752)
-
-[node name="Fir22" parent="Props" instance=ExtResource("fir")]
-position = Vector3(74.59, 0, -23.88)
-rotation_degrees = Vector3(0, 206.4, 0)
-scale = Vector3(0.892, 0.892, 0.892)
-
-[node name="Fir23" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-11.59, 0, -108.47)
-rotation_degrees = Vector3(0, 301.8, 0)
-scale = Vector3(0.843, 0.843, 0.843)
-
-[node name="Pine24" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-7.30, 0, -79.91)
-rotation_degrees = Vector3(0, 14.4, 0)
-scale = Vector3(0.928, 0.928, 0.928)
-
-[node name="Fir25" parent="Props" instance=ExtResource("fir")]
-position = Vector3(119.41, 0, -41.71)
-rotation_degrees = Vector3(0, 177.8, 0)
-scale = Vector3(1.044, 1.044, 1.044)
-
-[node name="Fir26" parent="Props" instance=ExtResource("fir")]
-position = Vector3(88.07, 0, 28.87)
-rotation_degrees = Vector3(0, 211.4, 0)
-scale = Vector3(0.863, 0.863, 0.863)
-
-[node name="Pine27" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-2.80, 0, -115.36)
-rotation_degrees = Vector3(0, 190.7, 0)
-scale = Vector3(1.056, 1.056, 1.056)
-
-[node name="Fir28" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-92.98, 0, 62.83)
-rotation_degrees = Vector3(0, 286.1, 0)
-scale = Vector3(1.006, 1.006, 1.006)
-
-[node name="Fir29" parent="Props" instance=ExtResource("fir")]
-position = Vector3(89.35, 0, -92.97)
-rotation_degrees = Vector3(0, 246.3, 0)
-scale = Vector3(0.978, 0.978, 0.978)
-
-[node name="Pine30" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-108.13, 0, -21.40)
-rotation_degrees = Vector3(0, 103.0, 0)
-scale = Vector3(0.960, 0.960, 0.960)
-
-[node name="Fir31" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-70.98, 0, 108.34)
-rotation_degrees = Vector3(0, 260.9, 0)
-scale = Vector3(1.056, 1.056, 1.056)
-
-[node name="Fir32" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-121.71, 0, -40.35)
-rotation_degrees = Vector3(0, 344.5, 0)
-scale = Vector3(1.196, 1.196, 1.196)
-
-[node name="Pine33" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-69.20, 0, -87.46)
-rotation_degrees = Vector3(0, 31.6, 0)
-scale = Vector3(0.923, 0.923, 0.923)
-
-[node name="Fir34" parent="Props" instance=ExtResource("fir")]
-position = Vector3(111.38, 0, 53.33)
-rotation_degrees = Vector3(0, 34.6, 0)
-scale = Vector3(1.185, 1.185, 1.185)
-
-[node name="Fir35" parent="Props" instance=ExtResource("fir")]
-position = Vector3(43.36, 0, 74.07)
-rotation_degrees = Vector3(0, 98.4, 0)
-scale = Vector3(1.171, 1.171, 1.171)
-
-[node name="Pine36" parent="Props" instance=ExtResource("pine")]
-position = Vector3(2.51, 0, -76.06)
-rotation_degrees = Vector3(0, 155.9, 0)
-scale = Vector3(1.219, 1.219, 1.219)
-
-[node name="Fir37" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-36.45, 0, -114.35)
-rotation_degrees = Vector3(0, 163.4, 0)
-scale = Vector3(0.902, 0.902, 0.902)
-
-[node name="Fir38" parent="Props" instance=ExtResource("fir")]
-position = Vector3(57.46, 0, -74.38)
-rotation_degrees = Vector3(0, 20.5, 0)
-scale = Vector3(1.064, 1.064, 1.064)
-
-[node name="Pine39" parent="Props" instance=ExtResource("pine")]
-position = Vector3(87.50, 0, 59.23)
-rotation_degrees = Vector3(0, 77.8, 0)
-scale = Vector3(1.165, 1.165, 1.165)
-
-[node name="Fir40" parent="Props" instance=ExtResource("fir")]
-position = Vector3(64.75, 0, 104.74)
-rotation_degrees = Vector3(0, 253.8, 0)
-scale = Vector3(0.859, 0.859, 0.859)
-
-[node name="Fir41" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-64.31, 0, 53.20)
-rotation_degrees = Vector3(0, 115.4, 0)
-scale = Vector3(1.001, 1.001, 1.001)
-
-[node name="Pine42" parent="Props" instance=ExtResource("pine")]
-position = Vector3(8.03, 0, -135.13)
-rotation_degrees = Vector3(0, 199.5, 0)
-scale = Vector3(0.935, 0.935, 0.935)
-
-[node name="Fir43" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-72.11, 0, 62.41)
-rotation_degrees = Vector3(0, 213.9, 0)
-scale = Vector3(1.211, 1.211, 1.211)
-
-[node name="Fir44" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-116.08, 0, -36.02)
-rotation_degrees = Vector3(0, 96.6, 0)
-scale = Vector3(1.087, 1.087, 1.087)
-
-[node name="Pine45" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-123.97, 0, 43.53)
-rotation_degrees = Vector3(0, 251.0, 0)
-scale = Vector3(1.157, 1.157, 1.157)
-
-[node name="Fir46" parent="Props" instance=ExtResource("fir")]
-position = Vector3(131.71, 0, 0.29)
-rotation_degrees = Vector3(0, 333.8, 0)
-scale = Vector3(1.012, 1.012, 1.012)
-
-[node name="Fir47" parent="Props" instance=ExtResource("fir")]
-position = Vector3(73.63, 0, 87.74)
-rotation_degrees = Vector3(0, 81.4, 0)
-scale = Vector3(1.154, 1.154, 1.154)
-
-[node name="Pine48" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-61.42, 0, 41.90)
-rotation_degrees = Vector3(0, 3.9, 0)
-scale = Vector3(1.079, 1.079, 1.079)
-
-[node name="Fir49" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-103.82, 0, 9.12)
-rotation_degrees = Vector3(0, 328.3, 0)
-scale = Vector3(0.837, 0.837, 0.837)
-
-[node name="Fir50" parent="Props" instance=ExtResource("fir")]
-position = Vector3(84.22, 0, -26.40)
-rotation_degrees = Vector3(0, 49.4, 0)
-scale = Vector3(1.038, 1.038, 1.038)
-
-[node name="Pine51" parent="Props" instance=ExtResource("pine")]
-position = Vector3(80.42, 0, 41.67)
-rotation_degrees = Vector3(0, 133.4, 0)
-scale = Vector3(0.816, 0.816, 0.816)
-
-[node name="Fir52" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-66.27, 0, 39.53)
-rotation_degrees = Vector3(0, 243.2, 0)
-scale = Vector3(1.039, 1.039, 1.039)
-
-[node name="Fir53" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-101.04, 0, -57.31)
-rotation_degrees = Vector3(0, 184.4, 0)
-scale = Vector3(0.881, 0.881, 0.881)
-
-[node name="Pine54" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-95.85, 0, 99.60)
-rotation_degrees = Vector3(0, 143.3, 0)
-scale = Vector3(1.033, 1.033, 1.033)
-
-[node name="Fir55" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-19.93, 0, 131.55)
-rotation_degrees = Vector3(0, 15.0, 0)
-scale = Vector3(1.001, 1.001, 1.001)
-
-[node name="Fir56" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-91.61, 0, 69.83)
-rotation_degrees = Vector3(0, 135.3, 0)
-scale = Vector3(1.107, 1.107, 1.107)
-
-[node name="Pine57" parent="Props" instance=ExtResource("pine")]
-position = Vector3(-66.19, 0, -36.93)
-rotation_degrees = Vector3(0, 18.3, 0)
-scale = Vector3(0.958, 0.958, 0.958)
-
-[node name="Fir58" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-37.73, 0, 107.71)
-rotation_degrees = Vector3(0, 298.7, 0)
-scale = Vector3(0.804, 0.804, 0.804)
-
-[node name="Fir59" parent="Props" instance=ExtResource("fir")]
-position = Vector3(-70.24, 0, -54.03)
-rotation_degrees = Vector3(0, 37.1, 0)
-scale = Vector3(1.193, 1.193, 1.193)
-
-[node name="Rock60" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-73.79, 0, -54.63)
-rotation_degrees = Vector3(0, 79.2, 0)
-scale = Vector3(0.864, 0.864, 0.864)
-
-[node name="Bush61" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-9.17, 0, -114.69)
-rotation_degrees = Vector3(0, 104.5, 0)
-scale = Vector3(0.816, 0.816, 0.816)
-
-[node name="Rock62" parent="Props" instance=ExtResource("rock")]
-position = Vector3(56.86, 0, -73.51)
-rotation_degrees = Vector3(0, 256.8, 0)
-scale = Vector3(0.948, 0.948, 0.948)
-
-[node name="Bush63" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-22.19, 0, 5.21)
-rotation_degrees = Vector3(0, 0.7, 0)
-scale = Vector3(0.935, 0.935, 0.935)
-
-[node name="Rock64" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-40.36, 0, 8.46)
-rotation_degrees = Vector3(0, 326.7, 0)
-scale = Vector3(1.026, 1.026, 1.026)
-
-[node name="Bush65" parent="Props" instance=ExtResource("bush")]
-position = Vector3(6.94, 0, -19.38)
-rotation_degrees = Vector3(0, 69.6, 0)
-scale = Vector3(1.029, 1.029, 1.029)
-
-[node name="Rock66" parent="Props" instance=ExtResource("rock")]
-position = Vector3(15.23, 0, 7.01)
-rotation_degrees = Vector3(0, 282.7, 0)
-scale = Vector3(1.097, 1.097, 1.097)
-
-[node name="Bush67" parent="Props" instance=ExtResource("bush")]
-position = Vector3(9.37, 0, -11.71)
-rotation_degrees = Vector3(0, 125.9, 0)
-scale = Vector3(0.867, 0.867, 0.867)
-
-[node name="Rock68" parent="Props" instance=ExtResource("rock")]
-position = Vector3(3.99, 0, 17.68)
-rotation_degrees = Vector3(0, 264.9, 0)
-scale = Vector3(1.122, 1.122, 1.122)
-
-[node name="Bush69" parent="Props" instance=ExtResource("bush")]
-position = Vector3(9.56, 0, -5.09)
-rotation_degrees = Vector3(0, 33.4, 0)
-scale = Vector3(0.955, 0.955, 0.955)
-
-[node name="Rock70" parent="Props" instance=ExtResource("rock")]
-position = Vector3(6.56, 0, -14.43)
-rotation_degrees = Vector3(0, 24.7, 0)
-scale = Vector3(0.842, 0.842, 0.842)
-
-[node name="Bush71" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-19.75, 0, -31.37)
-rotation_degrees = Vector3(0, 223.5, 0)
-scale = Vector3(1.030, 1.030, 1.030)
-
-[node name="Rock72" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-1.14, 0, 22.63)
-rotation_degrees = Vector3(0, 271.6, 0)
-scale = Vector3(1.030, 1.030, 1.030)
-
-[node name="Bush73" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-9.10, 0, -14.17)
-rotation_degrees = Vector3(0, 108.4, 0)
-scale = Vector3(0.936, 0.936, 0.936)
-
-[node name="Rock74" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-29.58, 0, 18.23)
-rotation_degrees = Vector3(0, 188.1, 0)
-scale = Vector3(0.945, 0.945, 0.945)
-
-[node name="Bush75" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-23.02, 0, -15.34)
-rotation_degrees = Vector3(0, 315.3, 0)
-scale = Vector3(0.859, 0.859, 0.859)
-
-[node name="Rock76" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-6.76, 0, 21.05)
-rotation_degrees = Vector3(0, 302.6, 0)
-scale = Vector3(0.811, 0.811, 0.811)
-
-[node name="Bush77" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-8.16, 0, -12.92)
-rotation_degrees = Vector3(0, 265.6, 0)
-scale = Vector3(1.056, 1.056, 1.056)
-
-[node name="Rock78" parent="Props" instance=ExtResource("rock")]
-position = Vector3(-8.28, 0, 11.99)
-rotation_degrees = Vector3(0, 321.8, 0)
-scale = Vector3(1.178, 1.178, 1.178)
-
-[node name="Bush79" parent="Props" instance=ExtResource("bush")]
-position = Vector3(-34.90, 0, -15.29)
-rotation_degrees = Vector3(0, 0.6, 0)
-scale = Vector3(1.005, 1.005, 1.005)
-
-[node name="Banner" parent="Props" instance=ExtResource("banner")]
-position = Vector3(-10, 0, -66)
-rotation_degrees = Vector3(0, 0, 0)
+script = ExtResource("scenery_script")
