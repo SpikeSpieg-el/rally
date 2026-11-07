@@ -115,6 +115,7 @@ func _run() -> void:
 	stage.free()
 
 	await _test_scheduler()
+	_test_car_tracking()
 	_test_live_scheduler()
 	await _test_inflight_shutdown(route_network, track, key)
 	print("Streaming runtime: %d failures" % failures.size())
@@ -191,6 +192,68 @@ func _test_scheduler() -> void:
 	streamer._process(0.0)
 	check(not car.freeze, "car resumes when both ground and road are ready")
 	mock.free()
+
+
+# A moving car, not the stationary streamer node, must drive planning and the
+# safety hold. Use a transformed stage so world/local coordinate mixups fail.
+func _test_car_tracking() -> void:
+	var curve := Curve3D.new()
+	curve.add_point(Vector3.ZERO)
+	curve.add_point(Vector3(0, 0, 3000))
+	var mock := MockStage.new()
+	mock.network = Network.build_sparse(curve)
+	root.add_child(mock)
+	mock.position = Vector3(1200, 30, -800)
+	mock.rotation.y = 0.7
+	var streamer := TrackingStreamer.new()
+	mock.add_child(streamer)
+	streamer.set_process(false)
+	streamer.stage = mock
+	streamer.position = Vector3(500, 0, -500)
+	streamer._priming = false
+	var car := RigidBody3D.new()
+	mock.add_child(car)
+	mock.car = car
+	mock._stage_live = true
+	car.gravity_scale = 0.0
+	var initial := Vector3(0, 0, 64)
+	car.global_position = mock.to_global(initial)
+	streamer._last_position = initial
+	streamer.tiles[streamer._tile_key(initial)] = Node3D.new()
+	streamer.roads[0] = Node3D.new()
+	streamer._process(0.0)
+	check(streamer.requests.is_empty(), "stationary car must not replan around the streamer")
+	check(not streamer._holding_car, "loaded ground under car must be considered safe")
+	var destination := Vector3(0, 0, 180)
+	car.global_position = mock.to_global(destination)
+	var velocity := Vector3(3, 0, 4)
+	car.linear_velocity = velocity
+	streamer._process(0.0)
+	check(streamer.requests.size() == 1 and streamer.requests[0].distance_to(destination) < 0.01, "plan follows car in stage-local coordinates")
+	check(streamer._holding_car and car.freeze, "missing ground at car must hold it")
+	streamer.tiles[streamer._tile_key(destination)] = Node3D.new()
+	streamer._process(0.0)
+	check(streamer._holding_car, "on-road car must wait for the new road too")
+	streamer.roads[1] = Node3D.new()
+	streamer._process(0.0)
+	check(not streamer._holding_car and not car.freeze, "car resumes when its own terrain and road are ready")
+	check(car.linear_velocity.distance_to(velocity) < 0.01, "car velocity survives streaming hold")
+	for node in streamer.tiles.values():
+		node.free()
+	for node in streamer.roads.values():
+		node.free()
+	mock.free()
+
+
+class TrackingStreamer extends "res://scripts/world_streamer.gd":
+	var requests: Array[Vector3] = []
+
+	func _request(centre_pos: Vector3, _radius: float = 384.0) -> void:
+		requests.append(centre_pos)
+		_last_position = centre_pos
+
+	func _run_job(_index: int = 0) -> void:
+		pass
 
 
 func _test_live_scheduler() -> void:
