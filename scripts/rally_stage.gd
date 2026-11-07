@@ -922,6 +922,17 @@ func ground_height(x: float, z: float) -> float:
 	return h11 * (u + v - 1.0) + h10 * (1.0 - v) + h01 * (1.0 - u)
 
 
+## Быстрый запрос только готовой сетки, без процедурного поиска вне неё.
+func editor_cached_ground_height(x: float, z: float) -> Dictionary:
+	if _ground_grid.is_empty() or _ground_cols < 2 or _ground_rows < 2:
+		return {}
+	var fx: float = (x - _ground_origin.x) / _ground_cell
+	var fz: float = (z - _ground_origin.y) / _ground_cell
+	if fx < 0.0 or fz < 0.0 or fx > float(_ground_cols - 1) or fz > float(_ground_rows - 1):
+		return {}
+	return {"height": ground_height(x, z)}
+
+
 ## Полуширина коридора «дорога + обочина», м.
 func corridor_half() -> float:
 	return track.road_half_width + track.road_shoulder

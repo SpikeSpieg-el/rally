@@ -10,5 +10,5 @@ extends Resource
 @export var road_color: Color = Color(0.34, 0.28, 0.19)
 @export_range(0.2, 2.0, 0.01) var grip: float = 1.0
 @export_range(0.2, 4.0, 0.01) var rolling: float = 1.0
-@export_range(20.0, 500.0, 1.0) var transition_length: float = 180.0
+@export_range(0.0, 500.0, 1.0) var transition_length: float = 180.0
 @export var weather: RallyWeatherConfig = null

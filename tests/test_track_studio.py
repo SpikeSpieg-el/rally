@@ -179,7 +179,11 @@ class TrackStudioTest(unittest.TestCase):
         scene = read("scenes/rally_stage2_forest.tscn")
         block = scene[scene.index('[sub_resource type="Resource" id="Resource_sodgx"]'):]
         block = block[:block.index("[sub_resource", 10)] if "[sub_resource" in block[10:] else block
-        self.assertIn("preview_in_editor = true", block)
+        # Поле может не сериализоваться, когда совпадает со значением по умолчанию.
+        default = read("scripts/data/rally_stage_settings.gd")
+        self.assertNotIn("preview_in_editor = false", block)
+        self.assertTrue("preview_in_editor = true" in block or
+                        "var preview_in_editor: bool = true" in default)
         self.assertIn("stage_forest_route2.tres", scene)
 
     def test_no_untyped_inference_in_plugin(self):
@@ -280,6 +284,29 @@ class TrackStudioTest(unittest.TestCase):
                      "apply_spawn_state", "_attach_node", "_detach_node",
                      "_after_edit", "_mark_scene_dirty"):
             self.assertIn("func %s(" % name, source, "метод UndoRedo %s" % name)
+
+
+class TrackStudioEditingRegressionTest(unittest.TestCase):
+    def test_editing_does_not_reanalyse_or_rebuild_for_props(self):
+        source = read("addons/rally_track_studio/studio.gd")
+        def body(name):
+            text = source.split("func " + name + "(", 1)[1]
+            return re.split(r"\n(?:func |## )", text, maxsplit=1)[0]
+        self.assertNotIn("_dirty = true", body("_drag_width"))
+        self.assertIn("_road_changed()", body("_drag_width"))
+        self.assertNotIn("_after_edit", body("_commit_props_placed"))
+        self.assertNotIn("_schedule_rebuild", body("_after_props_edit"))
+        self.assertIn('_stroke_nodes.size() >= settings.brush_max_per_stroke', body("_place_brush"))
+        self.assertIn("_stroke_has_space", body("_place_brush"))
+        self.assertNotIn("Analysis.nearest", body("_direction_at_distance"))
+        self.assertNotIn("_ground_y(", body("_ray_ground"))
+
+    def test_runtime_regressions_cover_brush_and_width(self):
+        test = read("tests/track_studio_editing.gd")
+        self.assertIn("_width_section_for_edit", test)
+        self.assertIn("_stroke_nodes.size() == 8", test)
+        self.assertIn("StudioProps", test)
+        self.assertIn("global_position.y - 12.0", test)
 
 
 if __name__ == "__main__":
