@@ -1,7 +1,57 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=12 format=3]
 
-[ext_resource type="Script" path="res://scripts/title_screen.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/title_drive.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/title_screen.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/menu/menu_stage.tscn" id="stage"]
+[ext_resource type="Shader" path="res://shaders/title_gradient.gdshader" id="gradient"]
+[ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="retro"]
+
+[sub_resource type="ShaderMaterial" id="ShadeMaterial"]
+shader = ExtResource("gradient")
+shader_parameter/solid_until = 0.25
+shader_parameter/fade_until = 0.67
+shader_parameter/left_opacity = 0.96
+shader_parameter/bottom_opacity = 0.16
+
+[sub_resource type="ShaderMaterial" id="RetroMaterial"]
+shader = ExtResource("retro")
+shader_parameter/retro_strength = 0.65
+shader_parameter/resolution_y = 360.0
+shader_parameter/color_levels = 31.0
+shader_parameter/dither_strength = 0.65
+shader_parameter/speed_intensity = 0.0
+shader_parameter/vignette_strength = 0.1
+
+[sub_resource type="StyleBoxFlat" id="Primary"]
+content_margin_left = 26.0
+content_margin_right = 24.0
+bg_color = Color(0.95, 0.48, 0.12, 1)
+
+[sub_resource type="StyleBoxFlat" id="PrimaryHover"]
+content_margin_left = 26.0
+content_margin_right = 24.0
+bg_color = Color(1, 0.65, 0.25, 1)
+
+[sub_resource type="StyleBoxFlat" id="Secondary"]
+content_margin_left = 26.0
+content_margin_right = 24.0
+bg_color = Color(0.07, 0.10, 0.11, 0.7)
+border_width_bottom = 1
+border_color = Color(0.42, 0.48, 0.46, 0.35)
+
+[sub_resource type="StyleBoxFlat" id="SecondaryHover"]
+content_margin_left = 26.0
+content_margin_right = 24.0
+bg_color = Color(0.18, 0.25, 0.23, 0.95)
+border_width_left = 4
+border_color = Color(1, 0.58, 0.18, 1)
+
+[sub_resource type="StyleBoxFlat" id="Focus"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.75, 0.37, 0.9)
 
 [node name="TitleScreen" type="Control"]
 layout_mode = 3
@@ -10,13 +60,162 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1")
+script = ExtResource("script")
 
 [node name="WorldViewport" type="SubViewport" parent="."]
-transparent_bg = false
 own_world_3d = true
 size = Vector2i(960, 540)
 render_target_update_mode = 0
 
-[node name="TitleDrive" type="Node3D" parent="WorldViewport"]
-script = ExtResource("2")
+[node name="MenuStage" parent="WorldViewport" instance=ExtResource("stage")]
+
+[node name="RetroLook" type="ColorRect" parent="WorldViewport"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("RetroMaterial")
+
+[node name="Preview" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 0
+texture_filter = 1
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("ShadeMaterial")
+
+[node name="Menu" type="MarginContainer" parent="."]
+layout_mode = 1
+anchor_right = 0.38
+anchor_bottom = 1.0
+offset_left = 80.0
+offset_top = 64.0
+offset_bottom = -60.0
+mouse_filter = 2
+
+[node name="Column" type="VBoxContainer" parent="Menu"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Brand" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.63, 0.27, 1)
+theme_override_font_sizes/font_size = 17
+text = "R / 47     •     RALLY"
+
+[node name="TopSpace" type="Control" parent="Menu/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.7
+mouse_filter = 2
+
+[node name="Overline" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.64, 0.3, 1)
+theme_override_font_sizes/font_size = 16
+text = "ГЛАВНОЕ МЕНЮ     /     01"
+
+[node name="Title" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.96, 0.92, 1)
+theme_override_font_sizes/font_size = 104
+text = "RALLY"
+
+[node name="Subtitle" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.73, 0.78, 0.73, 1)
+theme_override_font_sizes/font_size = 20
+text = "ДОРОГА НАЧИНАЕТСЯ ЗДЕСЬ"
+
+[node name="Rule" type="ColorRect" parent="Menu/Column"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.77, 0.83, 0.79, 0.24)
+
+[node name="Description" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.75, 0.71, 1)
+theme_override_font_sizes/font_size = 17
+text = "Выбери трассу. Подготовь машину.\nОстальное решит дорога."
+
+[node name="ActionsSpace" type="Control" parent="Menu/Column"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Actions" type="VBoxContainer" parent="Menu/Column"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="StartButton" type="Button" parent="Menu/Column/Actions"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+focus_neighbor_top = NodePath("../QuitButton")
+focus_neighbor_bottom = NodePath("../SettingsButton")
+theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_focus_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("Primary")
+theme_override_styles/hover = SubResource("PrimaryHover")
+theme_override_styles/pressed = SubResource("PrimaryHover")
+theme_override_styles/focus = SubResource("Focus")
+text = "01     НАЧАТЬ ЗАЕЗД                         →"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Menu/Column/Actions"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+focus_neighbor_top = NodePath("../StartButton")
+focus_neighbor_bottom = NodePath("../QuitButton")
+theme_override_colors/font_color = Color(0.88, 0.91, 0.88, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("Secondary")
+theme_override_styles/hover = SubResource("SecondaryHover")
+theme_override_styles/pressed = SubResource("SecondaryHover")
+theme_override_styles/focus = SubResource("Focus")
+text = "02     НАСТРОЙКИ"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="Menu/Column/Actions"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+focus_neighbor_top = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../StartButton")
+theme_override_colors/font_color = Color(0.88, 0.91, 0.88, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("Secondary")
+theme_override_styles/hover = SubResource("SecondaryHover")
+theme_override_styles/pressed = SubResource("SecondaryHover")
+theme_override_styles/focus = SubResource("Focus")
+text = "03     ВЫХОД"
+alignment = 0
+
+[node name="BottomSpace" type="Control" parent="Menu/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Footer" type="Label" parent="Menu/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.64, 0.59, 1)
+theme_override_font_sizes/font_size = 13
+text = "ENTER  ВЫБРАТЬ     ↑ ↓  НАВИГАЦИЯ"

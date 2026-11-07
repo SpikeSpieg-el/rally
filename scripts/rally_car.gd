@@ -33,6 +33,12 @@ const REVERSE_SHIFT_MAX_KMH: float = 15.0
 ## Базовое торможение двигателем. Сетап задаёт множитель к нему.
 const BASE_MOTOR_BRAKE: float = 10.0
 
+@export_group("Кинематограф / запись")
+## Для отдельной сцены меню: входные действия берутся у указанного узла,
+## физика подвески и двигателя остаётся той же, что в настоящем заезде.
+@export var cinematic_mode: bool = false
+@export var cinematic_input_path: NodePath
+
 @export_group("Инспектор: ощущение машины")
 ## Сглаживание, камера, геометрия модели. Пусто — res://data/car/default_car_feel.tres.
 @export var feel: FeelConfigType = null
@@ -169,7 +175,7 @@ var fall_limit_provider: Callable = Callable()
 func _ready() -> void:
 	# Кузов берётся из ресурса выбранной машины; физика и камеры сценные.
 	var game: Node = get_node_or_null("/root/RallyGame")
-	if game != null and game.has_method("get_race_vehicle_id"):
+	if not cinematic_mode and game != null and game.has_method("get_race_vehicle_id"):
 		vehicle_id = String(game.call("get_race_vehicle_id"))
 		CarModels.install(self, vehicle_id)
 	if spawn_transform == Transform3D.IDENTITY:
@@ -205,13 +211,14 @@ func _ready() -> void:
 	camera_mode = clampi(initial_camera_mode, CameraMode.CHASE_3RD, CameraMode.COCKPIT_1ST)
 	if active_camera != null:
 		active_camera.top_level = (camera_mode == CameraMode.CHASE_3RD)
-		active_camera.make_current()
+		if not cinematic_mode:
+			active_camera.make_current()
 		_reset_action_camera()
 		_apply_initial_camera_fov()
 		if camera_mode != CameraMode.CHASE_3RD:
 			_update_cameras(0.0)
 
-	if mouse_look_enabled:
+	if mouse_look_enabled and not cinematic_mode:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -247,6 +254,8 @@ func _capture_scene_camera_setup() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if cinematic_mode:
+		return
 	if not mouse_look_enabled:
 		return
 
@@ -620,10 +629,10 @@ func _apply_visual_setup() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if Input.is_action_just_pressed("reset_car"):
+	if not cinematic_mode and Input.is_action_just_pressed("reset_car"):
 		reset_to_spawn()
 		return
-	if Input.is_action_just_pressed("camera_switch"):
+	if not cinematic_mode and Input.is_action_just_pressed("camera_switch"):
 		camera_mode = (camera_mode + 1) % 3
 		mouse_yaw = 0.0
 		mouse_pitch = 0.0
@@ -633,9 +642,9 @@ func _physics_process(delta: float) -> void:
 		_apply_initial_camera_fov()
 		if camera_mode == CameraMode.CHASE_3RD:
 			_reset_action_camera()
-	if Input.is_action_just_pressed("camera_recenter"):
+	if not cinematic_mode and Input.is_action_just_pressed("camera_recenter"):
 		recenter_look()
-	if Input.is_action_just_pressed("drivetrain_switch"):
+	if not cinematic_mode and Input.is_action_just_pressed("drivetrain_switch"):
 		set_drivetrain_mode((drivetrain_mode + 1) % 3)
 
 	shift_notice_time = maxf(0.0, shift_notice_time - delta)
@@ -643,13 +652,22 @@ func _physics_process(delta: float) -> void:
 	# W — всегда газ, S — всегда тормоз, в том числе на задней передаче.
 	# На геймпаде триггеры и стик дополнительно проходят через мёртвую зону
 	# и кривую отклика из ControllerManager (клавиатура остаётся как была).
-	var controller := _controller_manager()
+	var controller: Node = _controller_manager() if not cinematic_mode else null
+	if cinematic_mode and not cinematic_input_path.is_empty():
+		controller = get_node_or_null(cinematic_input_path)
 	if controller != null and controller.has_method("get_throttle_input"):
 		throttle_input = float(controller.call("get_throttle_input"))
 		brake_input = float(controller.call("get_brake_input"))
 		steer_input = float(controller.call("get_steering_input"))
 		handbrake_input = float(controller.call("get_handbrake_input"))
-		clutch_input = float(controller.call("get_clutch_input")) if controller.has_method("get_clutch_input") else Input.get_action_strength("clutch")
+		clutch_input = float(controller.call("get_clutch_input")) if controller.has_method("get_clutch_input") else (0.0 if cinematic_mode else Input.get_action_strength("clutch"))
+	elif cinematic_mode:
+		# Отсутствующий источник не должен передавать ввод меню в машину.
+		throttle_input = 0.0
+		brake_input = 0.0
+		steer_input = 0.0
+		handbrake_input = 0.0
+		clutch_input = 0.0
 	else:
 		throttle_input = Input.get_action_strength("throttle")
 		brake_input = Input.get_action_strength("brake")
@@ -660,12 +678,14 @@ func _physics_process(delta: float) -> void:
 		clutch_input = 0.0
 	# Сначала считываем педаль: одновременное нажатие сцепления и передачи
 	# должно сработать даже в одном и том же физическом кадре.
-	_handle_gear_input()
+	if not cinematic_mode:
+		_handle_gear_input()
 	var limit_end: float = maxf(steering_limit_full_kmh, steering_limit_start_kmh + 1.0)
 	var steering_speed_blend: float = smoothstep(steering_limit_start_kmh, limit_end, speed_kmh)
 	steering_input = steer_input * lerpf(1.0, high_speed_steering_scale, steering_speed_blend)
 
-	_apply_gamepad_look(delta)
+	if not cinematic_mode:
+		_apply_gamepad_look(delta)
 	super._physics_process(delta)
 	_update_handbrake_grip(delta)
 
@@ -674,7 +694,8 @@ func _physics_process(delta: float) -> void:
 	speed_kmh = speed_mps * 3.6
 
 	current_rpm = motor_rpm
-	_update_driving_feedback(controller)
+	if not cinematic_mode:
+		_update_driving_feedback(controller)
 	manual_mode = not automatic_transmission
 	_update_gravel_particles()
 	if is_instance_valid(tire_marks):
@@ -682,7 +703,8 @@ func _physics_process(delta: float) -> void:
 		if is_instance_valid(surface_effects):
 			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta, precipitation_rain, precipitation_snow)
 
-	_update_cameras(delta)
+	if not cinematic_mode:
+		_update_cameras(delta)
 
 	var fall_limit: float = fall_limit_y
 	if fall_limit_provider.is_valid():
@@ -1203,7 +1225,7 @@ func _controller_manager() -> Node:
 
 
 func _rumble(weak: float, strong: float, duration: float = 0.12) -> void:
-	if not gamepad_rumble_enabled:
+	if cinematic_mode or not gamepad_rumble_enabled:
 		return
 	var controller := _controller_manager()
 	if controller != null and controller.has_method("rumble"):

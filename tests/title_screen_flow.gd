@@ -1,74 +1,84 @@
-# godot --headless --path . --script res://tests/title_screen_flow.gd
+# godot --headless --path . --fixed-fps 120 --script res://tests/title_screen_flow.gd
 extends SceneTree
 
 const TitleScene = preload("res://scenes/title_screen.tscn")
+const Recording = preload("res://scripts/menu/menu_recording.gd")
+const Driver = preload("res://scripts/menu/menu_driver.gd")
 var failures: Array[String] = []
-
 
 func _initialize() -> void:
 	call_deferred("_run")
 
-
-func _check(condition: bool, message: String) -> void:
+func check(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
 		printerr("FAIL: " + message)
 
+func _steps(count: int) -> void:
+	for i in range(count):
+		await physics_frame
 
 func _run() -> void:
 	var title = TitleScene.instantiate()
 	root.add_child(title)
 	current_scene = title
 	await process_frame
-	var drive = title.get_node("WorldViewport/TitleDrive")
-	# Проверяем обе ветки _build_surface до обращения к машине: при ошибке
-	# сборки тест должен завершиться с FAIL, а не упасть на null.position.
-	var terrain := drive.get_node_or_null("Terrain") as MeshInstance3D
-	var road := drive.get_node_or_null("Road") as MeshInstance3D
-	_check(terrain != null and terrain.mesh != null, "рельеф стартового экрана построен")
-	_check(road != null and road.mesh != null, "дорога стартового экрана построена")
-	_check(drive.car != null and drive.camera != null, "машина и камера созданы")
-	if terrain == null or road == null or drive.car == null or drive.camera == null:
-		quit(1)
-		return
-	var initial_position: Vector3 = drive.car.position
-	drive._process(1.0)
-	_check(drive.car.position.distance_to(initial_position) > 1.0, "машина движется по трассе")
-	_check(drive.camera.current, "камера демонстрации активна")
-	_check(drive.car.position.distance_to(drive._point(drive.distance)) < 0.2, "машина следует оси игровой трассы")
-	_check(title.world_viewport.size.x <= 960 and title.world_viewport.size.y <= 540, "размер 3D-превью ограничен")
-	_check(title.preview.get_parent() == title, "интерфейс не находится в 3D-превью")
-	_check(road.material_override is ShaderMaterial, "дорога использует игровой шейдер")
-	var batches := 0
-	var colliders := 0
-	for child in drive.get_children():
-		if child is MultiMeshInstance3D:
-			batches += 1
-		if child is StaticBody3D:
-			colliders += 1
-	_check(batches > 0 and colliders == 0, "лес собран пакетами без физики")
-	drive.distance = drive.DRIVE_END - 0.1
-	drive._process(0.02)
-	_check(drive.distance >= drive.DRIVE_START and drive.distance < drive.DRIVE_START + 1.0 and drive.fade < 0.1, "зацикливание скрыто затемнением")
-	_check(title.start_button.has_focus(), "старт доступен с клавиатуры")
-	var settings := title.get_node("Menu/VBoxContainer/SettingsButton") as Button
-	settings.mouse_entered.emit()
-	_check(settings.has_focus(), "наведение сразу переносит фокус на кнопку")
-	_check(title.get_node_or_null("Menu") != null, "меню создано")
+	var stage = title.get_node("WorldViewport/MenuStage")
+	var car = stage.get_node("RallyCar")
+	var driver = stage.get_node("Driver")
+	var track = stage.get_node("Track")
+	driver.mode = Driver.Mode.AUTO
+	car.reset_to_spawn()
+	check(car is RigidBody3D and car.cinematic_mode, "меню использует настоящую физическую машину")
+	check(track.get_node("RoadMesh").mesh != null, "видимая дорога построена")
+	check(track.get_node("RoadSurface/CollisionShape3D").shape != null, "у дороги есть физическая коллизия")
+	check(track.curve.get_point_position(0).distance_to(track.curve.get_point_position(track.curve.point_count - 1)) < 0.01, "трасса замкнута")
+	check(stage.get_node("Cinematography/Camera3D").current, "активна кинематографическая камера")
+	check(stage.get_node("Cinematography/Shots").get_child_count() >= 2, "есть несколько редактируемых пролётов")
+	check(title.world_viewport.size.x <= title.preview_max_width and title.world_viewport.size.y <= title.preview_max_height, "рендер фона ограничен")
+	check(title.start_button.has_focus(), "кнопка старта в фокусе")
+	var start: Vector3 = car.global_position
+	await _steps(300)
+	check(car.global_position.distance_to(start) > 3.0, "машина едет под действием физики")
+	check(car.get_wheel_contact_count() >= 2, "колёса соприкасаются с поверхностью")
+	# Запись входа пользователя и чтение записи; никаких позиций в ней нет.
+	driver.mode = Driver.Mode.RECORD
+	driver.recording_path = "user://title_screen_flow_recording.tres"
+	var f9 := InputEventKey.new()
+	f9.keycode = KEY_F9
+	f9.pressed = true
+	driver._unhandled_key_input(f9)
+	check(driver._is_recording, "F9 начинает запись")
+	Input.action_press("throttle")
+	await _steps(80)
+	Input.action_release("throttle")
+	driver._unhandled_key_input(f9)
+	check(not driver._is_recording, "F9 останавливает запись")
+	var saved := ResourceLoader.load(driver.recording_path) as Recording
+	check(saved != null and saved.valid() and saved.frame_count() > 10, "запись физического ввода сохранена")
+	if saved != null and saved.valid():
+		check(saved.frames[0] > 0.0, "в запись попал газ")
+		driver._source = saved
+		driver.mode = Driver.Mode.PLAYBACK
+		driver._time = 0.0
+		driver._play(1.0 / float(saved.physics_fps))
+		check(driver.throttle > 0.0, "при воспроизведении газ подаётся машине")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(driver.recording_path))
+	title.settings_button.mouse_entered.emit()
+	check(title.settings_button.has_focus(), "наведение переносит фокус")
 	title._open_settings()
-	_check(title.input_settings != null and title.input_settings.visible, "настройки открываются")
+	check(title.input_settings != null and title.input_settings.visible, "настройки открываются")
 	title.input_settings.close()
 	await create_timer(0.5).timeout
 	title.start_button.pressed.emit()
 	await process_frame
 	await process_frame
-	_check(current_scene != null and current_scene.scene_file_path == "res://scenes/main_menu.tscn", "старт открывает выбор трассы")
+	check(current_scene != null and current_scene.scene_file_path == "res://scenes/main_menu.tscn", "старт открывает выбор трассы")
 	if current_scene != null and current_scene.scene_file_path == "res://scenes/main_menu.tscn":
 		var back := current_scene.get_node("Content/Body/Left/ButtonRow/BackButton") as Button
 		back.pressed.emit()
 		await process_frame
 		await process_frame
-		_check(current_scene != null and current_scene.scene_file_path == "res://scenes/title_screen.tscn", "назад возвращает на первый экран")
-	if failures.is_empty():
-		print("title_screen_flow: OK")
+		check(current_scene != null and current_scene.scene_file_path == "res://scenes/title_screen.tscn", "назад возвращает на первый экран")
+	print("title_screen_flow: %d failures" % failures.size())
 	quit(1 if not failures.is_empty() else 0)
