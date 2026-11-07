@@ -12,6 +12,14 @@ half_width = 3.6583304
 road_color = Color(0.35, 0.28, 0.19, 1)
 transition_length = 140.0
 
+[sub_resource type="Resource" id="Resource_kck83"]
+script = ExtResource("2_5pxf1")
+start_distance = 820.0
+title = "Участок 8"
+half_width = 2.5
+road_color = Color(0.35, 0.28, 0.19, 1)
+transition_length = 140.0
+
 [sub_resource type="Resource" id="Resource_y84yi"]
 script = ExtResource("2_5pxf1")
 start_distance = 1080.0
@@ -70,7 +78,7 @@ road_curve = ExtResource("1_kgtpe")
 road_half_width = 5.0
 road_shoulder = 2.0
 road_camber = 0.08
-route_sections = Array[ExtResource("2_5pxf1")]([SubResource("Resource_5pxf1"), SubResource("Resource_y84yi"), SubResource("Resource_n4hq6"), SubResource("Resource_ui0r8"), SubResource("Resource_7x7ig"), SubResource("Resource_lxkbn"), SubResource("Resource_kgtpe")])
+route_sections = Array[ExtResource("2_5pxf1")]([SubResource("Resource_5pxf1"), SubResource("Resource_kck83"), SubResource("Resource_y84yi"), SubResource("Resource_n4hq6"), SubResource("Resource_ui0r8"), SubResource("Resource_7x7ig"), SubResource("Resource_lxkbn"), SubResource("Resource_kgtpe")])
 terrain_margin = 130.0
 terrain_cell = 3.25
 terrain_seed = 4858

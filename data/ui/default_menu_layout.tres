@@ -1,41 +1,6 @@
-[gd_resource type="Resource" script_class="RallyMenuLayout" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="RallyMenuLayout" format=3 uid="uid://nnnck27qnlv2"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_menu_layout.gd" id="1_layout"]
+[ext_resource type="Script" uid="uid://r83vyflkmnak" path="res://scripts/data/rally_menu_layout.gd" id="1_layout"]
 
 [resource]
 script = ExtResource("1_layout")
-tracks_heading = "ВЫБОР ТРАССЫ"
-setups_heading = "МАШИНА"
-seed_heading = "ЖИВАЯ ЛЕНТА · СИД ГЕНЕРАЦИИ"
-weather_heading = "ПОГОДА"
-profile_heading = "ХАРАКТЕР ТРАССЫ"
-seed_hint = "Сид сохраняется в user://rally_conditions.cfg"
-apply_button = "ПРИМЕНИТЬ"
-reroll_button = "ПЕРЕГЕНЕРИРОВАТЬ"
-copy_button = "КОПИЯ"
-seed_apply_tip = "Собрать трассу по введённому сиду"
-seed_reroll_tip = "Новая случайная трасса. Сид сохраняется — карту всегда можно вернуть."
-seed_copy_tip = "Скопировать сид в буфер обмена"
-seed_field_tip = "Введите сид и нажмите «ПРИМЕНИТЬ» — трасса соберётся ровно по нему."
-start_button_text = "НА СТАРТ"
-controls_button_text = "УПРАВЛЕНИЕ"
-quit_button_text = "ВЫХОД"
-track_hotkey_count = 5
-footer_keyboard = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты»  •  N — трек  •  M — радио.  Выбор сохраняется между заездами."
-footer_gamepad = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  радио — кнопки карточки  •  погода и сид — мышью"
-garage_turntable_speed = 0.16
-garage_status_saved = "Все открытые пресеты сохранены."
-garage_status_unsaved = "Есть несохранённые изменения. При смене пресета они будут отменены."
-garage_status_ready = "Сохраните изменения или нажмите «На старт»."
-garage_status_reset = "Пресет сброшен. Сохраните изменения или начните заезд."
-garage_status_save_failed = "Не удалось сохранить. Проверьте доступ к файлу настроек."
-garage_status_storage_missing = "Не удалось сохранить: хранилище недоступно."
-garage_preset_prefix = "БАЗОВЫЙ ПРЕСЕТ: "
-garage_reference_tire_radius = 0.438
-garage_retro_shrink = 3
-garage_retro_resolution_y = 270
-garage_retro_strength = 1.0
-garage_mouse_rotate_speed = 0.008
-garage_preview_fov_min = 24.0
-garage_preview_fov_max = 60.0
-garage_preview_fov_step = 2.0
