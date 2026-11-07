@@ -883,7 +883,7 @@ func process_clutch(delta : float):
 	if traction_control_max_slip > 0.0 and throttle_input > 0.05 and not is_braking:
 		var drive_slip := 0.0
 		for wheel in drive_wheels:
-			if wheel.is_colliding():
+			if wheel.has_ground_contact():
 				drive_slip = maxf(drive_slip, -wheel.slip_vector.y)
 		if drive_slip > traction_control_max_slip and clutch_torque > 0.0:
 			var excess: float = (drive_slip - traction_control_max_slip) / maxf(traction_control_max_slip, 0.2)
@@ -1124,7 +1124,7 @@ func complete_shift() -> void:
 func get_wheel_contact_count() -> int:
 	var contact_count := 0
 	for wheel in wheel_array:
-		if wheel.is_colliding():
+		if wheel.has_ground_contact():
 			contact_count += 1
 	return contact_count
 

@@ -133,6 +133,12 @@ func _run() -> void:
 		"коллизия без неравномерного масштаба и сдвига"
 	)
 
+	var collision_size: Vector3 = Placement.collision_size(a, b)
+	check(collision.basis.y == Vector3.UP, "боковая коллизия остаётся вертикальной на уклоне")
+	check(collision.origin.y - collision_size.y * 0.5 <= minf(a.y, b.y) - Placement.COLLISION_BURIED + 0.001, "коллизия заглублена у обоих концов")
+	check(collision.origin.y + collision_size.y * 0.5 >= maxf(a.y, b.y) + Placement.COLLISION_HEIGHT - 0.001, "коллизия выше обоих концов")
+	check(collision_size.x > Vector2(b.x - a.x, b.z - a.z).length(), "пролёты перекрываются на стыках")
+
 	var full: Array = Placement.segment_ids(850, 3, 12, 0, -1)
 	var split: Array = []
 	for window in [Vector2(0, 200), Vector2(200, 400), Vector2(400, 850)]:
@@ -159,6 +165,7 @@ func _run() -> void:
 	check(not whole.is_empty(), "отбойник работает даже при выключенной обстановке")
 	var body: Node = stage.generated.get_node("Guardrails/Collision")
 	check(body.get_child_count() == whole.size(), "каждая секция имеет коллизию")
+	check((body as StaticBody3D).collision_layer == 2, "отбойник не служит опорой для подвески")
 	for id in whole:
 		var transform: Transform3D = whole[id]
 		for endpoint in [-1.5, 0.0, 1.5]:

@@ -44,7 +44,7 @@ material = SubResource("Mat_reflector")
 size = Vector3(0.12, 0.12, 0.02)
 
 [sub_resource type="BoxShape3D" id="GuardrailShape"]
-size = Vector3(3, 1.1, 0.28)
+size = Vector3(3.2, 1.75, 0.28)
 
 [node name="MetalGuardrail" type="Node3D" unique_id=1175937543]
 transform = Transform3D(1.425, 0, 0, 0, 1.425, 0, 0, 0, 1.425, 0, 0, 0)
@@ -78,7 +78,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.8809506, -0.0826382)
 mesh = SubResource("BackReflector")
 
 [node name="Collision" type="StaticBody3D" parent="." unique_id=1639360438]
+collision_layer = 2
 
 [node name="Shape" type="CollisionShape3D" parent="Collision" unique_id=1877333433]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.525, 0)
 shape = SubResource("GuardrailShape")

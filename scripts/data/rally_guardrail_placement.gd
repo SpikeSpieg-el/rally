@@ -3,6 +3,11 @@ class_name RallyGuardrailPlacement
 extends RefCounted
 
 const SECTION_LENGTH := 3.0
+# Коллизия чуть выше ограждения и заглублена, чтобы кузов не зацепился снизу.
+const COLLISION_HEIGHT := 1.4
+const COLLISION_BURIED := 0.35
+const COLLISION_OVERLAP := 0.20
+const COLLISION_THICKNESS := 0.28
 
 
 ## Знак нормали к дороге на ВНЕШНЕЙ стороне поворота. 0 — не крутой поворот.
@@ -60,8 +65,16 @@ static func span_transform(a: Vector3, b: Vector3) -> Transform3D:
 	return Transform3D(Basis(delta / SECTION_LENGTH, Vector3.UP, across), (a + b) * 0.5)
 
 
-## Физике нужна ортонормальная база, без сдвига/масштабирования визуала.
+## Вертикальная стенка даже на подъёме: наклонная нижняя грань может
+## работать как трамплин. Перекрытие соседних пролётов закрывает швы.
 static func collision_transform(a: Vector3, b: Vector3) -> Transform3D:
-	var along := (b - a).normalized()
-	var across := Vector3(-along.z, 0.0, along.x).normalized()
-	return Transform3D(Basis(along, across.cross(along), across), (a + b) * 0.5 + Vector3.UP * 0.55)
+	var delta := b - a
+	var along := Vector3(delta.x, 0.0, delta.z).normalized()
+	var across := Vector3(-along.z, 0.0, along.x)
+	var center := (a + b) * 0.5 + Vector3.UP * (COLLISION_HEIGHT - COLLISION_BURIED) * 0.5
+	return Transform3D(Basis(along, Vector3.UP, across), center)
+
+
+static func collision_size(a: Vector3, b: Vector3) -> Vector3:
+	var horizontal := Vector2(b.x - a.x, b.z - a.z).length()
+	return Vector3(horizontal + COLLISION_OVERLAP, COLLISION_HEIGHT + COLLISION_BURIED + absf(b.y - a.y), COLLISION_THICKNESS)

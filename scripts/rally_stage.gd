@@ -60,6 +60,7 @@ const Ps1Materials = preload("res://scripts/ps1_materials.gd")
 const NightSkyShader = preload("res://shaders/night_sky.gdshader")
 const RoadSignScene = preload("res://scenes/props/road_sign.tscn")
 const StageSettingsType = preload("res://scripts/data/rally_stage_settings.gd")
+const PropLOD = preload("res://scripts/track/prop_lod.gd")
 const SpawnLayoutType = preload("res://scripts/data/rally_spawn_layout.gd")
 const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SceneryType = preload("res://scripts/data/rally_scenery_config.gd")
@@ -190,6 +191,7 @@ var _noise_detail: FastNoiseLite = null
 var _rng := RandomNumberGenerator.new()
 ## Запечённые меши ассетов обстановки на время одной сборки (по пути сцены).
 var _prop_mesh_cache: Dictionary = {}
+var _authored_lod_cache: Dictionary = {}
 
 # HUD-узлы живут в scenes/ui/rally_hud.tscn (разметка правится в редакторе),
 # в _setup_hud() мы только находим их по путям и держим ссылки для _update_hud.
@@ -399,6 +401,8 @@ func _ready() -> void:
 	if car_node != null:
 		car_node.freeze = true
 	await _build_world_async()
+	if s_settings().scenery_lod_enabled:
+		await _setup_authored_prop_lods()
 	_configure_car()
 	if track != null and s_settings().is_retro(track) and s_settings().apply_ps1_materials:
 		# Только визуальные копии: настройки краски, слои грязи и ресурсы
@@ -2262,6 +2266,7 @@ func _build_scenery_multimeshes(
 		instance.name = "Cell_%d_%d" % [cell_x, cell_z]
 		instance.position = chunk_origin
 		instance.multimesh = multimesh
+		instance.lod_bias = cfg.scenery_lod_bias
 		# Мелочи исчезают раньше крупных, с запасом на радиус ячейки.
 		var small: bool = (kinds[prop_index] as RallyProp).small or (kinds[prop_index] as RallyProp).ground_cover
 		instance.visibility_range_end = cfg.scenery_range_small if small else cfg.scenery_range_large
@@ -2298,6 +2303,7 @@ func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: 
 		if not bodies.has(key):
 			var body := StaticBody3D.new()
 			body.name = "Trunks_%d" % key
+			body.collision_layer = 2 # Препятствия кузова, но не опора подвески.
 			parent.add_child(body)
 			bodies[key] = body
 		var shape := CylinderShape3D.new()
@@ -2317,7 +2323,7 @@ func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: 
 func _bake_prop_mesh(prop: RallyProp) -> Mesh:
 	if prop == null or prop.scene == null:
 		return null
-	var cache_key: String = "%s|%d" % [prop.scene.resource_path, 1 if s_scenery().ps1_filter else 0]
+	var cache_key: String = "%d|%d|%d" % [prop.scene.get_instance_id(), 1 if s_scenery().ps1_filter else 0, 1 if s_settings().scenery_lod_enabled else 0]
 	if _prop_mesh_cache.has(cache_key):
 		return _prop_mesh_cache[cache_key] as Mesh
 	var root := prop.scene.instantiate() as Node3D
@@ -2326,6 +2332,13 @@ func _bake_prop_mesh(prop: RallyProp) -> Mesh:
 		var materials: Array = []
 		var groups: Array = []
 		_collect_prop_surfaces(root, materials, groups, Transform3D())
+		var mid_materials: Array = []
+		var mid_groups: Array = []
+		var far_materials: Array = []
+		var far_groups: Array = []
+		if s_settings().scenery_lod_enabled and PropLOD.has_reducible_primitive(root):
+			_collect_prop_surfaces(root, mid_materials, mid_groups, Transform3D(), 1)
+			_collect_prop_surfaces(root, far_materials, far_groups, Transform3D(), 2)
 		for g in range(materials.size()):
 			var group: Array = groups[g] as Array
 			var surface: Array = []
@@ -2334,7 +2347,18 @@ func _bake_prop_mesh(prop: RallyProp) -> Mesh:
 			surface[Mesh.ARRAY_NORMAL] = group[1]
 			surface[Mesh.ARRAY_TEX_UV] = group[2]
 			surface[Mesh.ARRAY_INDEX] = group[3]
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface)
+			var lods := {}
+			if g < mid_groups.size() and g < far_groups.size() and mid_materials[g] == materials[g] and far_materials[g] == materials[g]:
+				var bounds := AABB((group[0] as PackedVector3Array)[0], Vector3.ZERO)
+				for vertex in group[0]:
+					bounds = bounds.expand(vertex)
+				var lod_scale: float = maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+				var mid_surface := _prop_group_surface(mid_groups[g])
+				var far_surface := _prop_group_surface(far_groups[g])
+				var combined: Dictionary = PropLOD.surface_with_lods(surface, mid_surface, far_surface, lod_scale)
+				surface = combined["arrays"]
+				lods = combined["lods"]
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface, [], lods)
 			var material = materials[g]
 			if material != null:
 				material = (material as Material).duplicate()
@@ -2352,7 +2376,7 @@ func _bake_prop_mesh(prop: RallyProp) -> Mesh:
 ## Трансформы накапливаются вручную, а не через global_transform: сцена
 ## инстанцируется ВНЕ дерева, где «мировой» трансформ либо не посчитан, либо
 ## вовсе недоступен.
-func _collect_prop_surfaces(node: Node, materials: Array, groups: Array, parent_xform: Transform3D) -> void:
+func _collect_prop_surfaces(node: Node, materials: Array, groups: Array, parent_xform: Transform3D, level: int = 0) -> void:
 	if node == null:
 		return
 	var xform: Transform3D = parent_xform
@@ -2362,6 +2386,7 @@ func _collect_prop_surfaces(node: Node, materials: Array, groups: Array, parent_
 		var instance := node as MeshInstance3D
 		var source: Mesh = instance.mesh
 		if source != null:
+			source = PropLOD.primitive_at_level(source, level)
 			var normal_basis: Basis = xform.basis.inverse().transposed()
 			for s in range(source.get_surface_count()):
 				var arrays: Array = source.surface_get_arrays(s)
@@ -2415,7 +2440,49 @@ func _collect_prop_surfaces(node: Node, materials: Array, groups: Array, parent_
 				group[2] = uvs_out
 				group[3] = indices_out
 	for child in node.get_children():
-		_collect_prop_surfaces(child, materials, groups, xform)
+		_collect_prop_surfaces(child, materials, groups, xform, level)
+
+
+func _prop_group_surface(group: Array) -> Array:
+	var surface: Array = []
+	surface.resize(Mesh.ARRAY_MAX)
+	surface[Mesh.ARRAY_VERTEX] = group[0]
+	surface[Mesh.ARRAY_NORMAL] = group[1]
+	surface[Mesh.ARRAY_TEX_UV] = group[2]
+	surface[Mesh.ARRAY_INDEX] = group[3]
+	return surface
+
+
+## После загрузки сцены включаем те же LOD у обычных ручных узлов. В редакторе
+## исходные ресурсы и сцены не изменяются и не засоряют Undo/сохранение.
+func _setup_authored_prop_lods() -> void:
+	var pending: Array[Node] = []
+	for root_name in ["StudioProps", "ManualProps", "Props"]:
+		var prop_root := get_node_or_null(root_name)
+		if prop_root != null:
+			pending.append(prop_root)
+	var processed := 0
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if not is_instance_valid(node):
+			continue
+		for child in node.get_children():
+			pending.append(child)
+		if node is MeshInstance3D:
+			var visual := node as MeshInstance3D
+			var source := visual.mesh
+			if source != null and visual.skin == null:
+				if not _authored_lod_cache.has(source):
+					_authored_lod_cache[source] = PropLOD.mesh_with_lods(source)
+				var optimized: Mesh = _authored_lod_cache[source]
+				if optimized != source:
+					visual.mesh = optimized
+				visual.lod_bias = s_settings().scenery_lod_bias
+		processed += 1
+		if processed % 128 == 0 and is_inside_tree():
+			await get_tree().process_frame
+			if not is_inside_tree():
+				return
 
 
 ## Совместимость: запечённый меш обстановки по id вида (ель, куст, валун, …).
@@ -2518,7 +2585,7 @@ func _spawn_guardrails(distance_start: float = 0.0, distance_end: float = -1.0, 
 		ids.append(id)
 		if cfg.guardrail_collisions:
 			var shape := BoxShape3D.new()
-			shape.size = Vector3(a.distance_to(b) + 0.04, 1.1, 0.28)
+			shape.size = GuardrailPlacement.collision_size(a, b)
 			var collision := CollisionShape3D.new()
 			collision.name = "Section_%06d" % id
 			collision.shape = shape
@@ -2550,7 +2617,7 @@ func _spawn_guardrails(distance_start: float = 0.0, distance_end: float = -1.0, 
 	visual.visibility_range_end_margin = 30.0
 	container.add_child(visual)
 	if cfg.guardrail_collisions:
-		body.collision_layer = 1
+		body.collision_layer = 2 # Колёса видят землю под барьером, кузов — барьер.
 	container.set_meta("segment_ids", ids)
 
 
