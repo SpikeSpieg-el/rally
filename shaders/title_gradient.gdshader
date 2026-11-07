@@ -1,7 +1,8 @@
 shader_type canvas_item;
 
 void fragment() {
-	float fade = 1.0 - smoothstep(0.23, 0.72, UV.x);
-	float edge = smoothstep(0.45, 1.0, UV.y) * 0.22;
-	COLOR = vec4(0.025, 0.035, 0.031, max(fade * 0.94, edge));
+	// Плотный контраст под текстом постепенно уходит к живой трассе справа.
+	float left_shade = 1.0 - smoothstep(0.28, 0.70, UV.x);
+	float bottom_shade = smoothstep(0.55, 1.0, UV.y) * 0.18;
+	COLOR = vec4(0.018, 0.031, 0.046, max(left_shade * 0.94, bottom_shade));
 }
