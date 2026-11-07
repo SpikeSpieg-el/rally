@@ -62,6 +62,9 @@ func _run() -> void:
 		stage._stage_live = true
 		var distance: float = start
 		var hold_frames := 0
+		var missing_coverage := 0
+		var start_position: Vector3 = stage.to_local(car.global_position)
+		var max_plan_displacement := 0.0
 		var max_pending := 0
 		var max_retired := 0
 		var frame_times: Array[float] = []
@@ -76,14 +79,25 @@ func _run() -> void:
 			car.position = stage.network.point_at(distance) + Vector3.UP
 			car.linear_velocity = stage.network.direction_at(distance) * (200.0 / 3.6)
 			await process_frame
+			var car_pos: Vector3 = stage.to_local(car.global_position)
+			var along: float = stage.network.along_road(car_pos.x, car_pos.z)
+			var road_id: int = mini(floori(along / streamer.ROAD_LENGTH), ceili(stage.network.total_length / streamer.ROAD_LENGTH) - 1)
+			if not streamer.tiles.has(streamer._tile_key(car_pos)) or not streamer.roads.has(road_id):
+				missing_coverage += 1
 			var now: int = Time.get_ticks_usec()
 			frame_times.append(float(now - before) / 1000.0)
 			before = now
+			if streamer._last_position.is_finite():
+				max_plan_displacement = maxf(max_plan_displacement, streamer._plan_distance_squared(start_position, streamer._last_position))
 			max_pending = maxi(max_pending, streamer._pending.size())
 			max_retired = maxi(max_retired, streamer._retired_tiles.size() + streamer._retired_roads.size())
 		frame_times.sort()
 		print("drive start=%.1fkm mode=%s distance=%.0fm held=%d/1800 pending_max=%d retired_max=%d p95=%.2fms max=%.2fms" % [start / 1000.0, "cooperative" if cooperative else "worker", distance - start, hold_frames, max_pending, max_retired, frame_times[floori(frame_times.size() * 0.95)], frame_times.back()])
-		if hold_frames > 0:
+		if hold_frames > 0 or missing_coverage > 0:
+			printerr("FAIL: held=%d missing collision coverage=%d" % [hold_frames, missing_coverage])
+			failures += 1
+		if max_plan_displacement < 200.0 * 200.0:
+			printerr("FAIL: streaming plan did not follow the moving car")
 			failures += 1
 		stage.free() # Also tests shutdown while a terrain job may be in flight.
 		await process_frame

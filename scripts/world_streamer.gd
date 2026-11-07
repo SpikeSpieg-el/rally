@@ -335,21 +335,22 @@ func _retire_one() -> bool:
 func _process(delta: float) -> void:
 	if _priming or _stopping or stage == null or not stage._stage_live or stage.car == null or stage.is_paused:
 		return
+	# Road/tile data is stage-local; this node itself remains stationary.
 	var car_pos: Vector3 = stage.to_local(stage.car.global_position)
 	_refresh_clock += delta
 	# The frame clock completes jobs after this scheduling decision, so a
 	# mesh/collider commit and a new job do not share the same frame.
-	if not _busy and (_plan_distance_squared(position, _last_position) > 32.0 * 32.0 or _refresh_clock > 1.0):
+	if not _busy and (_plan_distance_squared(car_pos, _last_position) > 32.0 * 32.0 or _refresh_clock > 1.0):
 		_refresh_clock = 0.0
-		_request(position)
-	var distance: float = stage.network.distance_to_road(position.x, position.z)
-	var along: float = stage.network.along_road(position.x, position.z)
+		_request(car_pos)
+	var distance: float = stage.network.distance_to_road(car_pos.x, car_pos.z)
+	var along: float = stage.network.along_road(car_pos.x, car_pos.z)
 	var road_id: int = floori(along / ROAD_LENGTH)
 	road_id = mini(road_id, ceili(stage.network.total_length / ROAD_LENGTH) - 1)
 	var needs_road: bool = distance <= stage.track.half_width_at(along) + stage.track.road_shoulder + 2.0
 	# Off-road teleports only need ground: the nearest road may be kilometres
 	# away and outside the streamed radius, so requiring it would freeze forever.
-	var safe: bool = tiles.has(_tile_key(position)) and (not needs_road or roads.has(road_id))
+	var safe: bool = tiles.has(_tile_key(car_pos)) and (not needs_road or roads.has(road_id))
 	# Teleports/resets must never drop the car through a chunk still loading.
 	if not safe and not _holding_car:
 		_saved_freeze = stage.car.freeze
