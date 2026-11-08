@@ -6,3 +6,4 @@
 script = ExtResource("1_layout")
 start_distance = 25.992683
 custom_checkpoint_distances = PackedFloat32Array(420, 840, 1073.7168, 1260, 1529.5967, 1680, 2100, 2520, 2940, 3360)
+guardrail_offset = 4.0
