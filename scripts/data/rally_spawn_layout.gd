@@ -147,6 +147,23 @@ extends Resource
 @export var guardrail_collisions: bool = true
 @export_range(100.0, 1000.0, 10.0) var guardrail_visibility_range: float = 350.0
 
+@export_group("Дощатый забор на опасных поворотах")
+@export var corner_fence: bool = true
+## Модуль из библиотеки пропсов: длина вдоль локальной X берётся из сцены.
+@export var corner_fence_prop_id: String = "wooden_fence"
+## Отступ от кромки ПОЛОТНА (не от оси), м. Держим рядом с отбойником,
+## чтобы линия ограждения переходила из забора в отбойник без ступеньки.
+@export_range(1.0, 12.0, 0.1) var corner_fence_offset: float = 4.2
+## Не залезать на обочину соседнего витка шпильки.
+@export_range(0.0, 3.0, 0.1) var corner_fence_road_clearance: float = 0.35
+@export var corner_fence_collisions: bool = true
+@export_range(100.0, 1000.0, 10.0) var corner_fence_visibility_range: float = 320.0
+## Где уже стоит отбойник, второй барьер в тот же ряд не нужен.
+@export var corner_fence_skip_guardrail: bool = true
+## Сколько метров забора тянется до входа в поворот и после него.
+@export_range(0.0, 40.0, 1.0) var corner_fence_before: float = 12.0
+@export_range(0.0, 160.0, 1.0) var corner_fence_after: float = 55.0
+
 @export_group("Машина")
 ## Точка появления: расстояние от начала кривой, м (для F6/первого кадра).
 @export_range(0.0, 200.0, 0.5) var car_spawn_distance: float = 14.0

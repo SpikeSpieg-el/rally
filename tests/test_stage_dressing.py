@@ -54,17 +54,21 @@ class StageDressingTest(unittest.TestCase):
         self.assertIn("func _place_prop(", stage)
         self.assertIn("StageDressing.roadside_fans(", stage)
         for prop_id in (
-            "braking_marker", "safety_net", "spectator_crowd", "spectator_person", "parked_car",
+            "braking_marker", "spectator_crowd", "spectator_person", "parked_car",
             "power_pole", "fog_patch", "forester_house", "broken_car",
             "warning_triangle", "marshal_tent", "light_tower", "generator",
             "service_car", "traffic_cone", "finish_warning_sign", "stop_sign",
             "gate_sign", "helicopter", "mud_patch",
         ):
             self.assertIn(f'"{prop_id}"', stage, prop_id)
-        # Bunting/powerline mass props go through the baked-scene MultiMesh.
+        # Массовые пропсы (столбы ЛЭП, секции забора) идут через тот же
+        # запечённый MultiMesh из редактируемой сцены.
         self.assertIn('func _dressing_multimesh(', stage)
-        self.assertIn('"bunting_post"', stage)
-        self.assertIn('"bunting_tape"', stage)
+        # Ленты на колышках и оранжевые сетки кусками по 6 м больше не ставятся:
+        # на повороте они распадались на видимые «три части».
+        self.assertNotIn('"bunting_tape"', stage)
+        self.assertNotIn('"safety_net"', stage)
+        self.assertIn('func _dressing_corner_fence(', stage)
         # The old script-built dressing helpers must not come back.
         for gone in ("func _dressing_box(", "func _dressing_label(", "func _dressing_car(", "func _dressing_house("):
             self.assertNotIn(gone, stage, gone)
@@ -140,9 +144,46 @@ class StageDressingTest(unittest.TestCase):
             "stage_dressing", "spectator_spacing", "spectator_max_spots",
             "spectator_crowd_size", "roadside_fans", "roadside_fan_spacing",
             "roadside_fan_max", "roadside_fan_keep_chance", "roadside_fan_eager_chance",
-            "helicopter",
+            "helicopter", "corner_fence", "corner_fence_prop_id", "corner_fence_offset",
+            "corner_fence_before", "corner_fence_after", "corner_fence_collisions",
         ):
             self.assertIn(f"var {name}", layout, name)
+
+
+class CornerFenceTest(unittest.TestCase):
+    def test_fence_is_one_continuous_chain(self):
+        stage = read("scripts/rally_stage.gd")
+        fence = stage.split("func _dressing_corner_fence", 1)[1].split("\nfunc ", 1)[0]
+        # Шаг укладки — длина модуля из самой сцены забора, не константа в коде.
+        self.assertIn("mesh.get_aabb().size.x", fence)
+        # Секция тянется по хорде между двумя точками грунта, как у отбойника.
+        self.assertIn("GuardrailPlacement.offset_point(", fence)
+        self.assertIn("transforms.append(_fence_span_transform(a, b, module))", fence)
+        self.assertIn("visibility_range_end = cfg.corner_fence_visibility_range", fence)
+        # Не залезаем на обочину соседнего витка шпильки.
+        self.assertIn("_guardrail_span_is_clear(", fence)
+        # Где уже стоит отбойник, второй барьер в тот же ряд не ставим.
+        self.assertIn("cfg.corner_fence_skip_guardrail", fence)
+        self.assertIn("GuardrailPlacement.outer_side(", fence)
+        span = stage.split("func _fence_span_transform", 1)[1].split("\nfunc ", 1)[0]
+        # Y остаётся вертикальной: стойки не заваливаются на подъёме.
+        self.assertIn("Basis(delta / maxf(0.1, module), Vector3.UP, across)", span)
+        self.assertIn("Vector3.FORWARD", span)
+
+    def test_fence_was_not_rewritten_as_tape(self):
+        stage = read("scripts/rally_stage.gd")
+        for gone in ('"bunting_post"', '"bunting_tape"', '"safety_net"', "tape_colors"):
+            self.assertNotIn(gone, stage, gone)
+
+    def test_fence_prop_is_an_editable_scene_with_posts(self):
+        scene = read("scenes/props/wooden_fence.tscn")
+        for token in (
+            "Mesh_rail_top", "Mesh_rail_low", "Mesh_post_a", "Mesh_post_b",
+            "Mesh_post_c", "FenceShape", "StaticBody3D",
+        ):
+            self.assertIn(token, scene, token)
+        # Перекладины идут по локальной X — по ней и режется шаг укладки.
+        self.assertIn("size = Vector3(2.6, 0.14, 0.08)", scene)
 
 
 if __name__ == "__main__":
