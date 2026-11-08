@@ -10,10 +10,10 @@ signal settings_changed
 enum Feel { CUSTOM, OFF, COMFORT, EXPRESSIVE, ARCADE }
 
 const PRESETS := {
-	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.8],
-	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.6, 6.0, 20.0, 1.5, 0.7],
-	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.2, 12.0, 55.0, 2.4, 0.8],
-	Feel.ARCADE: [true, 45.0, 160.0, 1.4, 2.0, 20.0, 80.0, 3.2, 0.9],
+	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 1.0, 0.8],
+	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.6, 6.0, 1.5, 0.7],
+	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.2, 12.0, 2.4, 0.8],
+	Feel.ARCADE: [true, 45.0, 160.0, 1.4, 2.0, 20.0, 3.2, 0.9],
 }
 
 @export_group("Характер эффекта")
@@ -62,13 +62,6 @@ const PRESETS := {
 		vignette_percent = value
 		_mark_custom()
 		_refresh()
-## Радиальные штрихи по краям кадра. Работают только сзади и в кабине;
-## вид от капота сохраняет спокойный прежний эффект.
-@export_range(0.0, 100.0, 1.0, "suffix:%") var streak_percent: float = 55.0:
-	set(value):
-		streak_percent = value
-		_mark_custom()
-		_refresh()
 ## Во сколько раз усиливается периферийное размытие сзади/в кабине.
 ## 1 — прежняя сила; капот всегда использует 1.
 @export_range(1.0, 4.0, 0.1) var blur_gain: float = 2.4:
@@ -76,7 +69,7 @@ const PRESETS := {
 		blur_gain = value
 		_mark_custom()
 		_refresh()
-## Насколько сильно кабина получает новый эффект относительно вида сзади.
+## Насколько сильно кабина получает усиленное размытие относительно вида сзади.
 @export_range(0.0, 1.0, 0.05) var cockpit_scale: float = 0.8:
 	set(value):
 		cockpit_scale = value
@@ -93,7 +86,7 @@ func _ready() -> void:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "description":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	if property.name in ["start_kmh", "full_kmh", "strength", "edge_blur_percent", "vignette_percent", "streak_percent", "blur_gain", "cockpit_scale"] and feel != Feel.CUSTOM:
+	if property.name in ["start_kmh", "full_kmh", "strength", "edge_blur_percent", "vignette_percent", "blur_gain", "cockpit_scale"] and feel != Feel.CUSTOM:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
@@ -113,9 +106,8 @@ func _apply_preset() -> void:
 	strength = p[3]
 	edge_blur_percent = p[4]
 	vignette_percent = p[5]
-	streak_percent = p[6]
-	blur_gain = p[7]
-	cockpit_scale = p[8]
+	blur_gain = p[6]
+	cockpit_scale = p[7]
 	_applying_preset = false
 
 
@@ -123,9 +115,9 @@ func _refresh() -> void:
 	if feel == Feel.CUSTOM and full_kmh <= start_kmh:
 		full_kmh = start_kmh + 1.0
 		return
-	description = "Меняет только ощущение скорости: края кадра размываются, темнеют и получают радиальные штрихи.\n"
-	description += "Штрихи и усиленное размытие работают сзади и в кабине; капот сохраняет прежний спокойный эффект.\n"
-	description += "PS1-пиксели, палитра, дождь и снег не изменяются.\n"
+	description = "Меняет только ощущение скорости: края кадра слегка размываются и темнеют.\n"
+	description += "Усиленное периферийное размытие работает сзади и в кабине; капот сохраняет прежний спокойный эффект.\n"
+	description += "Основную отдачу дают камера, инерция и звук; PS1-пиксели, палитра, дождь и снег не изменяются.\n"
 	if not enabled:
 		description += "Сейчас: выключено."
 	else:
@@ -144,7 +136,6 @@ func write_settings(cfg: Resource) -> void:
 	cfg.set("speed_effect_strength", strength)
 	cfg.set("speed_blur_strength", edge_blur_percent / 100.0)
 	cfg.set("vignette_strength", vignette_percent / 100.0)
-	cfg.set("speed_streak_strength", streak_percent / 100.0)
 	cfg.set("speed_blur_gain", blur_gain)
 	cfg.set("speed_cockpit_scale", cockpit_scale)
 
@@ -160,7 +151,6 @@ func adopt_settings(cfg: Resource) -> void:
 	strength = float(cfg.get("speed_effect_strength"))
 	edge_blur_percent = float(cfg.get("speed_blur_strength")) * 100.0
 	vignette_percent = float(cfg.get("vignette_strength")) * 100.0
-	streak_percent = float(cfg.get("speed_streak_strength")) * 100.0
 	blur_gain = float(cfg.get("speed_blur_gain"))
 	cockpit_scale = float(cfg.get("speed_cockpit_scale"))
 	_applying_preset = false

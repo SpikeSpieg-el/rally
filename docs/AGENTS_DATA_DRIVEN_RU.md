@@ -70,12 +70,12 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallySceneryConfig` | `data/stage/default_scenery.tres` | раскладка обстановки: шаг, плотность (×30), отступы, дальность, потолок объектов |
 | `RallyPropLibrary` + `RallyProp` | `data/stage/default_prop_library.tres` | КАКИЕ сцены ставить: вес, размер, тень, спутник и коллизия каждого вида |
 | `RallyFxProfile` + `RallySurfaceFxProfile` (кладка `surface_fx_profiles`) | `data/stage/default_fx_profile.tres` | сила всех эффектов, клубы и комья из-под каждого колеса, облако пыли за кормой, слои грязи/мокроты/снега на кузове, свечение пылинок, отдельный профиль для асфальта, гравия, грязи, травы и снега (три уровня интенсивности) |
-| `RallyCarFeelConfig` | `data/car/default_car_feel.tres` | камера, FOV, клиренс и посадка модели, отклик руля, свободный обзор, скорость эталона |
+| `RallyCarFeelConfig` | `data/car/default_car_feel.tres` | камера, FOV, клиренс и посадка модели, отклик руля, свободный обзор, скорость эталона, дорожная тряска/перегрузки/удары камеры |
 | `RallyUiTheme` | `data/ui/default_ui_theme.tres` | палитра, шрифты, отступы, стили кнопок/панелей всех меню и HUD |
 | `RallyMenuLayout` | `data/ui/default_menu_layout.tres` | тексты, подсказки, горячие клавиши, скорость витрины гаража, сообщения о сиде |
 | `RallyShaderParameter` | внутри узлов эффектов / `RallyStageSettings` | любой uniform любого материала прямо из инспектора |
 | `RallyScreenLook` | `scenes/effects/retro_screen.tscn` | ретро-экран: пиксели, палитра, дизер, дрожание вершин |
-| `RallySpeedFeel` | `scenes/effects/speed_effect.tscn` | ощущение скорости: размытие краёв, виньетка, радиальные PS1-штрихи и усиление размытия для вида сзади/из кабины; капот сохраняет спокойный вариант |
+| `RallySpeedFeel` | `scenes/effects/speed_effect.tscn` | ощущение скорости: лёгкое размытие краёв, виньетка и усиление периферийного размытия для вида сзади/из кабины; капот сохраняет спокойный вариант. Основную отдачу дают камера/инерция из RallyCarFeelConfig |
 | `RallyPrecipitationEffect` | `scenes/effects/rain.tscn`, `snow.tscn` | дождь и снег как отдельные GPUParticles3D |
 | `RallySurfaceLooks` | `scenes/effects/surface_looks.tscn` | материалы земли и дороги в сцене |
 | `RallyVisualEffects` | `scenes/effects/visual_effects.tscn` | контейнер визуальных эффектов и область осадков |
