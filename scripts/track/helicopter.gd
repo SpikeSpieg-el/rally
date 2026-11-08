@@ -65,7 +65,7 @@ func setup(anchor: Vector3, rng_seed: int) -> void:
 	cone_material.albedo_color = Color(1.0, 0.95, 0.75, 0.07)
 	cone_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cone_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	cone_material.cull_mode = BaseMaterial3D.CULL_MODE_DISABLED
+	cone_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	cone_mesh.surface_set_material(0, cone_material)
 	var cone := MeshInstance3D.new()
 	cone.mesh = cone_mesh

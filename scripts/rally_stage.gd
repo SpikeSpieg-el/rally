@@ -2542,7 +2542,7 @@ func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_e
 
 ## Повороты трассы по RallyRouteAnalysis (тот же счёт, что в редакторе
 ## трассы): вход, угол, радиус, severity 1..6. Кешируется на сборку мира.
-func _dressing_corners() -> Array:
+func _get_dressing_corners() -> Array:
 	if _dressing_corners_ready:
 		return _dressing_corners
 	_dressing_corners_ready = true
@@ -2582,7 +2582,7 @@ func _dressing_material(color: Color, emission: float = 0.0, unshaded: bool = fa
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if color.a < 0.999:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		material.cull_mode = BaseMaterial3D.CULL_MODE_DISABLED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if emission > 0.0:
 		material.emission_enabled = true
 		material.emission = Color(color.r, color.g, color.b, 1.0)
@@ -2690,7 +2690,7 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 	(generated if chunk_parent == null else chunk_parent).add_child(container)
 	var end: float = network.total_length - 40.0 if distance_end < 0.0 else minf(distance_end, network.total_length - 40.0)
 	var corridor: float = corridor_half()
-	var corners: Array = _dressing_corners()
+	var corners: Array = _get_dressing_corners()
 	var post_transforms: Array = []
 	var post_colors: Array = []
 	var ribbon_transforms: Array = []
