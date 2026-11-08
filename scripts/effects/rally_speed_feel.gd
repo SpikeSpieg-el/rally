@@ -165,7 +165,8 @@ func adopt_settings(cfg: Resource) -> void:
 	vignette_percent = float(cfg.get("vignette_strength")) * 100.0
 	blur_gain = float(cfg.get("speed_blur_gain"))
 	cockpit_scale = float(cfg.get("speed_cockpit_scale"))
-	edge_stretch_percent = float(cfg.get("speed_edge_stretch", 0.02)) * 100.0
+	var stored_stretch: Variant = cfg.get("speed_edge_stretch")
+	edge_stretch_percent = float(stored_stretch if stored_stretch != null else 0.02) * 100.0
 	_applying_preset = false
 	_refresh()
 
