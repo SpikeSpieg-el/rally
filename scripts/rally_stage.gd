@@ -129,6 +129,8 @@ var car: CarType = null
 var network: RoadNetworkType = null
 const WorldStreamer = preload("res://scripts/world_streamer.gd")
 const STREAM_SLICE_USEC := 1800
+## Выше этой скорости эффект обязан быть виден: иначе один раз предупреждаем.
+const SPEED_FX_REPORT_KMH := 110.0
 var world_streamer: WorldStreamer = null
 var terrain_rect: Rect2 = Rect2()
 var start_pos: Vector3 = Vector3.ZERO
@@ -168,6 +170,8 @@ var _marathon_transitioning := false
 var _hud_ready := false
 ## Мир этапа готов, физика/HUD можно тикать (await в _ready разбил старт на кадры).
 var _stage_live := false
+## Один раз за заезд объясняем в консоли, почему эффект скорости молчит.
+var _speed_fx_reported := false
 var _prev_lin_vel: Vector3 = Vector3.ZERO
 var _frame_delta: float = 0.016
 
@@ -3650,16 +3654,29 @@ func _hud_node(path: String) -> Node:
 
 
 ## Постобработка 3D до отрисовки интерфейса.
+## Источник истины — узлы сцены: экран `HUD/SpeedShaderRect` и узел
+## `VisualEffects/Speed`. Ресурс RallyStageSettings остаётся только
+## совместимым зеркалом и резервом для старых сцен.
 func _setup_world_effects() -> void:
 	_bind_visual_effects()
 	if fx_nodes != null and fx_nodes.screen() != null:
 		speed_rect = fx_nodes.screen()
 		speed_fx_material = speed_rect.material as ShaderMaterial
 		speed_rect.visible = true
+		if fx_nodes.speed() == null:
+			push_warning(
+				"RallyStage: в VisualEffects нет узла Speed — эффект скорости берётся из RallyStageSettings. "
+				+ "Добавьте узел Speed, иначе правки его настроек в заезде не появятся."
+			)
 		fx_nodes.configure_screen(track)
 		if speed_rect.get_parent() == hud and hud.get_node_or_null("RallyHUD") != null:
 			hud.move_child(speed_rect, 0)
 		return
+	if fx_nodes != null:
+		push_warning(
+			"RallyStage: VisualEffects есть, но экран по пути %s не найден — работает старый резервный путь."
+			% fx_nodes.screen_path
+		)
 	# Старые сцены без VisualEffects продолжают работать.
 	var cfg := s_settings()
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
@@ -4064,14 +4081,43 @@ func _process(delta: float) -> void:
 		_check_finish()
 	var speed: float = car.speed_kmh if car != null else 0.0
 	var camera_mode: int = car.camera_mode if car != null else 0
-	if fx_nodes != null:
+	# Эффект скорости считается из узла сцены. Если узла Speed нет, работаем
+	# по старому ресурсу — иначе материал остался бы с нулевой интенсивностью
+	# и «эффект не применяется» без единой строчки в консоли.
+	var from_node: bool = fx_nodes != null and fx_nodes.speed() != null and speed_rect != null
+	if from_node:
 		fx_nodes.update_speed(speed, track, camera_mode)
 	elif speed_fx_material != null:
 		var intensity: float = s_settings().speed_fx_amount(speed, track)
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 		speed_fx_material.set_shader_parameter("camera_mode", camera_mode)
+	_report_speed_fx(speed, from_node)
 	_frame_delta = delta
 	_update_hud()
+
+
+## Один раз за заезд: если скорость уже приличная, а эффект молчит, в консоли
+## появляется причина. Раньше это был тихий ноль, и понять, где конфликт
+## настроек, было нельзя.
+func _report_speed_fx(speed: float, from_node: bool) -> void:
+	if _speed_fx_reported or speed_fx_material == null or speed < SPEED_FX_REPORT_KMH:
+		return
+	var raw: Variant = speed_fx_material.get_shader_parameter("speed_intensity")
+	var intensity: float = float(raw) if raw != null else 0.0
+	if intensity > 0.001:
+		_speed_fx_reported = true
+		return
+	var reason := ""
+	if from_node and fx_nodes != null and fx_nodes.screen() != null:
+		reason = fx_nodes.screen().speed_blocked_reason()
+		if reason.is_empty():
+			reason = "экранный материал не получил speed_intensity"
+	elif not s_settings().speed_fx_enabled:
+		reason = "эффект выключен в RallyStageSettings (speed_fx_enabled)"
+	else:
+		reason = "трасса запрещает эффект (enable_speed_fx = false)"
+	_speed_fx_reported = true
+	push_warning("Эффект скорости не работает на %.0f км/ч: %s" % [speed, reason])
 
 
 ## Отложенная пересборка в редакторе (см. settings.auto_rebuild_delay).

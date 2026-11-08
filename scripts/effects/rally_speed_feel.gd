@@ -1,6 +1,10 @@
 ## Эффект скорости как отдельный объект сцены.
 ## Выбирайте готовый характер, а не угадывайтедробные uniform'ы.
 ## Точные значения открываются только в режиме «Свой характер».
+##
+## Единственный источник истины для эффекта скорости — этот узел.
+## `RallyStageSettings.speed_*` остаётся совместимым зеркалом, а uniform'ы
+## материала экрана пересчитываются из узла каждый кадр.
 @tool
 class_name RallySpeedFeel
 extends Node
@@ -89,6 +93,13 @@ var _applying_preset := false
 
 
 func _ready() -> void:
+	# Пресет — это выбор пользователя, а точные числа — только его следствие.
+	# В .tscn числа пресета тоже сохраняются (иначе их нечем было бы читать
+	# старому коду), и при загрузке они приходили бы ПОСЛЕ `feel`, превращая
+	# выбранный характер в «Свой характер». Поэтому пресет применяется заново
+	# уже после того, как все свойства сцены прочитаны.
+	if feel != Feel.CUSTOM:
+		_apply_preset()
 	_refresh()
 
 
@@ -99,9 +110,19 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
+## Ручная правка числа переводит эффект в «Свой характер» — но только когда
+## узел уже живёт в сцене. Пока сцена загружается, сеттеры получают значения
+## пресета, и переключать из-за них режим нельзя.
 func _mark_custom() -> void:
-	if not _applying_preset and feel != Feel.CUSTOM:
-		feel = Feel.CUSTOM
+	if _applying_preset or not is_inside_tree():
+		return
+	if feel == Feel.CUSTOM:
+		return
+	feel = Feel.CUSTOM
+	# Точные значения спрятаны у пресетов. Без этого вызова они остаются
+	# невидимыми в инспекторе до перезапуска редактора — и кажется, что
+	# настройка «не сохранилась».
+	notify_property_list_changed()
 
 
 func _apply_preset() -> void:
@@ -122,7 +143,9 @@ func _apply_preset() -> void:
 
 
 func _refresh() -> void:
-	if feel == Feel.CUSTOM and full_kmh <= start_kmh:
+	if full_kmh <= start_kmh:
+		# Порог полного эффекта всегда выше порога начала, иначе скорость
+		# делится на ноль и эффект молча пропадает.
 		full_kmh = start_kmh + 1.0
 		return
 	description = "Меняет только ощущение скорости: края кадра мягко размываются, темнеют и тянутся от центра.\n"
@@ -176,3 +199,17 @@ func intensity_for(speed_kmh: float, track_allows: bool) -> float:
 		return 0.0
 	var span := maxf(1.0, full_kmh - start_kmh)
 	return clampf((speed_kmh - start_kmh) / span * strength, 0.0, 1.0)
+
+
+## Почему эффект сейчас молчит. Пустая строка — всё работает.
+## Нужен этапу, чтобы в консоли было видно причину, а не тихий ноль.
+func inactive_reason(speed_kmh: float) -> String:
+	if not enabled:
+		return "узел VisualEffects/Speed выключен (характер «Выключено» или enabled = false)"
+	if strength <= 0.0:
+		return "сила эффекта скорости равна 0"
+	if full_kmh <= start_kmh:
+		return "порог полного эффекта не выше порога начала (%.0f км/ч)" % start_kmh
+	if speed_kmh < start_kmh:
+		return "скорость %.0f км/ч ниже порога %.0f км/ч" % [speed_kmh, start_kmh]
+	return ""

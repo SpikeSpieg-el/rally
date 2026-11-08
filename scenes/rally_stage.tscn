@@ -137,10 +137,10 @@ road_material = SubResource("ShaderMaterial_huph0")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xfxr1"]
 resource_local_to_scene = true
 shader = ExtResource("19_fvvtf")
-shader_parameter/retro_strength = 0.0
+shader_parameter/retro_strength = 1.0
 shader_parameter/resolution_y = 270.0
-shader_parameter/color_levels = 0.0
-shader_parameter/dither_strength = 0.0
+shader_parameter/color_levels = 31.0
+shader_parameter/dither_strength = 1.0
 shader_parameter/speed_intensity = 0.0
 shader_parameter/blur_strength = 0.012
 shader_parameter/vignette_strength = 0.12

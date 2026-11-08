@@ -130,6 +130,11 @@ var _applying := false
 
 
 func _ready() -> void:
+	# Как и у остальных эффектов: выбранный пресет остаётся пресетом после
+	# перезапуска сцены, а не превращается в «Свой вариант» из-за порядка
+	# присваивания сохранённых чисел.
+	if preset != Preset.CUSTOM:
+		_apply_preset()
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	local_coords = false
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -144,8 +149,12 @@ func _validate_property(property: Dictionary) -> void:
 
 
 func _mark_custom() -> void:
-	if not _applying and preset != Preset.CUSTOM:
-		preset = Preset.CUSTOM
+	if _applying or not is_inside_tree():
+		return
+	if preset == Preset.CUSTOM:
+		return
+	preset = Preset.CUSTOM
+	notify_property_list_changed()
 
 
 func _apply_preset() -> void:

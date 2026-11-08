@@ -242,8 +242,14 @@ func dither_for(track: Resource) -> bool:
 
 
 ## Насколько проявляется эффект скорости при данной скорости, км/ч.
+## Отсутствие флага у трассы — это «не запрещено», а не «выключено»:
+## иначе чужая/новая трасса без поля молча гасила эффект целиком.
 func speed_fx_amount(speed_kmh: float, track: Resource) -> float:
-	if not speed_fx_enabled or track == null or not bool(track.get("enable_speed_fx")):
+	if not speed_fx_enabled:
 		return 0.0
+	if track != null:
+		var allowed: Variant = track.get("enable_speed_fx")
+		if allowed != null and not bool(allowed):
+			return 0.0
 	var span: float = maxf(1.0, speed_fx_full_kmh - speed_fx_start_kmh)
 	return clampf((speed_kmh - speed_fx_start_kmh) / span * speed_effect_strength, 0.0, 1.0)
