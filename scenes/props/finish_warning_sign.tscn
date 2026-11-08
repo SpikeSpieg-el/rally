@@ -1,32 +1,36 @@
-[gd_scene format=3 uid="uid://ouxjugn33bsrp"]
+[gd_scene format=3 uid="uid://dapw3awdeo6if"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_post"]
 albedo_color = Color(0.55, 0.56, 0.58, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_post"]
 material = SubResource("Mat_post")
 size = Vector3(0.09, 1.2, 0.09)
+
 [sub_resource type="StandardMaterial3D" id="Mat_board"]
 albedo_color = Color(0.98, 0.78, 0.1, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_board"]
 material = SubResource("Mat_board")
-size = Vector3(1.5, 0.7, 0.06)
+size = Vector3(2.2767334, 0.7, 0.06)
 
-[node name="FinishWarningSign" type="Node3D"]
+[node name="FinishWarningSign" type="Node3D" unique_id=1302550970]
 
-[node name="Post" type="MeshInstance3D" parent="."]
+[node name="Post" type="MeshInstance3D" parent="." unique_id=1140602010]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 mesh = SubResource("Mesh_post")
-[node name="Board" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+
+[node name="Board" type="MeshInstance3D" parent="." unique_id=1040577300]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.019104004, 1.55, 0)
 mesh = SubResource("Mesh_board")
-[node name="Text" type="Label3D" parent="."]
+
+[node name="Text" type="Label3D" parent="." unique_id=1121210546]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0.045)
 pixel_size = 0.0052
 modulate = Color(0.1, 0.1, 0.1, 1)
+outline_modulate = Color(0, 0, 0, 0.55)
 text = "ФИНИШ"
 font_size = 96
 outline_size = 8
-outline_modulate = Color(0, 0, 0, 0.55)
-horizontal_alignment = 1

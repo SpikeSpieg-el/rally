@@ -2,18 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rhcxl7w0kvbg0"
-path.s3tc="res://.godot/imported/camera_flash.png-a022d2990379e33d07da5fc4394389c7.s3tc.ctex"
-path.etc2="res://.godot/imported/camera_flash.png-a022d2990379e33d07da5fc4394389c7.etc2.ctex"
+uid="uid://b0pg8y80b2sfx"
+path="res://.godot/imported/camera_flash.png-85436a8f2653fc116e4bfe7ed0c9660a.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://textures/sprites/camera_flash.png"
-dest_files=["res://.godot/imported/camera_flash.png-a022d2990379e33d07da5fc4394389c7.s3tc.ctex", "res://.godot/imported/camera_flash.png-a022d2990379e33d07da5fc4394389c7.etc2.ctex"]
+dest_files=["res://.godot/imported/camera_flash.png-85436a8f2653fc116e4bfe7ed0c9660a.ctex"]
 
 [params]
 

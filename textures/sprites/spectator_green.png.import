@@ -2,18 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://74m82gdzafc5n"
-path.s3tc="res://.godot/imported/spectator_green.png-a022d2990379e33d07da5fc4394389c7.s3tc.ctex"
-path.etc2="res://.godot/imported/spectator_green.png-a022d2990379e33d07da5fc4394389c7.etc2.ctex"
+uid="uid://b7ebcy0yqsc3j"
+path="res://.godot/imported/spectator_green.png-73c0698d16c95a2ba30866ef5b41dad2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://textures/sprites/spectator_green.png"
-dest_files=["res://.godot/imported/spectator_green.png-a022d2990379e33d07da5fc4394389c7.s3tc.ctex", "res://.godot/imported/spectator_green.png-a022d2990379e33d07da5fc4394389c7.etc2.ctex"]
+dest_files=["res://.godot/imported/spectator_green.png-73c0698d16c95a2ba30866ef5b41dad2.ctex"]
 
 [params]
 

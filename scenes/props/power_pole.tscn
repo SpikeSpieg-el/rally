@@ -1,20 +1,24 @@
-[gd_scene format=3 uid="uid://b0zj8q7d263fc"]
+[gd_scene format=3 uid="uid://b00j8q7d263fc"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_wood"]
 albedo_color = Color(0.3, 0.22, 0.13, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_pole"]
 material = SubResource("Mat_wood")
-size = Vector3(0.18, 7.0, 0.18)
+size = Vector3(0.18, 7, 0.18)
+
 [sub_resource type="BoxMesh" id="Mesh_arm"]
 material = SubResource("Mat_wood")
 size = Vector3(1.9, 0.12, 0.12)
 
-[node name="PowerPole" type="Node3D"]
+[node name="PowerPole" type="Node3D" unique_id=1793089300]
+transform = Transform3D(1.915, 0, 0, 0, 1.915, 0, 0, 0, 1.915, 0, 0, 0)
 
-[node name="Pole" type="MeshInstance3D" parent="."]
+[node name="Pole" type="MeshInstance3D" parent="." unique_id=1438402704]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
 mesh = SubResource("Mesh_pole")
-[node name="Arm" type="MeshInstance3D" parent="."]
+
+[node name="Arm" type="MeshInstance3D" parent="." unique_id=1105555432]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.6, 0)
 mesh = SubResource("Mesh_arm")

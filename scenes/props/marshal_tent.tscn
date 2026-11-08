@@ -1,41 +1,52 @@
-[gd_scene format=3 uid="uid://2drvauk7vwzzu"]
+[gd_scene format=3 uid="uid://bwr5g5gxivpi"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_canopy"]
 albedo_color = Color(0.12, 0.3, 0.62, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_canopy"]
 material = SubResource("Mat_canopy")
-size = Vector3(3.4, 0.14, 3.0)
-[sub_resource type="StandardMaterial3D" id="Mat_post"]
-albedo_color = Color(0.55, 0.56, 0.58, 1)
-roughness = 0.9
-[sub_resource type="BoxMesh" id="Mesh_post"]
-material = SubResource("Mat_post")
-size = Vector3(0.08, 2.25, 0.08)
+size = Vector3(3.4, 0.14, 3)
+
 [sub_resource type="StandardMaterial3D" id="Mat_table"]
 albedo_color = Color(0.3, 0.24, 0.16, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_table"]
 material = SubResource("Mat_table")
 size = Vector3(1.8, 0.75, 0.6)
 
-[node name="MarshalTent" type="Node3D"]
+[sub_resource type="StandardMaterial3D" id="Mat_post"]
+albedo_color = Color(0.55, 0.56, 0.58, 1)
+roughness = 0.9
 
-[node name="Canopy" type="MeshInstance3D" parent="."]
+[sub_resource type="BoxMesh" id="Mesh_post"]
+material = SubResource("Mat_post")
+size = Vector3(0.08, 2.25, 0.08)
+
+[node name="MarshalTent" type="Node3D" unique_id=879811970]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 0, 0, 0)
+
+[node name="Canopy" type="MeshInstance3D" parent="." unique_id=288206066]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 0)
 mesh = SubResource("Mesh_canopy")
-[node name="Table" type="MeshInstance3D" parent="."]
+
+[node name="Table" type="MeshInstance3D" parent="." unique_id=1013424296]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0.6)
 mesh = SubResource("Mesh_table")
-[node name="Post0" type="MeshInstance3D" parent="."]
+
+[node name="Post0" type="MeshInstance3D" parent="." unique_id=5792580]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.55, 1.12, -1.35)
 mesh = SubResource("Mesh_post")
-[node name="Post1" type="MeshInstance3D" parent="."]
+
+[node name="Post1" type="MeshInstance3D" parent="." unique_id=1151650779]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.55, 1.12, -1.35)
 mesh = SubResource("Mesh_post")
-[node name="Post2" type="MeshInstance3D" parent="."]
+
+[node name="Post2" type="MeshInstance3D" parent="." unique_id=1491590616]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.55, 1.12, 1.35)
 mesh = SubResource("Mesh_post")
-[node name="Post3" type="MeshInstance3D" parent="."]
+
+[node name="Post3" type="MeshInstance3D" parent="." unique_id=2075696300]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.55, 1.12, 1.35)
 mesh = SubResource("Mesh_post")

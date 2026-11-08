@@ -1,30 +1,36 @@
-[gd_scene format=3 uid="uid://tkw95r2f4qkks"]
+[gd_scene format=3 uid="uid://d4bsskefuw2jq"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_pole"]
 albedo_color = Color(0.55, 0.56, 0.58, 1)
 roughness = 0.9
+
 [sub_resource type="BoxMesh" id="Mesh_pole"]
 material = SubResource("Mat_pole")
 size = Vector3(0.16, 5.2, 0.16)
+
 [sub_resource type="StandardMaterial3D" id="Mat_head"]
-albedo_color = Color(1.0, 0.82, 0.45, 1)
+albedo_color = Color(1, 0.82, 0.45, 1)
 roughness = 0.9
 emission_enabled = true
-emission = Color(1.0, 0.82, 0.45, 1)
+emission = Color(1, 0.82, 0.45, 1)
 emission_energy_multiplier = 1.8
+
 [sub_resource type="BoxMesh" id="Mesh_head"]
 material = SubResource("Mat_head")
 size = Vector3(1.1, 0.5, 0.3)
 
-[node name="LightTower" type="Node3D"]
+[node name="LightTower" type="Node3D" unique_id=633589680]
+transform = Transform3D(1.625, 0, 0, 0, 1.625, 0, 0, 0, 1.625, 0, 0, 0)
 
-[node name="Pole" type="MeshInstance3D" parent="."]
+[node name="Pole" type="MeshInstance3D" parent="." unique_id=784506264]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
 mesh = SubResource("Mesh_pole")
-[node name="Head" type="MeshInstance3D" parent="."]
+
+[node name="Head" type="MeshInstance3D" parent="." unique_id=1448267780]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.3, 0)
 mesh = SubResource("Mesh_head")
-[node name="Lamp" type="OmniLight3D" parent="."]
+
+[node name="Lamp" type="OmniLight3D" parent="." unique_id=1034197461]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.1, 0)
 light_color = Color(1, 0.8, 0.45, 1)
 light_energy = 1.8

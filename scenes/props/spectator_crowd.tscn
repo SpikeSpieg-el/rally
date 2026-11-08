@@ -1,59 +1,73 @@
-[gd_scene load_steps=6 format=3 uid="uid://4lvugo8a2f2ha"]
+[gd_scene format=3 uid="uid://cj1rcbsi30w5w"]
 
-[ext_resource type="Script" uid="uid://zeslvk9psl1be" path="res://scripts/track/spectator_crowd.gd" id="script"]
-[ext_resource type="PackedScene" uid="uid://2du5x5vilfrt2" path="res://scenes/props/spectator_person.tscn" id="person"]
+[ext_resource type="PackedScene" uid="uid://d2e13cemy2hs6" path="res://scenes/props/camper.tscn" id="camper"]
+[ext_resource type="PackedScene" uid="uid://my2kgau0w4k0" path="res://scenes/props/campfire.tscn" id="campfire"]
 [ext_resource type="PackedScene" uid="uid://bbreyhlr7ikfh" path="res://scenes/props/camera_flash.tscn" id="flash"]
-[ext_resource type="PackedScene" uid="uid://lr7saf744g8cp" path="res://scenes/props/camper.tscn" id="camper"]
-[ext_resource type="PackedScene" uid="uid://o3o93rzte7m8g" path="res://scenes/props/camper_tent.tscn" id="tent"]
-[ext_resource type="PackedScene" uid="uid://p3mjwnxvaqml2" path="res://scenes/props/campfire.tscn" id="campfire"]
+[ext_resource type="PackedScene" uid="uid://b02trgqm0njp" path="res://scenes/props/spectator_person.tscn" id="person"]
+[ext_resource type="Script" uid="uid://b7dec8q7ferqs" path="res://scripts/track/spectator_crowd.gd" id="script"]
+[ext_resource type="PackedScene" uid="uid://dihocl82pl0x5" path="res://scenes/props/camper_tent.tscn" id="tent"]
 
-[node name="SpectatorCrowd" type="Node3D"]
+[node name="SpectatorCrowd" type="Node3D" unique_id=979789457]
 script = ExtResource("script")
 
-[node name="Crowd" type="Node3D" parent="."]
+[node name="Crowd" type="Node3D" parent="." unique_id=618194241]
 
-[node name="Person00" parent="Crowd" instance=ExtResource("person")]
+[node name="Person00" parent="Crowd" unique_id=639880773 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.25, 0, 1.2)
-[node name="Person01" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person01" parent="Crowd" unique_id=957933463 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.65, 0, 2.3)
-[node name="Person02" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person02" parent="Crowd" unique_id=524730464 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.05, 0, 1.2)
-[node name="Person03" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person03" parent="Crowd" unique_id=1550354651 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0, 2.3)
-[node name="Person04" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person04" parent="Crowd" unique_id=44981610 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.45, 0, 1.2)
-[node name="Person05" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person05" parent="Crowd" unique_id=1400712844 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.45, 0, 2.3)
-[node name="Person06" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person06" parent="Crowd" unique_id=1641341536 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0, 1.2)
-[node name="Person07" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person07" parent="Crowd" unique_id=104088875 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 2.3)
-[node name="Person08" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person08" parent="Crowd" unique_id=1323778377 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 1.2)
-[node name="Person09" parent="Crowd" instance=ExtResource("person")]
+
+[node name="Person09" parent="Crowd" unique_id=1152061960 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.15, 0, 2.3)
 
-[node name="Photographers" type="Node3D" parent="."]
+[node name="Photographers" type="Node3D" parent="." unique_id=1250842291]
 
-[node name="Photographer0" parent="Photographers" instance=ExtResource("person")]
+[node name="Photographer0" parent="Photographers" unique_id=844507502 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -2.6)
-[node name="Photographer1" parent="Photographers" instance=ExtResource("person")]
+
+[node name="Photographer1" parent="Photographers" unique_id=46945126 instance=ExtResource("person")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 0, -2.4)
 
-[node name="Flashes" type="Node3D" parent="."]
+[node name="Flashes" type="Node3D" parent="." unique_id=926728502]
 
-[node name="Flash0" parent="Flashes" instance=ExtResource("flash")]
+[node name="Flash0" parent="Flashes" unique_id=211530847 instance=ExtResource("flash")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 1.7, 0.8)
-[node name="Flash1" parent="Flashes" instance=ExtResource("flash")]
+
+[node name="Flash1" parent="Flashes" unique_id=801600297 instance=ExtResource("flash")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1.8, 0.6)
-[node name="Flash2" parent="Flashes" instance=ExtResource("flash")]
+
+[node name="Flash2" parent="Flashes" unique_id=1750296221 instance=ExtResource("flash")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 1.7, 0.9)
 
-[node name="Camp" type="Node3D" parent="."]
+[node name="Camp" type="Node3D" parent="." unique_id=1192181502]
 
-[node name="Camper" parent="Camp" instance=ExtResource("camper")]
+[node name="Camper" parent="Camp" unique_id=2103523790 instance=ExtResource("camper")]
 transform = Transform3D(0.968912, 0, -0.247404, 0, 1, 0, 0.247404, 0, 0.968912, -8.5, 0, 5.5)
-[node name="Tent" parent="Camp" instance=ExtResource("tent")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.6, 0, 5.2)
-[node name="Campfire" parent="Camp" instance=ExtResource("campfire")]
+
+[node name="Tent" parent="Camp" unique_id=332143330 instance=ExtResource("tent")]
+transform = Transform3D(1, 0, 0, 0, -1, -8.742278e-08, 0, 8.742278e-08, -1, 7.6, 1.3721004, 5.2)
+
+[node name="Campfire" parent="Camp" unique_id=125894035 instance=ExtResource("campfire")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.2)
