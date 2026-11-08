@@ -9,6 +9,6 @@
 
 [resource]
 script = ExtResource("1_scenery")
+biomes = Array[ExtResource("biome_type")]([ExtResource("forest"), ExtResource("rocky"), ExtResource("meadow"), ExtResource("roadside")])
 ground_cover_density = 2.5
 extra_grass_density = 2.5
-biomes = Array[ExtResource("biome_type")]([ExtResource("forest"), ExtResource("rocky"), ExtResource("meadow"), ExtResource("roadside")])

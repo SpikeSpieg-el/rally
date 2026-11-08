@@ -1,5 +1,10 @@
 [gd_scene format=3 uid="uid://b00j8q7d263fc"]
 
+[ext_resource type="Texture2D" uid="uid://k6hgv5lyih0o" path="res://textures/environment/bark.png" id="1_21ckf"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g2dvy"]
+albedo_texture = ExtResource("1_21ckf")
+
 [sub_resource type="StandardMaterial3D" id="Mat_wood"]
 albedo_color = Color(0.3, 0.22, 0.13, 1)
 roughness = 0.9
@@ -7,6 +12,9 @@ roughness = 0.9
 [sub_resource type="BoxMesh" id="Mesh_pole"]
 material = SubResource("Mat_wood")
 size = Vector3(0.18, 7, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sxlhh"]
+albedo_texture = ExtResource("1_21ckf")
 
 [sub_resource type="BoxMesh" id="Mesh_arm"]
 material = SubResource("Mat_wood")
@@ -17,8 +25,10 @@ transform = Transform3D(1.915, 0, 0, 0, 1.915, 0, 0, 0, 1.915, 0, 0, 0)
 
 [node name="Pole" type="MeshInstance3D" parent="." unique_id=1438402704]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+material_override = SubResource("StandardMaterial3D_g2dvy")
 mesh = SubResource("Mesh_pole")
 
 [node name="Arm" type="MeshInstance3D" parent="." unique_id=1105555432]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.6, 0)
+material_override = SubResource("StandardMaterial3D_sxlhh")
 mesh = SubResource("Mesh_arm")

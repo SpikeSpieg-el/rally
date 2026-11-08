@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://cdynmic4gfak2"]
 
+[ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="1_cjfnl"]
 [ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
 
 [resource]

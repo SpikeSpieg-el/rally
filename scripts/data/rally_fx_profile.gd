@@ -97,7 +97,7 @@ extends Resource
 @export_range(0.1, 2.0, 0.05) var body_edge_softness: float = 0.85
 ## Общая сила слоя грязи и снега поверх уже заданной физики налипания.
 @export_range(0.0, 3.0, 0.05) var body_dirt_buildup: float = 1.0
-@export_range(0.0, 3.0, 0.05) var body_snow_buildup: float = 1.0
+@export_range(0.0, 3.0, 0.05) var body_snow_buildup: float = 0.6
 ## Непрозрачность слоя при полном налипании (1 — почти сплошная грязь).
 @export_range(0.0, 1.0, 0.01) var body_alpha: float = 0.92
 ## Насколько далеко от колеса расходится пятно по кузову (1 — заводской вид).
@@ -105,19 +105,19 @@ extends Resource
 ## Порог скорости, ниже которого кузов не пачкается, м/с.
 @export_range(0.0, 10.0, 0.05) var dirt_min_speed: float = 1.0
 ## Скорость налипания на гравии, грязи и траве, ед/с.
-@export_range(0.0, 0.5, 0.001) var gravel_dirt_rate: float = 0.018
-@export_range(0.0, 0.5, 0.001) var mud_dirt_rate: float = 0.045
-@export_range(0.0, 0.5, 0.001) var grass_dirt_rate: float = 0.008
+@export_range(0.0, 0.5, 0.001) var gravel_dirt_rate: float = 0.004
+@export_range(0.0, 0.5, 0.001) var mud_dirt_rate: float = 0.008
+@export_range(0.0, 0.5, 0.001) var grass_dirt_rate: float = 0.003
 ## Влажность меняет скорость налипания (при 0 и 1).
 @export_range(0.0, 4.0, 0.01) var damp_dry_scale: float = 0.35
-@export_range(0.0, 4.0, 0.01) var damp_wet_scale: float = 1.8
+@export_range(0.0, 4.0, 0.01) var damp_wet_scale: float = 1.3
 ## Скорость накопления снега, ед/с.
-@export_range(0.0, 0.5, 0.001) var snow_rate: float = 0.025
+@export_range(0.0, 0.5, 0.001) var snow_rate: float = 0.005
 ## Скорость высыхания грязи под дождём и без него, ед/с.
 @export_range(0.0, 1.0, 0.001) var rain_wet_gain: float = 0.08
 @export_range(0.0, 1.0, 0.001) var rain_dry_loss: float = 0.012
 @export_range(0.0, 1.0, 0.001) var rain_wash: float = 0.035
-@export_range(0.0, 1.0, 0.001) var snow_gain: float = 0.035
+@export_range(0.0, 1.0, 0.001) var snow_gain: float = 0.006
 @export_range(0.0, 1.0, 0.001) var snow_wash_by_rain: float = 0.035
 @export_range(0.0, 1.0, 0.001) var snow_melt: float = 0.004
 ## Смещение центров «пятен» на кузове относительно подвески.
