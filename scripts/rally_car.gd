@@ -442,7 +442,8 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	if setup_resource == null:
 		return
 	active_setup = setup_resource
-	set_transmission_mode(setup_resource.transmission_mode)
+	# Коробка выбирается игроком в главном меню, а не в пресете машины.
+	set_transmission_mode(_player_transmission_mode(setup_resource.transmission_mode))
 	drivetrain_mode = clampi(setup_resource.drivetrain, 0, 2)
 	awd_front_torque = setup_resource.awd_front_torque
 	max_torque = setup_resource.max_torque
@@ -783,6 +784,15 @@ func _select_gear(target_gear: int) -> void:
 	# shift() принимает относительное изменение, поэтому считаем разницу.
 	shift(target_gear - current_gear)
 	_rumble(0.12, gamepad_rumble_on_shift, 0.08)
+
+
+## Коробка игрока из RallyGame (автозагрузка, выбор из главного меню или сохранённый).
+## Fallback — коробка сетапа, если автозагрузки нет.
+func _player_transmission_mode(fallback: int) -> int:
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.get("transmission_index") != null:
+		return int(game.get("transmission_index"))
+	return fallback
 
 
 func set_transmission_mode(mode: int) -> void:

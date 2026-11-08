@@ -15,6 +15,9 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
 ## Варианты времени суток в меню: как на трассе, день, ночь.
 const TIME_CHOICE_COUNT := 3
+## Коробка из главного меню: 0 — автомат, 1 — ручная, 2 — ручная + сцепление.
+## Совпадает с RallyCarSetup.Transmission, поэтому индекс передаётся в машину как есть.
+const TRANSMISSION_CHOICE_COUNT := 3
 
 signal selection_changed
 signal race_started
@@ -36,6 +39,8 @@ var vehicle_id: String = "mitsubishi"
 var weather_index: int = 0
 ## Время суток из меню: 0 — как на трассе, 1 — день, 2 — ночь.
 var time_index: int = 0
+## Коробка передач игрока. Не часть пресета машины: задаётся отдельно в меню.
+var transmission_index: int = 0
 var profile_index: int = 0
 var current_track: Resource = null
 var current_setup: Resource = null
@@ -140,6 +145,10 @@ func _restore_saved_selection() -> void:
 			int(_conditions.get_value("selection", "time_index", time_index)),
 			0, TIME_CHOICE_COUNT - 1
 		)
+		transmission_index = clampi(
+			int(_conditions.get_value("selection", "transmission_index", transmission_index)),
+			0, TRANSMISSION_CHOICE_COUNT - 1
+		)
 	current_track = get_track(track_index)
 	current_setup = get_custom_setup(setup_index)
 	current_weather = get_weather(weather_index)
@@ -156,6 +165,7 @@ func _save_selection() -> void:
 	_conditions.set_value("selection", "weather_index", weather_index)
 	_conditions.set_value("selection", "profile_index", profile_index)
 	_conditions.set_value("selection", "time_index", time_index)
+	_conditions.set_value("selection", "transmission_index", transmission_index)
 	save_conditions()
 
 
@@ -521,6 +531,13 @@ func select_weather(index: int) -> void:
 ## Время суток: 0 — как на трассе, 1 — день, 2 — ночь.
 func select_time(index: int) -> void:
 	time_index = clampi(index, 0, TIME_CHOICE_COUNT - 1)
+	_save_selection()
+	conditions_changed.emit()
+
+
+## Коробка передач игрока: 0 — автомат, 1 — ручная, 2 — ручная + сцепление.
+func select_transmission(index: int) -> void:
+	transmission_index = clampi(index, 0, TRANSMISSION_CHOICE_COUNT - 1)
 	_save_selection()
 	conditions_changed.emit()
 

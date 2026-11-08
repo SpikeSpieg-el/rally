@@ -54,7 +54,6 @@ func _run() -> void:
 	garage._on_slider_changed(4.0, "gear_3")
 	check(garage.setup.gear_ratios[2] < garage.setup.gear_ratios[1], "редактор ограничивает порядок передач")
 	garage._on_choice_changed(1, "livery")
-	garage._on_choice_changed(RallyCarSetup.Transmission.MANUAL_CLUTCH, "transmission_mode")
 	garage._on_custom_color_changed(Color(0.6, 0.7, 0.8), "body_color")
 	check(garage._save_drafts(), "сохранение копии")
 	var first: int = garage.selected_index
@@ -71,7 +70,6 @@ func _run() -> void:
 	var restored := game.get_custom_setup(first) as RallyCarSetup
 	check(restored.display_name == "Мой гравий" and restored.livery == 1, "название и ливрея переживают загрузку")
 	check(restored.body_color.is_equal_approx(Color(0.6, 0.7, 0.8)) and is_equal_approx(restored.tire_radius, 0.52), "настройки переживают загрузку")
-	check(restored.transmission_mode == RallyCarSetup.Transmission.MANUAL_CLUTCH, "коробка сохранена")
 	check(is_equal_approx(restored.front_spring_length, 0.35) and is_equal_approx(restored.front_brake_bias, 0.58), "подвеска и тормоза сохранены")
 	check(Schema.valid_gears([1.0, 2.0], base.gear_ratios) == base.gear_ratios, "повреждённые передачи отклоняются")
 	game._restore_saved_selection()
@@ -90,7 +88,6 @@ func _run() -> void:
 	car.setup_override = game.get_custom_setup(first)
 	root.add_child(car)
 	check(is_equal_approx(car.max_torque, 675.0) and is_equal_approx(car.front_tire_radius, 0.52), "свой пресет применяется к физике автомобиля")
-	check(car.manual_clutch_control, "выбранная коробка применяется к автомобилю")
 
 	# Старые настройки переносятся в отдельный пользовательский пресет.
 	var legacy := ConfigFile.new()

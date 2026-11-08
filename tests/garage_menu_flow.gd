@@ -81,8 +81,9 @@ func _run() -> void:
 	menu.garage._on_slider_changed(680.0, "max_torque")
 	menu.garage._on_slider_changed(8700.0, "max_rpm")
 	menu.garage._on_choice_changed(2, "livery")
-	menu.garage._on_choice_changed(RallyCarSetup.Transmission.MANUAL_CLUTCH, "transmission_mode")
-	check(menu.garage._summary.text.contains("РУЧНАЯ + СЦЕПЛЕНИЕ"), "выбранная коробка видна в сводке гаража")
+	# Коробка игрока выбирается в главном меню, а не в гараже.
+	menu._on_transmission_pressed(RallyCarSetup.Transmission.MANUAL_CLUTCH)
+	check(not menu.garage._summary.text.contains("СЦЕПЛЕНИЕ"), "сводка гаража не показывает коробку")
 	menu.garage._on_slider_changed(0.55, "front_brake_bias")
 	menu.garage._save_button_pressed()
 	var saved_index: int = Config.setup_count()
@@ -93,7 +94,7 @@ func _run() -> void:
 	menu._on_start_pressed()
 	await create_timer(0.5).timeout
 	check(menu.garage.selected_index == saved_index and menu.garage.setup.livery == 2, "повторный вход восстанавливает выбранный пресет")
-	check(menu.garage.setup.transmission_mode == RallyCarSetup.Transmission.MANUAL_CLUTCH, "коробка сохраняется вместе с пресетом")
+	check(game.transmission_index == RallyCarSetup.Transmission.MANUAL_CLUTCH, "коробка игрока сохраняется отдельно от пресета")
 
 	# При ошибке сохранения старт блокируется, текущая конфигурация не портится.
 	game.fail_writes = true
