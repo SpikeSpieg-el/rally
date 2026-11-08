@@ -40,7 +40,7 @@
 [ext_resource type="PackedScene" uid="uid://ugy3qok4c7kj" path="res://scenes/props/pine_tree.tscn" id="scene_pine_tree"]
 [ext_resource type="PackedScene" uid="uid://b00j8q7d263fc" path="res://scenes/props/power_pole.tscn" id="scene_power_pole"]
 [ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="scene_rock_cluster"]
-[ext_resource type="PackedScene" uid="uid://cenkc2o3q2s65" path="res://scenes/props/safety_net.tscn" id="scene_safety_net"]
+[ext_resource type="PackedScene" uid="uid://j4hbi6jlvhkpo" path="res://scenes/props/safety_net.tscn" id="scene_safety_net"]
 [ext_resource type="PackedScene" path="res://scenes/props/sandbag_barrier.tscn" id="scene_sandbag_barrier"]
 [ext_resource type="PackedScene" uid="uid://busnj4av2gjeq" path="res://scenes/props/service_car.tscn" id="scene_service_car"]
 [ext_resource type="PackedScene" uid="uid://cj1rcbsi30w5w" path="res://scenes/props/spectator_crowd.tscn" id="scene_spectator_crowd"]
@@ -419,11 +419,13 @@ category = 5
 [sub_resource type="Resource" id="RallyProp_safety_net"]
 script = ExtResource("2_prop")
 id = "safety_net"
-display_name = "Оранжевая сетка безопасности"
+display_name = "Сетка безопасности (секция 3 м)"
 scene = ExtResource("scene_safety_net")
 weight = 0.0
 random_yaw = false
 category = 5
+align_to_road = true
+placement_radius = 1.6
 
 [sub_resource type="Resource" id="RallyProp_marshal_tent"]
 script = ExtResource("2_prop")

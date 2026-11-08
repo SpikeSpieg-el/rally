@@ -186,5 +186,52 @@ class CornerFenceTest(unittest.TestCase):
         self.assertIn("size = Vector3(2.6, 0.14, 0.08)", scene)
 
 
+class SafetyNetPropTest(unittest.TestCase):
+    """Сетка безопасности — один самодостаточный модуль на поворот.
+
+    Раньше это была одиночная панель 1×1 м, которую код растягивал по Z, а
+    рядом ставились отдельные колышки и лента. Теперь это такая же секция,
+    как забор и отбойник: одна сцена, длина по локальной X, стойки внутри.
+    """
+
+    def test_net_is_one_section_along_local_x(self):
+        scene = read("scenes/props/safety_net.tscn")
+        # Полотно и планки идут по локальной X — по ней секция тянется в заезде.
+        self.assertIn("size = Vector3(3, 0.95, 0.02)", scene)
+        self.assertIn("size = Vector3(3, 0.08, 0.08)", scene)
+        for post in ("Mesh_post_a", "Mesh_post_b", "Mesh_post_c"):
+            self.assertIn(post, scene, post)
+        # Стойки по краям на 1.455: соседние секции стыкуются вплотную, а
+        # AABB по X остаётся ровно 3 м — это и есть шаг укладки в заезде.
+        self.assertIn("-1.455, 0.6, 0", scene)
+        self.assertIn("1.455, 0.6, 0", scene)
+        # Старой одиночной панели, которую приходилось масштабировать, нет.
+        self.assertNotIn('name="Panel"', scene)
+        for token in ("StaticBody3D", "BoxShape3D", "collision_layer = 2"):
+            self.assertIn(token, scene, token)
+
+    def test_net_is_a_library_prop_that_aligns_to_the_road(self):
+        library = read("data/stage/default_prop_library.tres")
+        self.assertIn("res://scenes/props/safety_net.tscn", library)
+        block = library.split('id = "safety_net"', 1)[1].split("[sub_resource", 1)[0]
+        self.assertIn("weight = 0.0", block)
+        self.assertIn("align_to_road = true", block)
+        self.assertIn("random_yaw = false", block)
+
+    def test_net_can_replace_the_fence(self):
+        layout = read("scripts/data/rally_spawn_layout.gd")
+        lines = layout.splitlines()
+        index = next(
+            i for i, line in enumerate(lines) if "var corner_fence_prop_id" in line
+        )
+        hint = "\n".join(lines[max(0, index - 5):index])
+        self.assertIn("safety_net", hint)
+        self.assertIn("wooden_fence", hint)
+        stage = read("scripts/rally_stage.gd")
+        fence = stage.split("func _dressing_corner_fence", 1)[1].split("\nfunc ", 1)[0]
+        # Шаг укладки читается из сцены пропса, а не зашит под забор.
+        self.assertIn("mesh.get_aabb().size.x", fence)
+
+
 if __name__ == "__main__":
     unittest.main()
