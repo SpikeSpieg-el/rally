@@ -39,11 +39,19 @@ const DEFAULT_JACKETS: Array[String] = [
 
 @export_group("После удара")
 @export var blood_burst: PackedScene
-@export_range(0.01, 0.2, 0.001) var flatten_pixel_size: float = 0.052
+## Сместить тело на полотно, м (к оси дороги). Иначе труп остаётся в траве.
+@export_range(0.0, 6.0, 0.05, "suffix:м") var drag_onto_road: float = 2.6
+## Протащить вдоль хода машины, м.
+@export_range(0.0, 8.0, 0.05, "suffix:м") var drag_along_car: float = 1.8
+@export_range(0.01, 0.25, 0.001) var flatten_pixel_size: float = 0.10
 @export var flatten_color: Color = Color(0.32, 0.04, 0.05, 0.92)
 @export_range(0.0, 180.0, 1.0, "suffix:°") var flatten_yaw_range: float = 55.0
-@export_range(0.01, 0.2, 0.001) var smear_pixel_size: float = 0.07
-@export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.72)
+@export_range(0.01, 0.3, 0.001) var smear_pixel_size: float = 0.16
+@export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.78)
+## Размер кровавой лужи на полотне, м (длина × ширина).
+@export var puddle_extent: Vector2 = Vector2(2.8, 1.5)
+@export var puddle_color: Color = Color(0.38, 0.02, 0.04, 0.82)
+@export_range(0.0, 0.2, 0.005, "suffix:м") var ground_lift: float = 0.06
 @export_range(0.0, 2000.0, 10.0) var nudge_impulse: float = 420.0
 @export_range(0.5, 1.0, 0.01) var speed_keep: float = 0.97
 
@@ -177,9 +185,10 @@ func crush(car: Node3D) -> void:
 	_crushed = true
 	set_physics_process(false)
 	_disable_hitbox()
-	_flatten()
-	var impact: Vector3 = global_position + Vector3(0.0, impact_height, 0.0)
 	var velocity: Vector3 = _car_velocity(car)
+	var impact: Vector3 = _burst_origin(car)
+	_throw_onto_road(velocity)
+	_flatten()
 	BloodFx.spray(self, impact, velocity, blood_burst)
 	if car != null and car.has_method("splatter_blood"):
 		car.call("splatter_blood", impact, velocity)
@@ -195,23 +204,78 @@ func _disable_hitbox() -> void:
 	_hitbox.set_deferred("monitorable", false)
 
 
+func _throw_onto_road(velocity: Vector3) -> void:
+	var shift := Vector3.ZERO
+	if _road_toward.length() > 0.01:
+		shift += _road_toward * drag_onto_road
+	var along: Vector3 = velocity
+	along.y = 0.0
+	if along.length() > 0.4:
+		shift += along.normalized() * drag_along_car
+	global_position += shift
+	_snap_to_ground()
+
+
+func _snap_to_ground() -> void:
+	if _stage != null and is_instance_valid(_stage) and _stage.has_method("ground_height"):
+		var ground_y: float = float(_stage.call("ground_height", global_position.x, global_position.z))
+		global_position.y = ground_y + ground_lift
+	else:
+		global_position.y += ground_lift
+
+
+func _burst_origin(car: Node3D) -> Vector3:
+	if car == null or not is_instance_valid(car):
+		return global_position + Vector3(0.0, impact_height, 0.0)
+	# Снаружи кузова, с той стороны, где человек: иначе частицы рождаются
+	# внутри меша и «проходят насквозь», их не видно.
+	var local_hit: Vector3 = car.to_local(global_position + Vector3(0.0, 0.7, 0.0))
+	var side: float = 1.35 if local_hit.x >= 0.0 else -1.35
+	return car.to_global(Vector3(side, clampf(impact_height, 0.45, 1.2), clampf(local_hit.z, -1.6, 1.8)))
+
+
 func _flatten() -> void:
 	if _sprite == null:
 		return
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	_sprite.no_depth_test = true
+	_sprite.render_priority = 8
 	_sprite.pixel_size = flatten_pixel_size
-	_sprite.position = Vector3(0.0, 0.035, 0.0)
+	_sprite.position = Vector3(0.0, 0.02, 0.0)
 	_sprite.rotation_degrees = Vector3(-90.0, _rng.randf_range(-flatten_yaw_range, flatten_yaw_range), 0.0)
 	_sprite.modulate = flatten_color
 	var smear := Sprite3D.new()
 	smear.name = "BloodSmear"
 	smear.texture = _sprite.texture
 	smear.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	smear.no_depth_test = true
+	smear.render_priority = 8
 	smear.pixel_size = smear_pixel_size
 	smear.modulate = smear_color
-	smear.position = Vector3(_rng.randf_range(-0.15, 0.15), 0.02, _rng.randf_range(-0.12, 0.12))
+	smear.position = Vector3(_rng.randf_range(-0.25, 0.25), 0.015, _rng.randf_range(-0.2, 0.2))
 	smear.rotation_degrees = Vector3(-90.0, _rng.randf_range(-80.0, 80.0), 0.0)
 	add_child(smear)
+	_add_puddle()
+
+
+func _add_puddle() -> void:
+	var puddle := MeshInstance3D.new()
+	puddle.name = "BloodPuddle"
+	var quad := QuadMesh.new()
+	quad.size = puddle_extent
+	var paint := StandardMaterial3D.new()
+	paint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
+	paint.no_depth_test = true
+	paint.render_priority = 10
+	paint.albedo_color = puddle_color
+	quad.material = paint
+	puddle.mesh = quad
+	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	puddle.position = Vector3(0.0, 0.03, 0.4)
+	puddle.rotation_degrees = Vector3(-90.0, _rng.randf_range(-25.0, 25.0), 0.0)
+	add_child(puddle)
 
 
 func _nudge_car(car: Node3D, velocity: Vector3) -> void:

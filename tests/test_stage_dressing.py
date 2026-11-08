@@ -93,7 +93,10 @@ class StageDressingTest(unittest.TestCase):
         for token in ("spectator_person.gd", "Hitbox", "CapsuleShape3D"):
             self.assertIn(token, person_scene, token)
         person = read("scripts/track/spectator_person.gd")
-        for token in ("func crush(", "splatter_blood", "BloodFx.spray", 'set_deferred("monitoring", false)'):
+        for token in (
+            "func crush(", "splatter_blood", "BloodFx.spray",
+            'set_deferred("monitoring", false)', "_throw_onto_road", "_add_puddle",
+        ):
             self.assertIn(token, person, token)
         self.assertNotIn("_hitbox.monitoring =", person)
         self.assertNotIn("_hitbox.monitorable =", person)
