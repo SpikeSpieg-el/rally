@@ -1,30 +1,30 @@
-[gd_scene load_steps=5 format=3 uid="uid://2du5x5vilfrt2"]
+[gd_scene format=3 uid="uid://b02trgqm0njp"]
 
-[ext_resource type="Texture2D" uid="uid://hit345u13esfk" path="res://textures/sprites/spectator_red.png" id="tex_person"]
-[ext_resource type="Script" uid="uid://b7k2n4qp9w3rx" path="res://scripts/track/spectator_person.gd" id="script"]
 [ext_resource type="PackedScene" uid="uid://cbleedburst01" path="res://scenes/effects/blood_burst.tscn" id="burst"]
+[ext_resource type="Script" uid="uid://b7k2n4qqaw3rx" path="res://scripts/track/spectator_person.gd" id="script"]
+[ext_resource type="Texture2D" uid="uid://dnf8j3xsi6wns" path="res://textures/sprites/spectator_red.png" id="tex_person"]
 
 [sub_resource type="CapsuleShape3D" id="hit_shape"]
 radius = 0.32
 height = 1.72
 
-[node name="SpectatorPerson" type="Node3D"]
+[node name="SpectatorPerson" type="Node3D" unique_id=627115518]
+editor_description = "Болельщик: спрайт, хитбокс и поля удара/крови в инспекторе. F6 — один человек. Частота на трассе — data/stage/default_spawn_layout.tres, группа «Болельщики на бровке»."
+transform = Transform3D(1.66, 0, 0, 0, 1.66, 0, 0, 0, 1.66, 0, 0, 0)
 script = ExtResource("script")
 blood_burst = ExtResource("burst")
-editor_description = "Болельщик: спрайт, хитбокс и поля удара/крови в инспекторе. F6 — один человек. Частота на трассе — data/stage/default_spawn_layout.tres, группа «Болельщики на бровке»."
 
-[node name="Sprite" type="Sprite3D" parent="."]
+[node name="Sprite" type="Sprite3D" parent="." unique_id=1500979475]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)
-billboard = 2
 pixel_size = 0.045
+billboard = 2
 texture_filter = 1
 texture = ExtResource("tex_person")
 
-[node name="Hitbox" type="Area3D" parent="."]
+[node name="Hitbox" type="Area3D" parent="." unique_id=2134915103]
 collision_layer = 0
-collision_mask = 1
 monitorable = false
 
-[node name="Shape" type="CollisionShape3D" parent="Hitbox"]
+[node name="Shape" type="CollisionShape3D" parent="Hitbox" unique_id=755328978]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.86, 0)
 shape = SubResource("hit_shape")

@@ -186,7 +186,6 @@ body_snow_color = Color(0.82, 0.87, 0.92, 1)
 body_coverage = 1.2
 body_edge_softness = 0.9
 body_dirt_buildup = 0.85
-body_snow_buildup = 0.6
 body_alpha = 0.8
 foam_height = 0.16
 foam_lifetime = 1.6
