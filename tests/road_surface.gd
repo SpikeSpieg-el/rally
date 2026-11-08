@@ -38,8 +38,22 @@ func _initialize() -> void:
 	surface.imprint(Vector3(20, 0, 20), "mud", 0.0, 1.0, 10.0, 0.016)
 	surface.imprint(Vector3(20, 0, 20), "mud", 1.0, 1.0, 0.0, 0.016)
 	check(surface.cells.size() == count, "асфальт, отсутствие нагрузки и остановка не роют грунт")
-	var snow: Dictionary = surface.sample(point, "snow", 0.0)
-	check(snow.grip < 1.0 and snow.depth > 0.0, "снег уплотняется даже без дождя")
+	# Снег ведёт себя отдельно от грязи: укатанная линия «схватывается» и держит
+	# лучше свежей каши, а рыхлая колея не проваливает сцепление в лёд.
+	var fresh_snow: Dictionary = surface.sample(Vector3(5.0, 0.0, 5.0), "snow", 0.0)
+	check(is_equal_approx(fresh_snow.grip, 1.0), "свежий снег нейтрален")
+	var packed_point := Vector3(5.4, 0.0, 5.4)
+	for i in range(400):
+		surface.imprint(packed_point, "snow", 1.0, 0.0, 10.0, 0.016)
+	var packed_snow: Dictionary = surface.sample(packed_point, "snow", 0.0)
+	check(packed_snow.compaction > 0.0, "снег уплотняется")
+	check(packed_snow.grip > 1.0, "накатанный снег держит лучше свежей каши")
+	check(packed_snow.depth > 0.0, "снег уплотняется даже без дождя")
+	var loose_point := Vector3(5.8, 0.0, 5.8)
+	for i in range(400):
+		surface.imprint(loose_point, "snow", 1.0, 1.0, 10.0, 0.016)
+	var loose_snow: Dictionary = surface.sample(loose_point, "snow", 1.0)
+	check(loose_snow.grip >= 0.8, "рыхлый снег не превращается в лёд")
 	for i in range(Surface.MAX_CELLS + 10):
 		surface.imprint(Vector3(i, 0, 0), "mud", 1.0, 1.0, 10.0, 0.016)
 	check(surface.cells.size() <= Surface.MAX_CELLS, "память ограничена")

@@ -131,10 +131,13 @@ var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
 const WorldStreamer = preload("res://scripts/world_streamer.gd")
+const RoadDecalsType = preload("res://scripts/road_decals.gd")
 const STREAM_SLICE_USEC := 1800
 ## Выше этой скорости эффект обязан быть виден: иначе один раз предупреждаем.
 const SPEED_FX_REPORT_KMH := 110.0
 var world_streamer: WorldStreamer = null
+## Пятна и лужи на полотне (лужи, грязь, снежный накат, лёд) — см. road_decals.gd.
+var road_decals: RoadDecalsType = null
 var terrain_rect: Rect2 = Rect2()
 var start_pos: Vector3 = Vector3.ZERO
 var finish_pos: Vector3 = Vector3.ZERO
@@ -156,6 +159,10 @@ var speed_fx_material: ShaderMaterial = null
 var fx_nodes: VisualEffectsType = null
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
+## Поправки погоды, уже вложенные в track.* (см. _apply_conditions_to_track).
+var _baked_grip: float = 1.0
+var _baked_rolling: float = 1.0
+var _baked_offroad: float = 1.0
 ## Материал земли живёт столько же, сколько сцена: инспекторские правки
 ## не теряются при пересборке трассы.
 var _ground_material: ShaderMaterial = null
@@ -645,7 +652,15 @@ func _resolve_conditions(game: Node) -> void:
 ## Накладывает профиль полотна и поправки погоды на копию конфига трассы.
 ## Сцепление перемножается: снег по грязи скользит сильнее, чем снег по
 ## асфальту, и это честно видно в меню (там показывается итог).
+##
+## Здесь же запоминается, какая именно поправка погоды уже вложена в track.*.
+## Контакт колеса (surface_contact) домножает только РАЗНИЦУ с ней: раньше
+## снег умножался дважды (0.62 в трассе и 0.62 в контакте — 0.38), и «просто
+## снег» превращался в лёд.
 func _apply_conditions_to_track() -> void:
+	_baked_grip = 1.0
+	_baked_rolling = 1.0
+	_baked_offroad = 1.0
 	if track == null:
 		return
 	if track_profile != null and track.route_sections.is_empty():
@@ -657,6 +672,9 @@ func _apply_conditions_to_track() -> void:
 		return
 	if weather == null:
 		return
+	_baked_grip = weather.grip_scale
+	_baked_rolling = weather.rolling_resistance_scale
+	_baked_offroad = weather.offroad_grip_scale
 	track.grip_scale = clampf(track.grip_scale * weather.grip_scale, 0.2, 2.0)
 	track.rolling_resistance_scale = clampf(
 		track.rolling_resistance_scale * weather.rolling_resistance_scale, 0.2, 4.0
@@ -778,6 +796,10 @@ func _build_world_async() -> void:
 			await get_tree().process_frame
 		await _build_road(has_progress, 0.60, 0.80)
 	if has_progress:
+		_report_progress(0.81, "Пятна, лужи и снег на полотне…")
+		await get_tree().process_frame
+	_build_road_decals()
+	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
 	if s_settings().snap_props_on_build and track.use_baked_props:
@@ -844,6 +866,7 @@ func _make_noise(seed_value: int, frequency: float, octaves: int) -> FastNoiseLi
 
 func _clear_generated() -> void:
 	world_streamer = null
+	road_decals = null
 	_stream_road_material_ready = false
 	_edge_post_mesh = null
 	_edge_cap_mesh = null
@@ -1800,8 +1823,13 @@ func surface_contact(
 			result.grip *= section.grip
 			result.rolling *= section.rolling
 		if weather != null:
-			result.grip *= weather.offroad_grip_scale if grass else weather.grip_scale
-			result.rolling *= weather.rolling_resistance_scale
+			# Только разница с уже вложенным в трассу множителем: погода не
+			# применяется дважды (иначе снег = лёд).
+			if grass:
+				result.grip *= maxf(0.05, weather.offroad_grip_scale / _baked_offroad)
+			else:
+				result.grip *= maxf(0.05, weather.grip_scale / _baked_grip)
+			result.rolling *= maxf(0.05, weather.rolling_resistance_scale / _baked_rolling)
 	if not grass:
 		result.grip *= live_surface_grip(point)
 	surface_state.imprint(p, kind, load_ratio, slip, speed, delta)
@@ -1853,6 +1881,62 @@ func _apply_zone_shader_parameters(material: ShaderMaterial) -> void:
 	material.set_shader_parameter("zone_dry_lighten", fx.zone_dry_lighten)
 	material.set_shader_parameter("puddle_roughness", fx.zone_puddle_roughness)
 	material.set_shader_parameter("puddle_mix", fx.zone_puddle_mix)
+
+
+## Пятна на полотне: генератор берёт вид покрытия под каждое пятно, поэтому на
+## гравии появляются мокрые и рыхлые пятна, на асфальте — трещины и лужи, а
+## зимой всё полотно получает снежный набор.
+func _build_road_decals() -> void:
+	road_decals = null
+	var cfg := s_settings()
+	if generated == null or network == null or track == null or not cfg.road_decals_enabled:
+		return
+	var decals := RoadDecalsType.new()
+	decals.name = "RoadDecals"
+	decals.max_decals = cfg.road_decals_max
+	decals.density_scale = cfg.road_decals_density_scale
+	decals.size_scale = cfg.road_decals_size_scale
+	decals.opacity = cfg.road_decals_opacity
+	decals.texture_size = cfg.road_decals_texture_size
+	decals.fade_begin = cfg.road_decals_fade_begin
+	decals.fade_length = cfg.road_decals_fade_length
+	decals.mark_grip_zones = cfg.road_decals_mark_grip_zones
+	generated.add_child(decals)
+	decals.build(network, track, surface_state, _weather_snow_cover(), grip_zone_spans())
+	road_decals = decals
+
+
+## Геометрия скользких полос списком: тот же расчёт, что в live_surface_grip(),
+## но по нему декали ставят лужу ровно там, где физика снижает сцепление.
+func grip_zone_spans() -> Array:
+	var spans: Array = []
+	var fx := s_fx()
+	if not fx.grip_zones_enabled or network == null or track == null:
+		return spans
+	var total: float = network.total_length
+	var start: float = fx.zone_start
+	var limit: float = total - fx.zone_end_margin
+	if limit <= start:
+		return spans
+	var period: float = maxf(1.0, fx.zone_period)
+	var span_length: float = clampf(fx.zone_length, 1.0, period)
+	var offset: float = _zone_lateral_offset()
+	var index: int = 0
+	while index < 2048:
+		var cell_start: float = start + float(index) * period
+		if cell_start > limit:
+			break
+		spans.append(
+			{
+				"distance": cell_start + span_length * 0.5,
+				"length": span_length,
+				"half_width": fx.zone_half_width,
+				"offset": offset if index % 2 == 0 else -offset,
+				"strong": index % 2 == 0,
+			}
+		)
+		index += 1
+	return spans
 
 
 ## Поперечное смещение скользкой полосы от оси дороги, м.
@@ -4185,6 +4269,9 @@ func _update_route_weather(delta: float) -> void:
 	if _ground_material != null:
 		_ground_material.set_shader_parameter("wetness", _weather_wetness())
 		_ground_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+	# Снег поверх летнего покрытия — другой набор пятен (накат, лёд, слякоть).
+	if road_decals != null:
+		road_decals.set_snow_cover(_weather_snow_cover())
 
 
 func _process(delta: float) -> void:

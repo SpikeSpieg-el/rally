@@ -305,13 +305,15 @@ extends Resource
 @export_range(0.0, 5.0, 0.1) var zone_shader_softness: float = 0.7
 @export_range(0.0, 5.0, 0.1) var zone_shader_fade: float = 3.0
 ## Насколько шейдер затемняет/осветляет полосу.
-@export_range(0.0, 1.0, 0.01) var zone_shader_contrast: float = 0.8
+## Насколько шейдер полотна рисует полосу сам. Полосы теперь отмечают декали
+## (RoadDecals), поэтому в шейдере остаётся слабый мокрый след: 0 — не рисовать.
+@export_range(0.0, 1.0, 0.01) var zone_shader_contrast: float = 0.28
 ## Затемнение мокрой лужи и осветление сухой рыхлой полосы (шейдер полотна).
 @export_range(0.0, 1.0, 0.01) var zone_wet_darken: float = 0.38
 @export_range(0.0, 1.0, 0.01) var zone_dry_lighten: float = 0.28
 ## Глянец лужи (0 — матовая, 1 — зеркало).
 @export_range(0.0, 1.0, 0.01) var zone_puddle_roughness: float = 0.18
-@export_range(0.0, 1.0, 0.01) var zone_puddle_mix: float = 0.8
+@export_range(0.0, 1.0, 0.01) var zone_puddle_mix: float = 0.35
 
 @export_group("Физика грунта (колея и накат)")
 ## Размер ячейки памяти грунта, м.
@@ -328,13 +330,20 @@ extends Resource
 ## Влияние наката и колеи на сцепление.
 @export_range(-1.0, 1.0, 0.01) var packing_grip_gravel: float = 0.08
 @export_range(-1.0, 1.0, 0.01) var packing_grip_other: float = -0.10
+## Снег: укатанная линия «схватывается» и держит ЛУЧШЕ свежей каши, поэтому
+## знак положительный (у грязи накат, наоборот, скользит).
+@export_range(-1.0, 1.0, 0.01) var packing_grip_snow: float = 0.22
 @export_range(0.0, 1.0, 0.01) var rut_grip_loss_dry: float = 0.04
 @export_range(0.0, 1.0, 0.01) var rut_grip_loss_wet: float = 0.18
 @export_range(0.0, 1.0, 0.01) var packing_rolling_gain: float = 0.16
 @export_range(0.0, 5.0, 0.01) var rut_rolling_soft: float = 1.8
 @export_range(0.0, 5.0, 0.01) var rut_rolling_firm: float = 0.7
+## Снег: рыхлая колея тормозит слабее грязи, иначе машина буксует на месте.
+@export_range(0.0, 5.0, 0.01) var rut_rolling_snow: float = 0.55
 ## Пределы изменения сцепления и сопротивления качению.
 @export_range(0.1, 3.0, 0.01) var grip_min: float = 0.65
+## Нижний предел сцепления на снегу: дорога, а не каток.
+@export_range(0.1, 1.5, 0.01) var grip_min_snow: float = 0.82
 @export_range(0.1, 3.0, 0.01) var grip_max: float = 1.12
 @export_range(0.1, 5.0, 0.01) var rolling_min: float = 0.8
 @export_range(0.1, 5.0, 0.01) var rolling_max: float = 2.8
