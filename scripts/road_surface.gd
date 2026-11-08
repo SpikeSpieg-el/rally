@@ -62,16 +62,35 @@ func sample(point: Vector3, kind: String, wetness: float) -> Dictionary:
 		max_depth = _p("depth_grass", 0.035)
 	var depth_wet: float = lerpf(_p("depth_dry_scale", 0.6), _p("depth_wet_scale", 1.0), wetness)
 	var depth := state.y * max_depth * depth_wet if kind != "snow" else state.y * max_depth
-	# Накат сухого гравия держит лучше, мокрая колея и укатанный снег — хуже.
-	var packing_grip: float = _p("packing_grip_gravel", 0.08) if kind == "gravel" else _p("packing_grip_other", -0.10)
+	# Накат сухого гравия держит лучше, мокрая колея — хуже.
+	var packing_grip: float = _p("packing_grip_other", -0.10)
+	if kind == "gravel":
+		packing_grip = _p("packing_grip_gravel", 0.08)
+	# Снег ведёт себя наоборот: укатанная линия «схватывается» и держит лучше
+	# свежей каши, а не хуже (раньше снег получал общий минус, как грязь, — и
+	# дорога становилась ледяной).
+	if kind == "snow":
+		packing_grip = _p("packing_grip_snow", 0.22)
 	if kind == "asphalt":
 		return {"grip": 1.0, "rolling": 1.0, "depth": 0.0, "compaction": 0.0}
 	var rut_loss: float = lerpf(_p("rut_grip_loss_dry", 0.04), _p("rut_grip_loss_wet", 0.18), wetness)
+	# Рыхлый снег тормозит машину куда меньше грязи: иначе колесо буксует на
+	# месте и машина не может тронуться.
+	var rut_rolling: float = _p("rut_rolling_soft", 1.8) if soft else _p("rut_rolling_firm", 0.7)
+	if kind == "snow":
+		rut_rolling = _p("rut_rolling_snow", 0.55)
+	# Нижний предел сцепления: у снега он выше, чтобы колея не превращала
+	# полотно в каток.
+	var grip_floor: float = _p("grip_min", 0.65)
+	if kind == "snow":
+		grip_floor = _p("grip_min_snow", 0.82)
+	var grip: float = clampf(
+		1.0 + state.x * packing_grip - state.y * rut_loss, grip_floor, _p("grip_max", 1.12)
+	)
 	return {
-		"grip": clampf(1.0 + state.x * packing_grip - state.y * rut_loss, _p("grip_min", 0.65), _p("grip_max", 1.12)),
+		"grip": grip,
 		"rolling": clampf(
-			1.0 - state.x * _p("packing_rolling_gain", 0.16)
-			+ state.y * (_p("rut_rolling_soft", 1.8) if soft else _p("rut_rolling_firm", 0.7)),
+			1.0 - state.x * _p("packing_rolling_gain", 0.16) + state.y * rut_rolling,
 			_p("rolling_min", 0.8),
 			_p("rolling_max", 2.8)
 		),

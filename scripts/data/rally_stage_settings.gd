@@ -169,6 +169,27 @@ extends Resource
 @export_range(0.0, 0.5, 0.01) var road_detail_strength: float = 0.16
 @export_range(0.0, 0.4, 0.01) var road_track_strength: float = 0.12
 
+@export_group("Пятна и лужи на полотне")
+## Декали поверх полотна: лужи, грязь, рыхлый гравий, снежный накат, лёд и
+## трещины. Каждый вид полотна получает свой набор (RallyRoadDecalProfile),
+## текстуры собираются из шума — см. scripts/road_decals.gd.
+@export var road_decals_enabled: bool = true
+## Предел числа пятен на трассу. 200 — примерно пятно на 10–20 м; больше — дороже кадр.
+@export_range(0, 2000, 8) var road_decals_max: int = 200
+## Множитель к плотности пятен из профилей вида полотна.
+@export_range(0.0, 4.0, 0.05) var road_decals_density_scale: float = 1.0
+## Во сколько раз пятна крупнее/мельче задуманного профилем.
+@export_range(0.2, 3.0, 0.05) var road_decals_size_scale: float = 1.0
+## Общая непрозрачность пятен (1 — как в профиле).
+@export_range(0.0, 1.0, 0.01) var road_decals_opacity: float = 0.85
+## Размер текстуры пятна: 160 — чётко и дёшево, 256 — мыло на близких планах нет.
+@export_range(32, 512, 16) var road_decals_texture_size: int = 160
+## Дальность, с которой пятна начинают гаснуть, м (0 — не гасить никогда).
+@export_range(0.0, 400.0, 5.0) var road_decals_fade_begin: float = 90.0
+@export_range(0.0, 200.0, 5.0) var road_decals_fade_length: float = 40.0
+## Отмечать скользкие полосы физики лужами и рыхлой грязью в тех же местах.
+@export var road_decals_mark_grip_zones: bool = true
+
 @export_group("Свои параметры шейдеров (максимальная правка без кода)")
 ## Параметры, которые применяются поверх заводских значений земли.
 ## Добавьте RallyShaderParameter, впишите имя uniform — и всё.
