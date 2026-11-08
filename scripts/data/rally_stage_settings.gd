@@ -150,6 +150,11 @@ extends Resource
 @export var day_sky_top: Color = Color(0.2, 0.38, 0.6, 1.0)
 @export var day_sky_horizon: Color = Color(0.75, 0.8, 0.85, 1.0)
 @export var day_ambient_color: Color = Color(0.6, 0.63, 0.7, 1.0)
+## Туман тоже переключается вместе со светом. Без этого дневная трасса,
+## запущенная ночью, оставалась с белым туманом — кадр становился молочным,
+## даже когда небо и солнце уже ночные.
+@export var night_fog_color: Color = Color(0.16, 0.18, 0.2, 1.0)
+@export var day_fog_color: Color = Color(0.72, 0.79, 0.88, 1.0)
 
 @export_group("Материалы полотна и земли")
 ## Шероховатость земли и масштаб зерна её текстуры.
