@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://1iuefigpoiau5"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_white"]
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+roughness = 0.9
+[sub_resource type="BoxMesh" id="Mesh_tape"]
+material = SubResource("Mat_white")
+size = Vector3(0.03, 0.26, 1.0)
+
+[node name="BuntingTape" type="Node3D"]
+
+[node name="Tape" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_tape")

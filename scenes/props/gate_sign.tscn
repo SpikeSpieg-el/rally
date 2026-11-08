@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://cv39zkiju1oow"]
+
+[node name="GateSign" type="Label3D"]
+pixel_size = 0.0052
+modulate = Color(0.55, 0.9, 1, 1)
+text = "СТАРТ"
+font_size = 96
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 0.55)
+horizontal_alignment = 1

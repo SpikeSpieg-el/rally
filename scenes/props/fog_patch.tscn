@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://r1h42bvaqrpx2"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_fog"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.82, 0.86, 0.92, 0.1)
+roughness = 0.9
+[sub_resource type="QuadMesh" id="Mesh_fog"]
+material = SubResource("Mat_fog")
+size = Vector2(44, 15)
+
+[node name="FogPatch" type="Node3D"]
+
+[node name="Fog" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 6.12323e-17, -1, 0, 1, 6.12323e-17, 0, 0, 0)
+mesh = SubResource("Mesh_fog")
+cast_shadow = 0

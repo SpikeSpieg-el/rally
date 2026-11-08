@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://o3o93rzte7m8g"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_left"]
+albedo_color = Color(0.15, 0.35, 0.65, 1)
+roughness = 0.95
+[sub_resource type="BoxMesh" id="Mesh_panel"]
+material = SubResource("Mat_left")
+size = Vector3(2.2, 0.08, 1.9)
+[sub_resource type="StandardMaterial3D" id="Mat_right"]
+albedo_color = Color(0.12, 0.29, 0.55, 1)
+roughness = 0.95
+[sub_resource type="BoxMesh" id="Mesh_panel_r"]
+material = SubResource("Mat_right")
+size = Vector3(2.2, 0.08, 1.9)
+
+[node name="CamperTent" type="Node3D"]
+
+[node name="Left" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.731689, 0.681639, 0, -0.681639, 0.731689, 0, 0, 0, 1, -0.78, 0.65, 0)
+mesh = SubResource("Mesh_panel")
+[node name="Right" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.731689, -0.681639, 0, 0.681639, 0.731689, 0, 0, 0, 1, 0.78, 0.65, 0)
+mesh = SubResource("Mesh_panel_r")

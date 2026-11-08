@@ -1,0 +1,60 @@
+[gd_scene load_steps=6 format=3 uid="uid://p3mjwnxvaqml2"]
+
+[ext_resource type="Texture2D" uid="uid://dteu0pri100nw" path="res://textures/fire.png" id="tex_fire"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_log"]
+albedo_color = Color(0.30, 0.20, 0.11, 1)
+roughness = 0.95
+[sub_resource type="CylinderMesh" id="Mesh_log"]
+material = SubResource("Mat_log")
+top_radius = 0.09
+bottom_radius = 0.09
+height = 0.9
+radial_segments = 6
+[sub_resource type="ParticleProcessMaterial" id="FireProcess"]
+direction = Vector3(0, 1, 0)
+spread = 18.0
+gravity = Vector3(0, 0.6, 0)
+initial_velocity_min = 0.7
+initial_velocity_max = 1.3
+scale_min = 0.25
+scale_max = 0.55
+[sub_resource type="StandardMaterial3D" id="Mat_fire"]
+transparency = 1
+shading_mode = 0
+billboard_mode = 3
+albedo_color = Color(1, 0.62, 0.25, 0.85)
+albedo_texture = ExtResource("tex_fire")
+[sub_resource type="QuadMesh" id="Mesh_fire"]
+material = SubResource("Mat_fire")
+size = Vector2(0.5, 0.7)
+
+[node name="Campfire" type="Node3D"]
+
+[node name="Log0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 6.12323e-17, 1, 0, -1, 6.12323e-17, 0.35, 0.1, 0)
+mesh = SubResource("Mesh_log")
+[node name="Log1" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.309017, 0, -0.951057, 0.951057, 6.12323e-17, 0.309017, 5.82354e-17, -1, 1.89218e-17, 0.108, 0.1, 0.333)
+mesh = SubResource("Mesh_log")
+[node name="Log2" type="MeshInstance3D" parent="."]
+transform = Transform3D(-0.809017, 0, -0.587785, 0.587785, 6.12323e-17, -0.809017, 3.59915e-17, -1, -4.9538e-17, -0.283, 0.1, 0.206)
+mesh = SubResource("Mesh_log")
+[node name="Log3" type="MeshInstance3D" parent="."]
+transform = Transform3D(-0.809017, 0, 0.587785, -0.587785, 6.12323e-17, -0.809017, -3.59915e-17, -1, -4.9538e-17, -0.283, 0.1, -0.206)
+mesh = SubResource("Mesh_log")
+[node name="Log4" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.309017, 0, 0.951057, -0.951057, 6.12323e-17, 0.309017, -5.82354e-17, -1, 1.89218e-17, 0.108, 0.1, -0.333)
+mesh = SubResource("Mesh_log")
+
+[node name="FireLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+light_color = Color(1, 0.55, 0.22, 1)
+light_energy = 1.6
+omni_range = 9.0
+[node name="Fire" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+amount = 20
+lifetime = 0.7
+process_material = SubResource("FireProcess")
+draw_pass_1 = SubResource("Mesh_fire")
