@@ -14,17 +14,26 @@ extends Node3D
 ## Нацелить выброс вдоль скорости машины.
 @export var aim_with_car: bool = true
 ## Добавка к скорости частиц от скорости машины, 0 — как настроено в сцене.
-@export_range(0.0, 1.0, 0.01) var extra_speed_from_car: float = 0.06
+@export_range(0.0, 1.0, 0.01) var extra_speed_from_car: float = 0.03
+## Доля скорости машины, которую капли забирают с собой — иначе облако
+## стоит в мире, и кузов проезжает сквозь него.
+@export_range(0.0, 1.0, 0.01) var inherit_velocity_ratio: float = 0.92
 @export_range(0.0, 2.0, 0.05) var droplet_lift: float = 0.85
 @export_range(0.0, 2.0, 0.05) var mist_lift: float = 0.5
 @export_multiline var description: String = "Капли и туман после удара. Править GPUParticles3D Droplets и Mist."
 
 
-func play(world_velocity: Vector3 = Vector3(0.0, 3.0, 8.0)) -> void:
-	var heading: Vector3 = world_velocity
-	if heading.length() < 0.4:
+func play(world_velocity: Vector3 = Vector3(0.0, 3.0, 8.0), away_from: Vector3 = Vector3.ZERO) -> void:
+	var heading: Vector3 = away_from
+	if heading.length() < 0.2:
+		heading = world_velocity
+	if heading.length() < 0.2:
 		heading = Vector3(0.0, 1.0, 0.0)
+	heading.y = maxf(heading.y, 0.35)
 	heading = heading.normalized()
+	if world_velocity.length() > 0.4:
+		# Чуть назад относительно хода, чтобы облако не залетало в нос.
+		heading = (heading - world_velocity.normalized() * 0.28).normalized()
 	var speed: float = clampf(world_velocity.length(), 0.0, 55.0)
 	_restart(_particles(droplets_path), heading, speed, droplet_lift)
 	_restart(_particles(mist_path), heading, speed, mist_lift)
@@ -43,12 +52,15 @@ func _restart(particles: GPUParticles3D, heading: Vector3, speed: float, lift: f
 	if particles == null:
 		return
 	var process_mat := particles.process_material as ParticleProcessMaterial
-	if process_mat != null and aim_with_car:
-		process_mat.direction = heading + Vector3(0.0, lift, 0.0)
-		if extra_speed_from_car > 0.001:
-			var bonus: float = speed * extra_speed_from_car
-			process_mat.initial_velocity_min = maxf(0.1, process_mat.initial_velocity_min + bonus * 0.45)
-			process_mat.initial_velocity_max = maxf(
-				process_mat.initial_velocity_min, process_mat.initial_velocity_max + bonus
-			)
+	if process_mat != null:
+		process_mat.inherit_velocity_ratio = inherit_velocity_ratio
+		process_mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+		if aim_with_car:
+			process_mat.direction = heading + Vector3(0.0, lift, 0.0)
+			if extra_speed_from_car > 0.001:
+				var bonus: float = speed * extra_speed_from_car
+				process_mat.initial_velocity_min = maxf(0.1, process_mat.initial_velocity_min + bonus * 0.45)
+				process_mat.initial_velocity_max = maxf(
+					process_mat.initial_velocity_min, process_mat.initial_velocity_max + bonus
+				)
 	particles.restart()

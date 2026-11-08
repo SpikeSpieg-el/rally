@@ -49,7 +49,7 @@ const DEFAULT_JACKETS: Array[String] = [
 @export_range(0.01, 0.3, 0.001) var smear_pixel_size: float = 0.16
 @export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.78)
 ## Размер кровавой лужи на полотне, м (длина × ширина).
-@export var puddle_extent: Vector2 = Vector2(2.8, 1.5)
+@export var puddle_extent: Vector2 = Vector2(1.9, 1.15)
 @export var puddle_color: Color = Color(0.38, 0.02, 0.04, 0.82)
 @export_range(0.0, 0.2, 0.005, "suffix:м") var ground_lift: float = 0.06
 @export_range(0.0, 2000.0, 10.0) var nudge_impulse: float = 420.0
@@ -189,7 +189,8 @@ func crush(car: Node3D) -> void:
 	var impact: Vector3 = _burst_origin(car)
 	_throw_onto_road(velocity)
 	_flatten()
-	BloodFx.spray(self, impact, velocity, blood_burst)
+	var spray_host: Node = car if car != null and is_instance_valid(car) else self
+	BloodFx.spray(spray_host, impact, velocity, blood_burst)
 	if car != null and car.has_method("splatter_blood"):
 		car.call("splatter_blood", impact, velocity)
 	_nudge_car.call_deferred(car, velocity)
@@ -238,8 +239,8 @@ func _flatten() -> void:
 	if _sprite == null:
 		return
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	_sprite.no_depth_test = true
-	_sprite.render_priority = 8
+	_sprite.no_depth_test = false
+	_sprite.render_priority = 2
 	_sprite.pixel_size = flatten_pixel_size
 	_sprite.position = Vector3(0.0, 0.02, 0.0)
 	_sprite.rotation_degrees = Vector3(-90.0, _rng.randf_range(-flatten_yaw_range, flatten_yaw_range), 0.0)
@@ -248,8 +249,8 @@ func _flatten() -> void:
 	smear.name = "BloodSmear"
 	smear.texture = _sprite.texture
 	smear.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	smear.no_depth_test = true
-	smear.render_priority = 8
+	smear.no_depth_test = false
+	smear.render_priority = 2
 	smear.pixel_size = smear_pixel_size
 	smear.modulate = smear_color
 	smear.position = Vector3(_rng.randf_range(-0.25, 0.25), 0.015, _rng.randf_range(-0.2, 0.2))
@@ -263,13 +264,9 @@ func _add_puddle() -> void:
 	puddle.name = "BloodPuddle"
 	var quad := QuadMesh.new()
 	quad.size = puddle_extent
-	var paint := StandardMaterial3D.new()
-	paint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
-	paint.no_depth_test = true
-	paint.render_priority = 10
-	paint.albedo_color = puddle_color
+	var paint := ShaderMaterial.new()
+	paint.shader = load("res://shaders/blood_puddle.gdshader") as Shader
+	paint.set_shader_parameter("blood_color", puddle_color)
 	quad.material = paint
 	puddle.mesh = quad
 	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

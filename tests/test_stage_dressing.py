@@ -96,14 +96,26 @@ class StageDressingTest(unittest.TestCase):
         for token in (
             "func crush(", "splatter_blood", "BloodFx.spray",
             'set_deferred("monitoring", false)', "_throw_onto_road", "_add_puddle",
+            "blood_puddle.gdshader",
         ):
             self.assertIn(token, person, token)
         self.assertNotIn("_hitbox.monitoring =", person)
         self.assertNotIn("_hitbox.monitorable =", person)
         blood = read("scripts/effects/rally_blood_fx.gd")
-        for token in ("func add_splat(", "func spray(", "car_blood.gdshader", "burst_scene"):
+        for token in (
+            "func add_splat(", "func spray(", "car_blood.gdshader", "burst_scene",
+            "BloodLayer", "Decal", "GPUParticlesCollisionBox3D", "BloodGlassSmear",
+            "ensure_particle_blocker",
+        ):
             self.assertIn(token, blood, token)
-        self.assertIn("GPUParticles3D", read("scenes/effects/blood_burst.tscn"))
+        self.assertNotIn('"glass"', blood)
+        self.assertNotIn('"window"', blood)
+        burst = read("scenes/effects/blood_burst.tscn")
+        self.assertIn("GPUParticles3D", burst)
+        self.assertIn("inherit_velocity_ratio", burst)
+        self.assertIn("collision_mode", burst)
+        self.assertIn("COLLISION_HIDE_ON_CONTACT", read("scripts/effects/rally_blood_burst.gd"))
+        self.assertIn("inherit_velocity_ratio", read("scripts/effects/rally_blood_burst.gd"))
         self.assertIn("rally_blood_fx.gd", read("scenes/effects/blood_stains.tscn"))
         self.assertIn("@export", person)
         shader = read("shaders/car_blood.gdshader")

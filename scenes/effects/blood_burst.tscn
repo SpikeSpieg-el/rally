@@ -14,12 +14,10 @@ width = 128
 resource_local_to_scene = true
 transparency = 1
 cull_mode = 2
-no_depth_test = true
 vertex_color_use_as_albedo = true
 albedo_color = Color(0.8187972, 0.09312502, 0.12208038, 1)
 metallic_specular = 0.55
 roughness = 0.22
-render_priority = 12
 
 [sub_resource type="SphereMesh" id="Mesh_drop"]
 resource_local_to_scene = true
@@ -40,6 +38,8 @@ initial_velocity_max = 8.5
 gravity = Vector3(0, -14, 0)
 damping_min = 0.6
 damping_max = 1.8
+inherit_velocity_ratio = 0.92
+collision_mode = 2
 scale_min = 0.7
 scale_max = 2.2
 color = Color(0.46, 0.025, 0.04, 1)
@@ -68,17 +68,15 @@ resource_local_to_scene = true
 transparency = 1
 cull_mode = 2
 shading_mode = 0
-no_depth_test = true
 vertex_color_use_as_albedo = true
 albedo_color = Color(0.58078074, 0.048029877, 0.08257254, 1)
 albedo_texture = SubResource("Tex_puff")
 billboard_mode = 1
-render_priority = 12
 
 [sub_resource type="QuadMesh" id="Mesh_mist"]
 resource_local_to_scene = true
 material = SubResource("Mat_mist")
-size = Vector2(1.15, 1.15)
+size = Vector2(0.55, 0.55)
 
 [sub_resource type="ParticleProcessMaterial" id="Process_mist"]
 resource_local_to_scene = true
@@ -89,6 +87,8 @@ spread = 80.0
 initial_velocity_min = 0.8
 initial_velocity_max = 3.4
 gravity = Vector3(0, -1.2, 0)
+inherit_velocity_ratio = 0.92
+collision_mode = 2
 scale_min = 1.0
 scale_max = 2.6
 color = Color(0.32, 0.02, 0.035, 1)

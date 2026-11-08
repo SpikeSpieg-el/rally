@@ -6,4 +6,4 @@
 [node name="BloodStains" type="Node"]
 script = ExtResource("1_script")
 burst_scene = ExtResource("2_burst")
-editor_description = "Пятна крови на кузове. Цвет, блеск, размер и меши — в инспекторе. Всплеск частиц — Blood Burst."
+editor_description = "Пятна крови на бампере, кузове и стекле. Цвет, блеск, размер и меши — в инспекторе. Всплеск частиц — Blood Burst."
