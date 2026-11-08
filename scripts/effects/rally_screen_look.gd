@@ -156,6 +156,17 @@ func bind_speed(node: SpeedFeelType) -> void:
 	_apply_material()
 
 
+## Страховка: если этап не успел связать экран с узлом скорости, находим его
+## сами по стандартному пути. Без этого экран молча оставался на числах
+## материала, и эффект выглядел как «ничего не происходит».
+func _bind_missing_speed() -> void:
+	if speed_feel != null or not is_inside_tree():
+		return
+	var node := get_node_or_null("../../VisualEffects/Speed") as SpeedFeelType
+	if node != null:
+		bind_speed(node)
+
+
 ## `null` значит «трассы ещё нет», а не «выключить пиксели». Иначе загрузка
 ## сцены без ресурса трассы гасила ретро-фильтр и сохраняла нули в .tscn.
 func configure_for_track(track: Resource) -> void:
@@ -210,6 +221,8 @@ func _apply_material() -> void:
 	_set_param(mat, "dither_strength", 1.0 if retro_on and dithering and _track_dither else 0.0)
 	# Скорость приходит только от узла Speed. Без него материал остаётся
 	# таким, каким его сохранили в сцене: молчаливые нули ломали эффект.
+	if speed_feel == null:
+		_bind_missing_speed()
 	if speed_feel != null:
 		_set_param(mat, "blur_strength", speed_feel.edge_blur_percent / 100.0)
 		_set_param(mat, "vignette_strength", speed_feel.vignette_percent / 100.0)

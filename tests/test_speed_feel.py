@@ -179,6 +179,28 @@ class SpeedFeelShaderTest(unittest.TestCase):
         # Один проход вместо двух: разлёт = размытие + растяжение.
         self.assertIn("float spread = stretch + blur_strength * view_blur_gain * mask;", shader)
 
+    def test_mask_reaches_the_visible_edges(self):
+        # Раньше маска начиналась с 0.28 радиуса и достигала заметной силы
+        # только в углах кадра — а углы закрыты панелями HUD, и эффект
+        # выглядел как «ничего не происходит». Теперь поток идёт по краю.
+        shader = read("shaders/speed_fx.gdshader")
+        self.assertIn("camera_mode == 1 ? 0.20 : 0.10", shader)
+        self.assertIn("camera_mode == 1 ? 0.80 : 0.62", shader)
+        self.assertNotIn("0.28, camera_mode == 1 ? 0.85 : 0.80", shader)
+
+    def test_speed_zoom_pulls_from_the_center(self):
+        # Зум тянет выборку к центру кадра: мир «разлетается», это читается
+        # как скорость даже там, где размытие ещё слабое.
+        shader = read("shaders/speed_fx.gdshader")
+        self.assertIn("float zoom = min(speed_stretch * speed_stretch_gain * intensity * 2.0, 0.10);", shader)
+        self.assertIn("vec2 zoomed_uv = effect_uv + (vec2(0.5) - effect_uv) * zoom;", shader)
+        self.assertIn("sample_world(zoomed_uv + dir * t * spread, grid, SCREEN_PIXEL_SIZE)", shader)
+
+    def test_vignette_grows_with_speed(self):
+        shader = read("shaders/speed_fx.gdshader")
+        self.assertIn("float dynamic_vignette = camera_mode == 1 ? 0.18 : 0.28;", shader)
+        self.assertIn("smoothstep(0.28, 0.92, radius)", shader)
+
     def test_keeps_camera_aware_peripheral_blur(self):
         shader = read("shaders/speed_fx.gdshader")
         for uniform in ("uniform int camera_mode", "uniform float blur_gain", "uniform float cockpit_scale"):
@@ -390,6 +412,34 @@ class OneSpeedEffectEverywhereTest(unittest.TestCase):
     def test_legacy_migration_is_editor_only(self):
         stage = read("scripts/rally_stage.gd")
         self.assertIn("not legacy_effects_imported and Engine.is_editor_hint()", stage)
+
+
+class SpeedFeelDiagnosticsTest(unittest.TestCase):
+    def test_hud_shows_the_value_from_the_material(self):
+        # Число берётся из материала экрана, а не из узла: если запись не
+        # дошла до шейдера, в HUD будет 0.00 — видно без отладчика.
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("func _speed_fx_debug_text() -> String:", stage)
+        debug = stage.split("func _speed_fx_debug_text", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn('get_shader_parameter("speed_intensity")', debug)
+        self.assertIn('split_label.text += "  | fx %s" % _speed_fx_debug_text()', stage)
+
+    def test_screen_finds_the_node_itself_if_nobody_bound_it(self):
+        # Страховка от «экран остался на числах материала»: если этап не
+        # связал узел, экран находит его сам по стандартному пути.
+        screen = read("scripts/effects/rally_screen_look.gd")
+        self.assertIn("func _bind_missing_speed() -> void:", screen)
+        helper = screen.split("func _bind_missing_speed", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn('get_node_or_null("../../VisualEffects/Speed")', helper)
+        self.assertIn("if speed_feel == null:\n\t\t_bind_missing_speed()", screen)
+
+    def test_console_confirms_a_working_effect(self):
+        stage = read("scripts/rally_stage.gd")
+        report = stage.split("func _report_speed_fx", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("Эффект скорости работает", report)
+        self.assertIn("Эффект скорости не работает", report)
+        # Одно сообщение за заезд, а не каждый кадр.
+        self.assertIn("_speed_fx_reported = true", report)
 
 
 if __name__ == "__main__":

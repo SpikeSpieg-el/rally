@@ -67,9 +67,20 @@ void fragment() {
 		float view_scale = camera_mode == 2 ? cockpit_scale : 1.0;
 		view_blur_gain = mix(1.0, blur_gain, view_scale);
 	}
-	float mask = smoothstep(camera_mode == 1 ? 0.32 : 0.28, camera_mode == 1 ? 0.85 : 0.80, radius) * intensity;
+	// Маска краёв. Раньше она начиналась только с 0.28 радиуса и успевала
+	// вырасти лишь в самых углах кадра — а углы закрыты панелями HUD, поэтому
+	// эффект формально работал, но его никто не видел. Теперь поток идёт по
+	// всему краю кадра, а центр (дорога, машина, прицел) остаётся почти резким.
+	float mask = smoothstep(camera_mode == 1 ? 0.20 : 0.10, camera_mode == 1 ? 0.80 : 0.62, radius) * intensity;
 
-	vec3 color = sample_world(uv, grid, SCREEN_PIXEL_SIZE);
+	// Зум скорости: выборка уходит к центру, поэтому мир «разлетается» от
+	// центра кадра. Это читается как скорость даже там, где размытие ещё
+	// слабое, и масштабируется тем же ползунком растяжения, что и разлёт.
+	float zoom = min(speed_stretch * speed_stretch_gain * intensity * 2.0, 0.10);
+	zoom *= mix(0.35, 1.0, smoothstep(0.0, 0.7, radius));
+	vec2 zoomed_uv = effect_uv + (vec2(0.5) - effect_uv) * zoom;
+
+	vec3 color = sample_world(zoomed_uv, grid, SCREEN_PIXEL_SIZE);
 	if (mask > 0.001) {
 		// Один проход на всё: симметричный разлёт выборок вдоль луча взгляда.
 		// Разлёт = размытие + растяжение, поэтому стоимость шейдера не выросла.
@@ -79,7 +90,7 @@ void fragment() {
 		vec3 smeared = vec3(0.0);
 		for (int i = 0; i < 4; i++) {
 			float t = float(i) / 3.0 * 2.0 - 1.0;
-			smeared += sample_world(effect_uv + dir * t * spread, grid, SCREEN_PIXEL_SIZE);
+			smeared += sample_world(zoomed_uv + dir * t * spread, grid, SCREEN_PIXEL_SIZE);
 		}
 		color = mix(color, smeared * 0.25, mask);
 	}
@@ -87,8 +98,10 @@ void fragment() {
 	// Чуть приглушённая палитра сохраняет различия дня, ночи, снега и фар.
 	float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
 	color = mix(color, vec3(luminance), retro_strength * 0.08);
-	float dynamic_vignette = camera_mode == 1 ? 0.18 : 0.24;
-	float vignette = smoothstep(0.35, 0.90, radius) * (retro_strength * vignette_strength + intensity * dynamic_vignette);
+	// Затемнение тоже начинается раньше: на скорости кадр сужается к центру,
+	// но не превращается в чёрную рамку — за это отвечают числа узла Speed.
+	float dynamic_vignette = camera_mode == 1 ? 0.18 : 0.28;
+	float vignette = smoothstep(0.28, 0.92, radius) * (retro_strength * vignette_strength + intensity * dynamic_vignette);
 	color *= 1.0 - vignette;
 
 	if (retro_strength > 0.0 && color_levels >= 1.0) {
