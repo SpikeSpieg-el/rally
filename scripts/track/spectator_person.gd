@@ -45,11 +45,10 @@ const DEFAULT_JACKETS: Array[String] = [
 ## Протащить вдоль хода машины, м.
 @export_range(0.0, 8.0, 0.05, "suffix:м") var drag_along_car: float = 1.8
 ## Размер лежащего спрайта: ~рост человека (40 px × pixel_size_idle).
-## 0.10 давал останки вдвое выше роста — «огромные» тела на полотне.
 @export_range(0.01, 0.25, 0.001) var flatten_pixel_size: float = 0.05
 @export var flatten_color: Color = Color(0.32, 0.04, 0.05, 0.92)
 @export_range(0.0, 180.0, 1.0, "suffix:°") var flatten_yaw_range: float = 55.0
-## След-потёк чуть длиннее тела, но не в разы (0.16 давал ~10 м полосу).
+## След-потёк чуть длиннее тела, но не в разы.
 @export_range(0.01, 0.3, 0.001) var smear_pixel_size: float = 0.065
 @export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.78)
 ## Размер кровавой лужи на полотне, м (длина × ширина).
@@ -60,6 +59,7 @@ const DEFAULT_JACKETS: Array[String] = [
 @export_range(0.5, 1.0, 0.01) var speed_keep: float = 0.97
 
 var _stage: Node = null
+var _cached_car: Node3D = null
 var _eager: bool = false
 var _road_toward: Vector3 = Vector3.ZERO
 var _home: Vector3 = Vector3.ZERO
@@ -82,6 +82,8 @@ func _ready() -> void:
 	_phase = _rng.randf() * TAU
 	if start_eager:
 		_eager = true
+	if not Engine.is_editor_hint() and randomize_jacket:
+		_randomize_jacket()
 	set_physics_process(not Engine.is_editor_hint())
 
 
@@ -177,10 +179,18 @@ func _try_hit(car: Node3D) -> void:
 func _on_body_entered(body: Node) -> void:
 	if _crushed or not visible:
 		return
-	if body is Node3D:
-		var as_node := body as Node3D
-		if _car_speed(as_node) >= hit_min_speed:
-			crush(as_node)
+	var car := _resolve_car_from_body(body)
+	if car != null and _car_speed(car) >= hit_min_speed:
+		crush(car)
+
+
+func _resolve_car_from_body(body: Node) -> Node3D:
+	var cur: Node = body
+	while cur != null:
+		if cur is Node3D and (_car_speed(cur) > 0.0 or cur.has_method("splatter_blood") or cur.has_node("BloodFx")):
+			return cur as Node3D
+		cur = cur.get_parent()
+	return body as Node3D
 
 
 func crush(car: Node3D) -> void:
@@ -189,15 +199,32 @@ func crush(car: Node3D) -> void:
 	_crushed = true
 	set_physics_process(false)
 	_disable_hitbox()
+
+	var pre_throw_pos: Vector3 = global_position
 	var velocity: Vector3 = _car_velocity(car)
-	var impact: Vector3 = _burst_origin(car)
+	var hit_world: Vector3 = _impact_point_on_car(car, pre_throw_pos)
+	var burst_world: Vector3 = _burst_origin(car, pre_throw_pos)
+
 	_throw_onto_road(velocity)
-	_flatten()
+	_flatten(velocity)
+
 	var spray_host: Node = car if car != null and is_instance_valid(car) else self
-	BloodFx.spray(spray_host, impact, velocity, blood_burst)
-	if car != null and car.has_method("splatter_blood"):
-		car.call("splatter_blood", impact, velocity)
-	_nudge_car.call_deferred(car, velocity)
+	BloodFx.spray(spray_host, burst_world, velocity, blood_burst)
+	_apply_car_blood(car, hit_world, velocity)
+	_nudge_car.call_deferred(car, velocity, pre_throw_pos)
+
+
+func _apply_car_blood(car: Node3D, hit_world: Vector3, velocity: Vector3) -> void:
+	if car == null or not is_instance_valid(car):
+		return
+	if car.has_method("splatter_blood"):
+		car.call("splatter_blood", hit_world, velocity)
+		return
+	var fx := car.get_node_or_null("BloodFx")
+	if fx == null:
+		fx = car.find_child("BloodFx", true, false)
+	if fx != null and fx.has_method("add_splat"):
+		fx.call("add_splat", car, hit_world, velocity)
 
 
 func _disable_hitbox() -> void:
@@ -228,9 +255,6 @@ func _snap_to_ground() -> void:
 	var x: float = global_position.x
 	var z: float = global_position.z
 	var y: float = global_position.y
-	# surface_height_at — верх НАРИСОВАННОЙ поверхности (полотно над кюветом).
-	# Обычный ground_height под дорогой отдаёт дно кювета, и останки тонули
-	# под мешем асфальта: их было видно только на траве.
 	if _stage.has_method("surface_height_at"):
 		y = float(_stage.call("surface_height_at", x, z))
 	elif _stage.has_method("ground_height"):
@@ -238,43 +262,58 @@ func _snap_to_ground() -> void:
 	global_position.y = y + ground_lift
 
 
-func _burst_origin(car: Node3D) -> Vector3:
+## Реальная точка контакта с машиной (сохраняет точное смещение слева/по центру/справа
+## для пятен на бампере, капоте и лобовом стекле).
+func _impact_point_on_car(car: Node3D, world_pos: Vector3) -> Vector3:
 	if car == null or not is_instance_valid(car):
-		return global_position + Vector3(0.0, impact_height, 0.0)
-	# Снаружи кузова, с той стороны, где человек: иначе частицы рождаются
-	# внутри меша и «проходят насквозь», их не видно.
-	var local_hit: Vector3 = car.to_local(global_position + Vector3(0.0, 0.7, 0.0))
+		return world_pos + Vector3(0.0, impact_height, 0.0)
+	var local_hit: Vector3 = car.to_local(world_pos + Vector3(0.0, clampf(impact_height, 0.45, 1.2), 0.0))
+	local_hit.x = clampf(local_hit.x, -0.95, 0.95)
+	local_hit.z = clampf(local_hit.z, -1.6, 2.1)
+	return car.to_global(local_hit)
+
+
+## Точка спавна облака GPU-частиц (чуть сбоку от кузова, чтобы частицы не гасли внутри коллизии).
+func _burst_origin(car: Node3D, world_pos: Vector3 = global_position) -> Vector3:
+	if car == null or not is_instance_valid(car):
+		return world_pos + Vector3(0.0, impact_height, 0.0)
+	var local_hit: Vector3 = car.to_local(world_pos + Vector3(0.0, 0.7, 0.0))
 	var side: float = 1.35 if local_hit.x >= 0.0 else -1.35
 	return car.to_global(Vector3(side, clampf(impact_height, 0.45, 1.2), clampf(local_hit.z, -1.6, 1.8)))
 
 
-func _flatten() -> void:
+func _flatten(velocity: Vector3 = Vector3.ZERO) -> void:
 	if _sprite == null:
 		return
+	var base_yaw: float = 0.0
+	var flat_vel := Vector2(velocity.x, velocity.z)
+	if flat_vel.length_squared() > 0.25:
+		base_yaw = rad_to_deg(atan2(velocity.x, velocity.z))
+
+	# 1. Один спрайт самого человека
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	_sprite.no_depth_test = false
 	_sprite.render_priority = 2
 	_sprite.pixel_size = flatten_pixel_size
-	_sprite.position = Vector3(0.0, 0.02, 0.0)
-	_sprite.rotation_degrees = Vector3(-90.0, _rng.randf_range(-flatten_yaw_range, flatten_yaw_range), 0.0)
+	_sprite.position = Vector3(0.0, 0.03, 0.0)
+	_sprite.rotation_degrees = Vector3(-90.0, base_yaw + _rng.randf_range(-flatten_yaw_range, flatten_yaw_range), 0.0)
 	_sprite.modulate = flatten_color
-	var smear := Sprite3D.new()
-	smear.name = "BloodSmear"
-	smear.texture = _sprite.texture
-	smear.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	smear.no_depth_test = false
-	smear.render_priority = 2
-	smear.pixel_size = smear_pixel_size
-	smear.modulate = smear_color
-	smear.position = Vector3(_rng.randf_range(-0.25, 0.25), 0.015, _rng.randf_range(-0.2, 0.2))
-	smear.rotation_degrees = Vector3(-90.0, _rng.randf_range(-80.0, 80.0), 0.0)
-	add_child(smear)
-	_add_puddle()
+
+	# Убираем старый дубликат спрайта человека, если он был
+	var old_smear := get_node_or_null("BloodSmear")
+	if old_smear != null:
+		old_smear.queue_free()
+
+	# 2. Кровавая лужа и след протаскивания (без текстуры второго человека)
+	_add_puddle(base_yaw)
 
 
-func _add_puddle() -> void:
-	var puddle := MeshInstance3D.new()
-	puddle.name = "BloodPuddle"
+func _add_puddle(base_yaw: float = 0.0) -> void:
+	var puddle := get_node_or_null("BloodPuddle") as MeshInstance3D
+	if puddle == null:
+		puddle = MeshInstance3D.new()
+		puddle.name = "BloodPuddle"
+		add_child(puddle)
 	var quad := QuadMesh.new()
 	quad.size = puddle_extent
 	var paint := ShaderMaterial.new()
@@ -283,16 +322,15 @@ func _add_puddle() -> void:
 	quad.material = paint
 	puddle.mesh = quad
 	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	puddle.position = Vector3(0.0, 0.03, 0.4)
-	puddle.rotation_degrees = Vector3(-90.0, _rng.randf_range(-25.0, 25.0), 0.0)
-	add_child(puddle)
+	puddle.position = Vector3(0.0, 0.015, 0.0)
+	puddle.rotation_degrees = Vector3(-90.0, base_yaw + _rng.randf_range(-20.0, 20.0), 0.0)
 
 
-func _nudge_car(car: Node3D, velocity: Vector3) -> void:
+func _nudge_car(car: Node3D, velocity: Vector3, impact_pos: Vector3) -> void:
 	if car == null or not is_instance_valid(car) or not car is RigidBody3D:
 		return
 	var body := car as RigidBody3D
-	var push: Vector3 = body.global_position - global_position
+	var push: Vector3 = body.global_position - impact_pos
 	push.y = 0.0
 	if push.length() < 0.01:
 		push = -velocity
@@ -308,6 +346,14 @@ func _find_car() -> Node3D:
 		var candidate: Variant = _stage.get("car")
 		if candidate is Node3D:
 			return candidate as Node3D
+	if _cached_car != null and is_instance_valid(_cached_car):
+		return _cached_car
+	var tree := get_tree()
+	if tree != null and tree.current_scene != null:
+		var found := tree.current_scene.find_child("*Car*", true, false) as Node3D
+		if found != null:
+			_cached_car = found
+			return _cached_car
 	return null
 
 
@@ -329,4 +375,8 @@ func _car_velocity(car: Node) -> Vector3:
 	var value: Variant = car.get("linear_velocity")
 	if value is Vector3:
 		return value as Vector3
+	if car is Node3D:
+		var spd := _car_speed(car)
+		if spd > 0.0:
+			return (car as Node3D).global_transform.basis.z.normalized() * spd
 	return Vector3.ZERO

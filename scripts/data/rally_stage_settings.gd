@@ -43,7 +43,7 @@ extends Resource
 ## Общая интенсивность скоростного размытия и виньетки.
 @export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
 ## Скорость, с которой эффект начинает появляться, км/ч.
-@export_range(0.0, 300.0, 1.0, "suffix:km/h") var speed_fx_start_kmh: float = 65.0
+@export_range(0.0, 300.0, 1.0, "suffix:km/h") var speed_fx_start_kmh: float = 55.0
 ## Скорость, на которой эффект выходит на максимум, км/ч.
 @export_range(20.0, 400.0, 1.0, "suffix:km/h") var speed_fx_full_kmh: float = 180.0
 ## Радиус размытия по краям экрана (uniform blur_strength).

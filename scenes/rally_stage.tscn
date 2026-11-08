@@ -36,14 +36,14 @@ shader_parameter/rock_texture = ExtResource("6_ni4f4")
 shader_parameter/ground_texture_smooth = ExtResource("5_qj60p")
 shader_parameter/rock_texture_smooth = ExtResource("6_ni4f4")
 shader_parameter/ps1_textures = true
-shader_parameter/ground_color = Color(0.3, 0.38, 0.23, 1)
-shader_parameter/ground_color_2 = Color(0.42, 0.45, 0.28, 1)
+shader_parameter/ground_color = Color(0.1, 0.17, 0.07, 1)
+shader_parameter/ground_color_2 = Color(0.21, 0.26, 0.11, 1)
 shader_parameter/road_edge_color = Color(0.31, 0.25, 0.17, 1)
-shader_parameter/rock_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/rock_color = Color(0.29, 0.31, 0.32, 1)
 shader_parameter/surface_roughness = 0.99
 shader_parameter/grain_scale = 1.4
 shader_parameter/flat_shading = 1.0
-shader_parameter/vertex_snap = 0.15
+shader_parameter/vertex_snap = 0.0
 shader_parameter/resolution_y = 270.0
 shader_parameter/wetness = 0.0
 shader_parameter/snow_cover = 0.0
@@ -75,9 +75,9 @@ shader = ExtResource("7_4d4ml")
 shader_parameter/gravel_texture = ExtResource("8_huph0")
 shader_parameter/gravel_texture_smooth = ExtResource("8_huph0")
 shader_parameter/ps1_textures = true
-shader_parameter/vertex_snap = 0.15
+shader_parameter/vertex_snap = 0.0
 shader_parameter/resolution_y = 270.0
-shader_parameter/section_surfaces = true
+shader_parameter/section_surfaces = false
 shader_parameter/loose_relief = 0.5
 shader_parameter/detail_strength = 0.08
 shader_parameter/track_strength = 0.06
@@ -85,7 +85,7 @@ shader_parameter/road_roughness = 0.96
 shader_parameter/wetness = 0.0
 shader_parameter/snow_cover = 0.0
 shader_parameter/zone_offset = 1.5
-shader_parameter/stage_length = 2572.885
+shader_parameter/stage_length = 0.0
 shader_parameter/zone_period = 240.0
 shader_parameter/zone_start = 150.0
 shader_parameter/zone_end_margin = 40.0
@@ -121,6 +121,8 @@ script = ExtResource("9_h4p6t")
 preview_in_editor = false
 show_debug_info = true
 retro_color_bits_override = 5
+speed_fx_start_kmh = 65.0
+speed_blur_gain = 2.4
 ground_surface_roughness = 0.99
 ground_grain_scale = 1.4
 road_roughness = 0.96
@@ -135,17 +137,18 @@ road_material = SubResource("ShaderMaterial_huph0")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xfxr1"]
 resource_local_to_scene = true
 shader = ExtResource("19_fvvtf")
-shader_parameter/retro_strength = 1.0
+shader_parameter/retro_strength = 0.0
 shader_parameter/resolution_y = 270.0
-shader_parameter/color_levels = 31.0
-shader_parameter/dither_strength = 1.0
+shader_parameter/color_levels = 0.0
+shader_parameter/dither_strength = 0.0
 shader_parameter/speed_intensity = 0.0
 shader_parameter/blur_strength = 0.012
 shader_parameter/vignette_strength = 0.12
 shader_parameter/camera_mode = 0
-shader_parameter/blur_gain = 2.0
+shader_parameter/blur_gain = 2.4
 shader_parameter/cockpit_scale = 0.8
 shader_parameter/speed_stretch = 0.02
+shader_parameter/speed_stretch_gain = 1.0
 
 [node name="RallyStage" type="Node3D" unique_id=651009656]
 script = ExtResource("1_stage")
@@ -197,6 +200,7 @@ setup_override = ExtResource("6_fxige")
 [node name="SpeedShaderRect" parent="HUD" unique_id=1844040114 instance=ExtResource("retro_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
 material = SubResource("ShaderMaterial_xfxr1")
+look = 0
 
 [node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("hud_layout")]
 
@@ -2028,440 +2032,440 @@ transform = Transform3D(-0.99937, 0, 0.03548, 0, 1, 0, -0.03548, 0, -0.99937, 55
 
 [node name="StudioProps" type="Node3D" parent="." unique_id=1239958993]
 
-[node name="PineTree" type="Node3D" parent="StudioProps" unique_id=1541846367 instance=ExtResource("pine_tree")]
+[node name="PineTree" parent="StudioProps" unique_id=1541846367 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.40963697, 0, 1.4124521, 0, 1.3851446, 0, -1.4124521, 0, 0.40963697, 311.77884, -4.7488813, 660.82556)
 
-[node name="@Node3D@33649" type="Node3D" parent="StudioProps" unique_id=643963400 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33649" parent="StudioProps" unique_id=643963400 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.42354998, 0, -1.3232634, 0, 1.3649654, 0, 1.3232634, 0, 0.42354998, 317.85355, -4.5345, 651.50433)
 
-[node name="@Node3D@33650" type="Node3D" parent="StudioProps" unique_id=1202483246 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33650" parent="StudioProps" unique_id=1202483246 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.557367, 0, 0.9063465, 0, 1.6735535, 0, -0.9063465, 0, 1.557367, 333.45972, -4.8203287, 658.88293)
 
-[node name="@Node3D@33651" type="Node3D" parent="StudioProps" unique_id=859743018 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33651" parent="StudioProps" unique_id=859743018 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.4693528, 0, -0.5004721, 0, 1.4856507, 0, 0.5004721, 0, 1.4693528, 328.97366, -4.836342, 656.495)
 
-[node name="@Node3D@33652" type="Node3D" parent="StudioProps" unique_id=217977718 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33652" parent="StudioProps" unique_id=217977718 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.014949553, 0, -1.0754155, 0, 1.0662297, 0, 1.0754155, 0, 0.014949553, 317.0007, -4.617866, 647.96136)
 
-[node name="@Node3D@33653" type="Node3D" parent="StudioProps" unique_id=1571002219 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33653" parent="StudioProps" unique_id=1571002219 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.70108104, 0, 1.3454385, 0, 1.5509851, 0, -1.3454385, 0, -0.70108104, 329.7996, -4.8588686, 663.0344)
 
-[node name="@Node3D@33654" type="Node3D" parent="StudioProps" unique_id=833445014 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33654" parent="StudioProps" unique_id=833445014 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.2169185, 0, -1.006841, 0, 1.0784099, 0, 1.006841, 0, 0.2169185, 307.8831, -4.9559426, 652.24585)
 
-[node name="@Node3D@33655" type="Node3D" parent="StudioProps" unique_id=45757006 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33655" parent="StudioProps" unique_id=45757006 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.2236308, 0, 0.43920854, 0, 1.1456784, 0, -0.43920854, 0, 1.2236308, 325.8188, -4.7934113, 654.3121)
 
-[node name="@Node3D@33656" type="Node3D" parent="StudioProps" unique_id=486628536 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33656" parent="StudioProps" unique_id=486628536 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.68056166, 0, 0.5016607, 0, 0.86928856, 0, -0.5016607, 0, 0.68056166, 325.7015, -5.1819067, 666.48694)
 
-[node name="@Node3D@33657" type="Node3D" parent="StudioProps" unique_id=291132377 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33657" parent="StudioProps" unique_id=291132377 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.0160028, 0, 1.0845686, 0, 1.398971, 0, -1.0845686, 0, -1.0160028, 328.87238, -4.3017592, 642.71576)
 
-[node name="@Node3D@33658" type="Node3D" parent="StudioProps" unique_id=774674279 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33658" parent="StudioProps" unique_id=774674279 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.6957853, 0, 1.1308348, 0, 1.5807575, 0, -1.1308348, 0, -0.6957853, 314.98022, -4.614691, 655.03546)
 
-[node name="@Node3D@33659" type="Node3D" parent="StudioProps" unique_id=1006295663 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33659" parent="StudioProps" unique_id=1006295663 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.8036371, 0, -1.4772617, 0, 1.8355528, 0, 1.4772617, 0, 0.8036371, 333.26062, -4.86656, 654.7042)
 
-[node name="@Node3D@33660" type="Node3D" parent="StudioProps" unique_id=1681436911 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33660" parent="StudioProps" unique_id=1681436911 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0299248, 0, -0.9631635, 0, 1.430673, 0, 0.9631635, 0, 1.0299248, 321.82788, -4.593213, 652.19684)
 
-[node name="@Node3D@33661" type="Node3D" parent="StudioProps" unique_id=841063953 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33661" parent="StudioProps" unique_id=841063953 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.2254788, 0, 1.2912707, 0, 1.8066826, 0, -1.2912707, 0, 1.2254788, 318.18265, -4.791502, 658.3397)
 
-[node name="@Node3D@33662" type="Node3D" parent="StudioProps" unique_id=61795310 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33662" parent="StudioProps" unique_id=61795310 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.41992083, 0, 0.959274, 0, 1.0280932, 0, -0.959274, 0, 0.41992083, 345.56543, -4.422503, 641.41296)
 
-[node name="@Node3D@33663" type="Node3D" parent="StudioProps" unique_id=1904782580 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33663" parent="StudioProps" unique_id=1904782580 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.8567672, 0, -0.11884182, 0, 0.77873826, 0, 0.11884182, 0, -0.8567672, 329.88553, -4.5491467, 638.1098)
 
-[node name="@Node3D@33664" type="Node3D" parent="StudioProps" unique_id=1553277720 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33664" parent="StudioProps" unique_id=1553277720 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9328099, 0, 0.44476104, 0, 0.9942189, 0, -0.44476104, 0, 0.9328099, 328.35034, -4.346608, 644.15735)
 
-[node name="@Node3D@33665" type="Node3D" parent="StudioProps" unique_id=1354135968 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33665" parent="StudioProps" unique_id=1354135968 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.85243887, 0, -0.17795889, 0, 0.88734007, 0, 0.17795889, 0, -0.85243887, 324.6528, -4.669167, 642.20026)
 
-[node name="@Node3D@33666" type="Node3D" parent="StudioProps" unique_id=1700548785 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33666" parent="StudioProps" unique_id=1700548785 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.0055322275, 0, -1.0785393, 0, 1.2493467, 0, 1.0785393, 0, -0.0055322275, 337.69354, -4.3497176, 642.4449)
 
-[node name="@Node3D@33667" type="Node3D" parent="StudioProps" unique_id=352924861 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33667" parent="StudioProps" unique_id=352924861 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.49057624, 0, -1.4496986, 0, 1.5054384, 0, 1.4496986, 0, -0.49057624, 337.6934, -4.0828896, 636.2355)
 
-[node name="@Node3D@33668" type="Node3D" parent="StudioProps" unique_id=1332829382 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33668" parent="StudioProps" unique_id=1332829382 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.3936695, 0, 0.16662003, 0, 1.4135588, 0, -0.16662003, 0, 1.3936695, 342.3173, -4.8005114, 647.3179)
 
-[node name="@Node3D@33669" type="Node3D" parent="StudioProps" unique_id=1212985859 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33669" parent="StudioProps" unique_id=1212985859 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0555377, 0, -1.2151188, 0, 1.6891537, 0, 1.2151188, 0, 1.0555377, 342.5395, -3.7320206, 627.46173)
 
-[node name="@Node3D@33670" type="Node3D" parent="StudioProps" unique_id=698812435 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33670" parent="StudioProps" unique_id=698812435 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.44872817, 0, 1.3017192, 0, 1.4380859, 0, -1.3017192, 0, -0.44872817, 343.96442, -4.620422, 644.51447)
 
-[node name="@Node3D@33671" type="Node3D" parent="StudioProps" unique_id=1765645496 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33671" parent="StudioProps" unique_id=1765645496 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.5097839, 0, -0.8933756, 0, 1.8953599, 0, 0.8933756, 0, -1.5097839, 346.14832, -3.9344, 632.2949)
 
-[node name="@Node3D@33672" type="Node3D" parent="StudioProps" unique_id=412929788 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33672" parent="StudioProps" unique_id=412929788 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.56635267, 0, -0.86029613, 0, 1.0118396, 0, 0.86029613, 0, 0.56635267, 329.5166, -4.4682627, 647.0778)
 
-[node name="@Node3D@33673" type="Node3D" parent="StudioProps" unique_id=874206129 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33673" parent="StudioProps" unique_id=874206129 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.85575885, 0, -1.52853, 0, 1.4988081, 0, 1.52853, 0, -0.85575885, 338.7674, -4.25824, 628.01855)
 
-[node name="@Node3D@33674" type="Node3D" parent="StudioProps" unique_id=2104404675 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33674" parent="StudioProps" unique_id=2104404675 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.20108646, 0, -1.2365881, 0, 1.1745982, 0, 1.2365881, 0, -0.20108646, 335.2299, -4.4640956, 645.3012)
 
-[node name="@Node3D@33675" type="Node3D" parent="StudioProps" unique_id=1941627452 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33675" parent="StudioProps" unique_id=1941627452 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.238094, 0, -0.7488958, 0, 1.2769879, 0, 0.7488958, 0, 1.238094, 332.54745, -4.6290812, 648.8397)
 
-[node name="@Node3D@33676" type="Node3D" parent="StudioProps" unique_id=687677039 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33676" parent="StudioProps" unique_id=687677039 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.5493917, 0, 0.41606632, 0, 1.7432165, 0, -0.41606632, 0, 1.5493917, 298.06522, -3.8181448, 630.43365)
 
-[node name="@Node3D@33677" type="Node3D" parent="StudioProps" unique_id=623560106 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33677" parent="StudioProps" unique_id=623560106 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.017879, 0, 0.35603023, 0, 1.1147684, 0, -0.35603023, 0, -1.017879, 307.69818, -3.276027, 617.70325)
 
-[node name="@Node3D@33678" type="Node3D" parent="StudioProps" unique_id=1061386354 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33678" parent="StudioProps" unique_id=1061386354 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.7475832, 0, 0.22136742, 0, 1.5146335, 0, -0.22136742, 0, 1.7475832, 304.00348, -4.304238, 631.5736)
 
-[node name="@Node3D@33679" type="Node3D" parent="StudioProps" unique_id=280504783 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33679" parent="StudioProps" unique_id=280504783 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.7083287, 0, 0.31379244, 0, 1.5342206, 0, -0.31379244, 0, -1.7083287, 297.21194, -3.265755, 618.2081)
 
-[node name="@Node3D@33680" type="Node3D" parent="StudioProps" unique_id=351969629 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33680" parent="StudioProps" unique_id=351969629 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.4491853, 0, 0.96792763, 0, 1.6404619, 0, -0.96792763, 0, 1.4491853, 293.87885, -3.6408784, 626.59106)
 
-[node name="@Node3D@33681" type="Node3D" parent="StudioProps" unique_id=1961122342 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33681" parent="StudioProps" unique_id=1961122342 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.99181837, 0, -0.2600254, 0, 1.0541223, 0, 0.2600254, 0, 0.99181837, 296.7246, -4.9018497, 638.0692)
 
-[node name="@Node3D@33682" type="Node3D" parent="StudioProps" unique_id=440318809 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33682" parent="StudioProps" unique_id=440318809 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.73715675, 0, -0.6185629, 0, 0.9395066, 0, 0.6185629, 0, -0.73715675, 314.22552, -3.3078437, 617.54016)
 
-[node name="@Node3D@33683" type="Node3D" parent="StudioProps" unique_id=1192236954 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33683" parent="StudioProps" unique_id=1192236954 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.5002356, 0, 1.0295746, 0, 1.0783718, 0, -1.0295746, 0, -0.5002356, 301.87585, -3.237575, 617.565)
 
-[node name="@Node3D@33684" type="Node3D" parent="StudioProps" unique_id=550938638 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33684" parent="StudioProps" unique_id=550938638 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.8876879, 0, -0.46390104, 0, 0.971507, 0, 0.46390104, 0, 0.8876879, 298.33585, -3.669995, 626.81604)
 
-[node name="@Node3D@33685" type="Node3D" parent="StudioProps" unique_id=1259641234 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33685" parent="StudioProps" unique_id=1259641234 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.49027878, 0, -0.97652817, 0, 1.0840971, 0, 0.97652817, 0, 0.49027878, 315.34695, -3.6441326, 622.4688)
 
-[node name="@Node3D@33686" type="Node3D" parent="StudioProps" unique_id=538144295 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33686" parent="StudioProps" unique_id=538144295 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.020109, 0, 0.35160246, 0, 1.2693316, 0, -0.35160246, 0, 1.020109, 305.11713, -3.1482131, 615.596)
 
-[node name="@Node3D@33687" type="Node3D" parent="StudioProps" unique_id=67571902 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33687" parent="StudioProps" unique_id=67571902 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.2729093, 0, 0.1472125, 0, 1.3022307, 0, -0.1472125, 0, -1.2729093, 307.49118, -4.2268867, 629.21484)
 
-[node name="@Node3D@33688" type="Node3D" parent="StudioProps" unique_id=54528511 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33688" parent="StudioProps" unique_id=54528511 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.44267792, 0, -1.4219394, 0, 1.4579034, 0, 1.4219394, 0, 0.44267792, 361.7359, -4.8652773, 646.391)
 
-[node name="@Node3D@33689" type="Node3D" parent="StudioProps" unique_id=102792762 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33689" parent="StudioProps" unique_id=102792762 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.52352244, 0, -0.6668318, 0, 0.96635073, 0, 0.6668318, 0, -0.52352244, 356.6635, -4.934944, 659.04346)
 
-[node name="@Node3D@33690" type="Node3D" parent="StudioProps" unique_id=821545173 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33690" parent="StudioProps" unique_id=821545173 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.19144586, 0, -1.3332033, 0, 1.520204, 0, 1.3332033, 0, -0.19144586, 358.30637, -4.9445214, 651.1859)
 
-[node name="@Node3D@33691" type="Node3D" parent="StudioProps" unique_id=58540089 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33691" parent="StudioProps" unique_id=58540089 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.74201584, 0, -1.8433592, 0, 1.7446189, 0, 1.8433592, 0, -0.74201584, 353.7081, -4.8968496, 648.16925)
 
-[node name="@Node3D@33692" type="Node3D" parent="StudioProps" unique_id=514949406 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33692" parent="StudioProps" unique_id=514949406 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.73990476, 0, -0.43441856, 0, 0.88312334, 0, 0.43441856, 0, -0.73990476, 362.62137, -5.048468, 655.9872)
 
-[node name="@Node3D@33693" type="Node3D" parent="StudioProps" unique_id=1380927865 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33693" parent="StudioProps" unique_id=1380927865 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.028590877, 0, 0.93306416, 0, 0.846893, 0, -0.93306416, 0, 0.028590877, 357.09134, -4.858995, 646.0511)
 
-[node name="@Node3D@33694" type="Node3D" parent="StudioProps" unique_id=2042106855 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33694" parent="StudioProps" unique_id=2042106855 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9513781, 0, 0.070890784, 0, 0.8536895, 0, -0.070890784, 0, 0.9513781, 365.22635, -5.1164875, 657.75916)
 
-[node name="@Node3D@33695" type="Node3D" parent="StudioProps" unique_id=491481620 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33695" parent="StudioProps" unique_id=491481620 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.95701075, 0, -0.77609664, 0, 1.3379284, 0, 0.77609664, 0, 0.95701075, 353.43295, -5.592055, 667.02045)
 
-[node name="@Node3D@33696" type="Node3D" parent="StudioProps" unique_id=558102265 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33696" parent="StudioProps" unique_id=558102265 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.5639255, 0, -0.8093113, 0, 0.948926, 0, 0.8093113, 0, -0.5639255, 348.98288, -4.595846, 642.8301)
 
-[node name="@Node3D@33697" type="Node3D" parent="StudioProps" unique_id=2129235759 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33697" parent="StudioProps" unique_id=2129235759 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9537053, 0, 0.62469685, 0, 1.1920785, 0, -0.62469685, 0, 0.9537053, 345.6936, -4.9213505, 650.912)
 
-[node name="@Node3D@33698" type="Node3D" parent="StudioProps" unique_id=252136950 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33698" parent="StudioProps" unique_id=252136950 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.040705282, 0, 0.7896339, 0, 0.8201382, 0, -0.7896339, 0, 0.040705282, 361.17886, -5.043814, 663.8312)
 
-[node name="@Node3D@33699" type="Node3D" parent="StudioProps" unique_id=2049702039 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33699" parent="StudioProps" unique_id=2049702039 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.64498407, 0, -0.7030879, 0, 0.88205993, 0, 0.7030879, 0, 0.64498407, 346.73642, -4.9313536, 647.8633)
 
-[node name="@Node3D@33700" type="Node3D" parent="StudioProps" unique_id=1074486807 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33700" parent="StudioProps" unique_id=1074486807 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0860301, 0, 1.0657947, 0, 1.4588364, 0, -1.0657947, 0, 1.0860301, 346.32422, -4.854836, 658.3171)
 
-[node name="@Node3D@33701" type="Node3D" parent="StudioProps" unique_id=1074008735 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33701" parent="StudioProps" unique_id=1074008735 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.6591017, 0, -0.55857456, 0, 1.5573413, 0, 0.55857456, 0, -1.6591017, 327.31073, -5.262754, 693.33734)
 
-[node name="@Node3D@33702" type="Node3D" parent="StudioProps" unique_id=452134607 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33702" parent="StudioProps" unique_id=452134607 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.0630335, 0, 1.8869475, 0, 1.570655, 0, -1.8869475, 0, -0.0630335, 324.69705, -5.1948266, 696.3189)
 
-[node name="@Node3D@33703" type="Node3D" parent="StudioProps" unique_id=1099675290 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33703" parent="StudioProps" unique_id=1099675290 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.31795818, 0, -1.3038528, 0, 1.4478729, 0, 1.3038528, 0, -0.31795818, 338.69528, -5.2141576, 698.8744)
 
-[node name="@Node3D@33704" type="Node3D" parent="StudioProps" unique_id=1000131116 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33704" parent="StudioProps" unique_id=1000131116 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.0546651, 0, -1.3927536, 0, 1.9319183, 0, 1.3927536, 0, -1.0546651, 337.35968, -5.359512, 687.06555)
 
-[node name="@Node3D@33705" type="Node3D" parent="StudioProps" unique_id=1859893493 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33705" parent="StudioProps" unique_id=1859893493 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.8140754, 0, -0.10148833, 0, 0.88218355, 0, 0.10148833, 0, -0.8140754, 329.9391, -5.010408, 701.06006)
 
-[node name="@Node3D@33706" type="Node3D" parent="StudioProps" unique_id=882661315 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33706" parent="StudioProps" unique_id=882661315 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.4822577, 0, -0.12845702, 0, 1.3989036, 0, 0.12845702, 0, -1.4822577, 342.92447, -5.3754106, 690.7545)
 
-[node name="@Node3D@33707" type="Node3D" parent="StudioProps" unique_id=1306886239 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33707" parent="StudioProps" unique_id=1306886239 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9313324, 0, -0.87684625, 0, 1.2659729, 0, 0.87684625, 0, 0.9313324, 351.28342, -5.331999, 699.31415)
 
-[node name="@Node3D@33708" type="Node3D" parent="StudioProps" unique_id=664997095 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33708" parent="StudioProps" unique_id=664997095 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.6698233, 0, -1.342426, 0, 1.4971958, 0, 1.342426, 0, -0.6698233, 341.98587, -4.566267, 706.64557)
 
-[node name="@Node3D@33709" type="Node3D" parent="StudioProps" unique_id=1473360367 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33709" parent="StudioProps" unique_id=1473360367 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.6751233, 0, -0.94478047, 0, 1.2235852, 0, 0.94478047, 0, 0.6751233, 343.7044, -5.299703, 697.7966)
 
-[node name="@Node3D@33710" type="Node3D" parent="StudioProps" unique_id=169135697 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33710" parent="StudioProps" unique_id=169135697 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.68721795, 0, 1.1740348, 0, 1.529195, 0, -1.1740348, 0, 0.68721795, 351.011, -5.4171424, 696.1024)
 
-[node name="@Node3D@33711" type="Node3D" parent="StudioProps" unique_id=662667239 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33711" parent="StudioProps" unique_id=662667239 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.07372149, 0, 1.486714, 0, 1.4992857, 0, -1.486714, 0, -0.07372149, 304.38287, -4.1919866, 704.8801)
 
-[node name="@Node3D@33712" type="Node3D" parent="StudioProps" unique_id=362085036 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33712" parent="StudioProps" unique_id=362085036 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.58822805, 0, 1.4503582, 0, 1.4343671, 0, -1.4503582, 0, -0.58822805, 307.44797, -4.358513, 704.31415)
 
-[node name="@Node3D@33713" type="Node3D" parent="StudioProps" unique_id=1918744928 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33713" parent="StudioProps" unique_id=1918744928 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.61768085, 0, 1.1348622, 0, 1.2006596, 0, -1.1348622, 0, -0.61768085, 316.44638, -4.7385473, 702.5083)
 
-[node name="@Node3D@33714" type="Node3D" parent="StudioProps" unique_id=1418744471 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33714" parent="StudioProps" unique_id=1418744471 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.0914395, 0, -0.5192518, 0, 1.1637337, 0, 0.5192518, 0, -1.0914395, 311.79092, -4.6246066, 702.84235)
 
-[node name="@Node3D@33715" type="Node3D" parent="StudioProps" unique_id=314735707 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33715" parent="StudioProps" unique_id=314735707 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.27645466, 0, -1.0177169, 0, 1.1241654, 0, 1.0177169, 0, 0.27645466, 318.21448, -5.1320333, 696.8098)
 
-[node name="@Node3D@33716" type="Node3D" parent="StudioProps" unique_id=245738706 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33716" parent="StudioProps" unique_id=245738706 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.4043586, 0, -0.3634009, 0, 1.5177417, 0, 0.3634009, 0, 1.4043586, 296.3258, -4.8795037, 696.6745)
 
-[node name="@Node3D@33717" type="Node3D" parent="StudioProps" unique_id=16352385 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33717" parent="StudioProps" unique_id=16352385 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1299051, 0, 0.13487282, 0, 1.0917411, 0, -0.13487282, 0, -1.1299051, 297.83148, -4.6051493, 700.5314)
 
-[node name="@Node3D@33718" type="Node3D" parent="StudioProps" unique_id=1766254143 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33718" parent="StudioProps" unique_id=1766254143 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.68181074, 0, 1.1639661, 0, 1.3295193, 0, -1.1639661, 0, -0.68181074, 315.11768, -5.287572, 688.0855)
 
-[node name="@Node3D@33719" type="Node3D" parent="StudioProps" unique_id=760442464 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33719" parent="StudioProps" unique_id=760442464 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.45336837, 0, 1.6295772, 0, 1.5325887, 0, -1.6295772, 0, -0.45336837, 308.13315, -4.7665625, 700.9453)
 
-[node name="@Node3D@33720" type="Node3D" parent="StudioProps" unique_id=464664956 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33720" parent="StudioProps" unique_id=464664956 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.8986476, 0, 0.85451156, 0, 1.0409048, 0, -0.85451156, 0, -0.8986476, 304.51236, -4.702235, 701.0408)
 
-[node name="@Node3D@33721" type="Node3D" parent="StudioProps" unique_id=2129262166 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33721" parent="StudioProps" unique_id=2129262166 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.07894696, 0, -1.0101604, 0, 1.1615578, 0, 1.0101604, 0, 0.07894696, 302.2226, -5.116193, 688.689)
 
-[node name="@Node3D@33722" type="Node3D" parent="StudioProps" unique_id=1023339767 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33722" parent="StudioProps" unique_id=1023339767 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.8446483, 0, -0.22123067, 0, 0.81680024, 0, 0.22123067, 0, -0.8446483, 305.5708, -5.0914283, 693.362)
 
-[node name="@Node3D@33723" type="Node3D" parent="StudioProps" unique_id=902657893 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33723" parent="StudioProps" unique_id=902657893 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.4567534, 0, 1.4588585, 0, 1.6669029, 0, -1.4588585, 0, 0.4567534, 378.51297, -4.9806256, 643.22437)
 
-[node name="@Node3D@33724" type="Node3D" parent="StudioProps" unique_id=604472303 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33724" parent="StudioProps" unique_id=604472303 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.6872516, 0, 0.7969007, 0, 0.9750642, 0, -0.7969007, 0, -0.6872516, 377.4386, -5.4933515, 652.1387)
 
-[node name="@Node3D@33725" type="Node3D" parent="StudioProps" unique_id=221958995 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33725" parent="StudioProps" unique_id=221958995 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.3562629, 0, 0.35787997, 0, 1.6093909, 0, -0.35787997, 0, 1.3562629, 374.98022, -3.4230459, 629.6128)
 
-[node name="@Node3D@33726" type="Node3D" parent="StudioProps" unique_id=493067766 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33726" parent="StudioProps" unique_id=493067766 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.6059714, 0, 1.0690807, 0, 1.2823116, 0, -1.0690807, 0, 0.6059714, 366.38065, -4.909629, 645.1893)
 
-[node name="@Node3D@33727" type="Node3D" parent="StudioProps" unique_id=1681826689 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33727" parent="StudioProps" unique_id=1681826689 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.75409544, 0, 0.5025868, 0, 0.90460104, 0, -0.5025868, 0, 0.75409544, 368.5007, -5.1952934, 652.7841)
 
-[node name="@Node3D@33728" type="Node3D" parent="StudioProps" unique_id=951022324 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33728" parent="StudioProps" unique_id=951022324 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.66521704, 0, -1.3721215, 0, 1.5081316, 0, 1.3721215, 0, 0.66521704, 365.5499, -4.212721, 637.57526)
 
-[node name="@Node3D@33729" type="Node3D" parent="StudioProps" unique_id=1199440048 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33729" parent="StudioProps" unique_id=1199440048 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.2409989, 0, 0.9226337, 0, 1.7144536, 0, -0.9226337, 0, 1.2409989, 368.77298, -4.1873455, 637.0955)
 
-[node name="@Node3D@33730" type="Node3D" parent="StudioProps" unique_id=1191840781 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33730" parent="StudioProps" unique_id=1191840781 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.013875, 0, 0.9413271, 0, 1.1876255, 0, -0.9413271, 0, 1.013875, 375.0897, -4.5279026, 638.98694)
 
-[node name="@Node3D@33731" type="Node3D" parent="StudioProps" unique_id=562053975 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33731" parent="StudioProps" unique_id=562053975 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9052307, 0, -0.071644835, 0, 0.7941643, 0, 0.071644835, 0, 0.9052307, 371.47116, -5.2725415, 651.87103)
 
-[node name="@Node3D@33732" type="Node3D" parent="StudioProps" unique_id=1100132442 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33732" parent="StudioProps" unique_id=1100132442 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.57603264, 0, -1.14213, 0, 1.3303782, 0, 1.14213, 0, 0.57603264, 370.8824, -3.596088, 631.3983)
 
-[node name="@Node3D@33733" type="Node3D" parent="StudioProps" unique_id=898390831 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33733" parent="StudioProps" unique_id=898390831 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1171628, 0, 0.69614327, 0, 1.2451472, 0, -0.69614327, 0, -1.1171628, 363.52026, -4.9223704, 646.8836)
 
-[node name="@Node3D@33734" type="Node3D" parent="StudioProps" unique_id=1623084842 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33734" parent="StudioProps" unique_id=1623084842 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.7347974, 0, 1.6618208, 0, 1.8669283, 0, -1.6618208, 0, -0.7347974, 379.50345, -4.5711184, 638.9489)
 
-[node name="@Node3D@33735" type="Node3D" parent="StudioProps" unique_id=1769546017 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33735" parent="StudioProps" unique_id=1769546017 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.3152348, 0, 0.066356815, 0, 1.0879464, 0, -0.066356815, 0, -1.3152348, 366.0967, -5.043817, 648.6878)
 
-[node name="@Node3D@33736" type="Node3D" parent="StudioProps" unique_id=1244311428 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33736" parent="StudioProps" unique_id=1244311428 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.44532928, 0, 0.74178094, 0, 0.89798933, 0, -0.74178094, 0, -0.44532928, 367.19757, -3.015327, 621.1303)
 
-[node name="@Node3D@33737" type="Node3D" parent="StudioProps" unique_id=345974360 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33737" parent="StudioProps" unique_id=345974360 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0610645, 0, -0.18982422, 0, 1.1315407, 0, 0.18982422, 0, 1.0610645, 350.4048, -2.0847228, 592.93054)
 
-[node name="@Node3D@33738" type="Node3D" parent="StudioProps" unique_id=1154224650 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33738" parent="StudioProps" unique_id=1154224650 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.35769603, 0, 1.1619295, 0, 1.0270286, 0, -1.1619295, 0, 0.35769603, 375.07632, -2.8222673, 623.41766)
 
-[node name="@Node3D@33739" type="Node3D" parent="StudioProps" unique_id=1145761287 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33739" parent="StudioProps" unique_id=1145761287 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.2268088, 0, -0.37040442, 0, 1.2857031, 0, 0.37040442, 0, -1.2268088, 348.7871, -3.5213597, 622.87775)
 
-[node name="@Node3D@33740" type="Node3D" parent="StudioProps" unique_id=2019019262 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33740" parent="StudioProps" unique_id=2019019262 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.55425483, 0, 1.1722562, 0, 1.1922204, 0, -1.1722562, 0, 0.55425483, 353.55566, -2.765592, 607.18994)
 
-[node name="@Node3D@33741" type="Node3D" parent="StudioProps" unique_id=828480827 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33741" parent="StudioProps" unique_id=828480827 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.2297799, 0, -1.1795512, 0, 1.2127748, 0, 1.1795512, 0, 0.2297799, 367.61884, -2.1290135, 608.1721)
 
-[node name="@Node3D@33742" type="Node3D" parent="StudioProps" unique_id=1490745396 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33742" parent="StudioProps" unique_id=1490745396 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0128715, 0, 0.12543759, 0, 0.9249391, 0, -0.12543759, 0, 1.0128715, 350.54132, -2.702443, 605.4929)
 
-[node name="@Node3D@33743" type="Node3D" parent="StudioProps" unique_id=1104637390 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33743" parent="StudioProps" unique_id=1104637390 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1664934, 0, -0.66289216, 0, 1.4271764, 0, 0.66289216, 0, -1.1664934, 352.7795, -3.2868876, 618.2289)
 
-[node name="@Node3D@33744" type="Node3D" parent="StudioProps" unique_id=419629491 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33744" parent="StudioProps" unique_id=419629491 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.5247844, 0, 1.4637755, 0, 1.4783242, 0, -1.4637755, 0, 0.5247844, 372.0581, -2.0868115, 613.032)
 
-[node name="@Node3D@33745" type="Node3D" parent="StudioProps" unique_id=542283809 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33745" parent="StudioProps" unique_id=542283809 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.4596403, 0, 0.20667745, 0, 1.5065187, 0, -0.20667745, 0, 1.4596403, 348.87247, -3.0986075, 613.6512)
 
-[node name="@Node3D@33746" type="Node3D" parent="StudioProps" unique_id=163791694 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33746" parent="StudioProps" unique_id=163791694 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.5438488, 0, 0.9714309, 0, 1.8202996, 0, -0.9714309, 0, -1.5438488, 381.0616, -1.1549476, 614.06885)
 
-[node name="@Node3D@33747" type="Node3D" parent="StudioProps" unique_id=1735969288 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33747" parent="StudioProps" unique_id=1735969288 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1588354, 0, -0.016632669, 0, 1.3962582, 0, 0.016632669, 0, -1.1588354, 363.39023, -2.172455, 602.5836)
 
-[node name="@Node3D@33748" type="Node3D" parent="StudioProps" unique_id=1666849971 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33748" parent="StudioProps" unique_id=1666849971 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.87483865, 0, 0.25717676, 0, 0.830912, 0, -0.25717676, 0, -0.87483865, 368.82788, -3.3400102, 627.1844)
 
-[node name="@Node3D@33749" type="Node3D" parent="StudioProps" unique_id=1655986670 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33749" parent="StudioProps" unique_id=1655986670 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.35262764, 0, 1.1298877, 0, 1.3399122, 0, -1.1298877, 0, 0.35262764, 342.6955, -3.7322955, 621.4392)
 
-[node name="@Node3D@33750" type="Node3D" parent="StudioProps" unique_id=1146181687 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33750" parent="StudioProps" unique_id=1146181687 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.0163922, 0, 1.2854612, 0, 1.4676557, 0, -1.2854612, 0, -1.0163922, 366.77728, -2.7409172, 616.15656)
 
-[node name="@Node3D@33751" type="Node3D" parent="StudioProps" unique_id=1893827487 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33751" parent="StudioProps" unique_id=1893827487 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.44781995, 0, 1.0345538, 0, 1.0587721, 0, -1.0345538, 0, -0.44781995, 371.87292, -0.5720226, 589.8799)
 
-[node name="@Node3D@33752" type="Node3D" parent="StudioProps" unique_id=333092891 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33752" parent="StudioProps" unique_id=333092891 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.38251454, 0, 1.4562639, 0, 1.4479668, 0, -1.4562639, 0, -0.38251454, 357.07944, -2.4958744, 602.9478)
 
-[node name="@Node3D@33753" type="Node3D" parent="StudioProps" unique_id=126745300 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33753" parent="StudioProps" unique_id=126745300 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.33439597, 0, -1.3590649, 0, 1.304149, 0, 1.3590649, 0, -0.33439597, 365.1912, -0.99248505, 576.7195)
 
-[node name="@Node3D@33754" type="Node3D" parent="StudioProps" unique_id=610636666 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33754" parent="StudioProps" unique_id=610636666 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.3852327, 0, -0.24963354, 0, 1.4009485, 0, 0.24963354, 0, 1.3852327, 358.94617, -1.6500046, 586.31433)
 
-[node name="@Node3D@33755" type="Node3D" parent="StudioProps" unique_id=85635587 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33755" parent="StudioProps" unique_id=85635587 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.04332731, 0, 0.9681785, 0, 0.9689203, 0, -0.9681785, 0, -0.04332731, 363.84085, -0.89832723, 571.4221)
 
-[node name="@Node3D@33756" type="Node3D" parent="StudioProps" unique_id=570209405 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33756" parent="StudioProps" unique_id=570209405 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.9112963, 0, 0.2515425, 0, 0.8984637, 0, -0.2515425, 0, 0.9112963, 385.56558, 3.0121753, 582.7482)
 
-[node name="@Node3D@33757" type="Node3D" parent="StudioProps" unique_id=45518240 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33757" parent="StudioProps" unique_id=45518240 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.356458, 0, -1.4697376, 0, 1.281929, 0, 1.4697376, 0, 0.356458, 361.69632, -1.7546899, 591.5407)
 
-[node name="@Node3D@33758" type="Node3D" parent="StudioProps" unique_id=1792546512 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33758" parent="StudioProps" unique_id=1792546512 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0290228, 0, 0.71794224, 0, 1.3387303, 0, -0.71794224, 0, 1.0290228, 369.52606, -0.6420979, 577.5429)
 
-[node name="@Node3D@33759" type="Node3D" parent="StudioProps" unique_id=1352701694 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33759" parent="StudioProps" unique_id=1352701694 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.04930306, 0, 1.2641408, 0, 1.331671, 0, -1.2641408, 0, -0.04930306, 354.80124, -2.620282, 604.512)
 
-[node name="@Node3D@33760" type="Node3D" parent="StudioProps" unique_id=2132667445 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33760" parent="StudioProps" unique_id=2132667445 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.73176235, 0, -0.75732046, 0, 0.9212346, 0, 0.75732046, 0, 0.73176235, 371.48248, -0.3841802, 571.2933)
 
-[node name="@Node3D@33761" type="Node3D" parent="StudioProps" unique_id=1538999692 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33761" parent="StudioProps" unique_id=1538999692 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.5359665, 0, 0.100875065, 0, 1.4686866, 0, -0.100875065, 0, 1.5359665, 359.4295, -2.2605205, 599.74786)
 
-[node name="@Node3D@33762" type="Node3D" parent="StudioProps" unique_id=2052794602 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33762" parent="StudioProps" unique_id=2052794602 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.5165329, 0, 0.16031975, 0, 1.4334663, 0, -0.16031975, 0, -1.5165329, 364.09744, -1.2935522, 584.0394)
 
-[node name="@Node3D@33763" type="Node3D" parent="StudioProps" unique_id=176922470 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33763" parent="StudioProps" unique_id=176922470 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.2444499, 0, 1.2786613, 0, 1.8934093, 0, -1.2786613, 0, 1.2444499, 366.36414, -1.204685, 587.3952)
 
-[node name="@Node3D@33764" type="Node3D" parent="StudioProps" unique_id=266667721 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33764" parent="StudioProps" unique_id=266667721 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.5894911, 0, -1.4245206, 0, 1.6646711, 0, 1.4245206, 0, 0.5894911, 346.27954, -2.0233037, 596.1772)
 
-[node name="@Node3D@33765" type="Node3D" parent="StudioProps" unique_id=56369 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33765" parent="StudioProps" unique_id=56369 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.3727184, 0, -1.5502392, 0, 1.5421529, 0, 1.5502392, 0, 0.3727184, 385.39874, 2.622562, 573.46173)
 
-[node name="@Node3D@33766" type="Node3D" parent="StudioProps" unique_id=1664062511 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33766" parent="StudioProps" unique_id=1664062511 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.68531567, 0, 0.7246833, 0, 0.9903079, 0, -0.7246833, 0, 0.68531567, 379.4328, 1.1232574, 583.61444)
 
-[node name="@Node3D@33767" type="Node3D" parent="StudioProps" unique_id=1296218650 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33767" parent="StudioProps" unique_id=1296218650 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.8934254, 0, -1.3675451, 0, 1.8693968, 0, 1.3675451, 0, -0.8934254, 371.56607, -1.4052045, 603.44794)
 
-[node name="@Node3D@33768" type="Node3D" parent="StudioProps" unique_id=1008726720 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33768" parent="StudioProps" unique_id=1008726720 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.73589784, 0, -0.014335036, 0, 0.771431, 0, 0.014335036, 0, 0.73589784, 372.68665, -0.29607072, 583.4287)
 
-[node name="@Node3D@33769" type="Node3D" parent="StudioProps" unique_id=1772129169 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33769" parent="StudioProps" unique_id=1772129169 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.6113505, 0, -1.6999521, 0, 1.7174686, 0, 1.6999521, 0, 0.6113505, 350.38556, -0.24830496, 572.56836)
 
-[node name="@Node3D@33770" type="Node3D" parent="StudioProps" unique_id=659432100 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33770" parent="StudioProps" unique_id=659432100 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.7680204, 0, 1.2126746, 0, 1.5638413, 0, -1.2126746, 0, -0.7680204, 366.97937, -1.6678145, 598.992)
 
-[node name="@Node3D@33771" type="Node3D" parent="StudioProps" unique_id=654873531 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33771" parent="StudioProps" unique_id=654873531 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.5890262, 0, 1.018957, 0, 1.7024698, 0, -1.018957, 0, -1.5890262, 356.5253, -1.2917074, 576.7459)
 
-[node name="@Node3D@33772" type="Node3D" parent="StudioProps" unique_id=347329011 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33772" parent="StudioProps" unique_id=347329011 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.1707222, 0, -1.0263004, 0, 0.9977818, 0, 1.0263004, 0, -0.1707222, 384.02338, 2.476399, 586.84845)
 
-[node name="@Node3D@33773" type="Node3D" parent="StudioProps" unique_id=1634306076 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33773" parent="StudioProps" unique_id=1634306076 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.92989045, 0, -0.67391354, 0, 1.2118025, 0, 0.67391354, 0, 0.92989045, 291.67166, -1.6651956, 592.3562)
 
-[node name="@Node3D@33774" type="Node3D" parent="StudioProps" unique_id=1463730774 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33774" parent="StudioProps" unique_id=1463730774 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.8577288, 0, 0.7870119, 0, 1.1046747, 0, -0.7870119, 0, 0.8577288, 298.51077, 1.6227287, 565.60815)
 
-[node name="@Node3D@33775" type="Node3D" parent="StudioProps" unique_id=89254047 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33775" parent="StudioProps" unique_id=89254047 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.6945908, 0, -1.2410313, 0, 1.538681, 0, 1.2410313, 0, 0.6945908, 315.62543, -0.48862192, 571.9391)
 
-[node name="@Node3D@33776" type="Node3D" parent="StudioProps" unique_id=498263269 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33776" parent="StudioProps" unique_id=498263269 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.7567344, 0, 0.51050717, 0, 0.84399176, 0, -0.51050717, 0, 0.7567344, 322.48584, -1.1775982, 577.57935)
 
-[node name="@Node3D@33777" type="Node3D" parent="StudioProps" unique_id=504196463 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33777" parent="StudioProps" unique_id=504196463 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.5914083, 0, -0.82397646, 0, 0.97636443, 0, 0.82397646, 0, -0.5914083, 301.94394, -2.5017083, 601.6643)
 
-[node name="@Node3D@33778" type="Node3D" parent="StudioProps" unique_id=875648638 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33778" parent="StudioProps" unique_id=875648638 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.0674913, 0, -0.5040428, 0, 1.1336496, 0, 0.5040428, 0, 1.0674913, 314.33224, -1.0786235, 579.8466)
 
-[node name="@Node3D@33779" type="Node3D" parent="StudioProps" unique_id=615774400 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33779" parent="StudioProps" unique_id=615774400 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.6495888, 0, -1.2170384, 0, 1.2327456, 0, 1.2170384, 0, -0.6495888, 322.9371, -0.2861371, 564.34436)
 
-[node name="@Node3D@33780" type="Node3D" parent="StudioProps" unique_id=1562043744 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33780" parent="StudioProps" unique_id=1562043744 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.5790688, 0, -1.525395, 0, 1.7136747, 0, 1.525395, 0, 0.5790688, 321.8263, -1.4714937, 582.558)
 
-[node name="@Node3D@33781" type="Node3D" parent="StudioProps" unique_id=1139139859 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33781" parent="StudioProps" unique_id=1139139859 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.64844286, 0, 0.81053764, 0, 1.1120499, 0, -0.81053764, 0, 0.64844286, 312.66705, 0.146073, 567.36163)
 
-[node name="@Node3D@33782" type="Node3D" parent="StudioProps" unique_id=1690198207 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33782" parent="StudioProps" unique_id=1690198207 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.7315977, 0, -0.21470596, 0, 1.7543985, 0, 0.21470596, 0, -1.7315977, 317.90195, -1.7624346, 588.4214)
 
-[node name="@Node3D@33783" type="Node3D" parent="StudioProps" unique_id=12753865 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33783" parent="StudioProps" unique_id=12753865 instance=ExtResource("pine_tree")]
 transform = Transform3D(0.22850952, 0, -1.4026389, 0, 1.3858876, 0, 1.4026389, 0, 0.22850952, 293.19864, 0.07733583, 578.9594)
 
-[node name="@Node3D@33784" type="Node3D" parent="StudioProps" unique_id=638514412 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33784" parent="StudioProps" unique_id=638514412 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.24020235, 0, -1.055801, 0, 1.1216315, 0, 1.055801, 0, -0.24020235, 327.25308, -0.97470117, 573.01306)
 
-[node name="@Node3D@33785" type="Node3D" parent="StudioProps" unique_id=694090019 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33785" parent="StudioProps" unique_id=694090019 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.4824711, 0, -0.47144368, 0, 1.5984901, 0, 0.47144368, 0, -1.4824711, 313.5555, -1.6074302, 587.2129)
 
-[node name="@Node3D@33786" type="Node3D" parent="StudioProps" unique_id=17074119 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33786" parent="StudioProps" unique_id=17074119 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.7755418, 0, 0.98771405, 0, 1.0904602, 0, -0.98771405, 0, -0.7755418, 329.19577, -1.1295162, 584.51483)
 
-[node name="@Node3D@33787" type="Node3D" parent="StudioProps" unique_id=493999394 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33787" parent="StudioProps" unique_id=493999394 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.65038514, 0, 1.7562071, 0, 1.9718943, 0, -1.7562071, 0, -0.65038514, 292.8559, -0.5349011, 583.5396)
 
-[node name="@Node3D@33788" type="Node3D" parent="StudioProps" unique_id=1013847332 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33788" parent="StudioProps" unique_id=1013847332 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.16737016, 0, 1.2724416, 0, 1.3219956, 0, -1.2724416, 0, -0.16737016, 296.9638, 1.2979107, 568.2349)
 
-[node name="@Node3D@33789" type="Node3D" parent="StudioProps" unique_id=1688424076 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33789" parent="StudioProps" unique_id=1688424076 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1300907, 0, 1.558744, 0, 1.7240843, 0, -1.558744, 0, -1.1300907, 311.82547, -1.2447358, 582.9901)
 
-[node name="@Node3D@33790" type="Node3D" parent="StudioProps" unique_id=498111614 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33790" parent="StudioProps" unique_id=498111614 instance=ExtResource("pine_tree")]
 transform = Transform3D(1.582946, 0, -1.0633612, 0, 1.8174249, 0, 1.0633612, 0, 1.582946, 329.09543, -0.66268605, 570.0699)
 
-[node name="@Node3D@33791" type="Node3D" parent="StudioProps" unique_id=1068460586 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33791" parent="StudioProps" unique_id=1068460586 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.1221797, 0, -0.47809646, 0, 1.1054168, 0, 0.47809646, 0, -1.1221797, 306.0484, -2.2074478, 596.9469)
 
-[node name="@Node3D@33792" type="Node3D" parent="StudioProps" unique_id=414741062 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33792" parent="StudioProps" unique_id=414741062 instance=ExtResource("pine_tree")]
 transform = Transform3D(-0.4373754, 0, -0.9158798, 0, 1.0049319, 0, 0.9158798, 0, -0.4373754, 300.46686, 0.6533821, 571.05566)
 
-[node name="@Node3D@33793" type="Node3D" parent="StudioProps" unique_id=1788297486 instance=ExtResource("pine_tree")]
+[node name="@Node3D@33793" parent="StudioProps" unique_id=1788297486 instance=ExtResource("pine_tree")]
 transform = Transform3D(-1.4346017, 0, -0.9501967, 0, 1.8572993, 0, 0.9501967, 0, -1.4346017, 294.7692, -2.0392704, 595.2286)

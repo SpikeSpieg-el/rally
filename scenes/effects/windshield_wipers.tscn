@@ -1,6 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://cwipersfxscene"]
+[gd_scene format=3 uid="uid://bmcd7ia5sn87s"]
 
-[ext_resource type="Script" path="res://scripts/effects/windshield_wipers.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cld8w28c27v4l" path="res://scripts/effects/windshield_wipers.gd" id="1_script"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_arm"]
 resource_name = "wiper_arm"
@@ -12,37 +12,40 @@ roughness = 0.45
 material = SubResource("Mat_arm")
 size = Vector3(0.026, 0.34, 0.022)
 
-[sub_resource type="StandardMaterial3D" id="Mat_blade"]
+[sub_resource type="StandardMaterial3D" id="Mesh_arm_mat"]
 resource_name = "wiper_blade"
 albedo_color = Color(0.02, 0.02, 0.02, 1)
 roughness = 0.9
 
 [sub_resource type="BoxMesh" id="Mesh_blade"]
-material = SubResource("Mat_blade")
+material = SubResource("Mesh_arm_mat")
 size = Vector3(0.036, 0.58, 0.014)
 
-[node name="WindshieldWipers" type="Node3D"]
-editor_description = "Дворники для вида из кабины. Корень ставится узлом Wipers в сцене машины на низ лобового стекла (transform в сцене машины). Скрипт сам стирает кровь: каждый проход уменьшает пятна через RallyBloodFx.wipe_glass. F6 — превью: щётки сами ходят каждые 6 с."
+[node name="WindshieldWipers" type="Node3D" unique_id=453340048]
+editor_description = "Дворники для вида из кабины. Корень ставится узлом Wipers в сцене машины на низ лобового стекла."
 script = ExtResource("1_script")
+editor_preview = 0.0
+tilt_x_degrees = 0.0
+mirror_right = false
 
-[node name="WiperLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, -0.36, 0, -0.02)
+[node name="WiperLeft" type="Node3D" parent="." unique_id=94935354]
+transform = Transform3D(0.13917309, 0.990268, 0, -0.990268, 0.13917309, 0, 0, 0, 1, -0.25, 0, 0)
 
-[node name="Arm" type="MeshInstance3D" parent="WiperLeft"]
+[node name="Arm" type="MeshInstance3D" parent="WiperLeft" unique_id=1687154140]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
 mesh = SubResource("Mesh_arm")
 
-[node name="Blade" type="MeshInstance3D" parent="WiperLeft"]
+[node name="Blade" type="MeshInstance3D" parent="WiperLeft" unique_id=43740384]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
 mesh = SubResource("Mesh_blade")
 
-[node name="WiperRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, 0.36, 0, -0.02)
+[node name="WiperRight" type="Node3D" parent="." unique_id=1678017853]
+transform = Transform3D(0.13917309, 0.990268, 0, -0.990268, 0.13917309, 0, 0, 0, 1, 0.25, 0, 0)
 
-[node name="Arm" type="MeshInstance3D" parent="WiperRight"]
+[node name="Arm" type="MeshInstance3D" parent="WiperRight" unique_id=1947560022]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
 mesh = SubResource("Mesh_arm")
 
-[node name="Blade" type="MeshInstance3D" parent="WiperRight"]
+[node name="Blade" type="MeshInstance3D" parent="WiperRight" unique_id=1867688193]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
 mesh = SubResource("Mesh_blade")

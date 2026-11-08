@@ -6,5 +6,10 @@
 [resource]
 script = ExtResource("1_settings")
 retro_style_strength = 0.05
-speed_fx_start_kmh = 38.0
-speed_fx_full_kmh = 259.0
+speed_fx_start_kmh = 22.0
+speed_fx_full_kmh = 159.0
+speed_blur_strength = 0.02
+vignette_strength = 0.26
+speed_blur_gain = 2.8
+speed_cockpit_scale = 0.7
+speed_edge_stretch = 0.031

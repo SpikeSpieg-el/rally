@@ -1,7 +1,6 @@
 [gd_scene format=4 uid="uid://wm1brqrr6p8v"]
 
 [ext_resource type="Script" uid="uid://bd80nxls366kq" path="res://scripts/rally_car.gd" id="1_car"]
-[ext_resource type="PackedScene" uid="uid://cwipersfxscene" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 [ext_resource type="Script" uid="uid://cpjpw2srbbum2" path="res://scripts/engine_sound.gd" id="2_audio"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_hbgor"]
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="3_wheel"]
@@ -11,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://f4k4po1d243b" path="res://textures/11.png" id="8_yojui"]
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
+[ext_resource type="PackedScene" uid="uid://bmcd7ia5sn87s" path="res://scenes/effects/windshield_wipers.tscn" id="13_4mbpt"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
 [ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
 
@@ -990,11 +990,11 @@ material = SubResource("Mat_HarnessRed")
 size = Vector3(0.065, 0.68, 0.018)
 
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
-mass = 1230.0
 collision_mask = 3
-continuous_cd = true
+mass = 1230.0
 physics_material_override = SubResource("PhysicsMaterial_37cw1")
 center_of_mass_mode = 1
+continuous_cd = true
 script = ExtResource("1_car")
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
@@ -1565,5 +1565,5 @@ spot_range = 85.0
 spot_attenuation = 0.75
 spot_angle = 32.0
 
-[node name="Wipers" parent="." instance=ExtResource("wipers") unique_id=873402911]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.03, 0.97)
+[node name="WindshieldWipers" parent="." unique_id=453340048 instance=ExtResource("13_4mbpt")]
+transform = Transform3D(1, 0, 0, 0, 0.73183566, 0.6814811, 0, -0.6814811, 0.73183566, -0.2802538, 1.2087768, 1.3741604)
