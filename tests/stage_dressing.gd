@@ -71,6 +71,31 @@ func _initialize() -> void:
 	var house: float = Dressing.landmark_distance(3700.0, 5, 21, 0.52, 0.62)
 	check(house >= 3700.0 * 0.52 and house <= 3700.0 * 0.62, "домик лесника во второй половине")
 
+	# Болельщики на бровке: детерминированы, внутри трассы, не больше потолка.
+	var fans: Array = Dressing.roadside_fans(3700.0, 42, 26.0, 90)
+	var fans_again: Array = Dressing.roadside_fans(3700.0, 42, 26.0, 90)
+	check(not fans.is_empty(), "на длинной трассе есть болельщики у дороги")
+	check(fans.size() == fans_again.size(), "расстановка болельщиков детерминирована")
+	check(fans.size() <= 90, "потолок болельщиков")
+	var saw_eager: bool = false
+	var saw_left: bool = false
+	var saw_right: bool = false
+	for fan in fans:
+		var fan_distance: float = float(fan.get("distance", -1.0))
+		check(fan_distance >= 70.0, "болельщик не у старта")
+		check(fan_distance <= 3700.0 - 110.0, "болельщик не у финиша")
+		var fan_side: float = float(fan.get("side", 0.0))
+		check(fan_side == 1.0 or fan_side == -1.0, "болельщик стоит слева или справа")
+		if fan_side > 0.0:
+			saw_right = true
+		else:
+			saw_left = true
+		if bool(fan.get("eager", false)):
+			saw_eager = true
+			check(float(fan.get("inset", 1.0)) <= 0.5, "храбрый болельщик ближе к полотну")
+	check(saw_left and saw_right, "болельщики по обе стороны дороги")
+	check(saw_eager, "часть болельщиков слишком близко к полотну")
+
 	if failures.is_empty():
 		print("STAGE_DRESSING_OK")
 		quit(0)

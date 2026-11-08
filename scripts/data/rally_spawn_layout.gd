@@ -98,6 +98,12 @@ extends Resource
 @export_range(1, 40, 1) var spectator_max_spots: int = 10
 ## Зрителей в одном лагере (плюс два фотографа у кромки).
 @export_range(3, 16, 1) var spectator_crowd_size: int = 8
+## Болельщики на бровке по всей трассе: их можно случайно сбить.
+@export var roadside_fans: bool = true
+## Шаг расстановки болельщиков вдоль оси, м.
+@export_range(8.0, 80.0, 1.0) var roadside_fan_spacing: float = 26.0
+## Потолок одиночных болельщиков на трассу.
+@export_range(0, 200, 1) var roadside_fan_max: int = 90
 ## Ставить вертолёт с прожектором над серединой трассы.
 @export var helicopter: bool = true
 

@@ -45,10 +45,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.15, 0, 2.3)
 [node name="Photographers" type="Node3D" parent="." unique_id=1250842291]
 
 [node name="Photographer0" parent="Photographers" unique_id=844507502 instance=ExtResource("person")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -2.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -4.4)
 
 [node name="Photographer1" parent="Photographers" unique_id=46945126 instance=ExtResource("person")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 0, -2.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 0, -4.1)
 
 [node name="Flashes" type="Node3D" parent="." unique_id=926728502]
 
