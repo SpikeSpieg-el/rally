@@ -1,6 +1,8 @@
-## Настройки сцены заезда: редактор, PS1-экран, скорость, осадки, окружение.
+## Настройки сцены заезда: редактор, PS1-экран, осадки, окружение.
 ##
-## ЭТО ГЛАВНЫЙ «ПУЛЬТ» ЭФФЕКТОВ. Файл по умолчанию —
+## ЭТО «ПУЛЬТ» ЭФФЕКТОВ, КРОМЕ СКОРОСТИ: у ощущения скорости один пульт —
+## узел `VisualEffects/Speed` (`scenes/effects/speed_effect.tscn`), общий для
+## всех заездов. Файл по умолчанию —
 ## res://data/stage/default_stage_settings.tres: откройте его в инспекторе
 ## Godot и меняйте значения — сцена заезда читает их при сборке мира.
 ## Сцена может переопределить ресурс: у корня RallyStage есть поле `settings`.
@@ -37,25 +39,23 @@ extends Resource
 ## Бит на канал для экранной палитры поверх трассы. -1 — брать из трассы.
 @export_range(-1, 8, 1) var retro_color_bits_override: int = -1
 
-@export_group("Эффект скорости")
-## Включать скоростное размытие/виньетку (трасса может выключить своим флагом).
-@export var speed_fx_enabled: bool = true
-## Общая интенсивность скоростного размытия и виньетки.
-@export_range(0.0, 2.0, 0.05) var speed_effect_strength: float = 1.0
-## Скорость, с которой эффект начинает появляться, км/ч.
-@export_range(0.0, 300.0, 1.0, "suffix:km/h") var speed_fx_start_kmh: float = 55.0
-## Скорость, на которой эффект выходит на максимум, км/ч.
-@export_range(20.0, 400.0, 1.0, "suffix:km/h") var speed_fx_full_kmh: float = 180.0
-## Радиус размытия по краям экрана (uniform blur_strength).
-@export_range(0.0, 0.05, 0.001) var speed_blur_strength: float = 0.012
-## Сила виньетки поверх ретро-стиля.
-@export_range(0.0, 1.0, 0.01) var vignette_strength: float = 0.12
-## Множитель периферийного размытия для вида сзади/из кабины.
-@export_range(1.0, 4.0, 0.1) var speed_blur_gain: float = 2.0
-## Сила нового эффекта в кабине относительно вида сзади.
-@export_range(0.0, 1.0, 0.05) var speed_cockpit_scale: float = 0.8
-## Растяжение картинки от центра к краям (uniform speed_stretch).
-@export_range(0.0, 0.06, 0.001) var speed_edge_stretch: float = 0.02
+# Эффект скорости сюда НЕ относится: у него один пульт — узел
+# `VisualEffects/Speed` (`scenes/effects/speed_effect.tscn`), общий для всех
+# заездов. Поля ниже оставлены только чтобы старые .tres открывались без
+# ошибок. `@export_storage` = значение читается из файла, но в инспекторе его
+# нет: второго набора ползунков, который ни на что не влияет, больше нет.
+# Разовый перенос старых чисел в узел — кнопка у корня этапа
+# «Перенести старый ресурс в эффекты сцены».
+@export_storage var speed_fx_enabled: bool = true
+@export_storage var speed_effect_strength: float = 1.0
+@export_storage var speed_fx_start_kmh: float = 55.0
+@export_storage var speed_fx_full_kmh: float = 180.0
+@export_storage var speed_blur_strength: float = 0.012
+@export_storage var vignette_strength: float = 0.12
+@export_storage var speed_blur_gain: float = 2.0
+@export_storage var speed_cockpit_scale: float = 0.8
+@export_storage var speed_edge_stretch: float = 0.02
+
 
 @export_group("Осадки в мире")
 ## Выключатель мировых частиц (дождь/снег) без правки погодных пресетов.
@@ -241,9 +241,3 @@ func dither_for(track: Resource) -> bool:
 	return track != null and bool(track.get("dither_fog"))
 
 
-## Насколько проявляется эффект скорости при данной скорости, км/ч.
-func speed_fx_amount(speed_kmh: float, track: Resource) -> float:
-	if not speed_fx_enabled or track == null or not bool(track.get("enable_speed_fx")):
-		return 0.0
-	var span: float = maxf(1.0, speed_fx_full_kmh - speed_fx_start_kmh)
-	return clampf((speed_kmh - speed_fx_start_kmh) / span * speed_effect_strength, 0.0, 1.0)

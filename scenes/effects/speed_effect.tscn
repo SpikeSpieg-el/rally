@@ -3,5 +3,13 @@
 [ext_resource type="Script" uid="uid://csltb0po8hd2s" path="res://scripts/effects/rally_speed_feel.gd" id="1_script"]
 
 [node name="Speed" type="Node" unique_id=1530787186]
-editor_description = "Ощущение скорости. Готовые характеры: выключено / комфорт / выразительно / аркада. Сзади и в кабине: усиленное периферийное размытие; капот — прежний спокойный эффект. Основную отдачу дают камера и инерция."
+editor_description = "Единственный пульт эффекта скорости для всех заездов: готовые характеры выключено / комфорт / выразительно / аркада, точные числа — в режиме «Свой характер». Сзади и в кабине: усиленное периферийное размытие; капот — прежний спокойный эффект."
 script = ExtResource("1_script")
+feel = 0
+start_kmh = 22.0
+full_kmh = 159.0
+edge_blur_percent = 2.0
+vignette_percent = 26.0
+blur_gain = 2.8
+cockpit_scale = 0.7
+edge_stretch_percent = 3.1

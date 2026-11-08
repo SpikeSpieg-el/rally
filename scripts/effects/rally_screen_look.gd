@@ -1,5 +1,9 @@
 ## Экранный ретро-вид. Живёт настоящим ColorRect под HUD, а не создаётся
 ## невидимым кодом. Материал принадлежит сцене и сохраняется вместе с ней.
+##
+## Uniform'ы материала — это зеркало настроек: ретро-часть берётся из этого
+## узла, скорость — из `VisualEffects/Speed`. Руками параметры материала
+## править не нужно: код пересчитывает их из узлов.
 @tool
 class_name RallyScreenLook
 extends ColorRect
@@ -76,6 +80,9 @@ var _track_allows_speed := true
 var _speed_kmh := 0.0
 var _camera_mode := 0
 var _compare_original := false
+## Дополнительные uniform'ы нужно применить заново после правки настроек.
+var _params_dirty := true
+var _warned_no_speed := false
 
 
 func _ready() -> void:
@@ -85,7 +92,12 @@ func _ready() -> void:
 		material = ShaderMaterial.new()
 	if (material as ShaderMaterial).shader == null:
 		(material as ShaderMaterial).shader = preload("res://shaders/speed_fx.gdshader")
-	_apply_material()
+	# Как и у эффекта скорости: выбранный вид должен пережить перезапуск
+	# сцены. Сохранённые числа пресета не имеют права превращать его в
+	# «Свой вид» при каждой загрузке .tscn.
+	if look != Look.CUSTOM:
+		_apply_preset()
+	_params_dirty = true
 	_refresh()
 
 
@@ -96,9 +108,15 @@ func _validate_property(property: Dictionary) -> void:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
+## См. комментарий у RallySpeedFeel._mark_custom(): ручная правка числа
+## включает «Свой вид» только у узла, который уже стоит в сцене.
 func _mark_custom() -> void:
-	if not _applying_preset and look != Look.CUSTOM:
-		look = Look.CUSTOM
+	if _applying_preset or not is_inside_tree():
+		return
+	if look == Look.CUSTOM:
+		return
+	look = Look.CUSTOM
+	notify_property_list_changed()
 
 
 func _apply_preset() -> void:
@@ -115,6 +133,7 @@ func _apply_preset() -> void:
 
 
 func _refresh() -> void:
+	_params_dirty = true
 	description = "Обрабатывает картинку мира до HUD: пиксельная сетка, палитра и дизер.\n"
 	description += "Материалы дороги/земли получают ту же сетку вершин; физика не меняется.\n"
 	match look:
@@ -133,14 +152,24 @@ func _refresh() -> void:
 
 func bind_speed(node: SpeedFeelType) -> void:
 	speed_feel = node
+	_params_dirty = true
 	_apply_material()
 
 
+## `null` значит «трассы ещё нет», а не «выключить пиксели». Иначе загрузка
+## сцены без ресурса трассы гасила ретро-фильтр и сохраняла нули в .tscn.
 func configure_for_track(track: Resource) -> void:
-	_track_ps1 = track != null and bool(track.get("ps1_style"))
-	_track_bits = int(track.get("color_banding")) if track != null else 5
-	_track_dither = track != null and bool(track.get("dither_fog"))
-	_track_allows_speed = track == null or bool(track.get("enable_speed_fx"))
+	if track == null:
+		_apply_material()
+		return
+	_track_ps1 = bool(track.get("ps1_style"))
+	var bits: Variant = track.get("color_banding")
+	_track_bits = int(bits) if bits != null else 5
+	var dither: Variant = track.get("dither_fog")
+	_track_dither = bool(dither) if dither != null else true
+	var allows: Variant = track.get("enable_speed_fx")
+	_track_allows_speed = bool(allows) if allows != null else true
+	_params_dirty = true
 	_apply_material()
 
 
@@ -153,7 +182,19 @@ func set_preview_speed(speed_kmh: float, camera_mode: int = -1) -> void:
 
 func set_compare_original(value: bool) -> void:
 	_compare_original = value
+	_params_dirty = true
 	_apply_material()
+
+
+## Почему эффект скорости сейчас не виден. Пустая строка — всё работает.
+func speed_blocked_reason() -> String:
+	if _compare_original:
+		return "включено сравнение «Показать оригинал»"
+	if speed_feel == null:
+		return "экран не связан с узлом VisualEffects/Speed"
+	if not _track_allows_speed:
+		return "трасса запрещает эффект: enable_speed_fx = false"
+	return speed_feel.inactive_reason(_speed_kmh)
 
 
 func _apply_material() -> void:
@@ -163,31 +204,41 @@ func _apply_material() -> void:
 	var retro_on := enabled and _track_ps1 and not _compare_original
 	var bits := palette_bits if look == Look.CUSTOM else int(PRESETS.get(look, PRESETS[Look.CLASSIC_PS1])[2])
 	var levels := (1 << clampi(bits, 0, 8)) - 1 if retro_on and bits > 0 else 0
-	mat.set_shader_parameter("retro_strength", clampf(strength, 0.0, 1.0) if retro_on else 0.0)
-	mat.set_shader_parameter("resolution_y", float(pixel_height))
-	mat.set_shader_parameter("color_levels", float(levels))
-	mat.set_shader_parameter("dither_strength", 1.0 if retro_on and dithering and _track_dither else 0.0)
-	var blur := 0.012
-	var vignette := 0.12
-	var intensity := 0.0
-	var gain := 1.0
-	var cockpit := 0.8
-	var stretch := 0.0
-	if speed_feel != null and not _compare_original:
-		blur = speed_feel.edge_blur_percent / 100.0
-		vignette = speed_feel.vignette_percent / 100.0
-		intensity = speed_feel.intensity_for(_speed_kmh, _track_allows_speed)
-		gain = speed_feel.blur_gain
-		cockpit = speed_feel.cockpit_scale
-		stretch = speed_feel.edge_stretch_percent / 100.0
-	mat.set_shader_parameter("blur_strength", blur)
-	mat.set_shader_parameter("vignette_strength", vignette)
-	mat.set_shader_parameter("speed_intensity", intensity)
-	mat.set_shader_parameter("camera_mode", _camera_mode)
-	mat.set_shader_parameter("blur_gain", gain)
-	mat.set_shader_parameter("cockpit_scale", cockpit)
-	mat.set_shader_parameter("speed_stretch", stretch)
-	ShaderParam.apply_all(mat, custom_uniforms)
+	_set_param(mat, "retro_strength", clampf(strength, 0.0, 1.0) if retro_on else 0.0)
+	_set_param(mat, "resolution_y", float(pixel_height))
+	_set_param(mat, "color_levels", float(levels))
+	_set_param(mat, "dither_strength", 1.0 if retro_on and dithering and _track_dither else 0.0)
+	# Скорость приходит только от узла Speed. Без него материал остаётся
+	# таким, каким его сохранили в сцене: молчаливые нули ломали эффект.
+	if speed_feel != null:
+		_set_param(mat, "blur_strength", speed_feel.edge_blur_percent / 100.0)
+		_set_param(mat, "vignette_strength", speed_feel.vignette_percent / 100.0)
+		var intensity := 0.0 if _compare_original else speed_feel.intensity_for(
+			_speed_kmh, _track_allows_speed
+		)
+		_set_param(mat, "speed_intensity", intensity)
+		_set_param(mat, "camera_mode", _camera_mode)
+		_set_param(mat, "blur_gain", speed_feel.blur_gain)
+		_set_param(mat, "cockpit_scale", speed_feel.cockpit_scale)
+		_set_param(mat, "speed_stretch", speed_feel.edge_stretch_percent / 100.0)
+	elif not _warned_no_speed and not Engine.is_editor_hint():
+		_warned_no_speed = true
+		push_warning(
+			"RallyScreenLook: нет узла Speed — экранный эффект скорости остаётся на значениях материала."
+		)
+	if _params_dirty:
+		ShaderParam.apply_all(mat, custom_uniforms)
+	_params_dirty = false
+
+
+## Пишем uniform только когда значение реально изменилось: иначе материал
+## помечается изменённым каждый кадр, а в редакторе сцена сразу становится
+## «несохранённой» при открытии. Сравниваем с тем, что уже стоит в материале.
+func _set_param(mat: ShaderMaterial, param: String, value: Variant) -> void:
+	var current: Variant = mat.get_shader_parameter(param)
+	if current != null and current == value:
+		return
+	mat.set_shader_parameter(param, value)
 
 
 ## Совместимость: после загрузки сцены ресурс этапа становится зеркалом узлов.
@@ -217,4 +268,5 @@ func adopt_settings(cfg: Resource) -> void:
 	var overrides: Array = cfg.get("screen_shader_overrides")
 	custom_uniforms.assign(overrides)
 	_applying_preset = false
+	_params_dirty = true
 	_refresh()

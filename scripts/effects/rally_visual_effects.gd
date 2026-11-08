@@ -1,6 +1,10 @@
 ## Корень визуальных настроек этапа. В дереве сцены лежат отдельные эффекты:
 ## Speed, Rain, Snow, Surfaces; экранный ретро-фильтр — ColorRect под HUD.
 ## Этот скрипт только связывает их, здесь нет «простыни» ползунков.
+##
+## Связывание работает и в редакторе: материал экрана получает значения из
+## узла Speed сразу, поэтому «что видно в инспекторе» = «что будет в заезде»,
+## и сохранённый материал не расходится с настройками.
 @tool
 class_name RallyVisualEffects
 extends Node
@@ -13,11 +17,23 @@ const Surfaces = preload("res://scripts/effects/rally_surface_looks.gd")
 
 @export_group("Где живут эффекты в сцене")
 ## Обычно это HUD/SpeedShaderRect: настоящий материал экранного фильтра.
-@export var screen_path: NodePath = ^"../HUD/SpeedShaderRect"
-@export var speed_path: NodePath = ^"Speed"
-@export var rain_path: NodePath = ^"Rain"
-@export var snow_path: NodePath = ^"Snow"
-@export var surfaces_path: NodePath = ^"Surfaces"
+@export var screen_path: NodePath = ^"../HUD/SpeedShaderRect":
+	set(value):
+		screen_path = value
+		bind_effects()
+@export var speed_path: NodePath = ^"Speed":
+	set(value):
+		speed_path = value
+		bind_effects()
+@export var rain_path: NodePath = ^"Rain":
+	set(value):
+		rain_path = value
+@export var snow_path: NodePath = ^"Snow":
+	set(value):
+		snow_path = value
+@export var surfaces_path: NodePath = ^"Surfaces":
+	set(value):
+		surfaces_path = value
 
 @export_group("Область осадков вокруг машины")
 ## Новые капли рождаются в этой сетке; уже выпавшие остаются в мире.
@@ -25,6 +41,21 @@ const Surfaces = preload("res://scripts/effects/rally_surface_looks.gd")
 @export_range(0.0, 60.0, 0.5, "suffix:м") var anchor_height: float = 11.0
 @export_range(0.0, 2.0, 0.01) var anchor_velocity_lead: float = 0.35
 @export_range(0.0, 200.0, 1.0, "suffix:м/с") var anchor_velocity_limit: float = 50.0
+
+var _warned: Dictionary = {}
+
+
+func _ready() -> void:
+	bind_effects()
+
+
+## Связать экран с узлом скорости. Вызывается из редактора и из заезда.
+func bind_effects() -> void:
+	if not is_inside_tree():
+		return
+	var rect := screen()
+	if rect != null:
+		rect.bind_speed(speed())
 
 
 func screen() -> ScreenLook:
@@ -49,9 +80,22 @@ func surfaces() -> Surfaces:
 
 func configure_screen(track: Resource) -> void:
 	var rect := screen()
-	if rect != null:
-		rect.bind_speed(speed())
-		rect.configure_for_track(track)
+	if rect == null:
+		_warn_once(
+			"screen",
+			"RallyVisualEffects: узел экрана %s не найден — ретро-фильтр и эффект скорости не применятся."
+			% screen_path
+		)
+		return
+	var feel := speed()
+	if feel == null:
+		_warn_once(
+			"speed",
+			"RallyVisualEffects: узел Speed %s не найден — экранный эффект скорости не применится."
+			% speed_path
+		)
+	rect.bind_speed(feel)
+	rect.configure_for_track(track)
 
 
 ## Каждый кадр заезда: экранный фильтр скорости получает текущую скорость.
@@ -110,14 +154,15 @@ func stop_preview() -> void:
 			node.emitting = false
 
 
-## Старый ресурс этапа остаётся совместимым зеркалом, а не главным пультом.
+## Старый ресурс этапа остаётся совместимым зеркалом для ретро/осадков и
+## материалов. Для эффекта скорости зеркала нет: числа живут только в узле
+## Speed — иначе появляется второй пульт, который ни на что не влияет.
 func sync_to_settings(cfg: Resource) -> void:
 	if cfg == null:
 		return
 	if screen() != null:
 		screen().write_settings(cfg)
-	if speed() != null:
-		speed().write_settings(cfg)
+	# Скорость сюда не зеркалится: у неё один пульт — узел Speed.
 	if rain() != null:
 		rain().write_settings(cfg)
 	if snow() != null:
@@ -148,3 +193,12 @@ func adopt_from_settings(cfg: Resource) -> void:
 	anchor_height = float(cfg.get("anchor_height"))
 	anchor_velocity_lead = float(cfg.get("anchor_velocity_lead"))
 	anchor_velocity_limit = float(cfg.get("anchor_velocity_limit"))
+	bind_effects()
+
+
+## Одно предупреждение на проблему: консоль не должна тонуть в спаме каждый кадр.
+func _warn_once(key: String, message: String) -> void:
+	if _warned.has(key):
+		return
+	_warned[key] = true
+	push_warning(message)

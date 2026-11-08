@@ -162,5 +162,8 @@ func _check_migration(effects: RallyVisualEffects) -> void:
 	var mirror := Settings.new()
 	effects.sync_to_settings(mirror)
 	_check(mirror.retro_resolution_height == 360 and mirror.rain_amount_max == 3000, "старый ресурс остаётся совместимым зеркалом узлов")
-	_check(is_equal_approx(mirror.speed_blur_gain, 1.7) and is_equal_approx(mirror.speed_cockpit_scale, 0.6), "ресурс остаётся зеркалом параметров размытия")
-	_check(is_equal_approx(mirror.speed_edge_stretch, 0.031), "ресурс остаётся зеркалом растяжения краёв")
+	# У эффекта скорости один пульт: ресурс не должен получать его числа,
+	# иначе в инспекторе снова появятся «настройки», которые ни на что не влияют.
+	_check(is_equal_approx(mirror.speed_blur_gain, 2.0) and is_equal_approx(mirror.speed_cockpit_scale, 0.8), "скорость не зеркалится в старый ресурс")
+	_check(is_equal_approx(mirror.speed_edge_stretch, 0.02), "растяжение краёв живёт только в узле Speed")
+	_check(is_equal_approx(effects.speed().blur_gain, 1.7), "после миграции числа остаются в узле, а не в ресурсе")

@@ -189,16 +189,15 @@ class SpeedFeelShaderTest(unittest.TestCase):
 class SpeedFeelWiringTest(unittest.TestCase):
     def test_screen_receives_stretch(self):
         screen = read("scripts/effects/rally_screen_look.gd")
-        self.assertIn('mat.set_shader_parameter("speed_stretch", stretch)', screen)
+        self.assertIn('_set_param(mat, "speed_stretch", speed_feel.edge_stretch_percent / 100.0)', screen)
         feel = read("scripts/effects/rally_speed_feel.gd")
         self.assertIn("var edge_stretch_percent:", feel)
-        self.assertIn('cfg.set("speed_edge_stretch", edge_stretch_percent / 100.0)', feel)
-        settings = read("scripts/data/rally_stage_settings.gd")
-        self.assertIn("var speed_edge_stretch:", settings)
 
-    def test_stage_fallback_pushes_stretch(self):
+    def test_stage_pushes_stretch_from_the_node(self):
         stage = read("scripts/rally_stage.gd")
-        self.assertIn('speed_fx_material.set_shader_parameter("speed_stretch", cfg.speed_edge_stretch)', stage)
+        uniform = stage.split("func _apply_speed_uniforms", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn('mat.set_shader_parameter("speed_stretch", _speed_feel.edge_stretch_percent / 100.0)', uniform)
+        self.assertIn('mat.set_shader_parameter("blur_gain", _speed_feel.blur_gain)', uniform)
 
     def test_scenes_store_new_uniform(self):
         for rel in (
@@ -223,6 +222,174 @@ class SpeedFeelWiringTest(unittest.TestCase):
         self.assertIn("var wind_full_kmh:", sound)
         self.assertIn("var chase_wind_boost_db:", sound)
         self.assertIn("var chase_road_boost_db:", sound)
+
+
+class SettingsConflictTest(unittest.TestCase):
+    """Одна настройка — один пульт.
+
+    Раньше эффект скорости жил в трёх местах сразу: узел Speed, uniform'ы
+    материала экрана и старый RallyStageSettings. Правки в инспекторе не
+    доживали до заезда (материал перезаписывался), выбранный пресет
+    превращался в «Свой характер» после перезапуска сцены, а без узла Speed
+    скорость молча получала ноль.
+    """
+
+    def test_preset_survives_scene_reload(self):
+        cases = (
+            ("scripts/effects/rally_speed_feel.gd", "if feel != Feel.CUSTOM:\n\t\t_apply_preset()"),
+            ("scripts/effects/rally_screen_look.gd", "if look != Look.CUSTOM:\n\t\t_apply_preset()"),
+            ("scripts/effects/rally_precipitation_effect.gd", "if preset != Preset.CUSTOM:\n\t\t_apply_preset()"),
+        )
+        for rel, ready_line in cases:
+            src = read(rel)
+            # Пока сцена загружается, сеттеры чисел получают значения пресета.
+            self.assertIn("not is_inside_tree()", src, rel)
+            # Поэтому пресет ещё раз применяется после чтения всех свойств.
+            self.assertIn(ready_line, src, rel)
+
+    def test_manual_edit_reveals_exact_values(self):
+        for rel in ("scripts/effects/rally_speed_feel.gd", "scripts/effects/rally_screen_look.gd"):
+            src = read(rel)
+            block = src.split("func _mark_custom", 1)[1].split("\nfunc ", 1)[0]
+            self.assertIn("notify_property_list_changed()", block, rel)
+
+    def test_screen_keeps_material_when_no_speed_node(self):
+        screen = read("scripts/effects/rally_screen_look.gd")
+        apply = screen.split("func _apply_material", 1)[1].split("func _set_param", 1)[0]
+        self.assertIn("if speed_feel != null:", apply)
+        # Без узла скорости материал остаётся как в сцене: молчаливые нули
+        # и были причиной «эффект не применяется».
+        no_node = apply.split("if speed_feel != null:", 1)[1].split("elif", 1)[1]
+        self.assertNotIn("speed_intensity", no_node)
+
+    def test_null_track_does_not_disable_retro(self):
+        screen = read("scripts/effects/rally_screen_look.gd")
+        block = screen.split("func configure_for_track", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("if track == null:", block)
+        self.assertIn("return", block)
+        # Флаг трассы «нет поля» = «не запрещено», а не «выключено».
+        self.assertIn("allows != null", block)
+        stage = read("scripts/rally_stage.gd")
+        allows = stage.split("func _track_allows_speed", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn('var allows: Variant = track.get("enable_speed_fx")', allows)
+        self.assertIn("bool(allows) if allows != null else true", allows)
+
+    def test_material_is_not_rewritten_every_frame(self):
+        screen = read("scripts/effects/rally_screen_look.gd")
+        self.assertIn("func _set_param(mat: ShaderMaterial, param: String, value: Variant) -> void:", screen)
+        # set_shader_parameter вызывается только из помощника, который
+        # сравнивает новое значение с текущим в материале.
+        self.assertEqual(screen.count("mat.set_shader_parameter("), 1)
+
+    def test_stage_explains_a_silent_effect(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("func _report_speed_fx(speed: float) -> void:", stage)
+        self.assertIn("push_warning(\"Эффект скорости не работает на %.0f км/ч: %s\"", stage)
+        speed = read("scripts/effects/rally_speed_feel.gd")
+        self.assertIn("func inactive_reason(speed_kmh: float) -> String:", speed)
+        screen = read("scripts/effects/rally_screen_look.gd")
+        self.assertIn("func speed_blocked_reason() -> String:", screen)
+
+    def test_editor_preview_uses_the_same_source(self):
+        effects = read("scripts/effects/rally_visual_effects.gd")
+        self.assertIn("func _ready() -> void:\n\tbind_effects()", effects)
+        self.assertIn("func bind_effects() -> void:", effects)
+        self.assertIn("rect.bind_speed(feel)", effects.split("func configure_screen", 1)[1].split("\nfunc ", 1)[0])
+
+    def test_stage_scene_material_is_not_zeroed(self):
+        for rel in ("scenes/rally_stage.tscn", "scenes/rally_stage2_forest.tscn"):
+            scene = read(rel)
+            self.assertIn("shader_parameter/retro_strength = 1.0", scene, rel)
+            self.assertIn("shader_parameter/color_levels = 31.0", scene, rel)
+            self.assertIn("shader_parameter/dither_strength = 1.0", scene, rel)
+
+
+class OneSpeedEffectEverywhereTest(unittest.TestCase):
+    """Один эффект на все заезды.
+
+    Числа живут только в `scenes/effects/speed_effect.tscn` (узел
+    `VisualEffects/Speed`). Старый `RallyStageSettings` больше не зеркало
+    скорости, а материал экрана — не пульт. Остался ровно один файл, который
+    надо править, и он же используется всеми трассами.
+    """
+
+    SCENES = (
+        "scenes/rally_stage.tscn",
+        "scenes/rally_stage2_forest.tscn",
+        "scenes/editor/visual_effects_lab.tscn",
+        "scenes/effects/retro_screen.tscn",
+    )
+
+    @staticmethod
+    def _node_values() -> dict:
+        node = {}
+        for line in read("scenes/effects/speed_effect.tscn").splitlines():
+            if " = " in line and not line.startswith("["):
+                key, value = line.split(" = ", 1)
+                node[key.strip()] = value.strip()
+        return node
+
+    def test_template_stores_explicit_numbers(self):
+        node = self._node_values()
+        for key in ("feel", "start_kmh", "full_kmh", "edge_blur_percent", "vignette_percent",
+                    "blur_gain", "cockpit_scale", "edge_stretch_percent"):
+            self.assertIn(key, node, f"шаблон эффекта должен явно хранить {key}")
+        # «Свой характер»: иначе сохранённые числа снова спорили бы с пресетом.
+        self.assertEqual(node["feel"], "0")
+
+    def test_every_scene_material_matches_the_template(self):
+        node = self._node_values()
+        expected = {
+            "shader_parameter/blur_strength": float(node["edge_blur_percent"]) / 100.0,
+            "shader_parameter/vignette_strength": float(node["vignette_percent"]) / 100.0,
+            "shader_parameter/blur_gain": float(node["blur_gain"]),
+            "shader_parameter/cockpit_scale": float(node["cockpit_scale"]),
+            "shader_parameter/speed_stretch": float(node["edge_stretch_percent"]) / 100.0,
+        }
+        for rel in self.SCENES:
+            scene = read(rel)
+            for uniform, value in expected.items():
+                lines = [line for line in scene.splitlines() if line.startswith(uniform + " = ")]
+                self.assertTrue(lines, f"{rel}: нет {uniform}")
+                self.assertAlmostEqual(float(lines[0].split("=", 1)[1]), value, places=5, msg=rel)
+
+    def test_stages_do_not_override_the_speed_node(self):
+        # Локальные переопределения в сцене трассы снова развели бы эффект:
+        # правка шаблона перестала бы доходить до этого заезда.
+        for rel in ("scenes/rally_stage.tscn", "scenes/rally_stage2_forest.tscn"):
+            scene = read(rel)
+            for key in ("start_kmh", "full_kmh", "edge_blur_percent", "edge_stretch_percent", "feel = "):
+                self.assertNotIn(key, scene, f"{rel}: узел Speed переопределён ({key})")
+
+    def test_resource_is_not_a_second_control(self):
+        settings = read("scripts/data/rally_stage_settings.gd")
+        self.assertNotIn("var speed_fx_amount", settings)
+        # Поля остались только для чтения старых .tres; в инспекторе их нет.
+        self.assertIn("@export_storage var speed_fx_start_kmh:", settings)
+        self.assertNotIn('@export var speed_fx_start_kmh', settings)
+        self.assertNotIn('@export_range(0.0, 300.0, 1.0, "suffix:km/h") var speed_fx_start_kmh', settings)
+
+    def test_node_is_the_only_writer(self):
+        feel = read("scripts/effects/rally_speed_feel.gd")
+        self.assertNotIn("func write_settings", feel)
+        self.assertIn("func adopt_settings(cfg: Resource) -> void:", feel)
+        effects = read("scripts/effects/rally_visual_effects.gd")
+        sync = effects.split("func sync_to_settings", 1)[1].split("\nfunc ", 1)[0]
+        self.assertNotIn("speed().write_settings", sync)
+
+    def test_missing_node_is_recreated_from_the_template(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn('const SpeedFeelScene = preload("res://scenes/effects/speed_effect.tscn")', stage)
+        resolve = stage.split("func _resolve_speed_feel", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("SpeedFeelScene.instantiate()", resolve)
+        self.assertIn("fx_nodes.add_child(node)", resolve)
+        # Заезд больше не читает числа скорости из ресурса.
+        self.assertNotIn("speed_blur_strength", stage)
+        self.assertNotIn("speed_edge_stretch", stage)
+
+    def test_legacy_migration_is_editor_only(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("not legacy_effects_imported and Engine.is_editor_hint()", stage)
 
 
 if __name__ == "__main__":
