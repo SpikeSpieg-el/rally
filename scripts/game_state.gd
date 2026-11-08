@@ -13,6 +13,8 @@ extends Node
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
+## Варианты времени суток в меню: как на трассе, день, ночь.
+const TIME_CHOICE_COUNT := 3
 
 signal selection_changed
 signal race_started
@@ -32,6 +34,8 @@ var track_index: int = 0
 var setup_index: int = 0
 var vehicle_id: String = "mitsubishi"
 var weather_index: int = 0
+## Время суток из меню: 0 — как на трассе, 1 — день, 2 — ночь.
+var time_index: int = 0
 var profile_index: int = 0
 var current_track: Resource = null
 var current_setup: Resource = null
@@ -132,6 +136,10 @@ func _restore_saved_selection() -> void:
 			int(_conditions.get_value("selection", "profile_index", profile_index)),
 			0, maxi(0, profile_count() - 1)
 		)
+		time_index = clampi(
+			int(_conditions.get_value("selection", "time_index", time_index)),
+			0, TIME_CHOICE_COUNT - 1
+		)
 	current_track = get_track(track_index)
 	current_setup = get_custom_setup(setup_index)
 	current_weather = get_weather(weather_index)
@@ -147,6 +155,7 @@ func _save_selection() -> void:
 	_conditions.set_value("selection", "setup_custom_id", String(ids[custom_position]) if custom_position >= 0 and custom_position < ids.size() else "")
 	_conditions.set_value("selection", "weather_index", weather_index)
 	_conditions.set_value("selection", "profile_index", profile_index)
+	_conditions.set_value("selection", "time_index", time_index)
 	save_conditions()
 
 
@@ -509,6 +518,13 @@ func select_weather(index: int) -> void:
 	conditions_changed.emit()
 
 
+## Время суток: 0 — как на трассе, 1 — день, 2 — ночь.
+func select_time(index: int) -> void:
+	time_index = clampi(index, 0, TIME_CHOICE_COUNT - 1)
+	_save_selection()
+	conditions_changed.emit()
+
+
 func select_profile(index: int) -> void:
 	profile_index = clampi(index, 0, maxi(0, profile_count() - 1))
 	current_profile = get_profile(profile_index)
@@ -528,11 +544,15 @@ func record_key_for(track: Resource) -> String:
 		base = String(track.get("id"))
 	var weather_id: String = conditions_id(current_weather)
 	var profile_id: String = conditions_id(current_profile)
-	if weather_id == "default" and profile_id == "gravel":
+	if weather_id == "default" and profile_id == "gravel" and time_index == 0:
 		# Нейтральные условия — прежний ключ без приставки: рекорды,
 		# поставленные до появления погоды, остаются на месте.
 		return base
-	return "%s|%s|%s" % [base, weather_id, profile_id]
+	var key := "%s|%s|%s" % [base, weather_id, profile_id]
+	if time_index != 0:
+		# День и ночь — отдельные заезды: рекорд у каждого свой.
+		key += "|time%d" % time_index
+	return key
 
 
 static func conditions_id(resource: Resource) -> String:

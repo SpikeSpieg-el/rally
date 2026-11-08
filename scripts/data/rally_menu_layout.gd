@@ -14,6 +14,14 @@ extends Resource
 @export var seed_heading: String = "ЖИВАЯ ЛЕНТА · СИД ГЕНЕРАЦИИ"
 @export var weather_heading: String = "ПОГОДА"
 @export var profile_heading: String = "ХАРАКТЕР ТРАССЫ"
+@export var time_heading: String = "ВРЕМЯ СУТОК"
+## Подписи вариантов времени суток: как на трассе, день, ночь (порядок — как в GameState).
+@export var time_labels: PackedStringArray = PackedStringArray(["КАК НА ТРАССЕ", "ДЕНЬ", "НОЧЬ"])
+@export var time_tips: PackedStringArray = PackedStringArray([
+	"Время суток задаёт трасса: ночные лесные этапы — ночью, остальные — днём.",
+	"Дневной свет и небо, даже если трасса ночная.",
+	"Ночное небо, слабое солнце и тёмное окружение, даже если трасса дневная.",
+])
 @export var seed_hint: String = "Сид сохраняется в user://rally_conditions.cfg"
 @export var apply_button: String = "ПРИМЕНИТЬ"
 @export var reroll_button: String = "ПЕРЕГЕНЕРИРОВАТЬ"
@@ -28,11 +36,12 @@ extends Resource
 @export var quit_button_text: String = "ВЫХОД"
 ## Горячие клавиши быстрого выбора и текст подсказки внизу.
 @export var track_hotkey_count: int = 5
-@export var footer_keyboard: String = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты»  •  N — трек  •  M — радио.  Выбор сохраняется между заездами."
+@export var footer_keyboard: String = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты»  •  F9 — время суток  •  N — трек  •  M — радио.  Выбор сохраняется между заездами."
 @export var footer_gamepad: String = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  радио — кнопки карточки  •  погода и сид — мышью"
 @export var hotkey_weather: Key = KEY_F6
 @export var hotkey_profile: Key = KEY_F7
 @export var hotkey_reroll: Key = KEY_F8
+@export var hotkey_time: Key = KEY_F9
 ## Формат строки кнопки трассы: F-клавиша и название.
 @export var track_button_format: String = "F%d   %s"
 ## Сообщения о сиде (форматы — как в GDScript, «%d» подставит число).
