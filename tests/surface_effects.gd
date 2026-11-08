@@ -250,6 +250,23 @@ func _run() -> void:
 	check(effects.amounts == Vector4.ZERO and effects.damp == Vector4.ZERO and effects.snow_amounts == Vector4.ZERO, "сброс загрязнения и снега")
 	car.free()
 	effects.free()
+	# Налёт за секунду не зависит от частоты тактов: 30 тактов по 1/30 с и 120
+	# шагов по 1/120 с должны дать одну и ту же грязь (раньше при 120 Гц физики
+	# выходило в четыре раза меньше, а при 240 Гц — в восемь).
+	var coarse = Effects.new()
+	coarse.fx = ResourceLoader.load("res://data/stage/default_fx_profile.tres") as FxProfile
+	var fine = Effects.new()
+	fine.fx = coarse.fx
+	for _i in range(30):
+		coarse.accumulate(0, "mud", 1.0, 12.0, 0.0, 1.0 / 30.0)
+	for _i in range(120):
+		fine.accumulate(0, "mud", 1.0, 12.0, 0.0, 1.0 / 120.0)
+	check(
+		coarse.amounts.x > 0.0 and absf(coarse.amounts.x - fine.amounts.x) < 0.0001,
+		"налёт грязи за секунду не зависит от частоты тактов"
+	)
+	coarse.free()
+	fine.free()
 	if failures == 0:
 		print("PASS: профили покрытий, три уровня, случайная грязь, дождь и снег")
 	quit(0 if failures == 0 else 1)

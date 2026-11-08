@@ -592,6 +592,11 @@ func update(
 	# Частицы считает GPU: состояние колеса достаточно пересчитывать реже кадра,
 	# иначе на слабых машинах и в вебе тратится ЦП без видимой разницы.
 	var refresh: bool = _update_timer >= 1.0 / maxf(1.0, _p("fx_update_hz", 30.0))
+	# Накопление грязи идёт по времени, прошедшему с прошлого такта, а не по
+	# `delta` текущего кадра: такт выпадает примерно раз в 4 физических шага
+	# (120 Гц), и при `delta` кадра налёт рос в 4–8 раз медленнее заданного в
+	# профиле (и менялся от FPS/тактов). Поэтому передаём накопленное время.
+	var elapsed: float = _update_timer
 	if refresh:
 		_update_timer = 0.0
 	var steer := _car_float(car, "steer_input", 0.0)
@@ -617,7 +622,7 @@ func update(
 		return
 	for i in range(4):
 		if i < emit_count:
-			_drive_wheel(car, wheels[i], i, road_name, wetness, snow, delta, steer, handbrake)
+			_drive_wheel(car, wheels[i], i, road_name, wetness, snow, elapsed, steer, handbrake)
 		else:
 			# Колёс меньше четырёх (недонастроенная машина): лишние источники
 			# гасим, иначе они висят с последней ненулевой плотностью.
@@ -632,7 +637,7 @@ func _drive_wheel(
 	road_name: String,
 	wetness: float,
 	snow: float,
-	delta: float,
+	elapsed: float,
 	steer: float,
 	handbrake: float
 ) -> void:
@@ -642,7 +647,7 @@ func _drive_wheel(
 	var kind: String = kind_for_wheel(wheel, road_name, snow)
 	var speed: float = Vector2(wheel.local_velocity.x, wheel.local_velocity.z).length()
 	var slip: float = wheel.slip_vector.length()
-	accumulate(index, kind, wetness, speed, slip, delta)
+	accumulate(index, kind, wetness, speed, slip, elapsed)
 	var profile: RallySurfaceFxProfile = null
 	if not kind.is_empty():
 		profile = profile_for_kind(kind)
