@@ -3950,6 +3950,9 @@ func _update_hud() -> void:
 			split_label.text = "ЦЕЛЬ %s" % _format_time(track.target_time)
 		if s_settings().show_debug_info:
 			split_label.text += "  | cell %.1f" % track.terrain_cell
+			# Число, которое реально стоит в материале экрана. 0.00 на 100+ км/ч
+			# значит «не дошло до шейдера» — видно прямо в игре, без отладчика.
+			split_label.text += "  | fx %s" % _speed_fx_debug_text()
 	# Спидометр.
 	if speed_label != null:
 		speed_label.text = str(int(round(car.speed_kmh))).lpad(3, "0")
@@ -4141,9 +4144,19 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
-## Один раз за заезд: если скорость уже приличная, а эффект молчит, в консоли
-## появляется причина. Раньше это был тихий ноль, и понять, где конфликт
-## настроек, было нельзя.
+## Значение, которое стоит в материале экрана, для строки диагностики в HUD.
+func _speed_fx_debug_text() -> String:
+	if speed_fx_material == null:
+		return "нет материала"
+	var raw: Variant = speed_fx_material.get_shader_parameter("speed_intensity")
+	if raw == null:
+		return "нет uniform'а"
+	return "%.2f" % float(raw)
+
+
+## Один раз за заезд: если скорость уже приличная, в консоли появляется либо
+## причина молчания, либо подтверждение с числами. Раньше это был тихий ноль,
+## и понять, где конфликт настроек, было нельзя.
 func _report_speed_fx(speed: float) -> void:
 	if _speed_fx_reported or speed_fx_material == null or speed < SPEED_FX_REPORT_KMH:
 		return
@@ -4151,6 +4164,15 @@ func _report_speed_fx(speed: float) -> void:
 	var intensity: float = float(raw) if raw != null else 0.0
 	if intensity > 0.001:
 		_speed_fx_reported = true
+		if _speed_feel != null:
+			print(
+				"Эффект скорости работает: %.0f км/ч, интенсивность %.2f, узел Speed %s (%.0f→%.0f км/ч, размытие %.1f%%, виньетка %.0f%%)."
+				% [
+					speed, intensity, _speed_feel.name,
+					_speed_feel.start_kmh, _speed_feel.full_kmh,
+					_speed_feel.edge_blur_percent, _speed_feel.vignette_percent
+				]
+			)
 		return
 	var reason := ""
 	if _screen_look != null:
