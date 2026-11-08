@@ -2737,7 +2737,23 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 	# Болельщики на бровке: стоят по бокам, самые храбрые — почти на полотне.
 	if cfg.roadside_fans:
 		var fans: Array = StageDressing.roadside_fans(
-			network.total_length, track.terrain_seed, cfg.roadside_fan_spacing, cfg.roadside_fan_max
+			network.total_length, track.terrain_seed, cfg.roadside_fan_spacing, cfg.roadside_fan_max,
+			{
+				"start_margin": cfg.roadside_fan_start_margin,
+				"end_margin": cfg.roadside_fan_end_margin,
+				"keep_chance": cfg.roadside_fan_keep_chance,
+				"spacing_scale": cfg.roadside_fan_spacing_scale,
+				"both_sides_chance": cfg.roadside_fan_both_sides_chance,
+				"both_offset": cfg.roadside_fan_both_offset,
+				"eager_chance": cfg.roadside_fan_eager_chance,
+				"tarmac_chance": cfg.roadside_fan_tarmac_chance,
+				"inset": cfg.roadside_fan_inset,
+				"eager_inset": cfg.roadside_fan_eager_inset,
+				"tarmac_inset": cfg.roadside_fan_tarmac_inset,
+				"other_inset": cfg.roadside_fan_other_inset,
+				"other_eager_inset": cfg.roadside_fan_other_eager_inset,
+				"other_eager_chance": cfg.roadside_fan_other_eager_chance,
+			}
 		)
 		for fan_index in range(fans.size()):
 			var fan: Dictionary = fans[fan_index]

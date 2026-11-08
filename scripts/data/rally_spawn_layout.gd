@@ -98,14 +98,37 @@ extends Resource
 @export_range(1, 40, 1) var spectator_max_spots: int = 10
 ## Зрителей в одном лагере (плюс два фотографа у кромки).
 @export_range(3, 16, 1) var spectator_crowd_size: int = 8
-## Болельщики на бровке по всей трассе: их можно случайно сбить.
-@export var roadside_fans: bool = true
-## Шаг расстановки болельщиков вдоль оси, м.
-@export_range(8.0, 80.0, 1.0) var roadside_fan_spacing: float = 26.0
-## Потолок одиночных болельщиков на трассу.
-@export_range(0, 200, 1) var roadside_fan_max: int = 90
 ## Ставить вертолёт с прожектором над серединой трассы.
 @export var helicopter: bool = true
+
+@export_group("Болельщики на бровке")
+## Расставлять одиночных фанатов по обочинам всей трассы.
+@export var roadside_fans: bool = true
+## Средний шаг вдоль оси, м. Меньше — чаще люди.
+@export_range(8.0, 80.0, 1.0, "suffix:м") var roadside_fan_spacing: float = 26.0
+## Потолок одиночных болельщиков на трассу.
+@export_range(0, 200, 1) var roadside_fan_max: int = 90
+## Отступ от старта и финиша, м.
+@export_range(0.0, 300.0, 1.0, "suffix:м") var roadside_fan_start_margin: float = 70.0
+@export_range(0.0, 300.0, 1.0, "suffix:м") var roadside_fan_end_margin: float = 110.0
+## Шанс поставить человека в слоте (1 — в каждом шаге).
+@export_range(0.0, 1.0, 0.01) var roadside_fan_keep_chance: float = 0.68
+## Разброс шага: множитель min/max к roadside_fan_spacing.
+@export var roadside_fan_spacing_scale: Vector2 = Vector2(0.72, 1.38)
+## Шанс второго человека напротив, на другой стороне.
+@export_range(0.0, 1.0, 0.01) var roadside_fan_both_sides_chance: float = 0.45
+@export_range(0.0, 5.0, 0.05, "suffix:м") var roadside_fan_both_offset: float = 1.2
+## Доля «храбрых», которые выходят навстречу машине.
+@export_range(0.0, 1.0, 0.01) var roadside_fan_eager_chance: float = 0.42
+## Доля тех, кто уже стоит на полотне у бровки.
+@export_range(0.0, 1.0, 0.01) var roadside_fan_tarmac_chance: float = 0.14
+## Смещение от кромки коридора, м: плюс — в поле, минус — на полотно.
+@export var roadside_fan_inset: Vector2 = Vector2(0.45, 1.7)
+@export var roadside_fan_eager_inset: Vector2 = Vector2(-0.55, 0.45)
+@export var roadside_fan_tarmac_inset: Vector2 = Vector2(-1.35, -0.65)
+@export var roadside_fan_other_inset: Vector2 = Vector2(0.55, 1.8)
+@export var roadside_fan_other_eager_inset: Vector2 = Vector2(-0.45, 0.50)
+@export_range(0.0, 1.0, 0.01) var roadside_fan_other_eager_chance: float = 0.38
 
 @export_group("Металлический отбойник на крутых поворотах")
 @export var guardrails: bool = true
