@@ -5,6 +5,7 @@ class_name RallySpectatorPerson
 extends Node3D
 
 const BloodFx = preload("res://scripts/effects/rally_blood_fx.gd")
+const PuddleShader = preload("res://shaders/blood_puddle.gdshader")
 const DEFAULT_JACKETS: Array[String] = [
 	"res://textures/sprites/spectator_red.png",
 	"res://textures/sprites/spectator_yellow.png",
@@ -43,13 +44,16 @@ const DEFAULT_JACKETS: Array[String] = [
 @export_range(0.0, 6.0, 0.05, "suffix:м") var drag_onto_road: float = 2.6
 ## Протащить вдоль хода машины, м.
 @export_range(0.0, 8.0, 0.05, "suffix:м") var drag_along_car: float = 1.8
-@export_range(0.01, 0.25, 0.001) var flatten_pixel_size: float = 0.10
+## Размер лежащего спрайта: ~рост человека (40 px × pixel_size_idle).
+## 0.10 давал останки вдвое выше роста — «огромные» тела на полотне.
+@export_range(0.01, 0.25, 0.001) var flatten_pixel_size: float = 0.05
 @export var flatten_color: Color = Color(0.32, 0.04, 0.05, 0.92)
 @export_range(0.0, 180.0, 1.0, "suffix:°") var flatten_yaw_range: float = 55.0
-@export_range(0.01, 0.3, 0.001) var smear_pixel_size: float = 0.16
+## След-потёк чуть длиннее тела, но не в разы (0.16 давал ~10 м полосу).
+@export_range(0.01, 0.3, 0.001) var smear_pixel_size: float = 0.065
 @export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.78)
 ## Размер кровавой лужи на полотне, м (длина × ширина).
-@export var puddle_extent: Vector2 = Vector2(1.9, 1.15)
+@export var puddle_extent: Vector2 = Vector2(1.5, 0.95)
 @export var puddle_color: Color = Color(0.38, 0.02, 0.04, 0.82)
 @export_range(0.0, 0.2, 0.005, "suffix:м") var ground_lift: float = 0.06
 @export_range(0.0, 2000.0, 10.0) var nudge_impulse: float = 420.0
@@ -218,11 +222,20 @@ func _throw_onto_road(velocity: Vector3) -> void:
 
 
 func _snap_to_ground() -> void:
-	if _stage != null and is_instance_valid(_stage) and _stage.has_method("ground_height"):
-		var ground_y: float = float(_stage.call("ground_height", global_position.x, global_position.z))
-		global_position.y = ground_y + ground_lift
-	else:
+	if _stage == null or not is_instance_valid(_stage):
 		global_position.y += ground_lift
+		return
+	var x: float = global_position.x
+	var z: float = global_position.z
+	var y: float = global_position.y
+	# surface_height_at — верх НАРИСОВАННОЙ поверхности (полотно над кюветом).
+	# Обычный ground_height под дорогой отдаёт дно кювета, и останки тонули
+	# под мешем асфальта: их было видно только на траве.
+	if _stage.has_method("surface_height_at"):
+		y = float(_stage.call("surface_height_at", x, z))
+	elif _stage.has_method("ground_height"):
+		y = float(_stage.call("ground_height", x, z))
+	global_position.y = y + ground_lift
 
 
 func _burst_origin(car: Node3D) -> Vector3:
@@ -265,7 +278,7 @@ func _add_puddle() -> void:
 	var quad := QuadMesh.new()
 	quad.size = puddle_extent
 	var paint := ShaderMaterial.new()
-	paint.shader = load("res://shaders/blood_puddle.gdshader") as Shader
+	paint.shader = PuddleShader
 	paint.set_shader_parameter("blood_color", puddle_color)
 	quad.material = paint
 	puddle.mesh = quad

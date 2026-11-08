@@ -945,6 +945,36 @@ func ground_height(x: float, z: float) -> float:
 	return h11 * (u + v - 1.0) + h10 * (1.0 - v) + h01 * (1.0 - u)
 
 
+## Величины меша полотна из _build_road(): дорога лежит на ROAD_MESH_LIFT
+## над землёй и выходит за плечо на ROAD_EDGE_BAND. Держим их здесь, чтобы
+## surface_height_at() считала ровно ту же поверхность, что нарисована.
+const ROAD_MESH_LIFT := 0.035
+const ROAD_EDGE_BAND := 1.5
+
+
+## Высота НАРИСОВАННОЙ поверхности в точке: верх полотна там, где оно
+## нарисовано, и рельеф (с кюветом) — там, где его видно. ground_height под
+## дорогой намеренно отдаёт дно кювета (шаг «Кювет» в _build_terrain опускает
+## сетку земли и под асфальтом), поэтому всё, что садилось по ней на полотно
+## (останки сбитых болельщиков, лужи), тонуло под мешем дороги: на траве
+## такое лежит видимо, на дороге — нет.
+func surface_height_at(x: float, z: float) -> float:
+	var ground: float = ground_height(x, z)
+	if network == null or track == null:
+		return ground
+	var distance: float = network.distance_to_road(x, z)
+	var corridor: float = track.half_width_at(network.along_road(x, z)) + track.road_shoulder
+	if distance > corridor + ROAD_EDGE_BAND:
+		return ground
+	var road_y: float = height_at(x, z)
+	if distance <= corridor:
+		# Плечо и асфальт лежат поверх утопленной земли.
+		return maxf(ground, road_y) + ROAD_MESH_LIFT
+	# Внешняя кромка: меш полотна плавно спускается с высоты плеча на землю.
+	var t: float = (distance - corridor) / ROAD_EDGE_BAND
+	return maxf(ground, lerpf(road_y, ground, t)) + ROAD_MESH_LIFT
+
+
 ## Быстрый запрос только готовой сетки, без процедурного поиска вне неё.
 func editor_cached_ground_height(x: float, z: float) -> Dictionary:
 	if _ground_grid.is_empty() or _ground_cols < 2 or _ground_rows < 2:
@@ -1485,7 +1515,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 	var slice_deadline: int = Time.get_ticks_usec() + slice_usec
 	var half: float = track.road_half_width
 	var corridor: float = half + track.road_shoulder
-	var outer: float = corridor + 1.5
+	var outer: float = corridor + ROAD_EDGE_BAND
 	# Поперечные «полосы»: край -> обочина -> кромка -> центр -> …
 	var lateral: Array[float] = [-outer, -corridor, -half, -half * 0.5, 0.0, half * 0.5, half, corridor, outer]
 	var lanes: int = lateral.size()
@@ -1501,7 +1531,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 		var distance: float = distance_start + span * float(row) / float(rows - 1)
 		half = track.half_width_at(distance)
 		corridor = half + track.road_shoulder
-		outer = corridor + 1.5
+		outer = corridor + ROAD_EDGE_BAND
 		lateral = [-outer, -corridor, -half, -half * 0.5, 0.0, half * 0.5, half, corridor, outer]
 		var section = track.section_at(distance)
 		var center: Vector3 = network.point_at(distance)
@@ -1525,7 +1555,7 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 				# Внешняя кромка ложится на нарисованный меш земли (кювет),
 				# поэтому между дорогой и рельефом нет ни щели, ни стыка.
 				y = ground_height(point.x, point.z)
-			y += 0.035
+			y += ROAD_MESH_LIFT
 			vertices[row * lanes + lane] = Vector3(point.x, y, point.z)
 			uvs[row * lanes + lane] = Vector2(lat, distance)
 

@@ -122,6 +122,7 @@ const FEEL_GRAVITY: float = 9.81
 @onready var cam_chase: Marker3D = $Cameras/CamChase
 @onready var cam_hood: Marker3D = $Cameras/CamHood
 @onready var cam_cockpit: Marker3D = $Cameras/CamCockpit
+@onready var wipers: Node3D = get_node_or_null("Wipers")
 
 var spawn_transform: Transform3D = Transform3D.IDENTITY
 var camera_mode: int = CameraMode.CHASE_3RD
@@ -242,6 +243,8 @@ func _ready() -> void:
 		blood_fx.name = "BloodFx"
 		add_child(blood_fx)
 		blood_fx.install(self)
+	if wipers != null and wipers.has_method("setup"):
+		wipers.setup(self)
 
 	_setup_speed_motes()
 	_reset_camera_feel()
@@ -258,6 +261,7 @@ func _ready() -> void:
 		_apply_initial_camera_fov()
 		if camera_mode != CameraMode.CHASE_3RD:
 			_update_cameras(0.0)
+	_sync_wiper_view()
 
 	if mouse_look_enabled and not cinematic_mode:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -687,6 +691,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not cinematic_mode and Input.is_action_just_pressed("camera_switch"):
 		camera_mode = (camera_mode + 1) % 3
+		_sync_wiper_view()
 		mouse_yaw = 0.0
 		mouse_pitch = 0.0
 		smoothed_mouse_yaw = 0.0
@@ -1049,6 +1054,13 @@ func _apply_initial_camera_fov() -> void:
 			active_camera.fov = hood_fov + inside_speed_fov_bonus * inside_fov_factor()
 		CameraMode.COCKPIT_1ST:
 			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * inside_fov_factor()
+
+
+## Дворники работают только в виде из кабины: остальным режимам сказать,
+## что «смотрят» (и можно стирать кровь), либо снять щётки на место.
+func _sync_wiper_view() -> void:
+	if wipers != null and wipers.has_method("set_viewing"):
+		wipers.set_viewing(camera_mode == CameraMode.COCKPIT_1ST)
 
 
 func _update_cameras(delta: float) -> void:
