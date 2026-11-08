@@ -13,6 +13,13 @@
 class_name RallySpectatorCrowd
 extends Node3D
 
+@export_group("Фотографы и вспышки")
+## С какого расстояния фотографы чуть отступают, м.
+@export_range(4.0, 40.0, 0.5, "suffix:м") var photographer_dodge_distance: float = 12.0
+## Куда отступают в локали сцены (локальный +Z — от дороги).
+@export var photographer_dodge_offset: Vector3 = Vector3(0.2, 0.0, 0.7)
+@export_range(20.0, 250.0, 1.0, "suffix:м") var flash_distance: float = 130.0
+
 const PERSON_TEXTURES: Array[String] = [
 	"res://textures/sprites/spectator_red.png",
 	"res://textures/sprites/spectator_yellow.png",
@@ -50,7 +57,7 @@ func _collect() -> void:
 				_photographers.append({
 					"root": root,
 					"home": root.position,
-					"away": root.position + Vector3(0.2, 0.0, 0.7),
+					"away": root.position + photographer_dodge_offset,
 					"t": 0.0,
 				})
 	var flashes := get_node_or_null("Flashes")
@@ -124,7 +131,7 @@ func _process(delta: float) -> void:
 		var flash: Sprite3D = _flashes[i]
 		if _flash_timers[i] <= 0.0:
 			_flash_timers[i] = _rng.randf_range(0.25, 1.8)
-			flash.modulate.a = 0.95 if distance < 130.0 else 0.0
+			flash.modulate.a = 0.95 if distance < flash_distance else 0.0
 		else:
 			flash.modulate.a = maxf(0.0, flash.modulate.a - delta * 9.0)
 	# Фотографы едва отступают: слишком любят ралли, чтобы уходить далеко.
@@ -132,7 +139,7 @@ func _process(delta: float) -> void:
 		var root := entry["root"] as Node3D
 		if root.has_method("is_crushed") and bool(root.call("is_crushed")):
 			continue
-		var target: float = 1.0 if distance < 12.0 else 0.0
+		var target: float = 1.0 if distance < photographer_dodge_distance else 0.0
 		var step: float = delta * (4.0 if target > 0.5 else -1.6)
 		var t: float = clampf(float(entry["t"]) + step, 0.0, 1.0)
 		entry["t"] = t

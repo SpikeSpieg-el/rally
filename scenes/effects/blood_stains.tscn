@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://cbleedstain01"]
+
+[ext_resource type="Script" uid="uid://c8m3p5st0x4vy" path="res://scripts/effects/rally_blood_fx.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cbleedburst01" path="res://scenes/effects/blood_burst.tscn" id="2_burst"]
+
+[node name="BloodStains" type="Node"]
+script = ExtResource("1_script")
+burst_scene = ExtResource("2_burst")
+editor_description = "Пятна крови на кузове. Цвет, блеск, размер и меши — в инспекторе. Всплеск частиц — Blood Burst."

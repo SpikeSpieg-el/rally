@@ -32,7 +32,11 @@ class StageDressingTest(unittest.TestCase):
             "scripts/track/spectator_person.gd",
             "scripts/track/helicopter.gd",
             "scripts/effects/rally_blood_fx.gd",
+            "scripts/effects/rally_blood_burst.gd",
             "shaders/car_blood.gdshader",
+            "scenes/effects/blood_burst.tscn",
+            "scenes/effects/blood_stains.tscn",
+            "scenes/editor/spectator_lab.tscn",
             "tests/stage_dressing.gd",
         ):
             self.assertTrue((ROOT / relative).is_file(), relative)
@@ -89,11 +93,16 @@ class StageDressingTest(unittest.TestCase):
         for token in ("spectator_person.gd", "Hitbox", "CapsuleShape3D"):
             self.assertIn(token, person_scene, token)
         person = read("scripts/track/spectator_person.gd")
-        for token in ("func crush(", "splatter_blood", "BloodFx.spray"):
+        for token in ("func crush(", "splatter_blood", "BloodFx.spray", 'set_deferred("monitoring", false)'):
             self.assertIn(token, person, token)
+        self.assertNotIn("_hitbox.monitoring =", person)
+        self.assertNotIn("_hitbox.monitorable =", person)
         blood = read("scripts/effects/rally_blood_fx.gd")
-        for token in ("func add_splat(", "func spray(", "car_blood.gdshader"):
+        for token in ("func add_splat(", "func spray(", "car_blood.gdshader", "burst_scene"):
             self.assertIn(token, blood, token)
+        self.assertIn("GPUParticles3D", read("scenes/effects/blood_burst.tscn"))
+        self.assertIn("rally_blood_fx.gd", read("scenes/effects/blood_stains.tscn"))
+        self.assertIn("@export", person)
         shader = read("shaders/car_blood.gdshader")
         self.assertIn("uniform vec3 splat_pos[8];", shader)
         self.assertNotIn("uniform vec3 splat_pos[8] =", shader)
@@ -115,7 +124,8 @@ class StageDressingTest(unittest.TestCase):
         for name in (
             "stage_dressing", "spectator_spacing", "spectator_max_spots",
             "spectator_crowd_size", "roadside_fans", "roadside_fan_spacing",
-            "roadside_fan_max", "helicopter",
+            "roadside_fan_max", "roadside_fan_keep_chance", "roadside_fan_eager_chance",
+            "helicopter",
         ):
             self.assertIn(f"var {name}", layout, name)
 

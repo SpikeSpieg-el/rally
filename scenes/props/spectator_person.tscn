@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://2du5x5vilfrt2"]
+[gd_scene load_steps=5 format=3 uid="uid://2du5x5vilfrt2"]
 
 [ext_resource type="Texture2D" uid="uid://hit345u13esfk" path="res://textures/sprites/spectator_red.png" id="tex_person"]
 [ext_resource type="Script" uid="uid://b7k2n4qp9w3rx" path="res://scripts/track/spectator_person.gd" id="script"]
+[ext_resource type="PackedScene" uid="uid://cbleedburst01" path="res://scenes/effects/blood_burst.tscn" id="burst"]
 
 [sub_resource type="CapsuleShape3D" id="hit_shape"]
 radius = 0.32
@@ -9,6 +10,8 @@ height = 1.72
 
 [node name="SpectatorPerson" type="Node3D"]
 script = ExtResource("script")
+blood_burst = ExtResource("burst")
+editor_description = "Болельщик: спрайт, хитбокс и поля удара/крови в инспекторе. F6 — один человек. Частота на трассе — data/stage/default_spawn_layout.tres, группа «Болельщики на бровке»."
 
 [node name="Sprite" type="Sprite3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)

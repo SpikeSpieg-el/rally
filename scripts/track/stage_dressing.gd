@@ -149,42 +149,55 @@ static func landmark_distance(track_length: float, seed_value: int, salt: int, l
 ## почти на полотне. Каждый элемент — Dictionary: distance, side (+1/-1),
 ## eager (шаг навстречу машине), inset (смещение от кромки, м; минус —
 ## на полотно).
-static func roadside_fans(track_length: float, seed_value: int, spacing: float, max_count: int) -> Array:
+static func roadside_fans(track_length: float, seed_value: int, spacing: float, max_count: int, options: Dictionary = {}) -> Array:
 	var result: Array = []
 	if track_length < 200.0 or spacing <= 1.0 or max_count <= 0:
 		return result
-	var cursor: float = 70.0
+	var start_margin: float = float(options.get("start_margin", 70.0))
+	var end_margin: float = float(options.get("end_margin", 110.0))
+	var keep_chance: float = float(options.get("keep_chance", 0.68))
+	var spacing_scale: Vector2 = options.get("spacing_scale", Vector2(0.72, 1.38)) as Vector2
+	var both_chance: float = float(options.get("both_sides_chance", 0.45))
+	var both_offset: float = float(options.get("both_offset", 1.2))
+	var eager_chance: float = float(options.get("eager_chance", 0.42))
+	var tarmac_chance: float = float(options.get("tarmac_chance", 0.14))
+	var inset_range: Vector2 = options.get("inset", Vector2(0.45, 1.7)) as Vector2
+	var eager_inset: Vector2 = options.get("eager_inset", Vector2(-0.55, 0.45)) as Vector2
+	var tarmac_inset: Vector2 = options.get("tarmac_inset", Vector2(-1.35, -0.65)) as Vector2
+	var other_inset: Vector2 = options.get("other_inset", Vector2(0.55, 1.8)) as Vector2
+	var other_eager_inset: Vector2 = options.get("other_eager_inset", Vector2(-0.45, 0.50)) as Vector2
+	var other_eager_chance: float = float(options.get("other_eager_chance", 0.38))
+	var cursor: float = start_margin
 	var guard: int = 0
-	while cursor < track_length - 110.0 and result.size() < max_count and guard < 4000:
+	while cursor < track_length - end_margin and result.size() < max_count and guard < 4000:
 		guard += 1
 		var salt: int = int(round(cursor * 10.0))
 		var keep: float = hash01(salt, seed_value + 91)
-		if keep > 0.32:
+		if keep > (1.0 - keep_chance):
 			var side: float = 1.0 if hash01(salt, seed_value + 92) > 0.5 else -1.0
-			var eager: bool = hash01(salt, seed_value + 93) > 0.58
-			var inset: float = lerpf(0.45, 1.7, hash01(salt, seed_value + 94))
+			var eager: bool = hash01(salt, seed_value + 93) > (1.0 - eager_chance)
+			var inset: float = lerpf(inset_range.x, inset_range.y, hash01(salt, seed_value + 94))
 			if eager:
-				inset = lerpf(-0.55, 0.45, hash01(salt, seed_value + 95))
-			if hash01(salt, seed_value + 101) > 0.86:
+				inset = lerpf(eager_inset.x, eager_inset.y, hash01(salt, seed_value + 95))
+			if hash01(salt, seed_value + 101) > (1.0 - tarmac_chance):
 				eager = true
-				# Совсем без чувства края: уже на полотне у бровки.
-				inset = lerpf(-1.35, -0.65, hash01(salt, seed_value + 102))
+				inset = lerpf(tarmac_inset.x, tarmac_inset.y, hash01(salt, seed_value + 102))
 			result.append({
 				"distance": cursor,
 				"side": side,
 				"eager": eager,
 				"inset": inset,
 			})
-			if result.size() < max_count and hash01(salt, seed_value + 96) > 0.55:
-				var other_eager: bool = hash01(salt, seed_value + 97) > 0.62
-				var other_inset: float = lerpf(0.55, 1.8, hash01(salt, seed_value + 98))
+			if result.size() < max_count and hash01(salt, seed_value + 96) > (1.0 - both_chance):
+				var other_eager: bool = hash01(salt, seed_value + 97) > (1.0 - other_eager_chance)
+				var far_inset: float = lerpf(other_inset.x, other_inset.y, hash01(salt, seed_value + 98))
 				if other_eager:
-					other_inset = lerpf(-0.45, 0.50, hash01(salt, seed_value + 99))
+					far_inset = lerpf(other_eager_inset.x, other_eager_inset.y, hash01(salt, seed_value + 99))
 				result.append({
-					"distance": cursor + 1.2,
+					"distance": cursor + both_offset,
 					"side": -side,
 					"eager": other_eager,
-					"inset": other_inset,
+					"inset": far_inset,
 				})
-		cursor += spacing * lerpf(0.72, 1.38, hash01(salt, seed_value + 100))
+		cursor += spacing * lerpf(spacing_scale.x, spacing_scale.y, hash01(salt, seed_value + 100))
 	return result

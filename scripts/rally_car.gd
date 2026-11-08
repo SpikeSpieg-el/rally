@@ -47,6 +47,8 @@ const FEEL_GRAVITY: float = 9.81
 @export var feel: FeelConfigType = null
 ## Профиль эффектов (пыль, грязь, брызги). Пусто — res://data/stage/default_fx_profile.tres.
 @export var fx: RallyFxProfile = null
+## Пятна крови на кузове. Пусто — res://scenes/effects/blood_stains.tscn.
+@export var blood_stains_scene: PackedScene
 
 @export_group("Конфигурация Lancer Evo")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
@@ -235,10 +237,11 @@ func _ready() -> void:
 	surface_effects.name = "SurfaceEffects"
 	add_child(surface_effects)
 	surface_effects.install(self)
-	blood_fx = BloodFxType.new()
-	blood_fx.name = "BloodFx"
-	add_child(blood_fx)
-	blood_fx.install(self)
+	blood_fx = _make_blood_fx()
+	if blood_fx != null:
+		blood_fx.name = "BloodFx"
+		add_child(blood_fx)
+		blood_fx.install(self)
 
 	_setup_speed_motes()
 	_reset_camera_feel()
@@ -357,6 +360,17 @@ func fx_config() -> RallyFxProfile:
 		if fx == null:
 			fx = RallyFxProfile.new()
 	return fx
+
+
+func _make_blood_fx() -> BloodFxType:
+	var packed: PackedScene = blood_stains_scene
+	if packed == null and ResourceLoader.exists("res://scenes/effects/blood_stains.tscn"):
+		packed = load("res://scenes/effects/blood_stains.tscn") as PackedScene
+	if packed != null:
+		var node := packed.instantiate()
+		if node is BloodFxType:
+			return node as BloodFxType
+	return BloodFxType.new()
 
 
 func _configure_gevp() -> void:

@@ -81,6 +81,10 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallyVisualEffects` | `scenes/effects/visual_effects.tscn` | контейнер визуальных эффектов и область осадков |
 | `RallyTrackStudioSettings` | `data/editor/track_studio.tres` | оформление и пороги редакторской «Студии трассы»: цвета разметки, кегли, шаги насечек, подписи поворотов, предупреждения, радиусы захвата мышью, тексты подсказок. Геймплейных полей здесь нет |
 | `RallyDustFx` (помощник, не ресурс) | `scripts/effects/rally_dust_fx.gd` | общие заготовки частиц: процедурное облачко, кривые жизни/роста, материал; кэш один на процесс |
+| `RallyBloodBurst` | `scenes/effects/blood_burst.tscn` | всплеск крови: капли и туман как GPUParticles3D, правятся в сцене |
+| `RallyBloodFx` | `scenes/effects/blood_stains.tscn` | пятна крови на кузове: цвет, блеск, размер, список мешей |
+| `RallySpectatorPerson` | `scenes/props/spectator_person.tscn` | один болельщик: куртка, шаг на полотно, удар, сплющивание |
+| частота болельщиков | `RallySpawnLayout` группа «Болельщики на бровке» | шаг, потолок, шансы, смещения от кромки |
 
 Дополнительно: погодное окружение — `data/tracks/night_environment.tres`
 (`WorldEnvironment`), миникарта и превью трассы — `@export` прямо на узлах

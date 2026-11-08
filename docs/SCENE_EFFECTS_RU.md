@@ -52,6 +52,12 @@
 - `snow.tscn`
 - `surface_looks.tscn`
 - `visual_effects.tscn` — общий контейнер для скорости, осадков и материалов.
+- `blood_burst.tscn` — капли и туман после сбитого болельщика (узлы `Droplets` / `Mist`).
+- `blood_stains.tscn` — пятна крови на кузове (цвет, блеск, размер, какие меши).
+
+Болельщики: `scenes/props/spectator_person.tscn` (внешность и удар),
+частота на трассе — `data/stage/default_spawn_layout.tres`, группа
+«Болельщики на бровке». Превью: `scenes/editor/spectator_lab.tscn` (F6).
 
 ## Как пользоваться
 

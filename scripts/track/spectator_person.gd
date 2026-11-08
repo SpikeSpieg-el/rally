@@ -1,14 +1,11 @@
-## Один болельщик у дороги: билборд, хитбокс и «раздавливание» при наезде.
-##
-## Сцена `spectator_person.tscn` — и одиночки на бровке, и люди в лагере.
-## Этот скрипт только оживляет спрайт:
-##   * случайная куртка;
-##   * слишком храбрые фанаты делают шаг на полотно, когда машина близко;
-##   * при ударе — плашмя на грунт, всплеск крови и пятно на кузове.
+## Один болельщик у дороги. Сцена `spectator_person.tscn` — пульт внешности,
+## удара и крови: откройте её в Godot и правьте спрайт, хитбокс и поля ниже.
+@tool
 class_name RallySpectatorPerson
 extends Node3D
 
-const JACKETS: Array[String] = [
+const BloodFx = preload("res://scripts/effects/rally_blood_fx.gd")
+const DEFAULT_JACKETS: Array[String] = [
 	"res://textures/sprites/spectator_red.png",
 	"res://textures/sprites/spectator_yellow.png",
 	"res://textures/sprites/spectator_blue.png",
@@ -16,10 +13,39 @@ const JACKETS: Array[String] = [
 	"res://textures/sprites/spectator_orange.png",
 	"res://textures/sprites/spectator_white.png",
 ]
-const BloodFx = preload("res://scripts/effects/rally_blood_fx.gd")
-const HIT_HALF_WIDTH := 1.08
-const HIT_HALF_LENGTH := 2.30
-const HIT_MIN_SPEED := 4.0
+
+@export_group("Внешность")
+## Куртки для случайного выбора. Пусто — стандартный набор PNG в textures/sprites.
+@export var jacket_textures: Array[Texture2D] = []
+@export var randomize_jacket: bool = true
+@export_range(0.01, 0.2, 0.001) var pixel_size_idle: float = 0.045
+@export_range(8.0, 80.0, 1.0, "suffix:м") var cheer_range: float = 40.0
+@export_range(0.0, 0.2, 0.005) var cheer_wave: float = 0.04
+@export_range(0.0, 16.0, 0.1) var cheer_speed: float = 5.5
+
+@export_group("Шаг на полотно")
+## Если включено в сцене — человек всегда выходит навстречу. На трассе это
+## ещё выставляет планировщик для «храбрых» точек.
+@export var start_eager: bool = false
+@export_range(0.0, 3.0, 0.05, "suffix:м") var step_in_meters: float = 0.85
+@export_range(4.0, 80.0, 1.0, "suffix:м") var step_in_range: float = 32.0
+
+@export_group("Удар")
+@export_range(0.2, 3.0, 0.01, "suffix:м") var hit_half_width: float = 1.08
+@export_range(0.5, 5.0, 0.01, "suffix:м") var hit_half_length: float = 2.30
+@export_range(0.0, 30.0, 0.1, "suffix:м/с") var hit_min_speed: float = 4.0
+@export var hit_height: Vector2 = Vector2(-0.2, 1.45)
+@export_range(0.0, 2.0, 0.01, "suffix:м") var impact_height: float = 0.72
+
+@export_group("После удара")
+@export var blood_burst: PackedScene
+@export_range(0.01, 0.2, 0.001) var flatten_pixel_size: float = 0.052
+@export var flatten_color: Color = Color(0.32, 0.04, 0.05, 0.92)
+@export_range(0.0, 180.0, 1.0, "suffix:°") var flatten_yaw_range: float = 55.0
+@export_range(0.01, 0.2, 0.001) var smear_pixel_size: float = 0.07
+@export var smear_color: Color = Color(0.28, 0.02, 0.03, 0.72)
+@export_range(0.0, 2000.0, 10.0) var nudge_impulse: float = 420.0
+@export_range(0.5, 1.0, 0.01) var speed_keep: float = 0.97
 
 var _stage: Node = null
 var _eager: bool = false
@@ -42,22 +68,25 @@ func _ready() -> void:
 		_home = position
 	_rng.seed = int(Time.get_ticks_usec()) ^ int(get_instance_id())
 	_phase = _rng.randf() * TAU
-	set_physics_process(true)
+	if start_eager:
+		_eager = true
+	set_physics_process(not Engine.is_editor_hint())
 
 
 ## stage — RallyStage (для поиска машины), eager — шаг на полотно навстречу,
 ## toward_road — горизонталь к оси трассы в мире.
 func setup(stage: Node, eager: bool = false, toward_road: Vector3 = Vector3.ZERO) -> void:
 	_stage = stage
-	_eager = eager
+	_eager = eager or start_eager
 	_road_toward = toward_road
 	_road_toward.y = 0.0
 	if _road_toward.length() > 0.001:
 		_road_toward = _road_toward.normalized()
 	_home = position
 	_rng.seed = int(Time.get_ticks_usec()) ^ int(get_instance_id()) ^ 17
-	_randomize_jacket()
-	set_physics_process(true)
+	if randomize_jacket:
+		_randomize_jacket()
+	set_physics_process(not Engine.is_editor_hint())
 
 
 func is_crushed() -> bool:
@@ -67,35 +96,43 @@ func is_crushed() -> bool:
 func _randomize_jacket() -> void:
 	if _sprite == null:
 		_sprite = get_node_or_null("Sprite") as Sprite3D
-	if _sprite == null or JACKETS.is_empty():
+	if _sprite == null:
 		return
-	var path: String = JACKETS[_rng.randi_range(0, JACKETS.size() - 1)]
-	var texture := load(path) as Texture2D
-	if texture != null:
-		_sprite.texture = texture
+	var textures: Array[Texture2D] = []
+	for texture in jacket_textures:
+		if texture != null:
+			textures.append(texture)
+	if textures.is_empty():
+		for path in DEFAULT_JACKETS:
+			var loaded := load(path) as Texture2D
+			if loaded != null:
+				textures.append(loaded)
+	if textures.is_empty():
+		return
+	_sprite.texture = textures[_rng.randi_range(0, textures.size() - 1)]
 
 
 func _physics_process(delta: float) -> void:
-	if _crushed or not visible:
+	if Engine.is_editor_hint() or _crushed or not visible:
 		return
 	_time += delta
 	var car := _find_car()
 	if car == null:
 		return
-	_cheer(car, delta)
+	_cheer(car)
 	if _eager:
 		_step_toward_road(car)
 	_try_hit(car)
 
 
-func _cheer(car: Node3D, _delta: float) -> void:
+func _cheer(car: Node3D) -> void:
 	if _sprite == null:
 		return
 	var offset: Vector3 = car.global_position - global_position
 	offset.y = 0.0
-	var near: float = clampf(1.0 - offset.length() / 40.0, 0.0, 1.0)
-	var wave: float = sin(_time * (5.5 + near * 7.0) + _phase)
-	_sprite.pixel_size = 0.045 * (1.0 + wave * (0.04 + near * 0.05))
+	var closeness: float = clampf(1.0 - offset.length() / maxf(cheer_range, 0.1), 0.0, 1.0)
+	var wave: float = sin(_time * (cheer_speed + closeness * 7.0) + _phase)
+	_sprite.pixel_size = pixel_size_idle * (1.0 + wave * (cheer_wave + closeness * 0.05))
 
 
 func _step_toward_road(car: Node3D) -> void:
@@ -103,24 +140,24 @@ func _step_toward_road(car: Node3D) -> void:
 		return
 	var offset: Vector3 = car.global_position - global_position
 	offset.y = 0.0
-	var reach: float = clampf(1.0 - offset.length() / 32.0, 0.0, 1.0)
-	# Храбрые болельщики выходят на бровку навстречу машине.
-	var world_home: Vector3 = global_position - (position - _home)
-	if get_parent() is Node3D:
-		world_home = (get_parent() as Node3D).to_global(_home)
-	global_position = world_home + _road_toward * reach * 0.85
+	var reach: float = clampf(1.0 - offset.length() / maxf(step_in_range, 0.1), 0.0, 1.0)
+	var parent_node: Node3D = get_parent() as Node3D
+	var world_home: Vector3 = global_position
+	if parent_node != null:
+		world_home = parent_node.to_global(_home)
+	global_position = world_home + _road_toward * reach * step_in_meters
 
 
 func _try_hit(car: Node3D) -> void:
 	var speed: float = _car_speed(car)
-	if speed < HIT_MIN_SPEED:
+	if speed < hit_min_speed:
 		return
 	var local_hit: Vector3 = car.to_local(global_position + Vector3(0.0, 0.7, 0.0))
-	if absf(local_hit.x) > HIT_HALF_WIDTH:
+	if absf(local_hit.x) > hit_half_width:
 		return
-	if absf(local_hit.z) > HIT_HALF_LENGTH:
+	if absf(local_hit.z) > hit_half_length:
 		return
-	if local_hit.y < -0.2 or local_hit.y > 1.45:
+	if local_hit.y < hit_height.x or local_hit.y > hit_height.y:
 		return
 	crush(car)
 
@@ -130,7 +167,7 @@ func _on_body_entered(body: Node) -> void:
 		return
 	if body is Node3D:
 		var as_node := body as Node3D
-		if _car_speed(as_node) >= HIT_MIN_SPEED:
+		if _car_speed(as_node) >= hit_min_speed:
 			crush(as_node)
 
 
@@ -139,39 +176,46 @@ func crush(car: Node3D) -> void:
 		return
 	_crushed = true
 	set_physics_process(false)
-	if _hitbox != null:
-		_hitbox.monitoring = false
-		_hitbox.monitorable = false
+	_disable_hitbox()
 	_flatten()
-	var impact: Vector3 = global_position + Vector3(0.0, 0.72, 0.0)
+	var impact: Vector3 = global_position + Vector3(0.0, impact_height, 0.0)
 	var velocity: Vector3 = _car_velocity(car)
-	BloodFx.spray(self, impact, velocity)
+	BloodFx.spray(self, impact, velocity, blood_burst)
 	if car != null and car.has_method("splatter_blood"):
 		car.call("splatter_blood", impact, velocity)
-	_nudge_car(car, velocity)
+	_nudge_car.call_deferred(car, velocity)
+
+
+func _disable_hitbox() -> void:
+	if _hitbox == null:
+		return
+	if _hitbox.body_entered.is_connected(_on_body_entered):
+		_hitbox.body_entered.disconnect(_on_body_entered)
+	_hitbox.set_deferred("monitoring", false)
+	_hitbox.set_deferred("monitorable", false)
 
 
 func _flatten() -> void:
 	if _sprite == null:
 		return
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	_sprite.pixel_size = 0.052
+	_sprite.pixel_size = flatten_pixel_size
 	_sprite.position = Vector3(0.0, 0.035, 0.0)
-	_sprite.rotation_degrees = Vector3(-90.0, _rng.randf_range(-55.0, 55.0), 0.0)
-	_sprite.modulate = Color(0.32, 0.04, 0.05, 0.92)
+	_sprite.rotation_degrees = Vector3(-90.0, _rng.randf_range(-flatten_yaw_range, flatten_yaw_range), 0.0)
+	_sprite.modulate = flatten_color
 	var smear := Sprite3D.new()
 	smear.name = "BloodSmear"
 	smear.texture = _sprite.texture
 	smear.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	smear.pixel_size = 0.07
-	smear.modulate = Color(0.28, 0.02, 0.03, 0.72)
+	smear.pixel_size = smear_pixel_size
+	smear.modulate = smear_color
 	smear.position = Vector3(_rng.randf_range(-0.15, 0.15), 0.02, _rng.randf_range(-0.12, 0.12))
 	smear.rotation_degrees = Vector3(-90.0, _rng.randf_range(-80.0, 80.0), 0.0)
 	add_child(smear)
 
 
 func _nudge_car(car: Node3D, velocity: Vector3) -> void:
-	if car == null or not car is RigidBody3D:
+	if car == null or not is_instance_valid(car) or not car is RigidBody3D:
 		return
 	var body := car as RigidBody3D
 	var push: Vector3 = body.global_position - global_position
@@ -181,8 +225,8 @@ func _nudge_car(car: Node3D, velocity: Vector3) -> void:
 	push.y = 0.0
 	if push.length() < 0.01:
 		return
-	body.apply_central_impulse(push.normalized() * 420.0)
-	body.linear_velocity = body.linear_velocity * 0.97
+	body.apply_central_impulse(push.normalized() * nudge_impulse)
+	body.linear_velocity = body.linear_velocity * speed_keep
 
 
 func _find_car() -> Node3D:
