@@ -49,6 +49,8 @@ var selected_profile: int = 0
 ## Время суток: 0 — как на трассе, 1 — день, 2 — ночь (подписи — в layout).
 var selected_time: int = 0
 var time_buttons: Array[Button] = []
+var selected_transmission: int = 0
+var transmission_buttons: Array[Button] = []
 var controller_manager: Node = null
 var garage = null
 var input_settings = null
@@ -68,6 +70,7 @@ var _marathon_stages: int = 0
 var _weather_flow: HFlowContainer = null
 var _profile_flow: HFlowContainer = null
 var _time_flow: HFlowContainer = null
+var _transmission_flow: HFlowContainer = null
 
 
 func theme_cfg() -> UiThemeType:
@@ -192,12 +195,14 @@ func _restore_selection() -> void:
 	selected_weather = clampi(config.default_weather_index, 0, maxi(0, config.weather_count() - 1))
 	selected_profile = clampi(config.default_profile_index, 0, maxi(0, config.profile_count() - 1))
 	selected_time = 0
+	selected_transmission = 0
 	if game != null:
 		selected_track = clampi(int(game.get("track_index")), 0, maxi(0, config.track_count() - 1))
 		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, int(game.call("setup_count", _vehicle_id())) - 1))
 		selected_weather = clampi(int(game.get("weather_index")), 0, maxi(0, config.weather_count() - 1))
 		selected_profile = clampi(int(game.get("profile_index")), 0, maxi(0, config.profile_count() - 1))
 		selected_time = clampi(int(game.get("time_index")), 0, maxi(0, layout().time_labels.size() - 1))
+		selected_transmission = clampi(int(game.get("transmission_index")), 0, maxi(0, layout().transmission_labels.size() - 1))
 
 
 func _build_buttons() -> void:
@@ -389,6 +394,23 @@ func _build_conditions_ui() -> void:
 		_time_flow.add_child(button)
 		time_buttons.append(button)
 
+	# --- Коробка передач: отдельный выбор игрока, не привязан к пресету машины ---
+	var transmission_title := Label.new()
+	transmission_title.text = layout().transmission_heading
+	transmission_title.add_theme_color_override("font_color", t.accent_soft)
+	transmission_title.add_theme_font_size_override("font_size", t.font_group)
+	box.add_child(transmission_title)
+	_transmission_flow = HFlowContainer.new()
+	_transmission_flow.add_theme_constant_override("h_separation", t.chip_separation)
+	_transmission_flow.add_theme_constant_override("v_separation", t.chip_separation)
+	box.add_child(_transmission_flow)
+	transmission_buttons.clear()
+	for i in range(layout().transmission_labels.size()):
+		var tip: String = layout().transmission_tips[i] if i < layout().transmission_tips.size() else layout().transmission_labels[i]
+		var button := _make_choice_button(layout().transmission_labels[i], tip, _on_transmission_pressed.bind(i))
+		_transmission_flow.add_child(button)
+		transmission_buttons.append(button)
+
 
 func _connect_signals() -> void:
 	if start_button != null and not start_button.pressed.is_connected(_on_start_pressed):
@@ -564,6 +586,8 @@ func _refresh() -> void:
 		profile_buttons[i].modulate = t.condition_selected_color if i == selected_profile else t.condition_idle_color
 	for i in range(time_buttons.size()):
 		time_buttons[i].modulate = t.condition_selected_color if i == selected_time else t.condition_idle_color
+	for i in range(transmission_buttons.size()):
+		transmission_buttons[i].modulate = t.condition_selected_color if i == selected_transmission else t.condition_idle_color
 
 	var track: TrackConfigType = config.get_track(selected_track) as TrackConfigType
 	var setup: CarSetupType = config.get_setup(selected_setup, _vehicle_id()) as CarSetupType
@@ -720,6 +744,12 @@ func _on_time_pressed(index: int) -> void:
 	_refresh()
 
 
+func _on_transmission_pressed(index: int) -> void:
+	selected_transmission = index
+	_sync_conditions()
+	_refresh()
+
+
 func _on_seed_reroll_pressed() -> void:
 	var track: TrackConfigType = _current_track()
 	if track == null or not track.procedural:
@@ -854,9 +884,10 @@ func _sync_game() -> void:
 	game.call("select_weather", selected_weather)
 	game.call("select_profile", selected_profile)
 	game.call("select_time", selected_time)
+	game.call("select_transmission", selected_transmission)
 
 
-## Погода, профиль и время суток живут в RallyGame: сцена этапа берёт их оттуда.
+## Погода, профиль, время суток и коробка живут в RallyGame: сцена этапа берёт их оттуда.
 func _sync_conditions() -> void:
 	var game: Node = _get_game()
 	if game == null:
@@ -864,6 +895,7 @@ func _sync_conditions() -> void:
 	game.call("select_weather", selected_weather)
 	game.call("select_profile", selected_profile)
 	game.call("select_time", selected_time)
+	game.call("select_transmission", selected_transmission)
 
 
 func _on_track_pressed(index: int) -> void:

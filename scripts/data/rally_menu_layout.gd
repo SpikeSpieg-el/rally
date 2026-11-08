@@ -22,6 +22,14 @@ extends Resource
 	"Дневной свет и небо, даже если трасса ночная.",
 	"Ночное небо, слабое солнце и тёмное окружение, даже если трасса дневная.",
 ])
+## Коробка передач игрока — отдельный ряд, не часть пресета машины (порядок — как в GameState).
+@export var transmission_heading: String = "КОРОБКА ПЕРЕДАЧ"
+@export var transmission_labels: PackedStringArray = PackedStringArray(["АВТОМАТ", "РУЧНАЯ", "РУЧНАЯ + СЦЕПЛЕНИЕ"])
+@export var transmission_tips: PackedStringArray = PackedStringArray([
+	"Передачи переключаются сами.",
+	"Передачи переключаются кнопками вверх и вниз. Сцепление работает автоматически.",
+	"Педаль сцепления нужна для переключения; машина стартует с нейтрали.",
+])
 @export var seed_hint: String = "Сид сохраняется в user://rally_conditions.cfg"
 @export var apply_button: String = "ПРИМЕНИТЬ"
 @export var reroll_button: String = "ПЕРЕГЕНЕРИРОВАТЬ"

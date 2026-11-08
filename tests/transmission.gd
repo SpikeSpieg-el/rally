@@ -35,6 +35,10 @@ func keyboard_event(code: Key, pressed: bool, shift_held: bool) -> InputEventKey
 func make_car(world: Node3D, mode: int) -> RallyCar:
 	var setup := Setup.duplicate(true) as RallyCarSetup
 	setup.transmission_mode = mode
+	# Коробку задаёт игрок в меню (RallyGame), а не пресет: выставляем её так же.
+	var game := root.get_node_or_null("RallyGame")
+	if game != null:
+		game.set("transmission_index", mode)
 	var car := CarScene.instantiate() as RallyCar
 	car.setup_override = setup
 	car.mouse_look_enabled = false

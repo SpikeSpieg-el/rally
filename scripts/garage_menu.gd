@@ -456,7 +456,7 @@ func _refresh() -> void:
 	_reset.visible = _editing
 	_create.disabled = _creating
 	_create.tooltip_text = "Сначала сохраните или отмените новую копию." if _creating else "Создать отдельную копию этого пресета."
-	_summary.text = "%s\n%s  ·  %d кг  ·  %s" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass), setup.get_transmission_name()]
+	_summary.text = "%s\n%s  ·  %d кг" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass)]
 	for field: Dictionary in Customization.FIELDS:
 		var key: String = field["key"]
 		var kind: String = field["kind"]
