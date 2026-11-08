@@ -148,6 +148,7 @@ var is_paused: bool = false
 var best_time: float = 0.0
 var is_new_record: bool = false
 var speed_fx_material: ShaderMaterial = null
+var _legacy_speed_phase: float = 0.0
 var fx_nodes: VisualEffectsType = null
 ## Осадки (дождь/снег) летят вокруг машины, а не по всей карте.
 var _weather_particles: GPUParticles3D = null
@@ -3612,6 +3613,9 @@ func _setup_world_effects() -> void:
 		)
 		speed_fx_material.set_shader_parameter("blur_strength", cfg.speed_blur_strength)
 		speed_fx_material.set_shader_parameter("vignette_strength", cfg.vignette_strength)
+		speed_fx_material.set_shader_parameter("streak_strength", cfg.speed_streak_strength)
+		speed_fx_material.set_shader_parameter("blur_gain", cfg.speed_blur_gain)
+		speed_fx_material.set_shader_parameter("cockpit_scale", cfg.speed_cockpit_scale)
 		cfg.apply_shader_overrides(speed_fx_material, cfg.screen_shader_overrides)
 
 
@@ -3989,11 +3993,15 @@ func _process(delta: float) -> void:
 		_check_checkpoints()
 		_check_finish()
 	var speed: float = car.speed_kmh if car != null else 0.0
+	var camera_mode: int = car.camera_mode if car != null else 0
 	if fx_nodes != null:
-		fx_nodes.update_speed(speed, track)
+		fx_nodes.update_speed(speed, track, camera_mode, delta)
 	elif speed_fx_material != null:
 		var intensity: float = s_settings().speed_fx_amount(speed, track)
+		_legacy_speed_phase += delta * speed * intensity
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
+		speed_fx_material.set_shader_parameter("camera_mode", camera_mode)
+		speed_fx_material.set_shader_parameter("speed_phase", _legacy_speed_phase)
 	_frame_delta = delta
 	_update_hud()
 
