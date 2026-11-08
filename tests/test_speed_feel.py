@@ -1,7 +1,9 @@
 """Статические контракты ощущения скорости без запуска Godot.
 
-Полоски/штрихи по краям кадра удалены: скорость дают камера, инерция, дорожная
-отдача и лёгкое периферийное размытие. Вид от капота остаётся спокойным.
+Главное правило: ощущение скорости не строится на тряске камеры.
+Высокочастотная дрожь (10–20 Гц) укачивает и читается как баг — вместо неё
+медленный занос в повороте, мягкая инерция дистанции, придорожный поток
+частиц, ветер и лёгкое растяжение картинки от центра к краям.
 """
 from pathlib import Path
 import unittest
@@ -13,70 +15,192 @@ def read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding="utf-8")
 
 
+class NoCameraShakeTest(unittest.TestCase):
+    """Тряски в отдаче камеры быть не должно ни в коде, ни в конфиге."""
+
+    def test_no_high_frequency_noise_in_car(self):
+        car = read("scripts/rally_car.gd")
+        for forbidden in (
+            "camera_trauma",
+            "_juice_noise",
+            "_juice_shake_offset",
+            "_juice_shake_rotation",
+            "road_shake_",
+            "shake_frequency_spread",
+            "shake_phase_offset",
+            "trauma_amplitude",
+            "trauma_decay",
+        ):
+            self.assertNotIn(forbidden, car, f"в камере остался блок тряски: {forbidden}")
+
+    def test_feel_config_has_no_shake_knobs(self):
+        feel = read("scripts/data/rally_car_feel_config.gd")
+        for forbidden in (
+            "road_shake_start_kmh",
+            "road_shake_amplitude",
+            "road_shake_frequency",
+            "trauma_decay",
+            "trauma_amplitude",
+            "trauma_frequency",
+            "trauma_rotation_deg",
+            "shift_trauma",
+            "shift_fov_kick",
+            "impact_trauma_per_mps2",
+            "suspension_impact_trauma",
+            "landing_trauma_per_mps",
+        ):
+            self.assertNotIn(forbidden, feel, f"в конфиге остался ползунок тряски: {forbidden}")
+
+    def test_shift_does_not_kick_the_camera(self):
+        car = read("scripts/rally_car.gd")
+        self.assertNotIn("shift_pitch_deg", car)
+        self.assertNotIn("_juice_shift_kick", car)
+
+
+class SpeedFeelDesignTest(unittest.TestCase):
+    """Новая отдача: медленный занос, крен, инерция и «дыхание» ниже 1 Гц."""
+
+    def test_feel_tuning_is_data_driven(self):
+        feel = read("scripts/data/rally_car_feel_config.gd")
+        for field in (
+            "speed_feel_strength",
+            "chase_feel_scale",
+            "cockpit_feel_scale",
+            "corner_lean_start_kmh",
+            "corner_lean_full_kmh",
+            "corner_lean_max_deg",
+            "corner_lean_rate_share",
+            "corner_lean_response",
+            "corner_roll_max_deg",
+            "corner_roll_response",
+            "corner_lean_invert",
+            "speed_pull_gain",
+            "speed_pull_limit",
+            "speed_pull_response",
+            "speed_accel_limit",
+            "speed_accel_response",
+            "high_speed_bob_amplitude",
+            "high_speed_bob_hz",
+            "vertical_inertia_gain",
+            "vertical_inertia_limit",
+            "fov_speed_ease",
+        ):
+            self.assertIn(f"var {field}:", feel, f"нет поля успокоенной отдачи: {field}")
+
+    def test_bob_is_slow_wave_not_shake(self):
+        feel = read("scripts/data/rally_car_feel_config.gd")
+        # Частота «дыхания» физически не может быть дрожью: это доли герца.
+        self.assertIn('"suffix:Гц") var high_speed_bob_hz: float = 0.7', feel)
+        car = read("scripts/rally_car.gd")
+        self.assertIn("Sway.float_bob(", car)
+        # Поток и занос идут через чистую математику, а не через шум.
+        sway = read("scripts/effects/rally_speed_sway.gd")
+        self.assertIn("static func corner_lean(", sway)
+        self.assertIn("static func lean_angle(", sway)
+        self.assertIn("static func float_bob(", sway)
+        self.assertIn("static func vertical_inertia(", sway)
+        self.assertIn("static func speed_fov_factor(", sway)
+        self.assertIn("static func speed_weight(", sway)
+
+    def test_lean_and_roll_are_applied_without_randomness(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn("func _update_speed_feel(delta: float) -> void:", car)
+        self.assertIn("func _apply_chase_feel(active: bool = true) -> void:", car)
+        self.assertIn("func _reset_camera_feel() -> void:", car)
+        self.assertIn("func _chase_feel_scale() -> float:", car)
+        self.assertIn("func _cockpit_feel_scale() -> float:", car)
+        self.assertIn("active_camera.rotate_object_local(Vector3.UP, _feel_lean * feel)", car)
+        self.assertIn("active_camera.rotate_object_local(Vector3.FORWARD, _feel_roll * feel)", car)
+        # Кабина получает ту же отдачу, но с собственной силой.
+        self.assertIn("active_camera.rotate_object_local(Vector3.UP, _feel_lean * cockpit_feel)", car)
+        self.assertIn("active_camera.rotate_object_local(Vector3.FORWARD, _feel_roll * cockpit_feel)", car)
+        # Ни одной выборки шума/случайности в отдаче.
+        self.assertNotIn("randf", car.split("func _update_speed_feel", 1)[1].split("func base_camera_distance", 1)[0])
+
+    def test_hood_stays_calm(self):
+        car = read("scripts/rally_car.gd")
+        update_block = car.split("func _update_cameras(delta: float) -> void:", 1)[1].split("func _update_action_camera", 1)[0]
+        hood_block = update_block.split("CameraMode.HOOD:", 1)[1].split("CameraMode.COCKPIT_1ST:", 1)[0]
+        self.assertIn("active_camera.global_transform = cam_hood.global_transform", hood_block)
+        for forbidden in ("_feel_", "g_force_offset", "_speed_bob_pitch"):
+            self.assertNotIn(forbidden, hood_block)
+
+    def test_reset_clears_feel_state(self):
+        car = read("scripts/rally_car.gd")
+        reset = car.split("func _reset_camera_feel() -> void:", 1)[1].split("\nfunc ", 1)[0]
+        for field in ("_feel_local_accel", "_feel_yaw_rate_deg", "_feel_lean", "_feel_roll", "_feel_pull", "_feel_time"):
+            self.assertIn(f"{field} =", reset)
+
+    def test_fov_curve_is_eased(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn("func chase_fov_factor() -> float:", car)
+        self.assertIn("func inside_fov_factor() -> float:", car)
+        self.assertIn("Sway.speed_fov_factor(speed_kmh, f().speed_reference_kmh, f().fov_speed_ease)", car)
+        self.assertIn("fov_speed_ease", read("scripts/data/rally_car_feel_config.gd"))
+
+
+class SpeedMotesTest(unittest.TestCase):
+    """Придорожный поток — мировой эффект: он не трясёт кадр и виден только сзади."""
+
+    def test_motes_are_data_driven_and_chase_only(self):
+        feel = read("scripts/data/rally_car_feel_config.gd")
+        for field in (
+            "speed_motes_enabled",
+            "speed_motes_amount",
+            "speed_motes_length",
+            "speed_motes_width",
+            "speed_motes_height",
+            "speed_motes_size",
+            "speed_motes_start_kmh",
+            "speed_motes_full_kmh",
+            "speed_motes_color",
+            "speed_motes_lifetime",
+            "speed_motes_velocity_stretch",
+        ):
+            self.assertIn(f"var {field}:", feel)
+        car = read("scripts/rally_car.gd")
+        self.assertIn("func _setup_speed_motes() -> void:", car)
+        self.assertIn("func _update_speed_motes(amount: float) -> void:", car)
+        self.assertIn("amount if camera_mode == CameraMode.CHASE_3RD else 0.0", car)
+
+
 class SpeedFeelShaderTest(unittest.TestCase):
     def test_no_procedural_speed_lines(self):
         shader = read("shaders/speed_fx.gdshader")
-        for forbidden in (
-            "streak_strength",
-            "speed_phase",
-            "view_streak",
-            "sectors",
-            "dash",
-        ):
+        for forbidden in ("streak_strength", "speed_phase", "view_streak", "sectors", "dash"):
             self.assertNotIn(forbidden, shader)
+
+    def test_funnel_stretch_keeps_the_center_sharp(self):
+        shader = read("shaders/speed_fx.gdshader")
+        self.assertIn("uniform float speed_stretch", shader)
+        self.assertIn("uniform float speed_stretch_gain", shader)
+        # Растяжение привязано к маске краёв: в центре маска равна нулю.
+        self.assertIn("float stretch = speed_stretch * speed_stretch_gain * mask * intensity;", shader)
+        # Один проход вместо двух: разлёт = размытие + растяжение.
+        self.assertIn("float spread = stretch + blur_strength * view_blur_gain * mask;", shader)
 
     def test_keeps_camera_aware_peripheral_blur(self):
         shader = read("shaders/speed_fx.gdshader")
-        for uniform in (
-            "uniform int camera_mode",
-            "uniform float blur_gain",
-            "uniform float cockpit_scale",
-        ):
+        for uniform in ("uniform int camera_mode", "uniform float blur_gain", "uniform float cockpit_scale"):
             self.assertIn(uniform, shader)
         self.assertIn("if (camera_mode != 1)", shader)
-        self.assertIn("camera_mode == 1 ? 0.32 : 0.28", shader)
-        self.assertIn("camera_mode == 1 ? 0.85 : 0.80", shader)
-        self.assertIn("camera_mode == 1 ? 0.18 : 0.24", shader)
 
 
 class SpeedFeelWiringTest(unittest.TestCase):
-    def test_screen_receives_camera_without_phase(self):
+    def test_screen_receives_stretch(self):
         screen = read("scripts/effects/rally_screen_look.gd")
-        self.assertIn("func set_preview_speed(speed_kmh: float, camera_mode: int = -1)", screen)
-        for param in ("camera_mode", "blur_gain", "cockpit_scale"):
-            self.assertIn(f'mat.set_shader_parameter("{param}"', screen)
-        for forbidden in ("advance_speed_phase", "streak_strength", "speed_phase"):
-            self.assertNotIn(forbidden, screen)
-
-    def test_stage_passes_active_camera(self):
-        stage = read("scripts/rally_stage.gd")
-        self.assertIn("var camera_mode: int = car.camera_mode if car != null else 0", stage)
-        self.assertIn("fx_nodes.update_speed(speed, track, camera_mode)", stage)
-        self.assertIn('speed_fx_material.set_shader_parameter("camera_mode", camera_mode)', stage)
-        self.assertNotIn("speed_phase", stage)
-        self.assertNotIn("streak_strength", stage)
-
-    def test_cockpit_fov_bonus_is_separate_from_hood(self):
-        car = read("scripts/rally_car.gd")
-        self.assertIn("var cockpit_speed_fov_bonus: float = 10.0", car)
-        self.assertIn("CameraMode.HOOD:", car)
-        self.assertIn("hood_fov + inside_speed_fov_bonus", car)
-        self.assertIn("cockpit_fov + cockpit_speed_fov_bonus", car)
-        self.assertIn("var fov_bonus: float = cockpit_speed_fov_bonus if camera_mode == CameraMode.COCKPIT_1ST else inside_speed_fov_bonus", car)
-
-    def test_settings_mirror_blur_fields_only(self):
-        settings = read("scripts/data/rally_stage_settings.gd")
+        self.assertIn('mat.set_shader_parameter("speed_stretch", stretch)', screen)
         feel = read("scripts/effects/rally_speed_feel.gd")
-        for field in ("speed_blur_gain", "speed_cockpit_scale"):
-            self.assertIn(f"var {field}:", settings)
-            self.assertIn(f'cfg.set("{field}"', feel)
-            self.assertIn(f'cfg.get("{field}")', feel)
-        self.assertNotIn("speed_streak_strength", settings)
-        self.assertNotIn("streak_percent", feel)
+        self.assertIn("var edge_stretch_percent:", feel)
+        self.assertIn('cfg.set("speed_edge_stretch", edge_stretch_percent / 100.0)', feel)
+        settings = read("scripts/data/rally_stage_settings.gd")
+        self.assertIn("var speed_edge_stretch:", settings)
 
+    def test_stage_fallback_pushes_stretch(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn('speed_fx_material.set_shader_parameter("speed_stretch", cfg.speed_edge_stretch)', stage)
 
-class SpeedFeelSceneTest(unittest.TestCase):
-    def test_scenes_do_not_store_removed_streak_uniforms(self):
+    def test_scenes_store_new_uniform(self):
         for rel in (
             "scenes/effects/retro_screen.tscn",
             "scenes/rally_stage.tscn",
@@ -84,74 +208,21 @@ class SpeedFeelSceneTest(unittest.TestCase):
             "scenes/editor/visual_effects_lab.tscn",
         ):
             scene = read(rel)
-            self.assertNotIn("shader_parameter/streak_strength", scene)
-            self.assertNotIn("shader_parameter/speed_phase", scene)
+            self.assertIn("shader_parameter/speed_stretch", scene, rel)
+            self.assertNotIn("shader_parameter/streak_strength", scene, rel)
 
-    def test_speed_effect_description_has_no_streaks(self):
-        scene = read("scenes/effects/speed_effect.tscn")
-        self.assertNotIn("штрихи", scene)
-        self.assertIn("периферийное размытие", scene)
+    def test_pause_panel_has_speed_feel_slider(self):
+        hud = read("scenes/ui/rally_hud.tscn")
+        self.assertIn('name="SpeedFeel"', hud)
+        settings = read("scripts/ui/camera_settings.gd")
+        self.assertIn('"SpeedFeel"', settings)
+        self.assertIn("car.camera_feel_strength = value", settings)
 
-
-class CameraJuiceTest(unittest.TestCase):
-    def test_juice_tuning_is_data_driven(self):
-        feel = read("scripts/data/rally_car_feel_config.gd")
-        for field in (
-            "camera_juice_strength",
-            "chase_juice_scale",
-            "cockpit_juice_scale",
-            "road_shake_start_kmh",
-            "road_shake_full_kmh",
-            "road_shake_amplitude",
-            "road_shake_rotation_deg",
-            "surface_roughness_asphalt",
-            "surface_roughness_dirt",
-            "surface_roughness_grass",
-            "trauma_decay",
-            "trauma_amplitude",
-            "trauma_rotation_deg",
-            "shift_trauma",
-            "shift_pitch_deg",
-            "shift_fov_kick",
-            "landing_trauma_per_mps",
-            "suspension_impact_threshold",
-            "impact_decel_threshold",
-            "cockpit_g_force_gain",
-            "cockpit_g_force_limit",
-        ):
-            self.assertIn(f"var {field}:", feel)
-
-    def test_chase_and_cockpit_use_juice(self):
-        car = read("scripts/rally_car.gd")
-        self.assertIn("var chase_motion_strength: float", car)
-        self.assertIn("_update_camera_juice(delta)", car)
-        self.assertIn("func _chase_juice_scale() -> float:", car)
-        self.assertIn("func _cockpit_juice_scale() -> float:", car)
-        self.assertIn("func _juice_shake_offset() -> Vector3:", car)
-        self.assertIn("func _juice_shake_rotation() -> Vector3:", car)
-        self.assertIn("func _juice_g_rotation() -> Vector3:", car)
-        self.assertIn("func _reset_camera_juice() -> void:", car)
-        self.assertIn("var chase_juice: float = _chase_juice_scale()", car)
-        self.assertIn("var cockpit_juice: float = _cockpit_juice_scale()", car)
-        self.assertIn("active_camera.rotate_object_local(Vector3.RIGHT, juice_rotation.x)", car)
-        self.assertIn("active_camera.global_position += active_camera.global_transform.basis * (_juice_shake_offset() * chase_juice)", car)
-        self.assertIn("active_camera.global_position += global_transform.basis * (_juice_shake_offset() * cockpit_juice)", car)
-
-    def test_hood_camera_stays_calm(self):
-        car = read("scripts/rally_car.gd")
-        update_block = car.split("func _update_cameras(delta: float) -> void:", 1)[1].split("func _update_action_camera", 1)[0]
-        hood_block = update_block.split("CameraMode.HOOD:", 1)[1].split("CameraMode.COCKPIT_1ST:", 1)[0]
-        self.assertIn("active_camera.global_transform = cam_hood.global_transform", hood_block)
-        for forbidden in ("_juice_", "camera_trauma", "g_force_offset"):
-            self.assertNotIn(forbidden, hood_block)
-
-    def test_reset_clears_juice(self):
-        car = read("scripts/rally_car.gd")
-        self.assertIn("_reset_camera_juice()", car)
-        reset = car.split("func _reset_camera_juice() -> void:", 1)[1].split("\nfunc ", 1)[0]
-        self.assertIn("camera_trauma = 0.0", reset)
-        self.assertIn("_juice_shift_kick = 0.0", reset)
-        self.assertIn("_juice_local_accel = Vector3.ZERO", reset)
+    def test_wind_is_a_speed_cue(self):
+        sound = read("scripts/engine_sound.gd")
+        self.assertIn("var wind_full_kmh:", sound)
+        self.assertIn("var chase_wind_boost_db:", sound)
+        self.assertIn("var chase_road_boost_db:", sound)
 
 
 if __name__ == "__main__":

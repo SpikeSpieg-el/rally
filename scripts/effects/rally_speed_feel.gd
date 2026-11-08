@@ -9,11 +9,13 @@ signal settings_changed
 
 enum Feel { CUSTOM, OFF, COMFORT, EXPRESSIVE, ARCADE }
 
+## enabled, start_kmh, full_kmh, strength, edge_blur%, vignette%, blur_gain,
+## cockpit_scale, edge_stretch%.
 const PRESETS := {
-	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 1.0, 0.8],
-	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.6, 6.0, 1.5, 0.7],
-	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.2, 12.0, 2.4, 0.8],
-	Feel.ARCADE: [true, 45.0, 160.0, 1.4, 2.0, 20.0, 3.2, 0.9],
+	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 1.0, 0.8, 0.0],
+	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.4, 6.0, 1.2, 0.7, 0.6],
+	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.0, 12.0, 2.0, 0.8, 2.0],
+	Feel.ARCADE: [true, 45.0, 160.0, 1.2, 1.6, 18.0, 2.6, 0.9, 3.2],
 }
 
 @export_group("Характер эффекта")
@@ -75,6 +77,13 @@ const PRESETS := {
 		cockpit_scale = value
 		_mark_custom()
 		_refresh()
+## Растяжение картинки от центра к краям, % экрана. Это тот самый «поток»,
+## который читается как скорость, но не трясёт кадр: центр остаётся резким.
+@export_range(0.0, 6.0, 0.1, "suffix:% экрана") var edge_stretch_percent: float = 2.0:
+	set(value):
+		edge_stretch_percent = value
+		_mark_custom()
+		_refresh()
 
 var _applying_preset := false
 
@@ -86,7 +95,7 @@ func _ready() -> void:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "description":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	if property.name in ["start_kmh", "full_kmh", "strength", "edge_blur_percent", "vignette_percent", "blur_gain", "cockpit_scale"] and feel != Feel.CUSTOM:
+	if property.name in ["start_kmh", "full_kmh", "strength", "edge_blur_percent", "vignette_percent", "blur_gain", "cockpit_scale", "edge_stretch_percent"] and feel != Feel.CUSTOM:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
@@ -108,6 +117,7 @@ func _apply_preset() -> void:
 	vignette_percent = p[5]
 	blur_gain = p[6]
 	cockpit_scale = p[7]
+	edge_stretch_percent = p[8] if p.size() > 8 else 0.0
 	_applying_preset = false
 
 
@@ -115,9 +125,10 @@ func _refresh() -> void:
 	if feel == Feel.CUSTOM and full_kmh <= start_kmh:
 		full_kmh = start_kmh + 1.0
 		return
-	description = "Меняет только ощущение скорости: края кадра слегка размываются и темнеют.\n"
-	description += "Усиленное периферийное размытие работает сзади и в кабине; капот сохраняет прежний спокойный эффект.\n"
-	description += "Основную отдачу дают камера, инерция и звук; PS1-пиксели, палитра, дождь и снег не изменяются.\n"
+	description = "Меняет только ощущение скорости: края кадра мягко размываются, темнеют и тянутся от центра.\n"
+	description += "Центр (дорога и прицел) остаётся резким; капот сохраняет прежний спокойный вариант.\n"
+	description += "Кадр не трясётся: скорость дают ускорение, поток в мире и ветер, а не дрожь камеры.\n"
+	description += "PS1-пиксели, палитра, дождь и снег не изменяются.\n"
 	if not enabled:
 		description += "Сейчас: выключено."
 	else:
@@ -138,6 +149,7 @@ func write_settings(cfg: Resource) -> void:
 	cfg.set("vignette_strength", vignette_percent / 100.0)
 	cfg.set("speed_blur_gain", blur_gain)
 	cfg.set("speed_cockpit_scale", cockpit_scale)
+	cfg.set("speed_edge_stretch", edge_stretch_percent / 100.0)
 
 
 func adopt_settings(cfg: Resource) -> void:
@@ -153,6 +165,7 @@ func adopt_settings(cfg: Resource) -> void:
 	vignette_percent = float(cfg.get("vignette_strength")) * 100.0
 	blur_gain = float(cfg.get("speed_blur_gain"))
 	cockpit_scale = float(cfg.get("speed_cockpit_scale"))
+	edge_stretch_percent = float(cfg.get("speed_edge_stretch", 0.02)) * 100.0
 	_applying_preset = false
 	_refresh()
 

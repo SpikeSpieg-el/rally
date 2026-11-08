@@ -172,18 +172,21 @@ func _apply_material() -> void:
 	var intensity := 0.0
 	var gain := 1.0
 	var cockpit := 0.8
+	var stretch := 0.0
 	if speed_feel != null and not _compare_original:
 		blur = speed_feel.edge_blur_percent / 100.0
 		vignette = speed_feel.vignette_percent / 100.0
 		intensity = speed_feel.intensity_for(_speed_kmh, _track_allows_speed)
 		gain = speed_feel.blur_gain
 		cockpit = speed_feel.cockpit_scale
+		stretch = speed_feel.edge_stretch_percent / 100.0
 	mat.set_shader_parameter("blur_strength", blur)
 	mat.set_shader_parameter("vignette_strength", vignette)
 	mat.set_shader_parameter("speed_intensity", intensity)
 	mat.set_shader_parameter("camera_mode", _camera_mode)
 	mat.set_shader_parameter("blur_gain", gain)
 	mat.set_shader_parameter("cockpit_scale", cockpit)
+	mat.set_shader_parameter("speed_stretch", stretch)
 	ShaderParam.apply_all(mat, custom_uniforms)
 
 

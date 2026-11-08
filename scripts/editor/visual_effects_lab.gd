@@ -106,6 +106,7 @@ func _bind_controls() -> void:
 	var rain_box := get_node_or_null("PreviewCanvas/Panel/Box/RainPreset") as OptionButton
 	var compare := get_node_or_null("PreviewCanvas/Panel/Box/Compare") as CheckButton
 	var slider := get_node_or_null("PreviewCanvas/Panel/Box/SpeedSlider") as HSlider
+	var stretch := get_node_or_null("PreviewCanvas/Panel/Box/StretchSlider") as HSlider
 	_fill_options(weather_box, ["Ясно", "Дождь", "Снег"], 1)
 	_fill_options(speed_box, ["60 км/ч", "120 км/ч", "200 км/ч"], 1)
 	_fill_options(screen_box, ["Чистая картинка", "Мягкий PS1", "Классический PS1"], 2)
@@ -148,6 +149,14 @@ func _bind_controls() -> void:
 		compare.toggled.connect(func(value: bool) -> void: compare_original = value)
 	if slider != null:
 		slider.value_changed.connect(func(value: float) -> void: preview_speed_kmh = value)
+	if stretch != null and effects != null and effects.speed() != null:
+		stretch.set_value_no_signal(effects.speed().edge_stretch_percent)
+		stretch.value_changed.connect(func(value: float) -> void:
+			# Правка живёт только до закрытия лаборатории: сцена не сохраняется.
+			var custom: SpeedFeel.Feel = SpeedFeel.Feel.CUSTOM
+			effects.speed().feel = custom
+			effects.speed().edge_stretch_percent = value
+		)
 
 
 func _on_preview_speed_selected(index: int, slider: HSlider) -> void:
@@ -182,7 +191,7 @@ func refresh_preview() -> void:
 	if status != null:
 		var camera_names: Array[String] = ["сзади", "капот", "кабина"]
 		var camera_name := camera_names[clampi(preview_camera_mode, 0, camera_names.size() - 1)]
-		status.text = "Предпросмотр: %.0f км/ч · %s · вид %s\nПереключатели не сохраняются. Для постоянной настройки меняйте узлы сцены." % [
+		status.text = "Предпросмотр: %.0f км/ч · %s · вид %s\nПереключатели не сохраняются. Для постоянной настройки меняйте узлы сцены.\nТряски камеры нет: скорость дают поток в мире, ветер и плавное раскрытие FOV." % [
 			preview_speed_kmh, weather.display_name if weather != null else "ясно", camera_name,
 		]
 	var speed_label := get_node_or_null("PreviewCanvas/Panel/Box/SpeedValue") as Label

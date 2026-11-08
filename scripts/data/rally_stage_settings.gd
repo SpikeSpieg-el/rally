@@ -51,9 +51,11 @@ extends Resource
 ## Сила виньетки поверх ретро-стиля.
 @export_range(0.0, 1.0, 0.01) var vignette_strength: float = 0.12
 ## Множитель периферийного размытия для вида сзади/из кабины.
-@export_range(1.0, 4.0, 0.1) var speed_blur_gain: float = 2.4
+@export_range(1.0, 4.0, 0.1) var speed_blur_gain: float = 2.0
 ## Сила нового эффекта в кабине относительно вида сзади.
 @export_range(0.0, 1.0, 0.05) var speed_cockpit_scale: float = 0.8
+## Растяжение картинки от центра к краям (uniform speed_stretch).
+@export_range(0.0, 0.06, 0.001) var speed_edge_stretch: float = 0.02
 
 @export_group("Осадки в мире")
 ## Выключатель мировых частиц (дождь/снег) без правки погодных пресетов.
