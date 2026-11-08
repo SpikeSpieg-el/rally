@@ -3443,6 +3443,7 @@ func _configure_world() -> void:
 			ambient_color = cfg.night_ambient_color
 			sky_top = _weather_sky_color(cfg.night_sky_top)
 			sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+			fog_color = _weather_fog_tint(cfg.night_fog_color)
 		else:
 			sun_energy = cfg.day_sun_energy
 			sun_color = cfg.day_sun_color
@@ -3450,6 +3451,7 @@ func _configure_world() -> void:
 			ambient_color = cfg.day_ambient_color
 			sky_top = _weather_sky_color(cfg.day_sky_top)
 			sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
+			fog_color = _weather_fog_tint(cfg.day_fog_color)
 	if world_environment != null:
 		var env: Environment = null
 		if world_environment.environment != null:
@@ -3567,9 +3569,16 @@ func _weather_sky_color(base: Color) -> Color:
 
 
 func _effective_fog_color() -> Color:
+	return _weather_fog_tint(track.fog_color)
+
+
+## Погода подкрашивает любой базовый цвет тумана: и родной цвет трассы, и цвет
+## переключения «День/Ночь». Раньше подкраска жила прямо в _effective_fog_color,
+## и переключение времени суток не могло подменить сам туман.
+func _weather_fog_tint(base: Color) -> Color:
 	if weather == null:
-		return track.fog_color
-	return track.fog_color.lerp(weather.fog_color, weather.fog_color_strength)
+		return base
+	return base.lerp(weather.fog_color, weather.fog_color_strength)
 
 
 ## Осадки существуют в мире: генератор обновляет только область рождения,
