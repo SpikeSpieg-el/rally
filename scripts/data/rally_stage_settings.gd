@@ -50,8 +50,6 @@ extends Resource
 @export_range(0.0, 0.05, 0.001) var speed_blur_strength: float = 0.012
 ## Сила виньетки поверх ретро-стиля.
 @export_range(0.0, 1.0, 0.01) var vignette_strength: float = 0.12
-## Радиальные штрихи по краям кадра для вида сзади/из кабины (0–1).
-@export_range(0.0, 1.0, 0.01) var speed_streak_strength: float = 0.55
 ## Множитель периферийного размытия для вида сзади/из кабины.
 @export_range(1.0, 4.0, 0.1) var speed_blur_gain: float = 2.4
 ## Сила нового эффекта в кабине относительно вида сзади.

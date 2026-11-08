@@ -23,7 +23,7 @@ const Precip = preload("res://scripts/effects/rally_precipitation_effect.gd")
 	set(value):
 		preview_speed_kmh = value
 		_queue_refresh()
-## Какой вид проверяем: сзади и кабина получают штрихи, капот — прежний эффект.
+## Какой вид проверяем: сзади и кабина получают усиленное размытие, капот — прежний эффект.
 @export_enum("Сзади", "Капот", "Кабина") var preview_camera_mode: int = 0:
 	set(value):
 		preview_camera_mode = value
@@ -51,14 +51,6 @@ func _ready() -> void:
 func _queue_refresh() -> void:
 	if _ready_done:
 		call_deferred("refresh_preview")
-
-
-func _process(delta: float) -> void:
-	if not _ready_done or effects == null:
-		return
-	var rect := effects.screen()
-	if rect != null:
-		rect.advance_speed_phase(delta)
 
 
 func _assign_surface_materials() -> void:

@@ -57,12 +57,10 @@ func configure_screen(track: Resource) -> void:
 ## Каждый кадр заезда: экранный фильтр скорости получает текущую скорость.
 ## Трасса осталась в подписи ради совместимости со старыми вызовами, но
 ## фильтру она не нужна — параметр с подчёркиванием, чтобы не было предупреждения.
-func update_speed(speed_kmh: float, _track: Resource = null, camera_mode: int = 0, delta: float = 0.0) -> void:
+func update_speed(speed_kmh: float, _track: Resource = null, camera_mode: int = 0) -> void:
 	var rect := screen()
 	if rect != null:
 		rect.set_preview_speed(speed_kmh, camera_mode)
-		if delta > 0.0:
-			rect.advance_speed_phase(delta)
 
 
 ## Копия сцены осадков для заезда: правки шаблона в редакторе не изменяются.

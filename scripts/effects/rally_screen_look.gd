@@ -75,7 +75,6 @@ var _track_dither := true
 var _track_allows_speed := true
 var _speed_kmh := 0.0
 var _camera_mode := 0
-var _speed_phase := 0.0
 var _compare_original := false
 
 
@@ -152,20 +151,6 @@ func set_preview_speed(speed_kmh: float, camera_mode: int = -1) -> void:
 	_apply_material()
 
 
-## Фаза бегущих наружу штрихов. На паузе этап не вызывает этот метод,
-## поэтому картинка не продолжает «ехать» под меню.
-func advance_speed_phase(delta: float) -> void:
-	if speed_feel == null or _compare_original or delta <= 0.0:
-		return
-	var intensity := speed_feel.intensity_for(_speed_kmh, _track_allows_speed)
-	if intensity <= 0.0:
-		return
-	_speed_phase += delta * _speed_kmh * intensity
-	var mat := material as ShaderMaterial
-	if mat != null:
-		mat.set_shader_parameter("speed_phase", _speed_phase)
-
-
 func set_compare_original(value: bool) -> void:
 	_compare_original = value
 	_apply_material()
@@ -185,24 +170,20 @@ func _apply_material() -> void:
 	var blur := 0.012
 	var vignette := 0.12
 	var intensity := 0.0
-	var streak := 0.0
 	var gain := 1.0
 	var cockpit := 0.8
 	if speed_feel != null and not _compare_original:
 		blur = speed_feel.edge_blur_percent / 100.0
 		vignette = speed_feel.vignette_percent / 100.0
 		intensity = speed_feel.intensity_for(_speed_kmh, _track_allows_speed)
-		streak = speed_feel.streak_percent / 100.0
 		gain = speed_feel.blur_gain
 		cockpit = speed_feel.cockpit_scale
 	mat.set_shader_parameter("blur_strength", blur)
 	mat.set_shader_parameter("vignette_strength", vignette)
 	mat.set_shader_parameter("speed_intensity", intensity)
 	mat.set_shader_parameter("camera_mode", _camera_mode)
-	mat.set_shader_parameter("streak_strength", streak)
 	mat.set_shader_parameter("blur_gain", gain)
 	mat.set_shader_parameter("cockpit_scale", cockpit)
-	mat.set_shader_parameter("speed_phase", _speed_phase)
 	ShaderParam.apply_all(mat, custom_uniforms)
 
 
