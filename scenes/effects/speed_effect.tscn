@@ -1,10 +1,10 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dmk814np3lce2"]
 
-[ext_resource type="Script" path="res://scripts/effects/rally_speed_feel.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://csltb0po8hd2s" path="res://scripts/effects/rally_speed_feel.gd" id="1_script"]
 
-[node name="Speed" type="Node"]
-script = ExtResource("1_script")
+[node name="Speed" type="Node" unique_id=1530787186]
 editor_description = "Единственный пульт эффекта скорости для всех заездов: готовые характеры выключено / комфорт / выразительно / аркада, точные числа — в режиме «Свой характер». Сзади и в кабине: усиленное периферийное размытие; капот — прежний спокойный эффект."
+script = ExtResource("1_script")
 feel = 0
 start_kmh = 22.0
 full_kmh = 159.0

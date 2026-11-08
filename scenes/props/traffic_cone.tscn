@@ -1,23 +1,27 @@
-[gd_scene format=3 uid="uid://sh88jbbld63in"]
+[gd_scene format=3 uid="uid://c1mq52mk4elhl"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_cone"]
-albedo_color = Color(1.0, 0.42, 0.05, 1)
+albedo_color = Color(1, 0.42, 0.05, 1)
 roughness = 0.9
+
 [sub_resource type="CylinderMesh" id="Mesh_cone"]
 material = SubResource("Mat_cone")
 top_radius = 0.05
 bottom_radius = 0.2
 height = 0.55
 radial_segments = 7
+
 [sub_resource type="BoxMesh" id="Mesh_base"]
 material = SubResource("Mat_cone")
 size = Vector3(0.44, 0.04, 0.44)
 
-[node name="TrafficCone" type="Node3D"]
+[node name="TrafficCone" type="Node3D" unique_id=20921613]
+transform = Transform3D(1.455, 0, 0, 0, 1.455, 0, 0, 0, 1.455, 0, 0.052744657, 0)
 
-[node name="Cone" type="MeshInstance3D" parent="."]
+[node name="Cone" type="MeshInstance3D" parent="." unique_id=2109213394]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
 mesh = SubResource("Mesh_cone")
-[node name="Base" type="MeshInstance3D" parent="."]
+
+[node name="Base" type="MeshInstance3D" parent="." unique_id=107486830]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
 mesh = SubResource("Mesh_base")
