@@ -122,6 +122,8 @@ var track: TrackConfigType = null
 var setup: CarSetupType = null
 ## Погода и «характер трассы» текущего заезда (из автозагрузки RallyGame).
 var weather: WeatherType = null
+## Время суток из меню: 0 — как на трассе, 1 — день, 2 — ночь.
+var time_choice: int = 0
 var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
@@ -623,6 +625,9 @@ func _resolve_conditions(game: Node) -> void:
 	var selected_profile: Variant = game.get("current_profile")
 	if selected_profile is ProfileType:
 		track_profile = selected_profile
+	var selected_time: Variant = game.get("time_index")
+	if selected_time is int:
+		time_choice = clampi(selected_time, 0, 2)
 
 
 ## Накладывает профиль полотна и поправки погоды на копию конфига трассы.
@@ -3219,9 +3224,7 @@ func _configure_world() -> void:
 	# Погода «КАК НА ТРАССЕ» (weather == null) оставляет всё как в .tres.
 	# Все константы постобработки живут в RallyStageSettings (инспектор).
 	var cfg := s_settings()
-	var night: bool = track.night_mode
-	if weather != null:
-		night = weather.resolve_night(track.night_mode)
+	var night: bool = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
 	var sky_top: Color = _weather_sky_color(track.sky_top_color)
 	var sky_horizon: Color = _weather_sky_color(track.sky_horizon_color)
 	var fog_color: Color = _effective_fog_color()
@@ -3232,6 +3235,7 @@ func _configure_world() -> void:
 	var exposure: float = track.exposure
 	var sun_energy: float = track.sun_energy
 	var sun_color: Color = track.sun_color
+	var ambient_color: Color = track.ambient_color
 	if weather != null:
 		fog_density = clampf(
 			track.fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
@@ -3245,6 +3249,23 @@ func _configure_world() -> void:
 		exposure *= weather.exposure_scale
 		sun_energy *= weather.sun_energy_scale
 		sun_color = track.sun_color.lerp(weather.sun_tint, weather.sun_tint_strength)
+	# Выбор «День»/«Ночь» против природы трассы: свет переворачивается только
+	# тогда, когда время реально другое. Обычный заезд не меняется.
+	if night != track.night_mode:
+		if night:
+			sun_energy *= cfg.night_sun_scale
+			sun_color = sun_color.lerp(cfg.night_sun_tint, cfg.night_sun_tint_strength)
+			ambient_energy *= cfg.night_ambient_scale
+			ambient_color = cfg.night_ambient_color
+			sky_top = _weather_sky_color(cfg.night_sky_top)
+			sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+		else:
+			sun_energy = cfg.day_sun_energy
+			sun_color = cfg.day_sun_color
+			ambient_energy = cfg.day_ambient_energy
+			ambient_color = cfg.day_ambient_color
+			sky_top = _weather_sky_color(cfg.day_sky_top)
+			sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
 	if world_environment != null:
 		var env: Environment = null
 		if world_environment.environment != null:
@@ -3271,7 +3292,7 @@ func _configure_world() -> void:
 		env.background_energy_multiplier = 1.0
 		env.sky = sky
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = track.ambient_color
+		env.ambient_light_color = ambient_color
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure

@@ -46,6 +46,9 @@ var selected_track: int = 0
 var selected_setup: int = 0
 var selected_weather: int = 0
 var selected_profile: int = 0
+## Время суток: 0 — как на трассе, 1 — день, 2 — ночь (подписи — в layout).
+var selected_time: int = 0
+var time_buttons: Array[Button] = []
 var controller_manager: Node = null
 var garage = null
 var input_settings = null
@@ -64,6 +67,7 @@ var _marathon_choice: OptionButton = null
 var _marathon_stages: int = 0
 var _weather_flow: HFlowContainer = null
 var _profile_flow: HFlowContainer = null
+var _time_flow: HFlowContainer = null
 
 
 func theme_cfg() -> UiThemeType:
@@ -187,11 +191,13 @@ func _restore_selection() -> void:
 	selected_setup = clampi(config.default_setup_index, 0, maxi(0, config.setup_count() - 1))
 	selected_weather = clampi(config.default_weather_index, 0, maxi(0, config.weather_count() - 1))
 	selected_profile = clampi(config.default_profile_index, 0, maxi(0, config.profile_count() - 1))
+	selected_time = 0
 	if game != null:
 		selected_track = clampi(int(game.get("track_index")), 0, maxi(0, config.track_count() - 1))
 		selected_setup = clampi(int(game.get("setup_index")), 0, maxi(0, int(game.call("setup_count", _vehicle_id())) - 1))
 		selected_weather = clampi(int(game.get("weather_index")), 0, maxi(0, config.weather_count() - 1))
 		selected_profile = clampi(int(game.get("profile_index")), 0, maxi(0, config.profile_count() - 1))
+		selected_time = clampi(int(game.get("time_index")), 0, maxi(0, layout().time_labels.size() - 1))
 
 
 func _build_buttons() -> void:
@@ -366,6 +372,23 @@ func _build_conditions_ui() -> void:
 		_profile_flow.add_child(button)
 		profile_buttons.append(button)
 
+	# --- Время суток: отдельно от погоды (день с дождём, ночь в тумане и т.д.) ---
+	var time_title := Label.new()
+	time_title.text = layout().time_heading
+	time_title.add_theme_color_override("font_color", t.accent_soft)
+	time_title.add_theme_font_size_override("font_size", t.font_group)
+	box.add_child(time_title)
+	_time_flow = HFlowContainer.new()
+	_time_flow.add_theme_constant_override("h_separation", t.chip_separation)
+	_time_flow.add_theme_constant_override("v_separation", t.chip_separation)
+	box.add_child(_time_flow)
+	time_buttons.clear()
+	for i in range(layout().time_labels.size()):
+		var tip: String = layout().time_tips[i] if i < layout().time_tips.size() else layout().time_labels[i]
+		var button := _make_choice_button(layout().time_labels[i], tip, _on_time_pressed.bind(i))
+		_time_flow.add_child(button)
+		time_buttons.append(button)
+
 
 func _connect_signals() -> void:
 	if start_button != null and not start_button.pressed.is_connected(_on_start_pressed):
@@ -539,6 +562,8 @@ func _refresh() -> void:
 		weather_buttons[i].modulate = t.condition_selected_color if i == selected_weather else t.condition_idle_color
 	for i in range(profile_buttons.size()):
 		profile_buttons[i].modulate = t.condition_selected_color if i == selected_profile else t.condition_idle_color
+	for i in range(time_buttons.size()):
+		time_buttons[i].modulate = t.condition_selected_color if i == selected_time else t.condition_idle_color
 
 	var track: TrackConfigType = config.get_track(selected_track) as TrackConfigType
 	var setup: CarSetupType = config.get_setup(selected_setup, _vehicle_id()) as CarSetupType
@@ -554,7 +579,7 @@ func _refresh() -> void:
 		preview.call("set_conditions", weather, profile)
 		preview.call("set_track", track)
 	if info_label != null:
-		info_label.text = _track_info_text(track, setup, weather, profile)
+		info_label.text = _track_info_text(track, setup, weather, profile, selected_time)
 	if setup != null:
 		if power_bar != null:
 			power_bar.value = setup.get_power_rating()
@@ -570,8 +595,8 @@ func _refresh() -> void:
 				key = String(game.call("record_key_for", track))
 			var best: float = float(game.call("get_best_time", key))
 			var note: String = ""
-			if _is_conditions_modified(weather, profile):
-				note = "  •  %s" % _conditions_short(weather, profile)
+			if _is_conditions_modified(weather, profile, selected_time):
+				note = "  •  %s" % _conditions_short(weather, profile, selected_time)
 			best_label.text = layout().best_time_label % [
 				note, _format_time(best) if best > 0.0 else "—"
 			]
@@ -586,7 +611,7 @@ func _refresh() -> void:
 ## Текст карточки трассы. Настройка машины в строку не входит — данные о ней
 ## висят рядом на своих индикаторах, поэтому параметр помечен подчёркиванием.
 func _track_info_text(
-	track: TrackConfigType, _setup: CarSetupType, weather: WeatherType, profile: ProfileType
+	track: TrackConfigType, _setup: CarSetupType, weather: WeatherType, profile: ProfileType, time_choice: int
 ) -> String:
 	var length_value: float = track.get_route_length()
 	var length_line: String = "ДЛИНА: %.0f м" % length_value
@@ -619,13 +644,19 @@ func _track_info_text(
 		if not weather_summary.is_empty() and weather_summary != weather.display_name:
 			weather_line += "  •  %s" % weather_summary
 		grip *= weather.grip_scale
+	var time_line: String = "ВРЕМЯ: %s" % (
+		"НОЧЬ" if WeatherType.resolve_night_choice(time_choice, weather, track.night_mode) else "ДЕНЬ"
+	)
+	if time_choice == 0:
+		time_line += " (как на трассе)"
 	var engine_line: String = "\nМАШИНА И НАСТРОЙКИ — В ГАРАЖЕ"
-	return "%s\n\n%s\n\n%s\n%s\n%s\n" % [
+	return "%s\n\n%s\n\n%s\n%s\n%s\n%s\n" % [
 		track.display_name,
 		track.description,
 		length_line,
 		profile_line,
 		weather_line,
+		time_line,
 	] + "ШИРИНА: %.1f м  •  КОЧКИ: %.0f мм\n" % [
 		width, bumps_mm,
 	] + "СЦЕПЛЕНИЕ: %.2f  •  СЛОЖНОСТЬ: %d/5\n" % [
@@ -636,18 +667,22 @@ func _track_info_text(
 	]
 
 
-func _is_conditions_modified(weather: WeatherType, profile: ProfileType) -> bool:
+func _is_conditions_modified(weather: WeatherType, profile: ProfileType, time_choice: int) -> bool:
+	if time_choice != 0:
+		return true
 	if weather != null and String(weather.id) != "default":
 		return true
 	return profile != null and String(profile.id) != "gravel"
 
 
-func _conditions_short(weather: WeatherType, profile: ProfileType) -> String:
+func _conditions_short(weather: WeatherType, profile: ProfileType, time_choice: int) -> String:
 	var parts := PackedStringArray()
 	if weather != null:
 		parts.append(weather.display_name)
 	if profile != null:
 		parts.append(profile.display_name)
+	if time_choice != 0 and time_choice < layout().time_labels.size():
+		parts.append(layout().time_labels[time_choice])
 	return " + ".join(parts)
 
 
@@ -675,6 +710,12 @@ func _on_weather_pressed(index: int) -> void:
 
 func _on_profile_pressed(index: int) -> void:
 	selected_profile = index
+	_sync_conditions()
+	_refresh()
+
+
+func _on_time_pressed(index: int) -> void:
+	selected_time = index
 	_sync_conditions()
 	_refresh()
 
@@ -754,6 +795,8 @@ func _input(event: InputEvent) -> void:
 		_cycle_choice(true)
 	elif code == cfg.hotkey_profile:
 		_cycle_choice(false)
+	elif code == cfg.hotkey_time:
+		_cycle_time()
 	elif code == cfg.hotkey_reroll:
 		_on_seed_reroll_pressed()
 	else:
@@ -789,6 +832,12 @@ func _cycle_choice(weather_next: bool) -> void:
 	_on_profile_pressed((selected_profile + 1) % profile_buttons.size())
 
 
+func _cycle_time() -> void:
+	if time_buttons.is_empty():
+		return
+	_on_time_pressed((selected_time + 1) % time_buttons.size())
+
+
 func _format_time(seconds: float) -> String:
 	return "%02d:%06.3f" % [floori(seconds / 60.0), fmod(seconds, 60.0)]
 
@@ -804,15 +853,17 @@ func _sync_game() -> void:
 	game.call("select_setup", selected_setup)
 	game.call("select_weather", selected_weather)
 	game.call("select_profile", selected_profile)
+	game.call("select_time", selected_time)
 
 
-## Погода и профиль живут в RallyGame: сцена этапа берёт их оттуда.
+## Погода, профиль и время суток живут в RallyGame: сцена этапа берёт их оттуда.
 func _sync_conditions() -> void:
 	var game: Node = _get_game()
 	if game == null:
 		return
 	game.call("select_weather", selected_weather)
 	game.call("select_profile", selected_profile)
+	game.call("select_time", selected_time)
 
 
 func _on_track_pressed(index: int) -> void:

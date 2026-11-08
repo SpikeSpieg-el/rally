@@ -123,6 +123,28 @@ extends Resource
 ## Кривая глубины тумана (1 — линейно).
 @export_range(0.1, 4.0, 0.05) var fog_depth_curve: float = 1.0
 
+@export_group("Время суток")
+## Выбор «ДЕНЬ» или «НОЧЬ» в меню переворачивает освещение трассы только тогда,
+## когда он отличается от её природного времени (night_mode). Эти поля —
+## насколько сильно меняется свет при переходе.
+## Дневной свет → ночь: солнце слабее и синее, окружение темнее.
+@export_range(0.0, 1.0, 0.01) var night_sun_scale: float = 0.35
+@export var night_sun_tint: Color = Color(0.6, 0.7, 1.0, 1.0)
+## Насколько сильно солнце окрашивается в ночной тон (0 — не окрашивать).
+@export_range(0.0, 1.0, 0.01) var night_sun_tint_strength: float = 0.7
+@export_range(0.0, 2.0, 0.01) var night_ambient_scale: float = 0.55
+## Ночной свет → день: солнце как на дневных трассах, окружение как у них же.
+@export_range(0.2, 4.0, 0.05) var day_sun_energy: float = 1.4
+@export var day_sun_color: Color = Color(1.0, 0.95, 0.82, 1.0)
+@export_range(0.0, 3.0, 0.01) var day_ambient_energy: float = 0.85
+## Цвета неба и окружения при переключении (как у штатных ночных и дневных трасс).
+@export var night_sky_top: Color = Color(0.035, 0.045, 0.075, 1.0)
+@export var night_sky_horizon: Color = Color(0.13, 0.16, 0.19, 1.0)
+@export var night_ambient_color: Color = Color(0.48, 0.56, 0.72, 1.0)
+@export var day_sky_top: Color = Color(0.2, 0.38, 0.6, 1.0)
+@export var day_sky_horizon: Color = Color(0.75, 0.8, 0.85, 1.0)
+@export var day_ambient_color: Color = Color(0.6, 0.63, 0.7, 1.0)
+
 @export_group("Материалы полотна и земли")
 ## Шероховатость земли и масштаб зерна её текстуры.
 @export_range(0.0, 1.0, 0.01) var ground_surface_roughness: float = 0.97

@@ -101,3 +101,17 @@ func resolve_night(track_night: bool) -> bool:
 			return true
 		_:
 			return track_night
+
+
+## Время суток, выбранное в меню отдельно от погоды (0 — как на трассе,
+## 1 — день, 2 — ночь). Явный выбор главнее поля погоды; «как на трассе»
+## передаёт решение погодному пресету, а тот — трассе.
+static func resolve_night_choice(choice: int, weather: Resource, track_night: bool) -> bool:
+	match choice:
+		TimeOfDay.DAY:
+			return false
+		TimeOfDay.NIGHT:
+			return true
+	if weather != null and weather.has_method("resolve_night"):
+		return bool(weather.call("resolve_night", track_night))
+	return track_night
