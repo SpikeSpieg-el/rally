@@ -1953,6 +1953,8 @@ class SceneryBuffer:
 
 const SceneryPlacement = preload("res://scripts/data/rally_scenery_placement.gd")
 const GuardrailPlacement = preload("res://scripts/data/rally_guardrail_placement.gd")
+## Потолок секций забора на один поворот: страховка от ошибки в размере пропса.
+const MAX_FENCE_SECTIONS := 400
 
 
 func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -2680,8 +2682,8 @@ func _dressing_multimesh(container: Node3D, mesh_name: String, prop_id: String, 
 	container.add_child(instance)
 
 
-## Оформление спецучастка на отрезке трассы: ленты и сетки на крутых
-## поворотах, тормозные таблички, следы шин и грязь на апексах, зрительские
+## Оформление спецучастка на отрезке трассы: дощатый забор на внешнем
+## радиусе опасных поворотов, тормозные таблички, следы шин и грязь на апексах, зрительские
 ## лагеря, ЛЭП, туман в низинах, домик лесника и разбитая машина соперника.
 ## Вызывается и для всей трассы сразу, и по чанкам стриминга (отрезками).
 func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -2694,10 +2696,6 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 	var end: float = network.total_length - 40.0 if distance_end < 0.0 else minf(distance_end, network.total_length - 40.0)
 	var corridor: float = corridor_half()
 	var corners: Array = _get_dressing_corners()
-	var post_transforms: Array = []
-	var ribbon_transforms: Array = []
-	var ribbon_colors: Array = []
-	var tape_colors: Array[Color] = [Color(0.92, 0.10, 0.08), Color(0.95, 0.94, 0.90)]
 	for corner in corners:
 		var entry: float = float(corner.get("distance", 0.0))
 		var severity: int = int(corner.get("severity", 6))
@@ -2718,7 +2716,9 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 					var number := marker.get_node_or_null("Number") as Label3D
 					if number != null:
 						number.text = str(int(round(back)))
-		if entry + 55.0 < distance_start or entry - 15.0 >= end:
+		# Отсечение куска: забор может тянуться дальше лент, поэтому берём
+		# максимум из его длины и прежних 55 м.
+		if entry + maxf(55.0, cfg.corner_fence_after) < distance_start or entry - 15.0 >= end:
 			continue
 		# Жирные следы торможения/заноса и грязь с внутреннего апекса.
 		if severity <= 3:
@@ -2726,32 +2726,12 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			var apex_frame: Array = _dressing_frame(entry + 28.0, corridor - 1.4, direction_sign)
 			var apex_pos: Vector3 = apex_frame[0]
 			_place_prop(container, "mud_patch", Vector3(apex_pos.x, height_at(apex_pos.x, apex_pos.z) + 0.05, apex_pos.z), 0.0)
-		# Ленты на колышках и оранжевая сетка снаружи опасных поворотов.
+		# Дощатый забор по внешнему радиусу опасного поворота. Секции тянутся
+		# между соседними точками грунта, как у отбойника, поэтому получается
+		# одна непрерывная линия — без «трёх кусков» с видимыми стыками, как
+		# было у лент на колышках и оранжевых сеток.
 		if severity <= 2:
-			var previous: Vector3 = Vector3.ZERO
-			var segment_index: int = 0
-			var d: float = entry - 12.0
-			while d <= entry + 55.0:
-				var frame: Array = _dressing_frame(d, corridor + 1.6, outer_sign)
-				var pos: Vector3 = frame[0]
-				post_transforms.append(Transform3D(Basis.IDENTITY, pos))
-				if segment_index > 0:
-					var mid: Vector3 = (pos + previous) * 0.5
-					var delta: Vector3 = pos - previous
-					var seg_yaw: float = atan2(delta.x, delta.z)
-					var wave: float = sin(float(segment_index) * 1.7) * 0.07
-					var ribbon_basis := Basis(Vector3.UP, seg_yaw) * Basis.from_scale(Vector3(1.0, 1.0, maxf(delta.length(), 0.1)))
-					ribbon_transforms.append(Transform3D(ribbon_basis, mid + Vector3(0, 0.78 + wave, 0)))
-					ribbon_colors.append(tape_colors[segment_index % 2])
-					var net_pos: Vector3 = mid + (frame[2] as Vector3) * (outer_sign * 1.3)
-					var net: Node3D = _place_prop(container, "safety_net", Vector3(net_pos.x, ground_height(net_pos.x, net_pos.z), net_pos.z), seg_yaw)
-					if net != null:
-						net.scale = Vector3(1.0, 1.0, maxf(delta.length(), 0.1))
-				previous = pos
-				segment_index += 1
-				d += 6.0
-	_dressing_multimesh(container, "BuntingPosts", "bunting_post", post_transforms, [])
-	_dressing_multimesh(container, "BuntingTape", "bunting_tape", ribbon_transforms, ribbon_colors)
+			_dressing_corner_fence(container, entry, outer_sign, distance_start, end)
 	# Зрительские лагеря на внешних радиусах выбранных поворотов.
 	var spectator_corners: Array = StageDressing.select_spectator_corners(corners, cfg.spectator_spacing, cfg.spectator_max_spots)
 	for spot_index in range(spectator_corners.size()):
@@ -2936,6 +2916,107 @@ func _dressing_wires(container: Node3D, tops: Array) -> void:
 				container.add_child(wire)
 				wire.look_at_from_position(wire.position, p1, Vector3.UP)
 				wire.scale = Vector3(1.0, 1.0, p0.distance_to(p1))
+
+
+## Дощатый забор внешнего радиуса опасного поворота.
+## Секции кладутся по хорде между двумя точками грунта — тем же приёмом, что
+## секции отбойника, — поэтому линия получается непрерывной: соседние модули
+## стыкуются вплотную, без щелей и без «сшитых из трёх кусков» лент, которые
+## здесь стояли раньше. Где уже стоит отбойник, забор не дублируется.
+func _dressing_corner_fence(
+	container: Node3D, entry: float, outer_sign: float, range_start: float, range_end: float
+) -> void:
+	var cfg := s_spawn()
+	if container == null or network == null or track == null or not cfg.corner_fence:
+		return
+	var prop: RallyProp = s_props().by_id(cfg.corner_fence_prop_id)
+	if prop == null or prop.scene == null:
+		push_warning("RallyStage: нет забора '%s' в библиотеке пропсов" % cfg.corner_fence_prop_id)
+		return
+	var mesh: Mesh = _bake_prop_mesh(prop)
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	# Длину модуля берём из самой сцены забора: правка пропса в редакторе
+	# не разъедет шаг укладки и швы между секциями.
+	var module: float = maxf(0.5, mesh.get_aabb().size.x)
+	var start: float = maxf(entry - cfg.corner_fence_before, range_start)
+	var finish: float = minf(entry + cfg.corner_fence_after, range_end)
+	if finish - start < module:
+		return
+	# Модуль нулевой длины или огромный охват не должны давать тысячи секций.
+	if (finish - start) / module > MAX_FENCE_SECTIONS:
+		return
+	var transforms: Array[Transform3D] = []
+	var body := StaticBody3D.new()
+	body.name = "FenceCollision"
+	# Невидимый барьер не оставляем, пока секции не собраны.
+	body.collision_layer = 0
+	var d: float = start
+	while d < finish - 0.05:
+		var next: float = minf(d + module, finish)
+		var middle: float = (d + next) * 0.5
+		if cfg.corner_fence_skip_guardrail and not is_zero_approx(
+			GuardrailPlacement.outer_side(
+				network, middle, cfg.guardrail_lookahead, cfg.guardrail_turn_threshold_deg
+			)
+		):
+			d = next
+			continue
+		var a: Vector3 = GuardrailPlacement.offset_point(
+			network, track, d, outer_sign, cfg.corner_fence_offset
+		)
+		var b: Vector3 = GuardrailPlacement.offset_point(
+			network, track, next, outer_sign, cfg.corner_fence_offset
+		)
+		a.y = ground_height(a.x, a.z)
+		b.y = ground_height(b.x, b.z)
+		var span: Vector3 = Vector3(b.x - a.x, 0.0, b.z - a.z)
+		if span.length_squared() < 0.01 or not _guardrail_span_is_clear(
+			a, b, cfg.corner_fence_road_clearance
+		):
+			d = next
+			continue
+		transforms.append(_fence_span_transform(a, b, module))
+		if cfg.corner_fence_collisions:
+			var shape := BoxShape3D.new()
+			shape.size = GuardrailPlacement.collision_size(a, b)
+			var collision := CollisionShape3D.new()
+			collision.name = "Section_%04d" % transforms.size()
+			collision.shape = shape
+			collision.transform = GuardrailPlacement.collision_transform(a, b)
+			body.add_child(collision)
+		d = next
+	if transforms.is_empty():
+		body.free()
+		return
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+	var visual := MultiMeshInstance3D.new()
+	visual.name = "CornerFence"
+	visual.multimesh = multimesh
+	visual.visibility_range_end = cfg.corner_fence_visibility_range
+	visual.visibility_range_end_margin = 30.0
+	container.add_child(visual)
+	if cfg.corner_fence_collisions:
+		# Колёса видят землю под забором, кузов — сам забор.
+		body.collision_layer = 2
+		container.add_child(body)
+	else:
+		body.free()
+
+
+## Секция забора по хорде: ось X растягивается между двумя точками грунта,
+## Y остаётся вертикальной — стойки не заваливаются на подъёме и спуске.
+func _fence_span_transform(a: Vector3, b: Vector3, module: float) -> Transform3D:
+	var delta := b - a
+	var across := Vector3(-delta.z, 0.0, delta.x).normalized()
+	if across.length_squared() < 0.5:
+		across = Vector3.FORWARD
+	return Transform3D(Basis(delta / maxf(0.1, module), Vector3.UP, across), (a + b) * 0.5)
 
 
 ## Две жирные полосы следов шин перед поворотом (декаль поверх полотна).
