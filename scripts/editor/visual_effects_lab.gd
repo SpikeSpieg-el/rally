@@ -23,6 +23,11 @@ const Precip = preload("res://scripts/effects/rally_precipitation_effect.gd")
 	set(value):
 		preview_speed_kmh = value
 		_queue_refresh()
+## Какой вид проверяем: сзади и кабина получают штрихи, капот — прежний эффект.
+@export_enum("Сзади", "Капот", "Кабина") var preview_camera_mode: int = 0:
+	set(value):
+		preview_camera_mode = value
+		_queue_refresh()
 ## Временно показать картинку без экранного фильтра для сравнения.
 @export var compare_original: bool = false:
 	set(value):
@@ -46,6 +51,14 @@ func _ready() -> void:
 func _queue_refresh() -> void:
 	if _ready_done:
 		call_deferred("refresh_preview")
+
+
+func _process(delta: float) -> void:
+	if not _ready_done or effects == null:
+		return
+	var rect := effects.screen()
+	if rect != null:
+		rect.advance_speed_phase(delta)
 
 
 func _assign_surface_materials() -> void:
@@ -111,11 +124,7 @@ func _bind_controls() -> void:
 			weather = [Clear, Rain, Snow][index]
 		)
 	if speed_box != null:
-		speed_box.item_selected.connect(func(index: int) -> void:
-			preview_speed_kmh = [60.0, 120.0, 200.0][index]
-			if slider != null:
-				slider.value = preview_speed_kmh
-		)
+		speed_box.item_selected.connect(_on_preview_speed_selected.bind(slider))
 	if screen_box != null and effects != null and effects.screen() != null:
 		screen_box.item_selected.connect(func(index: int) -> void:
 			# Элемент массива — Variant, а поле ждёт enum: без явного типа
@@ -149,6 +158,13 @@ func _bind_controls() -> void:
 		slider.value_changed.connect(func(value: float) -> void: preview_speed_kmh = value)
 
 
+func _on_preview_speed_selected(index: int, slider: HSlider) -> void:
+	var speeds: Array[float] = [60.0, 120.0, 200.0]
+	preview_speed_kmh = speeds[clampi(index, 0, speeds.size() - 1)]
+	if slider != null:
+		slider.value = preview_speed_kmh
+
+
 func _fill_options(box: OptionButton, items: Array, selected: int) -> void:
 	if box == null:
 		return
@@ -169,11 +185,13 @@ func refresh_preview() -> void:
 	var rect := effects.screen()
 	if rect != null:
 		rect.set_compare_original(compare_original)
-		rect.set_preview_speed(preview_speed_kmh)
+		rect.set_preview_speed(preview_speed_kmh, preview_camera_mode)
 	var status := get_node_or_null("PreviewCanvas/Panel/Box/Status") as Label
 	if status != null:
-		status.text = "Предпросмотр: %.0f км/ч · %s\nПереключатели не сохраняются. Для постоянной настройки меняйте узлы сцены." % [
-			preview_speed_kmh, weather.display_name if weather != null else "ясно",
+		var camera_names: Array[String] = ["сзади", "капот", "кабина"]
+		var camera_name := camera_names[clampi(preview_camera_mode, 0, camera_names.size() - 1)]
+		status.text = "Предпросмотр: %.0f км/ч · %s · вид %s\nПереключатели не сохраняются. Для постоянной настройки меняйте узлы сцены." % [
+			preview_speed_kmh, weather.display_name if weather != null else "ясно", camera_name,
 		]
 	var speed_label := get_node_or_null("PreviewCanvas/Panel/Box/SpeedValue") as Label
 	if speed_label != null:

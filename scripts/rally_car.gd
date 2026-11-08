@@ -66,8 +66,10 @@ const BASE_MOTOR_BRAKE: float = 10.0
 @export_enum("Сзади", "Капот", "Кабина") var initial_camera_mode: int = CameraMode.CHASE_3RD
 @export_range(45.0, 110.0, 1.0, "suffix:°") var hood_fov: float = 74.0
 @export_range(45.0, 110.0, 1.0, "suffix:°") var cockpit_fov: float = 76.0
-## Дополнительный угол обзора на скорости, 0 — постоянный FOV.
+## Дополнительный угол обзора на скорости для вида от капота, 0 — постоянный FOV.
 @export_range(0.0, 20.0, 0.5, "suffix:°") var inside_speed_fov_bonus: float = 5.0
+## Отдельная прибавка FOV на скорости для кабины: заметнее капота, но без тряски.
+@export_range(0.0, 20.0, 0.5, "suffix:°") var cockpit_speed_fov_bonus: float = 10.0
 ## Смещение взгляда от ускорений: 0 — строго по маркеру CamCockpit.
 @export_range(0.0, 1.0, 0.05) var cockpit_motion_strength: float = 0.35
 @export_range(0.0, 10.0, 0.5, "suffix:°") var cockpit_roll_degrees: float = 2.0
@@ -85,7 +87,7 @@ const BASE_MOTOR_BRAKE: float = 10.0
 @export var chase_corner_offset: float = 0.0
 @export var chase_collision_radius: float = 0.28
 @export_range(45.0, 110.0, 1.0, "suffix:°") var chase_min_fov: float = 72.0
-@export_range(45.0, 120.0, 1.0, "suffix:°") var chase_max_fov: float = 80.0
+@export_range(45.0, 120.0, 1.0, "suffix:°") var chase_max_fov: float = 88.0
 
 @export_group("Mouse Look")
 @export var mouse_look_enabled: bool = true
@@ -992,7 +994,7 @@ func _apply_initial_camera_fov() -> void:
 		CameraMode.HOOD:
 			active_camera.fov = hood_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 		CameraMode.COCKPIT_1ST:
-			active_camera.fov = cockpit_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
+			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 
 
 func _update_cameras(delta: float) -> void:
@@ -1023,7 +1025,8 @@ func _update_cameras(delta: float) -> void:
 
 	if camera_mode != CameraMode.CHASE_3RD:
 		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
-		var target_fov: float = base_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
+		var fov_bonus: float = cockpit_speed_fov_bonus if camera_mode == CameraMode.COCKPIT_1ST else inside_speed_fov_bonus
+		var target_fov: float = base_fov + fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().inside_fov_response, delta)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 	previous_velocity = linear_velocity

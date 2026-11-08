@@ -132,7 +132,7 @@ func _run() -> void:
 	var resume_button: Button = stage.resume_button
 	ok = ok and resume_button != null and resume_button.focus_mode == Control.FOCUS_ALL
 	print("Фокус паузы: кнопка=%s, режим=%s, фокус=%s" % [resume_button != null, resume_button.focus_mode if resume_button != null else -1, resume_button.has_focus() if resume_button != null else false])
-	var expected_fov: float = target_fov + car.inside_speed_fov_bonus * clampf(car.speed_kmh / 180.0, 0.0, 1.0)
+	var expected_fov: float = target_fov + car.cockpit_speed_fov_bonus * clampf(car.speed_kmh / maxf(1.0, car.f().inside_fov_speed_reference_kmh), 0.0, 1.0)
 	ok = ok and is_equal_approx(car.active_camera.fov, expected_fov)
 	print("Проверка паузы: paused=%s, панель=%s, машина=%s, настройки=%s, fov=%.2f/%.2f (ожид. %.2f)" % [paused, stage.pause_panel.visible, car.can_process(), camera_options.can_process(), car.cockpit_fov, car.active_camera.fov, expected_fov])
 	# Окно переназначения доступно на паузе и не пропускает игровые действия.

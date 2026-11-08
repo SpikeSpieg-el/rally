@@ -75,7 +75,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallyMenuLayout` | `data/ui/default_menu_layout.tres` | тексты, подсказки, горячие клавиши, скорость витрины гаража, сообщения о сиде |
 | `RallyShaderParameter` | внутри узлов эффектов / `RallyStageSettings` | любой uniform любого материала прямо из инспектора |
 | `RallyScreenLook` | `scenes/effects/retro_screen.tscn` | ретро-экран: пиксели, палитра, дизер, дрожание вершин |
-| `RallySpeedFeel` | `scenes/effects/speed_effect.tscn` | ощущение скорости: размытие краёв и виньетка |
+| `RallySpeedFeel` | `scenes/effects/speed_effect.tscn` | ощущение скорости: размытие краёв, виньетка, радиальные PS1-штрихи и усиление размытия для вида сзади/из кабины; капот сохраняет спокойный вариант |
 | `RallyPrecipitationEffect` | `scenes/effects/rain.tscn`, `snow.tscn` | дождь и снег как отдельные GPUParticles3D |
 | `RallySurfaceLooks` | `scenes/effects/surface_looks.tscn` | материалы земли и дороги в сцене |
 | `RallyVisualEffects` | `scenes/effects/visual_effects.tscn` | контейнер визуальных эффектов и область осадков |
