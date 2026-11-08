@@ -106,6 +106,20 @@ class EngineBank:
 ## Вид сзади компенсирует общий запас громкости, оставаясь тише кабины.
 @export var chase_engine_boost_db: float = 1.0
 
+@export_group("Скорость: ветер и дорога")
+## Ветер — главный звуковой признак скорости и при этом не укачивает.
+## Полная громкость ветра на этой скорости, км/ч.
+@export_range(40.0, 400.0, 1.0, "suffix:км/ч") var wind_full_kmh: float = 190.0
+## Насколько ветер ускоряется (тон) к максимальной скорости.
+@export_range(0.0, 2.0, 0.05) var wind_pitch_gain: float = 0.55
+## Громкость шума дороги на полной скорости, дБ (обычно глубокий минус).
+@export var road_full_kmh: float = 150.0
+## Компенсация ветра для вида сзади: камера дальше от стекла, но скорость
+## должна читаться так же уверенно, как в кабине.
+@export var chase_wind_boost_db: float = 2.5
+## Компенсация шума дороги для вида сзади.
+@export var chase_road_boost_db: float = 1.5
+
 @export_group("Расстояние")
 ## Радиус источника звука, м. Меньше — тише на расстоянии.
 @export var unit_size: float = 4.0
@@ -638,23 +652,31 @@ func _to_db(linear: float) -> float:
 func _update_road(speed: float) -> void:
 	if _road_player == null:
 		return
-	var amount: float = clampf(speed / 55.0, 0.0, 1.0)
+	var amount: float = clampf(speed / maxf(1.0, road_full_kmh * 0.35), 0.0, 1.0)
 	if speed < 1.0:
 		amount = 0.0
-	var gain: float = amount * amount * (0.45 + 0.55 * clampf(speed / 120.0, 0.0, 1.0))
+	var gain: float = amount * amount * (0.45 + 0.55 * clampf(speed / maxf(1.0, road_full_kmh), 0.0, 1.0))
 	_road_player.volume_db = (_to_db(gain) + master_volume_db + road_volume_db
 		+ _camera_road_gain() + _music_duck * 0.55)
 	_road_player.pitch_scale = clampf(0.75 + speed / 110.0, 0.6, 2.2)
 
 
+## Ветер — самый честный признак скорости: он растёт монотонно, но не
+## «пищит» на пределе, поэтому тон ограничен сверху.
 func _update_wind(speed: float) -> void:
 	if _wind_player == null:
 		return
-	var amount: float = clampf(speed / 130.0, 0.0, 1.0)
+	var reference: float = maxf(1.0, wind_full_kmh)
+	var amount: float = clampf(speed / reference, 0.0, 1.0)
+	# Квадрат даёт тишину на малой скорости и уверенный поток на высокой.
 	var gain: float = amount * amount
 	_wind_player.volume_db = (_to_db(gain) + master_volume_db + wind_volume_db
 		+ _camera_wind_gain() + _music_duck * 0.45)
-	_wind_player.pitch_scale = clampf(0.8 + speed / 160.0, 0.6, 2.2)
+	_wind_player.pitch_scale = clampf(
+		0.80 + amount * (0.6 + wind_pitch_gain) * 1.4,
+		0.60,
+		2.20
+	)
 
 
 # ---------------------------------------------------------------------------
@@ -741,7 +763,7 @@ func _camera_road_gain() -> float:
 		return 0.0
 	match car.camera_mode:
 		0:
-			return 0.0
+			return chase_road_boost_db
 		1:
 			return 1.0
 		2:
@@ -754,7 +776,7 @@ func _camera_wind_gain() -> float:
 		return 0.0
 	match car.camera_mode:
 		0:
-			return 0.0
+			return chase_wind_boost_db
 		1:
 			return 0.0
 		2:

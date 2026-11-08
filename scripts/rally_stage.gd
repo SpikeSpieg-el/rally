@@ -3614,6 +3614,7 @@ func _setup_world_effects() -> void:
 		speed_fx_material.set_shader_parameter("vignette_strength", cfg.vignette_strength)
 		speed_fx_material.set_shader_parameter("blur_gain", cfg.speed_blur_gain)
 		speed_fx_material.set_shader_parameter("cockpit_scale", cfg.speed_cockpit_scale)
+		speed_fx_material.set_shader_parameter("speed_stretch", cfg.speed_edge_stretch)
 		cfg.apply_shader_overrides(speed_fx_material, cfg.screen_shader_overrides)
 
 

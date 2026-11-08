@@ -13,8 +13,12 @@ uniform float blur_strength : hint_range(0.0, 0.03) = 0.012;
 uniform float vignette_strength : hint_range(0.0, 1.0) = 0.12;
 // 0 — сзади, 1 — капот, 2 — кабина. Капот сохраняет прежний спокойный эффект.
 uniform int camera_mode = 0;
-uniform float blur_gain : hint_range(1.0, 4.0) = 2.4;
+uniform float blur_gain : hint_range(1.0, 4.0) = 2.0;
 uniform float cockpit_scale : hint_range(0.0, 1.0) = 0.8;
+// Растяжение картинки от центра к краям: единственный приём скорости,
+// который не трясёт кадр. Центр (дорога) остаётся резким.
+uniform float speed_stretch : hint_range(0.0, 0.06) = 0.02;
+uniform float speed_stretch_gain : hint_range(0.0, 3.0) = 1.0;
 
 // Упорядоченная матрица Bayer 4x4: стабильна во времени и привязана к
 // виртуальным пикселям, поэтому туман не мерцает случайным шумом.
@@ -67,14 +71,17 @@ void fragment() {
 
 	vec3 color = sample_world(uv, grid, SCREEN_PIXEL_SIZE);
 	if (mask > 0.001) {
-		// Симметричные выборки не сдвигают картинку; центр дороги остаётся резким.
-		vec3 blurred = vec3(0.0);
-		float blur_radius = blur_strength * view_blur_gain * mask;
+		// Один проход на всё: симметричный разлёт выборок вдоль луча взгляда.
+		// Разлёт = размытие + растяжение, поэтому стоимость шейдера не выросла.
+		// Центр кадра маска обнуляет, так что прицел и дорога остаются резкими.
+		float stretch = speed_stretch * speed_stretch_gain * mask * intensity;
+		float spread = stretch + blur_strength * view_blur_gain * mask;
+		vec3 smeared = vec3(0.0);
 		for (int i = 0; i < 4; i++) {
-			float t = float(i) / 3.0 - 0.5;
-			blurred += sample_world(effect_uv + dir * t * blur_radius, grid, SCREEN_PIXEL_SIZE);
+			float t = float(i) / 3.0 * 2.0 - 1.0;
+			smeared += sample_world(effect_uv + dir * t * spread, grid, SCREEN_PIXEL_SIZE);
 		}
-		color = mix(color, blurred * 0.25, mask);
+		color = mix(color, smeared * 0.25, mask);
 	}
 
 	// Чуть приглушённая палитра сохраняет различия дня, ночи, снега и фар.

@@ -19,6 +19,7 @@ const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
+const Sway = preload("res://scripts/effects/rally_speed_sway.gd")
 
 # Базовое сцепление. Множители конфигурации машины и трассы применяются поверх.
 # Шины начинают создавать боковую силу раньше и сохраняют тягу на гравии.
@@ -32,6 +33,8 @@ const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
 const REVERSE_SHIFT_MAX_KMH: float = 15.0
 ## Базовое торможение двигателем. Сетап задаёт множитель к нему.
 const BASE_MOTOR_BRAKE: float = 10.0
+## Опорное ускорение для перегрузок: замена «g» без магических чисел.
+const FEEL_GRAVITY: float = 9.81
 
 @export_group("Кинематограф / запись")
 ## Для отдельной сцены меню: входные действия берутся у указанного узла,
@@ -73,8 +76,9 @@ const BASE_MOTOR_BRAKE: float = 10.0
 ## Смещение взгляда от ускорений: 0 — строго по маркеру CamCockpit.
 @export_range(0.0, 1.0, 0.05) var cockpit_motion_strength: float = 0.35
 @export_range(0.0, 10.0, 0.5, "suffix:°") var cockpit_roll_degrees: float = 2.0
-## Сила живой камеры сзади: дорожная отдача, кивки и крены. 0 — спокойная камера.
-@export_range(0.0, 1.0, 0.05) var chase_motion_strength: float = 0.65
+## Сила живой камеры сзади: занос в повороте и «дыхание» на скорости.
+## 0 — спокойная камера. Тряски здесь нет намеренно.
+@export_range(0.0, 1.0, 0.05) var chase_motion_strength: float = 0.55
 
 @export_group("Action Camera")
 ## Если включено — позиция и ракурс камеры берутся напрямую из узла CamChase на сцене!
@@ -128,19 +132,32 @@ var manual_mode: bool = false
 var transmission_mode: int = CarSetupType.Transmission.AUTOMATIC
 var shift_notice: String = ""
 var shift_notice_time: float = 0.0
-var previous_velocity: Vector3 = Vector3.ZERO
 var g_force_offset: Vector3 = Vector3.ZERO
 var camera_yaw: float = 0.0
 var camera_position: Vector3 = Vector3.ZERO
 var camera_initialized: bool = false
-var camera_trauma: float = 0.0
-var _juice_time: float = 0.0
-var _juice_local_accel: Vector3 = Vector3.ZERO
-var _juice_road_roughness: float = 0.0
-var _juice_shift_kick: float = 0.0
-var _juice_last_gear: int = 0
-var _juice_last_contact_count: int = 0
-var _juice_last_compression: float = 0.0
+## Выключатель «живой» камеры для меню паузы. 0 — камера строго по маркеру.
+## Тряски в отдаче нет: только медленный занос, крен и мягкая инерция.
+var camera_feel_strength: float = 1.0
+## Медленная фаза «дыхания» камеры на скорости; не тряска, а плавная волна.
+var _feel_time: float = 0.0
+## Ускорение кузова в его собственной системе, сглаженное, м/с².
+var _feel_local_accel: Vector3 = Vector3.ZERO
+## Насколько машина поворачивает, °/с; плюс — влево.
+var _feel_yaw_rate_deg: float = 0.0
+## Сглаженный занос камеры в повороте, радианы.
+var _feel_lean: float = 0.0
+## Сглаженный крен кузова в кадре, радианы.
+var _feel_roll: float = 0.0
+## Сглаженный сдвиг дистанции камеры от продольной перегрузки, м.
+var _feel_pull: float = 0.0
+## Сглаженные перегрузки и упреждения заноса по осям кузова.
+var _feel_previous_basis: Basis = Basis.IDENTITY
+var _feel_previous_velocity: Vector3 = Vector3.ZERO
+## Текущая шероховатость покрытия под колёсами (для геймпада и звука).
+var _surface_roughness_value: float = 0.0
+## Поток частиц на обочине: живёт в машине, пока включён в конфиге.
+var speed_motes: GPUParticles3D = null
 
 # Переменные для сохранения точного ракурса CamChase со сцены
 var _scene_chase_local_pos: Vector3 = Vector3(0.0, 1.55, -5.8)
@@ -209,7 +226,6 @@ func _ready() -> void:
 	current_rpm = idle_rpm
 	current_gear = 0 if manual_clutch_control else 1
 	requested_gear = current_gear
-	_juice_last_gear = current_gear
 	_setup_gravel_particles()
 	_apply_visual_setup()
 	surface_effects = SurfaceEffectsType.new()
@@ -217,6 +233,9 @@ func _ready() -> void:
 	surface_effects.name = "SurfaceEffects"
 	add_child(surface_effects)
 	surface_effects.install(self)
+
+	_setup_speed_motes()
+	_reset_camera_feel()
 
 	# Считываем положение и угол наклона узла CamChase со сцены
 	_capture_scene_camera_setup()
@@ -653,7 +672,7 @@ func _physics_process(delta: float) -> void:
 		smoothed_mouse_yaw = 0.0
 		smoothed_mouse_pitch = 0.0
 		g_force_offset = Vector3.ZERO
-		_reset_camera_juice()
+		_reset_camera_feel()
 		_apply_initial_camera_fov()
 		if camera_mode == CameraMode.CHASE_3RD:
 			_reset_action_camera()
@@ -718,6 +737,8 @@ func _physics_process(delta: float) -> void:
 		if is_instance_valid(surface_effects):
 			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta, precipitation_rain, precipitation_snow)
 
+	_surface_roughness_value = _surface_roughness()
+
 	if not cinematic_mode:
 		_update_cameras(delta)
 
@@ -743,7 +764,7 @@ func _update_driving_feedback(controller: Node) -> void:
 	if not driving_feedback_active:
 		return
 	var contacts: int = get_wheel_contact_count()
-	var roughness: float = _surface_roughness()
+	var roughness: float = _surface_roughness_value
 	controller.call("update_driving_feedback", speed_kmh, motor_rpm / maxf(max_rpm, 1.0), get_average_tire_slip(), contacts > 0, roughness, throttle_input, brake_input, gamepad_rumble_enabled)
 
 
@@ -986,17 +1007,26 @@ func _update_gravel_particles() -> void:
 		process.initial_velocity_max = cfg.dust_speed_max + speed_kmh * 0.012
 
 
+## Мягкая кривая FOV: спокойно на малой скорости, раскрытие — ближе к максимуму.
+## Раньше FOV рос линейно с первого километра, и кадр «зумил» на парковке.
+func chase_fov_factor() -> float:
+	return Sway.speed_fov_factor(speed_kmh, f().speed_reference_kmh, f().fov_speed_ease)
+
+
+func inside_fov_factor() -> float:
+	return Sway.speed_fov_factor(speed_kmh, f().inside_fov_speed_reference_kmh, f().fov_speed_ease)
+
+
 func _apply_initial_camera_fov() -> void:
 	if active_camera == null:
 		return
-	var speed_factor: float = clampf(speed_kmh / maxf(1.0, f().speed_reference_kmh), 0.0, 1.0)
 	match camera_mode:
 		CameraMode.CHASE_3RD:
-			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, speed_factor)
+			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor())
 		CameraMode.HOOD:
-			active_camera.fov = hood_fov + inside_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
+			active_camera.fov = hood_fov + inside_speed_fov_bonus * inside_fov_factor()
 		CameraMode.COCKPIT_1ST:
-			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
+			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * inside_fov_factor()
 
 
 func _update_cameras(delta: float) -> void:
@@ -1013,7 +1043,7 @@ func _update_cameras(delta: float) -> void:
 	smoothed_mouse_yaw = lerp_angle(smoothed_mouse_yaw, mouse_yaw, look_smooth)
 	smoothed_mouse_pitch = lerpf(smoothed_mouse_pitch, mouse_pitch, look_smooth)
 
-	_update_camera_juice(delta)
+	_update_speed_feel(delta)
 	active_camera.top_level = (camera_mode == CameraMode.CHASE_3RD)
 	match camera_mode:
 		CameraMode.CHASE_3RD:
@@ -1029,12 +1059,9 @@ func _update_cameras(delta: float) -> void:
 	if camera_mode != CameraMode.CHASE_3RD:
 		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
 		var fov_bonus: float = cockpit_speed_fov_bonus if camera_mode == CameraMode.COCKPIT_1ST else inside_speed_fov_bonus
-		var target_fov: float = base_fov + fov_bonus * clampf(speed_kmh / maxf(1.0, f().inside_fov_speed_reference_kmh), 0.0, 1.0)
-		if camera_mode == CameraMode.COCKPIT_1ST:
-			target_fov += absf(_juice_shift_kick) * f().shift_fov_kick * _cockpit_juice_scale()
+		var target_fov: float = base_fov + fov_bonus * inside_fov_factor()
 		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().inside_fov_response, delta)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
-	previous_velocity = linear_velocity
 
 
 func _update_action_camera(delta: float) -> void:
@@ -1076,7 +1103,9 @@ func _update_action_camera(delta: float) -> void:
 	# а camera_right — визуальному правому боку при взгляде вдоль camera_forward.
 	var camera_local_x: Vector3 = Vector3.UP.cross(camera_forward).normalized()
 	var camera_right: Vector3 = -camera_local_x
-	var speed_factor: float = clampf(speed_kmh / maxf(1.0, f().speed_reference_kmh), 0.0, 1.0)
+	# Скоростной фактор — та же плавная кривая, что у FOV: один язык во всех
+	# местах, где камера реагирует на скорость.
+	var speed_factor: float = chase_fov_factor()
 
 	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
 	var base_height_diff: float = (_scene_chase_local_pos.y - _scene_pivot_height) if use_cam_chase_from_scene else (chase_height - _scene_pivot_height)
@@ -1084,7 +1113,15 @@ func _update_action_camera(delta: float) -> void:
 
 	var base_elevation: float = atan2(base_height_diff, base_back_dist)
 	var base_radius: float = Vector2(base_back_dist, base_height_diff).length()
-	var desired_dist: float = base_radius * lerpf(1.0, 1.0 + f().camera_speed_distance_gain, speed_factor)
+	# Дистанция «плывёт»: на разгоне машина отъезжает от камеры, на торможении
+	# камера догоняет. Это единственное смещение, которое читается как скорость
+	# и при этом не трясёт кадр.
+	var feel_pull: float = _chase_feel_scale() * _feel_pull
+	var speed_gain: float = lerpf(1.0, 1.0 + f().camera_speed_distance_gain, speed_factor)
+	var desired_dist: float = maxf(
+		f().camera_min_distance + chase_collision_radius,
+		base_radius * speed_gain + feel_pull
+	)
 	var total_pitch: float = clampf(
 		base_elevation + smoothed_mouse_pitch,
 		deg_to_rad(f().camera_pitch_min_deg),
@@ -1159,16 +1196,9 @@ func _update_action_camera(delta: float) -> void:
 	if active_camera.global_position.distance_squared_to(look_target) > 0.001:
 		active_camera.look_at(look_target, Vector3.UP)
 
-	var chase_juice: float = _chase_juice_scale()
-	if chase_juice > 0.0 and delta > 0.0:
-		var juice_rotation: Vector3 = (_juice_g_rotation() + _juice_shake_rotation()) * chase_juice
-		active_camera.rotate_object_local(Vector3.RIGHT, juice_rotation.x)
-		active_camera.rotate_object_local(Vector3.UP, juice_rotation.y)
-		active_camera.rotate_object_local(Vector3.FORWARD, juice_rotation.z)
-		active_camera.global_position += active_camera.global_transform.basis * (_juice_shake_offset() * chase_juice)
+	_apply_chase_feel(delta > 0.0)
 
-	var shift_fov: float = absf(_juice_shift_kick) * f().shift_fov_kick * chase_juice
-	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, speed_factor) + shift_fov
+	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor())
 	var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().chase_fov_response, delta)
 	active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 
@@ -1177,17 +1207,17 @@ func _update_cockpit_camera(delta: float) -> void:
 	if cam_cockpit == null:
 		return
 
-	var cockpit_juice: float = _cockpit_juice_scale()
-	if delta <= 0.0 or is_zero_approx(cockpit_juice):
+	var cockpit_feel: float = _cockpit_feel_scale()
+	if delta <= 0.0 or is_zero_approx(cockpit_feel):
 		g_force_offset = Vector3.ZERO
 	else:
 		var gain: Vector3 = f().cockpit_g_force_gain
 		var limit: Vector3 = f().cockpit_g_force_limit
 		var desired_offset := Vector3(
-			-_juice_local_accel.x * gain.x,
-			-_juice_local_accel.y * gain.y,
-			-_juice_local_accel.z * gain.z
-		) * cockpit_juice
+			-_feel_local_accel.x * gain.x,
+			-_feel_local_accel.y * gain.y,
+			-_feel_local_accel.z * gain.z
+		) * cockpit_feel
 		desired_offset = Vector3(
 			clampf(desired_offset.x, -limit.x, limit.x),
 			clampf(desired_offset.y, -limit.y, limit.y),
@@ -1195,37 +1225,45 @@ func _update_cockpit_camera(delta: float) -> void:
 		)
 		g_force_offset = g_force_offset.lerp(desired_offset, _response_weight(f().cockpit_motion_response, delta))
 
-	# Маркер — источник истины: ни переключение вида, ни тряска его не двигают.
-	# Смещение ускорения применяется только к камере в координатах кузова.
+	# Маркер — источник истины: ни переключение вида, ни отдача его не двигают.
+	# Перегрузки и занос применяются только к камере в координатах кузова,
+	# плавно и без высокочастотной тряски.
 	active_camera.global_transform = cam_cockpit.global_transform
 	active_camera.global_position += global_transform.basis * g_force_offset
 	active_camera.rotate_object_local(Vector3.UP, smoothed_mouse_yaw)
 	active_camera.rotate_object_local(Vector3.RIGHT, smoothed_mouse_pitch)
 	active_camera.rotate_object_local(Vector3.FORWARD, true_steering_amount * deg_to_rad(cockpit_roll_degrees) * cockpit_motion_strength)
-	if cockpit_juice > 0.0 and delta > 0.0:
-		var juice_rotation: Vector3 = (_juice_g_rotation() + _juice_shake_rotation()) * cockpit_juice
-		active_camera.rotate_object_local(Vector3.RIGHT, juice_rotation.x)
-		active_camera.rotate_object_local(Vector3.UP, juice_rotation.y)
-		active_camera.rotate_object_local(Vector3.FORWARD, juice_rotation.z)
-		active_camera.global_position += global_transform.basis * (_juice_shake_offset() * cockpit_juice)
+	if cockpit_feel > 0.0 and delta > 0.0:
+		# В кабине та же логика, что сзади: голова запаздывает в повороте, но
+		# амплитуда меньше — кабина ближе к кузову и не должна «плавать».
+		active_camera.rotate_object_local(Vector3.UP, _feel_lean * cockpit_feel)
+		active_camera.rotate_object_local(Vector3.FORWARD, _feel_roll * cockpit_feel)
+		active_camera.rotate_object_local(Vector3.RIGHT, _speed_bob_pitch(cockpit_feel))
 
 
-func _reset_camera_juice() -> void:
-	camera_trauma = 0.0
-	_juice_shift_kick = 0.0
-	_juice_local_accel = Vector3.ZERO
-	_juice_road_roughness = 0.0
-	_juice_last_gear = current_gear
-	_juice_last_contact_count = 0
-	_juice_last_compression = 0.0
+func _reset_camera_feel() -> void:
+	_feel_local_accel = Vector3.ZERO
+	_feel_yaw_rate_deg = 0.0
+	_feel_lean = 0.0
+	_feel_roll = 0.0
+	_feel_pull = 0.0
+	_feel_time = 0.0
+	_feel_previous_basis = global_transform.basis.orthonormalized()
+	_feel_previous_velocity = linear_velocity
 
 
-func _chase_juice_scale() -> float:
-	return f().camera_juice_strength * f().chase_juice_scale * chase_motion_strength
+func _chase_feel_scale() -> float:
+	return f().speed_feel_strength * f().chase_feel_scale * chase_motion_strength * camera_feel_strength
 
 
-func _cockpit_juice_scale() -> float:
-	return f().camera_juice_strength * f().cockpit_juice_scale * cockpit_motion_strength
+func _cockpit_feel_scale() -> float:
+	return f().speed_feel_strength * f().cockpit_feel_scale * cockpit_motion_strength * camera_feel_strength
+
+
+## Шероховатость покрытия под колёсами: считается раз за такт физики и
+## используется камерой, геймпадом и звуком без повторного обхода колёс.
+func surface_roughness() -> float:
+	return _surface_roughness_value
 
 
 func _surface_roughness() -> float:
@@ -1244,78 +1282,204 @@ func _surface_roughness() -> float:
 	return roughness / float(contacts)
 
 
-func _update_camera_juice(delta: float) -> void:
+## Один раз за кадр: перегрузки, скорость поворота и сглаженный занос камеры.
+## Никакого шума и случайных колебаний: только физика машины, сглаженная
+## экспонентой. Именно поэтому картинка не дрожит даже на кочках.
+func _update_speed_feel(delta: float) -> void:
 	if delta <= 0.0:
-		_juice_local_accel = Vector3.ZERO
+		_feel_local_accel = Vector3.ZERO
 		return
-	_juice_time += delta
 	var safe_delta: float = maxf(delta, 0.0001)
-	var local_accel: Vector3 = global_transform.basis.orthonormalized().inverse() * ((linear_velocity - previous_velocity) / safe_delta)
-	local_accel = local_accel.limit_length(f().juice_accel_limit)
-	_juice_local_accel = _juice_local_accel.lerp(local_accel, _response_weight(f().juice_accel_response, delta))
-	_juice_road_roughness = _surface_roughness()
+	_feel_time += delta
 
-	if current_gear != _juice_last_gear:
-		_juice_shift_kick = clampf(float(current_gear - _juice_last_gear), -1.0, 1.0)
-		camera_trauma = clampf(camera_trauma + f().shift_trauma, 0.0, 1.0)
-		_juice_last_gear = current_gear
+	var basis_now: Basis = global_transform.basis.orthonormalized()
+	# Ускорение считаем в системе кузова: продольное — «отъехать/догнать»,
+	# боковое — занос, вертикальное — мягкая реакция на толчки.
+	var world_accel: Vector3 = (linear_velocity - _feel_previous_velocity) / safe_delta
+	_feel_previous_velocity = linear_velocity
+	var local_accel: Vector3 = basis_now.inverse() * world_accel
+	local_accel = local_accel.limit_length(f().speed_accel_limit)
+	var accel_weight: float = _response_weight(f().speed_accel_response, delta)
+	_feel_local_accel = _feel_local_accel.lerp(local_accel, accel_weight)
 
-	var contact_count: int = get_wheel_contact_count()
-	if contact_count > 0 and _juice_last_contact_count == 0:
-		var fall_speed: float = maxf(0.0, -previous_velocity.y)
-		if fall_speed > f().landing_min_mps:
-			camera_trauma = clampf(camera_trauma + (fall_speed - f().landing_min_mps) * f().landing_trauma_per_mps, 0.0, 1.0)
-	var compression: float = get_max_suspension_compression()
-	if compression >= f().suspension_impact_threshold and _juice_last_compression < f().suspension_impact_threshold:
-		camera_trauma = clampf(camera_trauma + f().suspension_impact_trauma, 0.0, 1.0)
-	var decel: float = -local_accel.z
-	if decel > f().impact_decel_threshold:
-		camera_trauma = clampf(camera_trauma + (decel - f().impact_decel_threshold) * f().impact_trauma_per_mps2, 0.0, 1.0)
+	# Скорость поворота: из поворота базиса за кадр, без угловой скорости
+	# физики, чтобы не зависеть от того, как её считает движок.
+	var relative: Basis = _feel_previous_basis.inverse() * basis_now
+	_feel_previous_basis = basis_now
+	# Поворот больше 45° за один такт — это телепорт/сброс, а не поворот.
+	var turned: float = atan2(relative.z.x, relative.z.z)
+	var rate_deg: float = 0.0 if absf(turned) > deg_to_rad(45.0) else rad_to_deg(turned) / safe_delta
+	# Плюс — поворот влево (в проекте +X машины тоже влево).
+	_feel_yaw_rate_deg = lerpf(_feel_yaw_rate_deg, rate_deg, _response_weight(f().corner_lean_response * 2.0, delta))
 
-	camera_trauma = maxf(0.0, camera_trauma - f().trauma_decay * delta)
-	_juice_shift_kick = lerpf(_juice_shift_kick, 0.0, _response_weight(f().shift_kick_decay, delta))
-	_juice_last_contact_count = contact_count
-	_juice_last_compression = compression
+	# Скорость, с которой включается ощущение скорости.
+	var amount: float = Sway.speed_weight(speed_kmh, f().corner_lean_start_kmh, f().corner_lean_full_kmh)
 
-
-func _juice_noise(frequency: float) -> Vector3:
-	var t: float = _juice_time * frequency * TAU
-	var spread: Vector3 = f().shake_frequency_spread
-	var phase: Vector3 = f().shake_phase_offset
-	return Vector3(
-		sin(t * spread.x + phase.x),
-		sin(t * spread.y + phase.y),
-		sin(t * spread.z + phase.z)
+	var lean_target: float = Sway.lean_angle(
+		Sway.corner_lean(
+			_feel_yaw_rate_deg,
+			_feel_local_accel.x,
+			f().corner_lean_rate_share,
+			f().corner_lean_invert > 0.5
+		),
+		f().corner_lean_max_deg,
+		amount
 	)
+	_feel_lean = lerpf(_feel_lean, lean_target, _response_weight(f().corner_lean_response, delta))
+
+	# Крен кузова в кадре: чуть меньше заноса, чтобы поворот читался, а не качал.
+	var roll_amount: float = amount * clampf(1.0 - f().corner_lean_rate_share * 0.5, 0.0, 1.0)
+	var roll_target: float = Sway.lean_angle(
+		Sway.corner_lean(_feel_yaw_rate_deg, _feel_local_accel.x, f().corner_lean_rate_share, false),
+		f().corner_roll_max_deg,
+		roll_amount
+	)
+	_feel_roll = lerpf(_feel_roll, roll_target, _response_weight(f().corner_roll_response, delta))
+
+	# Продольная инерция: на разгоне камера отстаёт по дистанции, на торможении
+	# подъезжает. Знак берём от продольного ускорения, предел — из конфига.
+	var pull_target: float = clampf(
+		_feel_local_accel.z / FEEL_GRAVITY * f().speed_pull_gain * base_camera_distance(),
+		-f().speed_pull_limit,
+		f().speed_pull_limit
+	) * amount
+	_feel_pull = lerpf(_feel_pull, pull_target, _response_weight(f().speed_pull_response, delta))
+
+	# Придорожный поток — только для вида сзади: в кабине он летел бы сквозь стекло.
+	_update_speed_motes(amount if camera_mode == CameraMode.CHASE_3RD else 0.0)
 
 
-func _juice_shake_offset() -> Vector3:
-	var speed_span: float = maxf(1.0, f().road_shake_full_kmh - f().road_shake_start_kmh)
-	var speed_factor: float = clampf((speed_kmh - f().road_shake_start_kmh) / speed_span, 0.0, 1.0)
-	var road_amount: float = speed_factor * _juice_road_roughness
-	var trauma_amount: float = camera_trauma * camera_trauma
-	return _juice_noise(f().road_shake_frequency) * f().road_shake_amplitude * road_amount + _juice_noise(f().trauma_frequency) * f().trauma_amplitude * trauma_amount
+## Базовая дистанция камеры сзади без учёта скорости: нужна для масштаба
+## продольной инерции и не зависит от текущего вида.
+func base_camera_distance() -> float:
+	if use_cam_chase_from_scene:
+		return maxf(1.0, -_scene_chase_local_pos.z)
+	return maxf(1.0, chase_distance)
 
 
-func _juice_shake_rotation() -> Vector3:
-	var speed_span: float = maxf(1.0, f().road_shake_full_kmh - f().road_shake_start_kmh)
-	var speed_factor: float = clampf((speed_kmh - f().road_shake_start_kmh) / speed_span, 0.0, 1.0)
-	var road_amount: float = speed_factor * _juice_road_roughness
-	var trauma_amount: float = camera_trauma * camera_trauma
-	var degrees: Vector3 = _juice_noise(f().road_shake_frequency) * f().road_shake_rotation_deg * road_amount + _juice_noise(f().trauma_frequency) * f().trauma_rotation_deg * trauma_amount
-	return Vector3(deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z))
+## Медленное «дыхание» камеры на скорости — волна ниже одного герца.
+## Возвращает угол в радианах; на стоянке ровно ноль.
+func _speed_bob_pitch(feel: float) -> float:
+	var amount: float = Sway.speed_weight(speed_kmh, f().corner_lean_start_kmh, f().corner_lean_full_kmh)
+	var hz: float = f().high_speed_bob_hz
+	var amplitude: float = f().high_speed_bob_amplitude
+	if amplitude <= 0.0 or amount <= 0.0:
+		return 0.0
+	# Метры «дыхания» переводим в угол через дистанцию: камера качается вокруг
+	# точки взгляда, а не сдвигается вбок.
+	var angle: float = Sway.float_bob(_feel_time, hz, amplitude) / base_camera_distance()
+	return angle * amount * feel
 
 
-func _juice_g_rotation() -> Vector3:
-	var g_accel: float = maxf(1.0, f().juice_g_accel)
-	var g_force: Vector3 = (_juice_local_accel / g_accel).limit_length(f().juice_g_limit)
-	var pitch_deg: float = -g_force.z * (f().accel_pitch_deg_per_g if g_force.z > 0.0 else f().brake_pitch_deg_per_g)
-	pitch_deg += _juice_shift_kick * f().shift_pitch_deg
-	var roll_deg: float = -g_force.x * f().corner_roll_deg_per_g
-	var limit_deg: float = f().juice_rotation_limit_deg
-	pitch_deg = clampf(pitch_deg, -limit_deg, limit_deg)
-	roll_deg = clampf(roll_deg, -limit_deg, limit_deg)
-	return Vector3(deg_to_rad(pitch_deg), 0.0, deg_to_rad(roll_deg))
+## Отдача вида сзади: занос камеры и крен кузова идут от реального поворота.
+func _apply_chase_feel(active: bool = true) -> void:
+	var feel: float = _chase_feel_scale()
+	if not active or feel <= 0.0:
+		return
+	active_camera.rotate_object_local(Vector3.UP, _feel_lean * feel)
+	active_camera.rotate_object_local(Vector3.FORWARD, _feel_roll * feel)
+	var vertical: float = Sway.vertical_inertia(
+		-_feel_local_accel.y, f().vertical_inertia_gain, f().vertical_inertia_limit)
+	if not is_zero_approx(vertical):
+		active_camera.global_position += Vector3.UP * vertical * feel
+	var bob: float = _speed_bob_pitch(feel)
+	if not is_zero_approx(bob):
+		active_camera.rotate_object_local(Vector3.RIGHT, bob)
+
+
+## Насколько сейчас плотен придорожный поток (0..1). Нужен звуку и тестам,
+## чтобы не читать приватные поля напрямую.
+func speed_motes_intensity() -> float:
+	if speed_motes == null or not speed_motes.emitting:
+		return 0.0
+	return clampf(speed_motes.amount_ratio, 0.0, 1.0)
+
+
+## Поток частиц на обочине. Плотность растёт со скоростью, направление и
+## вытягивание берутся из скорости машины: чем быстрее — тем длиннее штрихи.
+func _update_speed_motes(amount: float) -> void:
+	if speed_motes == null:
+		return
+	var motes: FeelConfigType = f()
+	if not motes.speed_motes_enabled:
+		speed_motes.emitting = false
+		return
+	var intensity: float = clampf(
+		Sway.speed_weight(speed_kmh, motes.speed_motes_start_kmh, motes.speed_motes_full_kmh),
+		0.0, 1.0
+	)
+	speed_motes.emitting = intensity > 0.02
+	speed_motes.amount_ratio = clampf(intensity, 0.0, 1.0)
+	var pm := speed_motes.process_material as ParticleProcessMaterial
+	if pm == null:
+		return
+	# Собственная скорость частиц мизерная: поток создаёт движение машины.
+	# Кноб `speed_motes_velocity_stretch` задаёт лёгкий снос по ходу движения,
+	# чтобы на пределе штрихи «тянулись», но не догоняли камеру.
+	var stretch: float = clampf(motes.speed_motes_velocity_stretch, 0.0, 2.0)
+	pm.initial_velocity_min = 0.2 + stretch * 0.6
+	pm.initial_velocity_max = 1.0 + stretch * 1.4
+	# На скорости частицы чуть крупнее: мелкие точки на 200 км/ч не читаются.
+	pm.scale_min = lerpf(0.6, 1.0, intensity)
+	pm.scale_max = lerpf(1.0, 1.7, intensity)
+
+
+## Поток частиц собирается из полей конфига один раз при старте заезда.
+func _setup_speed_motes() -> void:
+	var motes: FeelConfigType = f()
+	if speed_motes != null:
+		speed_motes.queue_free()
+		speed_motes = null
+	if not motes.speed_motes_enabled:
+		return
+	var particles := GPUParticles3D.new()
+	particles.name = "SpeedMotes"
+	particles.amount = maxi(1, motes.speed_motes_amount)
+	particles.lifetime = maxf(0.1, motes.speed_motes_lifetime)
+	particles.local_coords = false
+	particles.emitting = false
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Коробка вокруг машины: частицы рождаются в поле зрения камеры сзади и,
+	# оставаясь в мире, проносятся мимо — это и есть «поток скорости».
+	particles.position = Vector3(0.0, motes.speed_motes_height * 0.5, 0.0)
+	particles.visibility_aabb = AABB(
+		Vector3(-motes.speed_motes_width, -motes.speed_motes_height, -motes.speed_motes_length),
+		Vector3(motes.speed_motes_width * 2.0, motes.speed_motes_height * 3.0, motes.speed_motes_length * 3.0)
+	)
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(
+		motes.speed_motes_width * 0.5,
+		motes.speed_motes_height * 0.5,
+		motes.speed_motes_length * 0.5
+	)
+	# Частицы не наследуют скорость машины: они висят в мире, а мир летит мимо.
+	pm.inherit_velocity_ratio = 0.0
+	pm.direction = Vector3(0.0, 0.0, 1.0)
+	pm.spread = 25.0
+	pm.gravity = Vector3(0.0, -0.4, 0.0)
+	pm.initial_velocity_min = 0.2
+	pm.initial_velocity_max = 1.0
+	pm.scale_min = 0.7
+	pm.scale_max = 1.2
+	pm.color = motes.speed_motes_color
+	pm.color_ramp = DustFx.fade_ramp()
+	particles.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * maxf(0.01, motes.speed_motes_size)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	material.billboard_keep_scale = true
+	material.vertex_color_use_as_albedo = true
+	material.albedo_texture = DustFx.puff_texture()
+	material.albedo_color = motes.speed_motes_color
+	quad.material = material
+	particles.draw_pass_1 = quad
+	add_child(particles)
+	speed_motes = particles
 
 
 func _reset_action_camera() -> void:
@@ -1428,7 +1592,7 @@ func reset_to_spawn() -> void:
 	angular_velocity = Vector3.ZERO
 	sleeping = false
 	previous_global_position = global_position
-	previous_velocity = Vector3.ZERO
+	_feel_previous_velocity = Vector3.ZERO
 	local_velocity = Vector3.ZERO
 	speed = 0.0
 	speed_mps = 0.0
@@ -1461,7 +1625,7 @@ func reset_to_spawn() -> void:
 	engine_restart_time = 0.0
 	shift_notice_time = 0.0
 	is_shifting = false
-	_reset_camera_juice()
+	_reset_camera_feel()
 	need_clutch = true
 	direction_request_active = false
 	direction_target = 0

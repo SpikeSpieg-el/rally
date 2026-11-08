@@ -61,9 +61,11 @@ func _check_presets(effects: RallyVisualEffects, screen: RallyScreenLook) -> voi
 	screen._refresh()
 	_check(screen.pixel_height == 300, "обновление не затирает пользовательский вариант")
 	effects.speed().feel = RallySpeedFeel.Feel.EXPRESSIVE
-	_check(is_equal_approx(effects.speed().blur_gain, 2.4), "выразительный пресет содержит усиленное периферийное размытие")
+	_check(is_equal_approx(effects.speed().blur_gain, 2.0), "выразительный пресет содержит усиленное периферийное размытие")
+	_check(effects.speed().edge_stretch_percent > 1.0, "выразительный пресет тянет края кадра, не тряся его")
 	effects.speed().feel = RallySpeedFeel.Feel.COMFORT
-	_check(effects.speed().blur_gain < 2.4, "комфортный пресет слабее выразительного")
+	_check(effects.speed().blur_gain < 2.0, "комфортный пресет слабее выразительного")
+	_check(effects.speed().edge_stretch_percent < 1.0, "комфортный пресет почти не растягивает края")
 	_check(is_equal_approx(effects.speed().intensity_for(60.0, true), 0.0), "комфортный эффект молчит на малой скорости")
 	_check(effects.speed().intensity_for(220.0, true) > 0.5, "комфортный эффект появляется на высокой скорости")
 	_check(is_zero_approx(effects.speed().intensity_for(220.0, false)), "запрет трассы выключает эффект скорости")
@@ -73,6 +75,7 @@ func _check_presets(effects: RallyVisualEffects, screen: RallyScreenLook) -> voi
 	_check(float(mat.get_shader_parameter("speed_intensity")) > 0.0, "скорость доходит до экранного материала")
 	_check(int(mat.get_shader_parameter("camera_mode")) == 0, "вид сзади доходит до экранного материала")
 	_check(float(mat.get_shader_parameter("blur_gain")) > 1.0, "сзади получает усиленное периферийное размытие")
+	_check(float(mat.get_shader_parameter("speed_stretch")) > 0.0, "растяжение краёв доходит до экранного материала")
 	screen.set_preview_speed(200.0, 1)
 	_check(int(mat.get_shader_parameter("camera_mode")) == 1, "капот доходит до экранного материала отдельным режимом")
 	screen.set_preview_speed(200.0, 2)
@@ -147,14 +150,17 @@ func _check_migration(effects: RallyVisualEffects) -> void:
 	legacy.speed_fx_start_kmh = 80.0
 	legacy.speed_blur_gain = 1.7
 	legacy.speed_cockpit_scale = 0.6
+	legacy.speed_edge_stretch = 0.031
 	legacy.rain_amount_max = 3000
 	legacy.precipitation_density = 0.5
 	effects.adopt_from_settings(legacy)
 	_check(effects.screen().pixel_height == 360 and is_equal_approx(effects.screen().strength, 0.5), "старый ретро-ресурс переносится в узел экрана")
 	_check(is_equal_approx(effects.speed().start_kmh, 80.0), "старые пороги скорости переносятся без угадывания")
 	_check(is_equal_approx(effects.speed().blur_gain, 1.7) and is_equal_approx(effects.speed().cockpit_scale, 0.6), "параметры размытия переносятся из ресурса в узел")
+	_check(is_equal_approx(effects.speed().edge_stretch_percent, 3.1), "растяжение краёв переносится из ресурса в узел")
 	_check(effects.rain().amount_max == 3000 and is_equal_approx(effects.rain().density, 0.5), "старые осадки переносятся в сцену дождя")
 	var mirror := Settings.new()
 	effects.sync_to_settings(mirror)
 	_check(mirror.retro_resolution_height == 360 and mirror.rain_amount_max == 3000, "старый ресурс остаётся совместимым зеркалом узлов")
 	_check(is_equal_approx(mirror.speed_blur_gain, 1.7) and is_equal_approx(mirror.speed_cockpit_scale, 0.6), "ресурс остаётся зеркалом параметров размытия")
+	_check(is_equal_approx(mirror.speed_edge_stretch, 0.031), "ресурс остаётся зеркалом растяжения краёв")

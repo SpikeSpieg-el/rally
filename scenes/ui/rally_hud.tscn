@@ -563,6 +563,32 @@ theme_override_font_sizes/font_size = 13
 text = "35%"
 horizontal_alignment = 2
 
+[node name="SpeedFeel" type="HBoxContainer" parent="PausePanel/Box/CameraOptions"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PausePanel/Box/CameraOptions/SpeedFeel"]
+custom_minimum_size = Vector2(175, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.94, 1)
+theme_override_font_sizes/font_size = 13
+text = "ОЩУЩЕНИЕ СКОРОСТИ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/CameraOptions/SpeedFeel"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="Value" type="Label" parent="PausePanel/Box/CameraOptions/SpeedFeel"]
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "100%"
+horizontal_alignment = 2
+
 [node name="Sensitivity" type="HBoxContainer" parent="PausePanel/Box/CameraOptions" unique_id=1250454021]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
