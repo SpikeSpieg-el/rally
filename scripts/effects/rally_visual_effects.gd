@@ -154,14 +154,15 @@ func stop_preview() -> void:
 			node.emitting = false
 
 
-## Старый ресурс этапа остаётся совместимым зеркалом, а не главным пультом.
+## Старый ресурс этапа остаётся совместимым зеркалом для ретро/осадков и
+## материалов. Для эффекта скорости зеркала нет: числа живут только в узле
+## Speed — иначе появляется второй пульт, который ни на что не влияет.
 func sync_to_settings(cfg: Resource) -> void:
 	if cfg == null:
 		return
 	if screen() != null:
 		screen().write_settings(cfg)
-	if speed() != null:
-		speed().write_settings(cfg)
+	# Скорость сюда не зеркалится: у неё один пульт — узел Speed.
 	if rain() != null:
 		rain().write_settings(cfg)
 	if snow() != null:

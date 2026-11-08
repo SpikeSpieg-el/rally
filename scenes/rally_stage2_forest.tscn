@@ -136,12 +136,12 @@ shader_parameter/resolution_y = 270.0
 shader_parameter/color_levels = 31.0
 shader_parameter/dither_strength = 1.0
 shader_parameter/speed_intensity = 0.0
-shader_parameter/blur_strength = 0.012
-shader_parameter/vignette_strength = 0.12
+shader_parameter/blur_strength = 0.02
+shader_parameter/vignette_strength = 0.26
 shader_parameter/camera_mode = 0
-shader_parameter/blur_gain = 2.4
-shader_parameter/cockpit_scale = 0.8
-shader_parameter/speed_stretch = 0.02
+shader_parameter/blur_gain = 2.8
+shader_parameter/cockpit_scale = 0.7
+shader_parameter/speed_stretch = 0.031
 
 [node name="RallyStage" type="Node3D" unique_id=651009656]
 script = ExtResource("1_4lm8b")

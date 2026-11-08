@@ -71,6 +71,9 @@ const SpectatorCrowd = preload("res://scripts/track/spectator_crowd.gd")
 const HelicopterType = preload("res://scripts/track/helicopter.gd")
 const VisualEffectsType = preload("res://scripts/effects/rally_visual_effects.gd")
 const VisualEffectsScene = preload("res://scenes/effects/visual_effects.tscn")
+const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
+const SpeedFeelScene = preload("res://scenes/effects/speed_effect.tscn")
+const ScreenLookType = preload("res://scripts/effects/rally_screen_look.gd")
 
 ## Файлы-«пульты» по умолчанию (если поле в сцене пустое).
 const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
@@ -172,6 +175,10 @@ var _hud_ready := false
 var _stage_live := false
 ## Один раз за заезд объясняем в консоли, почему эффект скорости молчит.
 var _speed_fx_reported := false
+## Единственный источник чисел эффекта скорости для этого заезда.
+var _speed_feel: SpeedFeelType = null
+## Экран со скриптом RallyScreenLook (если он есть в сцене).
+var _screen_look: ScreenLookType = null
 var _prev_lin_vel: Vector3 = Vector3.ZERO
 var _frame_delta: float = 0.016
 
@@ -279,9 +286,10 @@ func _load_resources() -> void:
 	settings.ps1_enabled = GameSettings.ps1_enabled()
 	_bind_visual_effects()
 	if fx_nodes != null:
-		# Явно назначенный старый ресурс переносим один раз. Обычный дефолтный
-		# .tres не имеет права затирать художественные правки новых узлов сцены.
-		if has_explicit_settings and not legacy_effects_imported:
+		# Явно назначенный старый ресурс переносим один раз и только в
+		# редакторе: в заезде миграция молча меняла бы настроенные числа.
+		# Одноразовость отмечает флаг сцены (его ставит и кнопка у корня).
+		if has_explicit_settings and not legacy_effects_imported and Engine.is_editor_hint():
 			fx_nodes.adopt_from_settings(settings)
 			legacy_effects_imported = true
 		fx_nodes.sync_to_settings(settings)
@@ -3654,31 +3662,27 @@ func _hud_node(path: String) -> Node:
 
 
 ## Постобработка 3D до отрисовки интерфейса.
-## Источник истины — узлы сцены: экран `HUD/SpeedShaderRect` и узел
-## `VisualEffects/Speed`. Ресурс RallyStageSettings остаётся только
-## совместимым зеркалом и резервом для старых сцен.
+## Эффект скорости во всех сценах настраивается в ОДНОМ месте — узле
+## `VisualEffects/Speed` (шаблон `scenes/effects/speed_effect.tscn`).
+## Если узла в сцене нет, он создаётся из того же шаблона: второго набора
+## настроек (старый ресурс, uniform'ы материала) больше нет.
 func _setup_world_effects() -> void:
 	_bind_visual_effects()
-	if fx_nodes != null and fx_nodes.screen() != null:
-		speed_rect = fx_nodes.screen()
+	_speed_feel = _resolve_speed_feel()
+	_screen_look = _find_screen_look()
+	if _screen_look != null:
+		speed_rect = _screen_look
 		speed_fx_material = speed_rect.material as ShaderMaterial
 		speed_rect.visible = true
-		if fx_nodes.speed() == null:
-			push_warning(
-				"RallyStage: в VisualEffects нет узла Speed — эффект скорости берётся из RallyStageSettings. "
-				+ "Добавьте узел Speed, иначе правки его настроек в заезде не появятся."
-			)
-		fx_nodes.configure_screen(track)
+		_screen_look.bind_speed(_speed_feel)
+		if fx_nodes != null:
+			fx_nodes.configure_screen(track)
+		else:
+			_screen_look.configure_for_track(track)
 		if speed_rect.get_parent() == hud and hud.get_node_or_null("RallyHUD") != null:
 			hud.move_child(speed_rect, 0)
 		return
-	if fx_nodes != null:
-		push_warning(
-			"RallyStage: VisualEffects есть, но экран по пути %s не найден — работает старый резервный путь."
-			% fx_nodes.screen_path
-		)
-	# Старые сцены без VisualEffects продолжают работать.
-	var cfg := s_settings()
+	# Старый простой ColorRect без скрипта экрана: числа всё равно из узла.
 	speed_rect = hud.get_node_or_null("SpeedShaderRect") as ColorRect
 	if speed_rect == null:
 		speed_rect = ColorRect.new()
@@ -3694,16 +3698,60 @@ func _setup_world_effects() -> void:
 		speed_fx_material = speed_rect.material as ShaderMaterial
 	speed_rect.visible = true
 	if speed_fx_material != null:
+		_apply_speed_uniforms(speed_fx_material)
+		var cfg := s_settings()
 		Ps1Materials.configure_post_effect(
 			speed_fx_material, cfg.is_retro(track), cfg.retro_style_strength,
 			float(cfg.retro_resolution_height), cfg.color_bits_for(track), cfg.dither_for(track)
 		)
-		speed_fx_material.set_shader_parameter("blur_strength", cfg.speed_blur_strength)
-		speed_fx_material.set_shader_parameter("vignette_strength", cfg.vignette_strength)
-		speed_fx_material.set_shader_parameter("blur_gain", cfg.speed_blur_gain)
-		speed_fx_material.set_shader_parameter("cockpit_scale", cfg.speed_cockpit_scale)
-		speed_fx_material.set_shader_parameter("speed_stretch", cfg.speed_edge_stretch)
 		cfg.apply_shader_overrides(speed_fx_material, cfg.screen_shader_overrides)
+
+
+## Узел с числами эффекта скорости. Нет в сцене — добавляем из шаблона,
+## чтобы эффект был одинаковым везде, а не «где-то есть, где-то нет».
+func _resolve_speed_feel() -> SpeedFeelType:
+	if fx_nodes != null and fx_nodes.speed() != null:
+		return fx_nodes.speed()
+	if _speed_feel != null and is_instance_valid(_speed_feel):
+		return _speed_feel
+	var node := SpeedFeelScene.instantiate() as SpeedFeelType
+	node.name = "Speed"
+	if fx_nodes != null:
+		fx_nodes.add_child(node)
+	else:
+		add_child(node)
+	push_warning(
+		"RallyStage: в сцене нет узла VisualEffects/Speed — добавлен из scenes/effects/speed_effect.tscn."
+	)
+	return node
+
+
+## Экранный фильтр: сначала из VisualEffects, потом узел под HUD.
+func _find_screen_look() -> ScreenLookType:
+	if fx_nodes != null and fx_nodes.screen() != null:
+		return fx_nodes.screen()
+	if hud == null:
+		return null
+	return hud.get_node_or_null("SpeedShaderRect") as ScreenLookType
+
+
+## Числа скорости на материал: только из узла RallySpeedFeel.
+func _apply_speed_uniforms(mat: ShaderMaterial) -> void:
+	if _speed_feel == null:
+		return
+	mat.set_shader_parameter("blur_strength", _speed_feel.edge_blur_percent / 100.0)
+	mat.set_shader_parameter("vignette_strength", _speed_feel.vignette_percent / 100.0)
+	mat.set_shader_parameter("blur_gain", _speed_feel.blur_gain)
+	mat.set_shader_parameter("cockpit_scale", _speed_feel.cockpit_scale)
+	mat.set_shader_parameter("speed_stretch", _speed_feel.edge_stretch_percent / 100.0)
+
+
+## Флаг трассы «запретить эффект скорости». Нет поля — значит не запрещено.
+func _track_allows_speed() -> bool:
+	if track == null:
+		return true
+	var allows: Variant = track.get("enable_speed_fx")
+	return bool(allows) if allows != null else true
 
 
 func _setup_hud() -> void:
@@ -4081,17 +4129,14 @@ func _process(delta: float) -> void:
 		_check_finish()
 	var speed: float = car.speed_kmh if car != null else 0.0
 	var camera_mode: int = car.camera_mode if car != null else 0
-	# Эффект скорости считается из узла сцены. Если узла Speed нет, работаем
-	# по старому ресурсу — иначе материал остался бы с нулевой интенсивностью
-	# и «эффект не применяется» без единой строчки в консоли.
-	var from_node: bool = fx_nodes != null and fx_nodes.speed() != null and speed_rect != null
-	if from_node:
-		fx_nodes.update_speed(speed, track, camera_mode)
-	elif speed_fx_material != null:
-		var intensity: float = s_settings().speed_fx_amount(speed, track)
+	# Единственный путь: узел Speed -> экранный фильтр.
+	if _screen_look != null:
+		_screen_look.set_preview_speed(speed, camera_mode)
+	elif speed_fx_material != null and _speed_feel != null:
+		var intensity: float = _speed_feel.intensity_for(speed, _track_allows_speed())
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 		speed_fx_material.set_shader_parameter("camera_mode", camera_mode)
-	_report_speed_fx(speed, from_node)
+	_report_speed_fx(speed)
 	_frame_delta = delta
 	_update_hud()
 
@@ -4099,7 +4144,7 @@ func _process(delta: float) -> void:
 ## Один раз за заезд: если скорость уже приличная, а эффект молчит, в консоли
 ## появляется причина. Раньше это был тихий ноль, и понять, где конфликт
 ## настроек, было нельзя.
-func _report_speed_fx(speed: float, from_node: bool) -> void:
+func _report_speed_fx(speed: float) -> void:
 	if _speed_fx_reported or speed_fx_material == null or speed < SPEED_FX_REPORT_KMH:
 		return
 	var raw: Variant = speed_fx_material.get_shader_parameter("speed_intensity")
@@ -4108,14 +4153,14 @@ func _report_speed_fx(speed: float, from_node: bool) -> void:
 		_speed_fx_reported = true
 		return
 	var reason := ""
-	if from_node and fx_nodes != null and fx_nodes.screen() != null:
-		reason = fx_nodes.screen().speed_blocked_reason()
-		if reason.is_empty():
-			reason = "экранный материал не получил speed_intensity"
-	elif not s_settings().speed_fx_enabled:
-		reason = "эффект выключен в RallyStageSettings (speed_fx_enabled)"
-	else:
-		reason = "трасса запрещает эффект (enable_speed_fx = false)"
+	if _screen_look != null:
+		reason = _screen_look.speed_blocked_reason()
+	elif _speed_feel != null and not _track_allows_speed():
+		reason = "трасса запрещает эффект: enable_speed_fx = false"
+	elif _speed_feel != null:
+		reason = _speed_feel.inactive_reason(speed)
+	if reason.is_empty():
+		reason = "экранный материал не получил speed_intensity"
 	_speed_fx_reported = true
 	push_warning("Эффект скорости не работает на %.0f км/ч: %s" % [speed, reason])
 

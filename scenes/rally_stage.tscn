@@ -121,8 +121,6 @@ script = ExtResource("9_h4p6t")
 preview_in_editor = false
 show_debug_info = true
 retro_color_bits_override = 5
-speed_fx_start_kmh = 65.0
-speed_blur_gain = 2.4
 ground_surface_roughness = 0.99
 ground_grain_scale = 1.4
 road_roughness = 0.96
@@ -142,12 +140,12 @@ shader_parameter/resolution_y = 270.0
 shader_parameter/color_levels = 31.0
 shader_parameter/dither_strength = 1.0
 shader_parameter/speed_intensity = 0.0
-shader_parameter/blur_strength = 0.012
-shader_parameter/vignette_strength = 0.12
+shader_parameter/blur_strength = 0.02
+shader_parameter/vignette_strength = 0.26
 shader_parameter/camera_mode = 0
-shader_parameter/blur_gain = 2.4
-shader_parameter/cockpit_scale = 0.8
-shader_parameter/speed_stretch = 0.02
+shader_parameter/blur_gain = 2.8
+shader_parameter/cockpit_scale = 0.7
+shader_parameter/speed_stretch = 0.031
 shader_parameter/speed_stretch_gain = 1.0
 
 [node name="RallyStage" type="Node3D" unique_id=651009656]

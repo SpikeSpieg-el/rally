@@ -3,8 +3,9 @@
 ## Точные значения открываются только в режиме «Свой характер».
 ##
 ## Единственный источник истины для эффекта скорости — этот узел.
-## `RallyStageSettings.speed_*` остаётся совместимым зеркалом, а uniform'ы
-## материала экрана пересчитываются из узла каждый кадр.
+## Шаблон `scenes/effects/speed_effect.tscn` используют все заезды, поэтому
+## правка здесь меняет эффект везде. Uniform'ы материала экрана и старый
+## `RallyStageSettings` — не настройки, а зеркало/миграция.
 @tool
 class_name RallySpeedFeel
 extends Node
@@ -160,21 +161,9 @@ func _refresh() -> void:
 	settings_changed.emit()
 
 
-## Совместимость с ресурсом этапа: узел сцены — источник истины.
-func write_settings(cfg: Resource) -> void:
-	if cfg == null:
-		return
-	cfg.set("speed_fx_enabled", enabled)
-	cfg.set("speed_fx_start_kmh", start_kmh)
-	cfg.set("speed_fx_full_kmh", full_kmh)
-	cfg.set("speed_effect_strength", strength)
-	cfg.set("speed_blur_strength", edge_blur_percent / 100.0)
-	cfg.set("vignette_strength", vignette_percent / 100.0)
-	cfg.set("speed_blur_gain", blur_gain)
-	cfg.set("speed_cockpit_scale", cockpit_scale)
-	cfg.set("speed_edge_stretch", edge_stretch_percent / 100.0)
-
-
+## Разовая миграция старого RallyStageSettings в узел (кнопка «Перенести
+## старый ресурс в эффекты сцены» у корня этапа). Обратной записи нет: этот
+## узел — единственное место, где живут числа эффекта скорости.
 func adopt_settings(cfg: Resource) -> void:
 	if cfg == null:
 		return
