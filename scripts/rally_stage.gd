@@ -3359,6 +3359,37 @@ func _configure_world() -> void:
 		sun_light.light_energy = sun_energy
 
 
+## Отладка окружения без перезапуска: перечитывает .tres трассы с диска (мимо
+## кэша ресурсов) и заново ставит только небо, туман, солнце, подсветку и
+## экспозицию. Геометрия дороги и рельефа этим не пересобирается — для неё
+## нужна обычная сборка (Ctrl+R в студии или новый заезд).
+## Порядок: сохранить .tres в редакторе → нажать F10 в запущенной игре.
+func reload_environment_from_disk() -> bool:
+	if track == null or track.resource_path.is_empty():
+		return false
+	var fresh := ResourceLoader.load(track.resource_path, "", ResourceLoader.CACHE_MODE_IGNORE) as TrackConfigType
+	if fresh == null:
+		push_warning("Не удалось перечитать трассу: %s" % track.resource_path)
+		return false
+	track = fresh
+	_configure_world()
+	print("Окружение обновлено из %s" % track.resource_path)
+	return true
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Только debug-сборка и не редактор: клавиша F10 не попадает в релиз.
+	if Engine.is_editor_hint() or not OS.is_debug_build():
+		return
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.keycode != KEY_F10:
+		return
+	if input_settings != null and input_settings.blocks_actions():
+		return
+	reload_environment_from_disk()
+	get_viewport().set_input_as_handled()
+
+
 func _weather_sky_color(base: Color) -> Color:
 	if weather == null:
 		return base
