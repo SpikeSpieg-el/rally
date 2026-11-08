@@ -14,9 +14,9 @@ extends Node3D
 ## Нацелить выброс вдоль скорости машины.
 @export var aim_with_car: bool = true
 ## Добавка к скорости частиц от скорости машины, 0 — как настроено в сцене.
-@export_range(0.0, 1.0, 0.01) var extra_speed_from_car: float = 0.12
-@export_range(0.0, 2.0, 0.05) var droplet_lift: float = 0.55
-@export_range(0.0, 2.0, 0.05) var mist_lift: float = 0.35
+@export_range(0.0, 1.0, 0.01) var extra_speed_from_car: float = 0.06
+@export_range(0.0, 2.0, 0.05) var droplet_lift: float = 0.85
+@export_range(0.0, 2.0, 0.05) var mist_lift: float = 0.5
 @export_multiline var description: String = "Капли и туман после удара. Править GPUParticles3D Droplets и Mist."
 
 

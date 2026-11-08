@@ -149,10 +149,12 @@ func _process(delta: float) -> void:
 
 
 func _arm_people() -> void:
+	var toward_road: Vector3 = -global_transform.basis.z
+	toward_road.y = 0.0
 	for person in _persons:
 		if person.has_method("setup"):
-			person.call("setup", _stage, false, Vector3.ZERO)
+			person.call("setup", _stage, false, toward_road)
 	for entry in _photographers:
 		var root := entry["root"] as Node3D
 		if root.has_method("setup"):
-			root.call("setup", _stage, false, Vector3.ZERO)
+			root.call("setup", _stage, false, toward_road)
