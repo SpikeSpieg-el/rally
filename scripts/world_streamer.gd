@@ -427,6 +427,12 @@ func _run_decor(job: Dictionary) -> void:
 			await stage._spawn_procedural_scenery(true, float(id) * ROAD_LENGTH, float(id + 1) * ROAD_LENGTH, root)
 		if _stopping or not is_instance_valid(root):
 			return
+		# Оформление спецучастка едет тем же чанком, что и лес: ленты,
+		# зрители и ЛЭП появляются и уезжают вместе с геометрией вокруг.
+		if stage.has_method("_spawn_stage_dressing"):
+			stage._spawn_stage_dressing(float(id) * ROAD_LENGTH, float(id + 1) * ROAD_LENGTH, root)
+		if _stopping or not is_instance_valid(root):
+			return
 		root.set_meta("decorated", true)
 
 func _build_tile(key: Vector2i) -> void:

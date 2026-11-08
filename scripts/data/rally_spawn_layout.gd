@@ -88,6 +88,19 @@ extends Resource
 @export_range(0.1, 5.0, 0.05) var corner_sign_scale: float = 1.0
 @export_range(-180.0, 180.0, 1.0) var corner_sign_yaw_offset: float = 0.0
 
+@export_group("Оформление спецучастка")
+## Ленты, тормозные таблички, оранжевые сетки, зрители, лагеря, ЛЭП,
+## стартово-финишный городок, следы шин и пятна тумана (RallyStageDressing).
+@export var stage_dressing: bool = true
+## Не чаще, чем через столько метров, ставить зрительские «островки».
+@export_range(150.0, 1500.0, 10.0) var spectator_spacing: float = 420.0
+## Потолок зрительских точек на трассу.
+@export_range(1, 40, 1) var spectator_max_spots: int = 10
+## Зрителей в одном лагере (плюс два фотографа у кромки).
+@export_range(3, 16, 1) var spectator_crowd_size: int = 8
+## Ставить вертолёт с прожектором над серединой трассы.
+@export var helicopter: bool = true
+
 @export_group("Металлический отбойник на крутых поворотах")
 @export var guardrails: bool = true
 ## Модуль из библиотеки пропсов: длина вдоль локальной X — 3 м.
