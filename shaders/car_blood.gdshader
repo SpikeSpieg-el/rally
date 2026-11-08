@@ -29,6 +29,7 @@ float noise3(vec3 p) {
 
 void vertex() {
 	body_position = (world_to_car * MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	VERTEX += NORMAL * 0.012;
 }
 
 void fragment() {
@@ -70,7 +71,7 @@ void fragment() {
 		drip_mask = max(drip_mask, drip * amount * 0.85);
 	}
 	float coverage = max(mask, drip_mask);
-	if (coverage < 0.04) {
+	if (coverage < 0.03) {
 		discard;
 	}
 	float speckle = noise3(body_position * 90.0);
@@ -78,6 +79,6 @@ void fragment() {
 	ALBEDO = mix(wet * 0.55, wet, clamp(coverage, 0.0, 1.0));
 	ROUGHNESS = mix(0.22, 0.55, speckle);
 	SPECULAR = mix(0.18, 0.55, blood_gloss);
-	EMISSION = blood_color * 0.08 * coverage;
-	ALPHA = clamp(coverage * 1.65, 0.0, 0.92);
+	EMISSION = blood_color * 0.1 * coverage;
+	ALPHA = clamp(coverage * 1.85, 0.0, 0.95);
 }
