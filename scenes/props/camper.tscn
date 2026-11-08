@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://lr7saf744g8cp"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_body"]
+albedo_color = Color(0.88, 0.87, 0.82, 1)
+roughness = 0.9
+[sub_resource type="BoxMesh" id="Mesh_body"]
+material = SubResource("Mat_body")
+size = Vector3(4.6, 1.9, 1.9)
+[sub_resource type="StandardMaterial3D" id="Mat_stripe"]
+albedo_color = Color(0.75, 0.15, 0.12, 1)
+roughness = 0.9
+[sub_resource type="BoxMesh" id="Mesh_stripe"]
+material = SubResource("Mat_stripe")
+size = Vector3(4.7, 0.35, 1.92)
+[sub_resource type="StandardMaterial3D" id="Mat_window"]
+albedo_color = Color(0.15, 0.18, 0.22, 1)
+roughness = 0.9
+[sub_resource type="BoxMesh" id="Mesh_window"]
+material = SubResource("Mat_window")
+size = Vector3(4.2, 0.5, 1.92)
+[sub_resource type="StandardMaterial3D" id="Mat_wheel"]
+albedo_color = Color(0.05, 0.05, 0.05, 1)
+roughness = 0.9
+[sub_resource type="CylinderMesh" id="Mesh_wheel"]
+material = SubResource("Mat_wheel")
+top_radius = 0.36
+bottom_radius = 0.36
+height = 0.25
+radial_segments = 8
+
+[node name="Camper" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+mesh = SubResource("Mesh_body")
+[node name="Stripe" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("Mesh_stripe")
+[node name="Windows" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, 0)
+mesh = SubResource("Mesh_window")
+[node name="WheelFL" type="MeshInstance3D" parent="."]
+transform = Transform3D(6.12323e-17, 1, 0, -1, 6.12323e-17, 0, 0, 0, 1, -1.6, 0.36, 0.95)
+mesh = SubResource("Mesh_wheel")
+[node name="WheelFR" type="MeshInstance3D" parent="."]
+transform = Transform3D(6.12323e-17, 1, 0, -1, 6.12323e-17, 0, 0, 0, 1, 1.6, 0.36, 0.95)
+mesh = SubResource("Mesh_wheel")
+[node name="WheelRL" type="MeshInstance3D" parent="."]
+transform = Transform3D(6.12323e-17, 1, 0, -1, 6.12323e-17, 0, 0, 0, 1, -1.6, 0.36, -0.95)
+mesh = SubResource("Mesh_wheel")
+[node name="WheelRR" type="MeshInstance3D" parent="."]
+transform = Transform3D(6.12323e-17, 1, 0, -1, 6.12323e-17, 0, 0, 0, 1, 1.6, 0.36, -0.95)
+mesh = SubResource("Mesh_wheel")

@@ -785,10 +785,11 @@ func _build_world_async() -> void:
 	if s_spawn().stage_dressing and not streaming:
 		_spawn_stage_dressing(0.0, -1.0, null)
 	if s_spawn().stage_dressing and s_spawn().helicopter and not Engine.is_editor_hint():
-		var helicopter := HelicopterType.new()
-		helicopter.name = "Helicopter"
-		generated.add_child(helicopter)
-		helicopter.setup(network.point_at(network.total_length * 0.45), track.terrain_seed)
+		var helicopter_node: Node3D = _place_prop(generated, "helicopter", Vector3.ZERO, 0.0)
+		if helicopter_node != null:
+			var helicopter := helicopter_node as HelicopterType
+			if helicopter != null:
+				helicopter.setup(network.point_at(network.total_length * 0.45), track.terrain_seed)
 	cp_triggered.resize(checkpoints.size())
 	cp_times.clear()
 	for i in range(checkpoints.size()):
@@ -2542,7 +2543,7 @@ func _spawn_corner_signs(parent: Node3D, distance_start: float = 0.0, distance_e
 
 ## Повороты трассы по RallyRouteAnalysis (тот же счёт, что в редакторе
 ## трассы): вход, угол, радиус, severity 1..6. Кешируется на сборку мира.
-func _dressing_corners() -> Array:
+func _get_dressing_corners() -> Array:
 	if _dressing_corners_ready:
 		return _dressing_corners
 	_dressing_corners_ready = true
@@ -2582,7 +2583,7 @@ func _dressing_material(color: Color, emission: float = 0.0, unshaded: bool = fa
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if color.a < 0.999:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		material.cull_mode = BaseMaterial3D.CULL_MODE_DISABLED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if emission > 0.0:
 		material.emission_enabled = true
 		material.emission = Color(color.r, color.g, color.b, 1.0)
@@ -2590,91 +2591,46 @@ func _dressing_material(color: Color, emission: float = 0.0, unshaded: bool = fa
 	return material
 
 
-## Коробка оформления на общем юнит-меше: размер зашит в базис трансформов,
-## поэтому сотни лент/столбиков — это пара MultiMesh, а не сотни узлов.
-func _dressing_multibox(container: Node3D, box_name: String, transforms: Array, colors: Array) -> void:
+## Поставить РЕДАКТИРУЕМУЮ сцену пропса из библиотеки (scenes/props/*.tscn)
+## по её id. Оформление спецучастка собирается только из таких сцен: код
+## отвечает за место и поворот, а внешний вид правится в редакторе сцен.
+func _place_prop(container: Node3D, prop_id: String, pos: Vector3, yaw: float) -> Node3D:
+	var prop: RallyProp = s_props().by_id(prop_id)
+	if prop == null or prop.scene == null:
+		push_warning("RallyStage: нет сцены пропса '%s' в библиотеке" % prop_id)
+		return null
+	var node := prop.scene.instantiate() as Node3D
+	if node == null:
+		return null
+	node.position = pos
+	node.rotation.y = yaw
+	container.add_child(node)
+	return node
+
+
+## MultiMesh из ЗАПЕЧЁННОЙ сцены пропса (как весь остальной лес): сотни
+## колышков/столбов — один узел, а меш и материалы берутся из .tscn.
+func _dressing_multimesh(container: Node3D, mesh_name: String, prop_id: String, transforms: Array, colors: Array) -> void:
 	if transforms.is_empty():
 		return
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3.ONE
-	var material := StandardMaterial3D.new()
-	material.roughness = 0.9
-	material.vertex_color_use_as_albedo = true
-	mesh.surface_set_material(0, material)
+	var prop: RallyProp = s_props().by_id(prop_id)
+	var mesh: Mesh = _bake_prop_mesh(prop) if prop != null else null
+	if mesh == null:
+		return
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.use_colors = true
+	multimesh.use_colors = not colors.is_empty()
 	multimesh.mesh = mesh
 	multimesh.instance_count = transforms.size()
 	for i in range(transforms.size()):
 		multimesh.set_instance_transform(i, transforms[i])
-		multimesh.set_instance_color(i, colors[i])
+		if not colors.is_empty():
+			multimesh.set_instance_color(i, colors[i])
 	var instance := MultiMeshInstance3D.new()
-	instance.name = box_name
+	instance.name = mesh_name
 	instance.multimesh = multimesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	container.add_child(instance)
-
-
-func _dressing_box(container: Node3D, size: Vector3, pos: Vector3, yaw: float, material: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.surface_set_material(0, material)
-	var instance := MeshInstance3D.new()
-	instance.mesh = mesh
-	instance.position = pos
-	instance.rotation.y = yaw
-	container.add_child(instance)
-	return instance
-
-
-func _dressing_label(container: Node3D, text: String, pos: Vector3, yaw: float, color: Color) -> Label3D:
-	var label := Label3D.new()
-	label.text = text
-	label.font_size = 96
-	label.pixel_size = 0.0052
-	label.modulate = color
-	label.outline_size = 8
-	label.outline_modulate = Color(0, 0, 0, 0.55)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.position = pos
-	label.rotation.y = yaw
-	container.add_child(label)
-	return label
-
-
-## Низкополигональная легковушка из коробок: служба/зритель/разбитый соперник.
-func _dressing_car(container: Node3D, pos: Vector3, yaw: float, color: Color, flipped: bool) -> Node3D:
-	var car_node := Node3D.new()
-	car_node.position = pos
-	car_node.rotation.y = yaw
-	if flipped:
-		car_node.rotation.z = 2.75
-		car_node.position.y += 0.75
-	container.add_child(car_node)
-	var body_material := _dressing_material(color)
-	var glass_material := _dressing_material(Color(0.12, 0.16, 0.20))
-	_dressing_box(car_node, Vector3(1.7, 0.55, 3.9), Vector3(0, 0.55, 0), 0.0, body_material)
-	_dressing_box(car_node, Vector3(1.5, 0.5, 1.9), Vector3(0, 1.05, -0.2), 0.0, glass_material)
-	var wheel_material := _dressing_material(Color(0.05, 0.05, 0.05))
-	for wx in [-0.8, 0.8]:
-		for wz in [-1.3, 1.3]:
-			var wheel_mesh := CylinderMesh.new()
-			wheel_mesh.top_radius = 0.32
-			wheel_mesh.bottom_radius = 0.32
-			wheel_mesh.height = 0.22
-			wheel_mesh.radial_segments = 8
-			wheel_mesh.surface_set_material(0, wheel_material)
-			var wheel := MeshInstance3D.new()
-			wheel.mesh = wheel_mesh
-			wheel.rotation.z = PI * 0.5
-			wheel.position = Vector3(float(wx), 0.32, float(wz))
-			car_node.add_child(wheel)
-	if flipped:
-		var hazard_material := _dressing_material(Color(1.0, 0.55, 0.08), 1.6)
-		_dressing_box(car_node, Vector3(0.18, 0.12, 0.18), Vector3(-0.7, -0.35, 1.7), 0.0, hazard_material)
-		_dressing_box(car_node, Vector3(0.18, 0.12, 0.18), Vector3(0.7, -0.35, 1.7), 0.0, hazard_material)
-	return car_node
 
 
 ## Оформление спецучастка на отрезке трассы: ленты и сетки на крутых
@@ -2690,13 +2646,10 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 	(generated if chunk_parent == null else chunk_parent).add_child(container)
 	var end: float = network.total_length - 40.0 if distance_end < 0.0 else minf(distance_end, network.total_length - 40.0)
 	var corridor: float = corridor_half()
-	var corners: Array = _dressing_corners()
+	var corners: Array = _get_dressing_corners()
 	var post_transforms: Array = []
-	var post_colors: Array = []
 	var ribbon_transforms: Array = []
 	var ribbon_colors: Array = []
-	var net_material := _dressing_material(Color(1.0, 0.45, 0.05, 0.38))
-	var post_color := Color(0.85, 0.84, 0.78)
 	var tape_colors: Array[Color] = [Color(0.92, 0.10, 0.08), Color(0.95, 0.94, 0.90)]
 	for corner in corners:
 		var entry: float = float(corner.get("distance", 0.0))
@@ -2713,31 +2666,19 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 				var pos: Vector3 = frame[0]
 				var dir: Vector3 = frame[1]
 				var yaw: float = atan2(-dir.x, -dir.z)
-				var marker := Node3D.new()
-				marker.position = pos
-				marker.rotation.y = yaw
-				container.add_child(marker)
-				_dressing_box(marker, Vector3(0.09, 1.1, 0.09), Vector3(0, 0.55, 0), 0.0, _dressing_material(Color(0.25, 0.19, 0.11)))
-				_dressing_box(marker, Vector3(1.05, 0.62, 0.06), Vector3(0, 1.32, 0), 0.0, _dressing_material(Color(0.94, 0.92, 0.85)))
-				_dressing_label(marker, str(int(round(back))), Vector3(0, 1.32, 0.045), 0.0, Color(0.08, 0.08, 0.08))
+				var marker: Node3D = _place_prop(container, "braking_marker", pos, yaw)
+				if marker != null:
+					var number := marker.get_node_or_null("Number") as Label3D
+					if number != null:
+						number.text = str(int(round(back)))
 		if entry + 55.0 < distance_start or entry - 15.0 >= end:
 			continue
 		# Жирные следы торможения/заноса и грязь с внутреннего апекса.
 		if severity <= 3:
 			_dressing_skid_marks(container, entry - 70.0, entry + 12.0, distance_start, end)
 			var apex_frame: Array = _dressing_frame(entry + 28.0, corridor - 1.4, direction_sign)
-			var mud := MeshInstance3D.new()
-			var mud_mesh := SphereMesh.new()
-			mud_mesh.radius = 1.0
-			mud_mesh.height = 2.0
-			mud_mesh.radial_segments = 8
-			mud_mesh.rings = 4
-			mud_mesh.surface_set_material(0, _dressing_material(Color(0.30, 0.20, 0.10, 0.45)))
-			mud.mesh = mud_mesh
-			mud.scale = Vector3(2.4, 0.07, 1.5)
 			var apex_pos: Vector3 = apex_frame[0]
-			mud.position = Vector3(apex_pos.x, height_at(apex_pos.x, apex_pos.z) + 0.05, apex_pos.z)
-			container.add_child(mud)
+			_place_prop(container, "mud_patch", Vector3(apex_pos.x, height_at(apex_pos.x, apex_pos.z) + 0.05, apex_pos.z), 0.0)
 		# Ленты на колышках и оранжевая сетка снаружи опасных поворотов.
 		if severity <= 2:
 			var previous: Vector3 = Vector3.ZERO
@@ -2746,30 +2687,24 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			while d <= entry + 55.0:
 				var frame: Array = _dressing_frame(d, corridor + 1.6, outer_sign)
 				var pos: Vector3 = frame[0]
-				post_transforms.append(Transform3D(Basis(Vector3.UP, 0.0), pos + Vector3(0, 0.45, 0)) * Transform3D(Basis.from_scale(Vector3(0.07, 0.9, 0.07)), Vector3.ZERO))
-				post_colors.append(post_color)
+				post_transforms.append(Transform3D(Basis.IDENTITY, pos))
 				if segment_index > 0:
 					var mid: Vector3 = (pos + previous) * 0.5
 					var delta: Vector3 = pos - previous
 					var seg_yaw: float = atan2(delta.x, delta.z)
 					var wave: float = sin(float(segment_index) * 1.7) * 0.07
-					var ribbon_basis := Basis(Vector3.UP, seg_yaw) * Basis.from_scale(Vector3(0.03, 0.26, maxf(delta.length(), 0.1)))
+					var ribbon_basis := Basis(Vector3.UP, seg_yaw) * Basis.from_scale(Vector3(1.0, 1.0, maxf(delta.length(), 0.1)))
 					ribbon_transforms.append(Transform3D(ribbon_basis, mid + Vector3(0, 0.78 + wave, 0)))
 					ribbon_colors.append(tape_colors[segment_index % 2])
 					var net_pos: Vector3 = mid + (frame[2] as Vector3) * (outer_sign * 1.3)
-					var net := MeshInstance3D.new()
-					var net_mesh := BoxMesh.new()
-					net_mesh.size = Vector3(0.03, 1.0, maxf(delta.length(), 0.1))
-					net_mesh.surface_set_material(0, net_material)
-					net.mesh = net_mesh
-					net.position = Vector3(net_pos.x, ground_height(net_pos.x, net_pos.z) + 0.5, net_pos.z)
-					net.rotation.y = seg_yaw
-					container.add_child(net)
+					var net: Node3D = _place_prop(container, "safety_net", Vector3(net_pos.x, ground_height(net_pos.x, net_pos.z), net_pos.z), seg_yaw)
+					if net != null:
+						net.scale = Vector3(1.0, 1.0, maxf(delta.length(), 0.1))
 				previous = pos
 				segment_index += 1
 				d += 6.0
-	_dressing_multibox(container, "BuntingPosts", post_transforms, post_colors)
-	_dressing_multibox(container, "BuntingTape", ribbon_transforms, ribbon_colors)
+	_dressing_multimesh(container, "BuntingPosts", "bunting_post", post_transforms, [])
+	_dressing_multimesh(container, "BuntingTape", "bunting_tape", ribbon_transforms, ribbon_colors)
 	# Зрительские лагеря на внешних радиусах выбранных поворотов.
 	var spectator_corners: Array = StageDressing.select_spectator_corners(corners, cfg.spectator_spacing, cfg.spectator_max_spots)
 	for spot_index in range(spectator_corners.size()):
@@ -2782,18 +2717,18 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 		var frame: Array = _dressing_frame(entry + 20.0, corridor + 9.0, outer_sign)
 		var pos: Vector3 = frame[0]
 		var side: Vector3 = frame[2]
-		var crowd := SpectatorCrowd.new()
-		crowd.name = "Spectators_%02d" % spot_index
-		crowd.position = pos
 		var to_road: Vector3 = -side * outer_sign
-		crowd.rotation.y = atan2(-to_road.x, -to_road.z)
-		container.add_child(crowd)
-		crowd.setup(self, track.terrain_seed + spot_index * 131, cfg.spectator_crowd_size, spot_index % 2 == 0)
+		var crowd_node: Node3D = _place_prop(container, "spectator_crowd", pos, atan2(-to_road.x, -to_road.z))
+		if crowd_node != null:
+			crowd_node.name = "Spectators_%02d" % spot_index
+			var crowd := crowd_node as SpectatorCrowd
+			if crowd != null:
+				crowd.setup(self, track.terrain_seed + spot_index * 131, cfg.spectator_crowd_size, spot_index % 2 == 0)
 		if spot_index % 3 == 1:
 			var car_frame: Array = _dressing_frame(entry + 26.0, corridor + 13.0, outer_sign)
 			var car_pos: Vector3 = car_frame[0]
 			var car_dir: Vector3 = car_frame[1]
-			_dressing_car(container, car_pos + Vector3(0, 0.05, 0), atan2(car_dir.x, car_dir.z), Color(0.65, 0.66, 0.68), false)
+			_place_prop(container, "parked_car", car_pos + Vector3(0, 0.05, 0), atan2(car_dir.x, car_dir.z))
 	# Линия ЛЭП: столбы с перекладинами и провисшие провода.
 	for line_range in StageDressing.powerline_ranges(network.total_length, track.terrain_seed):
 		var range_start: float = float(line_range.get("start", 0.0))
@@ -2802,9 +2737,6 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			continue
 		var line_side: float = float(line_range.get("side", 1.0))
 		var pole_transforms: Array = []
-		var arm_transforms: Array = []
-		var pole_colors: Array = []
-		var arm_colors: Array = []
 		var tops: Array = []
 		var d: float = maxf(range_start, distance_start)
 		while d <= minf(range_end, end):
@@ -2812,14 +2744,10 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			var pos: Vector3 = frame[0]
 			var dir: Vector3 = frame[1]
 			var yaw: float = atan2(dir.x, dir.z)
-			pole_transforms.append(Transform3D(Basis(Vector3.UP, yaw), pos + Vector3(0, 3.5, 0)) * Transform3D(Basis.from_scale(Vector3(0.18, 7.0, 0.18)), Vector3.ZERO))
-			pole_colors.append(Color(0.30, 0.22, 0.13))
-			arm_transforms.append(Transform3D(Basis(Vector3.UP, yaw), pos + Vector3(0, 6.6, 0)) * Transform3D(Basis.from_scale(Vector3(1.9, 0.12, 0.12)), Vector3.ZERO))
-			arm_colors.append(Color(0.30, 0.22, 0.13))
+			pole_transforms.append(Transform3D(Basis(Vector3.UP, yaw), pos))
 			tops.append(pos + Vector3(0, 6.6, 0))
 			d += 42.0
-		_dressing_multibox(container, "PowerlinePoles", pole_transforms, pole_colors)
-		_dressing_multibox(container, "PowerlineArms", arm_transforms, arm_colors)
+		_dressing_multimesh(container, "PowerlinePoles", "power_pole", pole_transforms, [])
 		_dressing_wires(container, tops)
 	# Пятна тумана, стелющиеся над полотном в низинах.
 	var samples: Dictionary = _dressing_samples()
@@ -2829,18 +2757,20 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 		for layer in range(3):
 			var frame: Array = _dressing_frame(fog_distance + float(layer - 1) * 14.0, 0.0, 1.0)
 			var pos: Vector3 = frame[0]
-			var fog := MeshInstance3D.new()
-			var fog_mesh := QuadMesh.new()
-			fog_mesh.size = Vector2(44.0, 15.0)
-			fog_mesh.surface_set_material(0, _dressing_material(Color(0.82, 0.86, 0.92, 0.10 - float(layer) * 0.02), 0.0, true))
-			fog.mesh = fog_mesh
-			fog.position = Vector3(pos.x, height_at(pos.x, pos.z) + 0.8 + float(layer) * 0.45, pos.z)
-			fog.rotation_degrees = Vector3(-90.0, 0.0, rad_to_deg(atan2((frame[1] as Vector3).x, (frame[1] as Vector3).z)))
-			container.add_child(fog)
+			var dir: Vector3 = frame[1]
+			var fog: Node3D = _place_prop(container, "fog_patch", Vector3(pos.x, height_at(pos.x, pos.z) + 0.8 + float(layer) * 0.45, pos.z), atan2(dir.x, dir.z))
+			if fog != null:
+				var fog_mesh := fog.get_node_or_null("Fog") as MeshInstance3D
+				if fog_mesh != null:
+					fog_mesh.transparency = float(layer) * 0.3
 	# Домик лесника со штабелем брёвен — ориентир второй половины трассы.
 	var house_distance: float = StageDressing.landmark_distance(network.total_length, track.terrain_seed, 21, 0.52, 0.62)
 	if house_distance >= distance_start and house_distance < end:
-		_dressing_house(container, house_distance, corridor)
+		var house_side: float = 1.0 if StageDressing.hash01(track.terrain_seed, 24) > 0.5 else -1.0
+		var house_frame: Array = _dressing_frame(house_distance, corridor + 17.0, house_side)
+		var house_pos: Vector3 = house_frame[0]
+		var house_dir: Vector3 = house_frame[1]
+		_place_prop(container, "forester_house", house_pos, atan2(-house_dir.x, -house_dir.z) + (0.0 if house_side > 0.0 else PI))
 	# Разбитая машина соперника и знак аварийной остановки за 50 м до неё.
 	var broken_distance: float = StageDressing.landmark_distance(network.total_length, track.terrain_seed, 22, 0.30, 0.42)
 	if broken_distance >= distance_start and broken_distance < end:
@@ -2848,17 +2778,12 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 		var frame: Array = _dressing_frame(broken_distance, corridor + 2.2, side_sign)
 		var pos: Vector3 = frame[0]
 		var dir: Vector3 = frame[1]
-		_dressing_car(container, pos + Vector3(0, 0.05, 0), atan2(dir.x, dir.z) + 0.35, Color(0.80, 0.25, 0.10), true)
+		_place_prop(container, "broken_car", pos + Vector3(0, 0.05, 0), atan2(dir.x, dir.z) + 0.35)
 	if broken_distance - 50.0 >= distance_start and broken_distance - 50.0 < end:
 		var warn_frame: Array = _dressing_frame(broken_distance - 50.0, corridor + 0.8, 1.0)
 		var warn_pos: Vector3 = warn_frame[0]
 		var warn_dir: Vector3 = warn_frame[1]
-		var triangle := Node3D.new()
-		triangle.position = warn_pos
-		triangle.rotation.y = atan2(-warn_dir.x, -warn_dir.z)
-		container.add_child(triangle)
-		var tri: MeshInstance3D = _dressing_box(triangle, Vector3(0.55, 0.55, 0.05), Vector3(0, 0.55, 0), 0.0, _dressing_material(Color(0.92, 0.12, 0.08), 0.7))
-		tri.rotation.z = PI * 0.25
+		_place_prop(container, "warning_triangle", warn_pos, atan2(-warn_dir.x, -warn_dir.z))
 
 
 ## Выборка осевой для планировщика тумана (тот же шаг, что у поворотов).
@@ -2944,51 +2869,9 @@ func _dressing_skid_marks(container: Node3D, from_distance: float, to_distance: 
 		container.add_child(instance)
 
 
-## Домик лесника: стены, крыша, тёплое окно и штабель брёвен рядом.
-func _dressing_house(container: Node3D, house_distance: float, corridor: float) -> void:
-	var side_sign: float = 1.0 if StageDressing.hash01(track.terrain_seed, 24) > 0.5 else -1.0
-	var frame: Array = _dressing_frame(house_distance, corridor + 17.0, side_sign)
-	var pos: Vector3 = frame[0]
-	var dir: Vector3 = frame[1]
-	var house := Node3D.new()
-	house.position = pos
-	house.rotation.y = atan2(-dir.x, -dir.z) + (0.0 if side_sign > 0.0 else PI)
-	container.add_child(house)
-	var wood := _dressing_material(Color(0.36, 0.25, 0.14))
-	_dressing_box(house, Vector3(5.2, 2.6, 4.2), Vector3(0, 1.3, 0), 0.0, wood)
-	var roof_material := _dressing_material(Color(0.22, 0.16, 0.11))
-	var roof_left: MeshInstance3D = _dressing_box(house, Vector3(3.4, 0.14, 4.8), Vector3(-1.35, 3.15, 0), 0.0, roof_material)
-	roof_left.rotation.z = 0.62
-	var roof_right: MeshInstance3D = _dressing_box(house, Vector3(3.4, 0.14, 4.8), Vector3(1.35, 3.15, 0), 0.0, roof_material)
-	roof_right.rotation.z = -0.62
-	_dressing_box(house, Vector3(0.85, 1.0, 0.06), Vector3(-1.2, 1.45, 2.12), 0.0, _dressing_material(Color(1.0, 0.72, 0.30), 1.4))
-	_dressing_box(house, Vector3(0.85, 1.0, 0.06), Vector3(1.1, 1.45, 2.12), 0.0, _dressing_material(Color(0.10, 0.12, 0.14)))
-	var lamp := OmniLight3D.new()
-	lamp.position = Vector3(0, 1.6, 3.0)
-	lamp.light_color = Color(1.0, 0.70, 0.32)
-	lamp.light_energy = 0.7
-	lamp.omni_range = 8.0
-	lamp.shadow_enabled = false
-	house.add_child(lamp)
-	# Штабель брёвен у стены, как у лесопилки.
-	var log_material := _dressing_material(Color(0.45, 0.33, 0.19))
-	for row in range(3):
-		for col in range(3 - row):
-			var log_mesh := CylinderMesh.new()
-			log_mesh.top_radius = 0.26
-			log_mesh.bottom_radius = 0.26
-			log_mesh.height = 3.4
-			log_mesh.radial_segments = 7
-			log_mesh.surface_set_material(0, log_material)
-			var log_instance := MeshInstance3D.new()
-			log_instance.mesh = log_mesh
-			log_instance.rotation.x = PI * 0.5
-			log_instance.position = Vector3(4.4 + float(col) * 0.56 - float(row) * 0.28, 0.28 + float(row) * 0.5, 0.4)
-			house.add_child(log_instance)
-
-
-## Стартово-финишный «городок»: палатка маршалов, световая вышка, генератор,
-## служебная машина и конусы на старте; жёлтый знак и красный STOP на финише.
+## Стартово-финишный «городок» из редактируемых сцен пропсов: палатка
+## маршалов, световая вышка, генератор, служебная машина и конусы на старте;
+## жёлтый знак ФИНИШ за 100 м и красный СТОП после финишного створа.
 func _spawn_start_finish_dressing() -> void:
 	if generated == null or network == null or not s_spawn().stage_dressing:
 		return
@@ -3003,73 +2886,43 @@ func _spawn_start_finish_dressing() -> void:
 	var start_frame: Array = _dressing_frame(start_distance, 0.0, 1.0)
 	var gate_pos: Vector3 = start_frame[0]
 	var gate_dir: Vector3 = start_frame[1]
-	_dressing_label(container, "СТАРТ", gate_pos + Vector3(0, 3.85, 0), atan2(-gate_dir.x, -gate_dir.z), Color(0.55, 0.90, 1.0))
+	var start_sign: Node3D = _place_prop(container, "gate_sign", gate_pos + Vector3(0, 3.85, 0), atan2(-gate_dir.x, -gate_dir.z))
+	if start_sign is Label3D:
+		(start_sign as Label3D).text = "СТАРТ"
+		(start_sign as Label3D).modulate = cfg.start_gate_color
 	var tent_frame: Array = _dressing_frame(start_distance + 6.0, corridor + 4.5, 1.0)
 	var tent_pos: Vector3 = tent_frame[0]
-	var tent := Node3D.new()
-	tent.position = tent_pos
-	tent.rotation.y = atan2(gate_dir.x, gate_dir.z)
-	container.add_child(tent)
-	var canopy := _dressing_material(Color(0.12, 0.30, 0.62))
-	_dressing_box(tent, Vector3(3.4, 0.14, 3.0), Vector3(0, 2.25, 0), 0.0, canopy)
-	var post_material := _dressing_material(Color(0.55, 0.56, 0.58))
-	for px in [-1.55, 1.55]:
-		for pz in [-1.35, 1.35]:
-			_dressing_box(tent, Vector3(0.08, 2.25, 0.08), Vector3(float(px), 1.12, float(pz)), 0.0, post_material)
-	_dressing_box(tent, Vector3(1.8, 0.75, 0.6), Vector3(0, 0.38, 0.6), 0.0, _dressing_material(Color(0.30, 0.24, 0.16)))
+	_place_prop(container, "marshal_tent", tent_pos, atan2(gate_dir.x, gate_dir.z))
 	var tower_frame: Array = _dressing_frame(start_distance + 2.0, corridor + 3.2, -1.0)
 	var tower_pos: Vector3 = tower_frame[0]
-	_dressing_box(container, Vector3(0.16, 5.2, 0.16), tower_pos + Vector3(0, 2.6, 0), 0.0, post_material)
-	_dressing_box(container, Vector3(1.1, 0.5, 0.3), tower_pos + Vector3(0, 5.3, 0), atan2(gate_dir.x, start_dir.z), _dressing_material(Color(1.0, 0.82, 0.45), 1.8))
-	var start_light := OmniLight3D.new()
-	start_light.position = tower_pos + Vector3(0, 5.1, 0)
-	start_light.light_color = Color(1.0, 0.80, 0.45)
-	start_light.light_energy = 1.8
-	start_light.omni_range = 20.0
-	start_light.shadow_enabled = false
-	container.add_child(start_light)
+	_place_prop(container, "light_tower", tower_pos, atan2(gate_dir.x, gate_dir.z))
 	var gen_frame: Array = _dressing_frame(start_distance + 10.0, corridor + 3.6, 1.0)
 	var gen_pos: Vector3 = gen_frame[0]
-	_dressing_box(container, Vector3(1.3, 0.85, 0.75), gen_pos + Vector3(0, 0.43, 0), atan2(gate_dir.x, start_dir.z), _dressing_material(Color(0.35, 0.36, 0.34)))
+	_place_prop(container, "generator", gen_pos, atan2(gate_dir.x, gate_dir.z))
 	var service_frame: Array = _dressing_frame(start_distance + 14.0, corridor + 5.5, -1.0)
 	var service_pos: Vector3 = service_frame[0]
-	_dressing_car(container, service_pos + Vector3(0, 0.05, 0), atan2(gate_dir.x, start_dir.z), Color(0.92, 0.90, 0.84), false)
-	var cone_material := _dressing_material(Color(1.0, 0.42, 0.05))
+	_place_prop(container, "service_car", service_pos + Vector3(0, 0.05, 0), atan2(gate_dir.x, gate_dir.z))
 	for cone_index in range(4):
 		var cone_frame: Array = _dressing_frame(start_distance - 6.0 + float(cone_index) * 4.0, corridor - 0.4, 1.0)
 		var cone_pos: Vector3 = cone_frame[0]
-		var cone_mesh := CylinderMesh.new()
-		cone_mesh.top_radius = 0.05
-		cone_mesh.bottom_radius = 0.20
-		cone_mesh.height = 0.55
-		cone_mesh.radial_segments = 7
-		cone_mesh.surface_set_material(0, cone_material)
-		var cone := MeshInstance3D.new()
-		cone.mesh = cone_mesh
-		cone.position = cone_pos + Vector3(0, 0.28, 0)
-		container.add_child(cone)
-	# ФИНИШ: жёлтый предупреждающий знак за 100 м и красный STOP после створа.
+		var cone_dir: Vector3 = cone_frame[1]
+		_place_prop(container, "traffic_cone", cone_pos, atan2(cone_dir.x, cone_dir.z))
+	# ФИНИШ: жёлтый предупреждающий знак за 100 м и красный СТОП после створа.
 	var warn_frame: Array = _dressing_frame(maxf(0.0, finish_distance - 100.0), corridor + 1.1, 1.0)
 	var warn_pos: Vector3 = warn_frame[0]
 	var warn_dir: Vector3 = warn_frame[1]
-	var warn := Node3D.new()
-	warn.position = warn_pos
-	warn.rotation.y = atan2(-warn_dir.x, -warn_dir.z)
-	container.add_child(warn)
-	_dressing_box(warn, Vector3(0.09, 1.2, 0.09), Vector3(0, 0.6, 0), 0.0, post_material)
-	_dressing_box(warn, Vector3(1.5, 0.7, 0.06), Vector3(0, 1.55, 0), 0.0, _dressing_material(Color(0.98, 0.78, 0.10)))
-	_dressing_label(warn, "ФИНИШ", Vector3(0, 1.55, 0.045), 0.0, Color(0.10, 0.10, 0.10))
-	_dressing_label(container, "ФИНИШ", _dressing_frame(finish_distance, 0.0, 1.0)[0] + Vector3(0, 3.85, 0), atan2(-(network.direction_at(finish_distance).x), -(network.direction_at(finish_distance).z)), Color(1.0, 0.55, 0.15))
+	_place_prop(container, "finish_warning_sign", warn_pos, atan2(-warn_dir.x, -warn_dir.z))
+	var finish_frame: Array = _dressing_frame(finish_distance, 0.0, 1.0)
+	var finish_gate_pos: Vector3 = finish_frame[0]
+	var finish_gate_dir: Vector3 = finish_frame[1]
+	var finish_sign: Node3D = _place_prop(container, "gate_sign", finish_gate_pos + Vector3(0, 3.85, 0), atan2(-finish_gate_dir.x, -finish_gate_dir.z))
+	if finish_sign is Label3D:
+		(finish_sign as Label3D).text = "ФИНИШ"
+		(finish_sign as Label3D).modulate = cfg.finish_gate_color
 	var stop_frame: Array = _dressing_frame(minf(network.total_length - 5.0, finish_distance + 30.0), corridor + 1.1, 1.0)
 	var stop_pos: Vector3 = stop_frame[0]
 	var stop_dir: Vector3 = stop_frame[1]
-	var stop_node := Node3D.new()
-	stop_node.position = stop_pos
-	stop_node.rotation.y = atan2(-stop_dir.x, -stop_dir.z)
-	container.add_child(stop_node)
-	_dressing_box(stop_node, Vector3(0.09, 1.2, 0.09), Vector3(0, 0.6, 0), 0.0, post_material)
-	_dressing_box(stop_node, Vector3(1.1, 0.75, 0.06), Vector3(0, 1.55, 0), 0.0, _dressing_material(Color(0.85, 0.08, 0.06)))
-	_dressing_label(stop_node, "СТОП", Vector3(0, 1.55, 0.045), 0.0, Color(0.97, 0.96, 0.92))
+	_place_prop(container, "stop_sign", stop_pos, atan2(-stop_dir.x, -stop_dir.z))
 
 
 ## Непрерывный отбойник снаружи крутых поворотов. Не зависит от плотности леса.

@@ -27,6 +27,32 @@
 [ext_resource type="PackedScene" uid="uid://cybn2n7acr7er" path="res://scenes/props/tire_stack.tscn" id="scene_tire_stack"]
 [ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="scene_wildflowers"]
 [ext_resource type="PackedScene" uid="uid://x352v4piuwv6" path="res://scenes/props/wooden_fence.tscn" id="scene_wooden_fence"]
+[ext_resource type="PackedScene" uid="uid://0ibyyurl65b4k" path="res://scenes/props/braking_marker.tscn" id="scene_braking_marker"]
+[ext_resource type="PackedScene" uid="uid://j4hbi6jlvhkpo" path="res://scenes/props/safety_net.tscn" id="scene_safety_net"]
+[ext_resource type="PackedScene" uid="uid://2drvauk7vwzzu" path="res://scenes/props/marshal_tent.tscn" id="scene_marshal_tent"]
+[ext_resource type="PackedScene" uid="uid://tkw95r2f4qkks" path="res://scenes/props/light_tower.tscn" id="scene_light_tower"]
+[ext_resource type="PackedScene" uid="uid://4rfgy134o5og2" path="res://scenes/props/generator.tscn" id="scene_generator"]
+[ext_resource type="PackedScene" uid="uid://080opxn7yftd8" path="res://scenes/props/parked_car.tscn" id="scene_parked_car"]
+[ext_resource type="PackedScene" uid="uid://ng1ab91nq15n1" path="res://scenes/props/service_car.tscn" id="scene_service_car"]
+[ext_resource type="PackedScene" uid="uid://wpk16a6yh5o3x" path="res://scenes/props/broken_car.tscn" id="scene_broken_car"]
+[ext_resource type="PackedScene" uid="uid://sh88jbbld63in" path="res://scenes/props/traffic_cone.tscn" id="scene_traffic_cone"]
+[ext_resource type="PackedScene" uid="uid://ouxjugn33bsrp" path="res://scenes/props/finish_warning_sign.tscn" id="scene_finish_warning_sign"]
+[ext_resource type="PackedScene" uid="uid://wgliiejexgb2l" path="res://scenes/props/stop_sign.tscn" id="scene_stop_sign"]
+[ext_resource type="PackedScene" uid="uid://r0m9km82zi4gh" path="res://scenes/props/warning_triangle.tscn" id="scene_warning_triangle"]
+[ext_resource type="PackedScene" uid="uid://pq6zdty1lqib5" path="res://scenes/props/forester_house.tscn" id="scene_forester_house"]
+[ext_resource type="PackedScene" uid="uid://cv39zkiju1oow" path="res://scenes/props/gate_sign.tscn" id="scene_gate_sign"]
+[ext_resource type="PackedScene" uid="uid://5gs7pnrtdl2f3" path="res://scenes/props/bunting_post.tscn" id="scene_bunting_post"]
+[ext_resource type="PackedScene" uid="uid://1iuefigpoiau5" path="res://scenes/props/bunting_tape.tscn" id="scene_bunting_tape"]
+[ext_resource type="PackedScene" uid="uid://b0zj8q7d263fc" path="res://scenes/props/power_pole.tscn" id="scene_power_pole"]
+[ext_resource type="PackedScene" uid="uid://j3mtqrn11t6ap" path="res://scenes/props/mud_patch.tscn" id="scene_mud_patch"]
+[ext_resource type="PackedScene" uid="uid://r1h42bvaqrpx2" path="res://scenes/props/fog_patch.tscn" id="scene_fog_patch"]
+[ext_resource type="PackedScene" uid="uid://2du5x5vilfrt2" path="res://scenes/props/spectator_person.tscn" id="scene_spectator_person"]
+[ext_resource type="PackedScene" uid="uid://bbreyhlr7ikfh" path="res://scenes/props/camera_flash.tscn" id="scene_camera_flash"]
+[ext_resource type="PackedScene" uid="uid://lr7saf744g8cp" path="res://scenes/props/camper.tscn" id="scene_camper"]
+[ext_resource type="PackedScene" uid="uid://o3o93rzte7m8g" path="res://scenes/props/camper_tent.tscn" id="scene_camper_tent"]
+[ext_resource type="PackedScene" uid="uid://p3mjwnxvaqml2" path="res://scenes/props/campfire.tscn" id="scene_campfire"]
+[ext_resource type="PackedScene" uid="uid://4lvugo8a2f2ha" path="res://scenes/props/spectator_crowd.tscn" id="scene_spectator_crowd"]
+[ext_resource type="PackedScene" uid="uid://w1w9b3ovwq1o3" path="res://scenes/props/helicopter.tscn" id="scene_helicopter"]
 
 [sub_resource type="Resource" id="RallyProp_fir_tree"]
 script = ExtResource("2_prop")
@@ -381,6 +407,240 @@ category = 4
 placement_radius = 1.5
 align_to_road = true
 
+[sub_resource type="Resource" id="RallyProp_braking_marker"]
+script = ExtResource("2_prop")
+id = "braking_marker"
+display_name = "Тормозная табличка 150/100/50"
+scene = ExtResource("scene_braking_marker")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_safety_net"]
+script = ExtResource("2_prop")
+id = "safety_net"
+display_name = "Оранжевая сетка безопасности"
+scene = ExtResource("scene_safety_net")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_marshal_tent"]
+script = ExtResource("2_prop")
+id = "marshal_tent"
+display_name = "Палатка маршалов"
+scene = ExtResource("scene_marshal_tent")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_light_tower"]
+script = ExtResource("2_prop")
+id = "light_tower"
+display_name = "Световая вышка"
+scene = ExtResource("scene_light_tower")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_generator"]
+script = ExtResource("2_prop")
+id = "generator"
+display_name = "Генератор"
+scene = ExtResource("scene_generator")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_parked_car"]
+script = ExtResource("2_prop")
+id = "parked_car"
+display_name = "Припаркованная машина зрителя"
+scene = ExtResource("scene_parked_car")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_service_car"]
+script = ExtResource("2_prop")
+id = "service_car"
+display_name = "Служебная машина организаторов"
+scene = ExtResource("scene_service_car")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_broken_car"]
+script = ExtResource("2_prop")
+id = "broken_car"
+display_name = "Разбитая машина соперника"
+scene = ExtResource("scene_broken_car")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_traffic_cone"]
+script = ExtResource("2_prop")
+id = "traffic_cone"
+display_name = "Дорожный конус"
+scene = ExtResource("scene_traffic_cone")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_finish_warning_sign"]
+script = ExtResource("2_prop")
+id = "finish_warning_sign"
+display_name = "Жёлтый знак ФИНИШ"
+scene = ExtResource("scene_finish_warning_sign")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_stop_sign"]
+script = ExtResource("2_prop")
+id = "stop_sign"
+display_name = "Красный знак СТОП"
+scene = ExtResource("scene_stop_sign")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_warning_triangle"]
+script = ExtResource("2_prop")
+id = "warning_triangle"
+display_name = "Знак аварийной остановки"
+scene = ExtResource("scene_warning_triangle")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_forester_house"]
+script = ExtResource("2_prop")
+id = "forester_house"
+display_name = "Домик лесника"
+scene = ExtResource("scene_forester_house")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_gate_sign"]
+script = ExtResource("2_prop")
+id = "gate_sign"
+display_name = "Табличка на воротах СТАРТ/ФИНИШ"
+scene = ExtResource("scene_gate_sign")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_bunting_post"]
+script = ExtResource("2_prop")
+id = "bunting_post"
+display_name = "Колышек оградительной ленты"
+scene = ExtResource("scene_bunting_post")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_bunting_tape"]
+script = ExtResource("2_prop")
+id = "bunting_tape"
+display_name = "Сегмент оградительной ленты"
+scene = ExtResource("scene_bunting_tape")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_power_pole"]
+script = ExtResource("2_prop")
+id = "power_pole"
+display_name = "Столб ЛЭП"
+scene = ExtResource("scene_power_pole")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_mud_patch"]
+script = ExtResource("2_prop")
+id = "mud_patch"
+display_name = "Пятно грязи на апексе"
+scene = ExtResource("scene_mud_patch")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_fog_patch"]
+script = ExtResource("2_prop")
+id = "fog_patch"
+display_name = "Пятно тумана"
+scene = ExtResource("scene_fog_patch")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_spectator_person"]
+script = ExtResource("2_prop")
+id = "spectator_person"
+display_name = "Зритель (спрайт)"
+scene = ExtResource("scene_spectator_person")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_camera_flash"]
+script = ExtResource("2_prop")
+id = "camera_flash"
+display_name = "Вспышка фотоаппарата"
+scene = ExtResource("scene_camera_flash")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_camper"]
+script = ExtResource("2_prop")
+id = "camper"
+display_name = "Кемпер болельщиков"
+scene = ExtResource("scene_camper")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_camper_tent"]
+script = ExtResource("2_prop")
+id = "camper_tent"
+display_name = "Палатка болельщиков"
+scene = ExtResource("scene_camper_tent")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_campfire"]
+script = ExtResource("2_prop")
+id = "campfire"
+display_name = "Костёр болельщиков"
+scene = ExtResource("scene_campfire")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_spectator_crowd"]
+script = ExtResource("2_prop")
+id = "spectator_crowd"
+display_name = "Лагерь зрителей на повороте"
+scene = ExtResource("scene_spectator_crowd")
+weight = 0.0
+category = 5
+random_yaw = false
+
+[sub_resource type="Resource" id="RallyProp_helicopter"]
+script = ExtResource("2_prop")
+id = "helicopter"
+display_name = "Вертолёт с прожектором"
+scene = ExtResource("scene_helicopter")
+weight = 0.0
+category = 5
+random_yaw = false
+
 [resource]
 script = ExtResource("1_lib")
-props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers"), SubResource("RallyProp_metal_guardrail")])
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers"), SubResource("RallyProp_metal_guardrail"), SubResource("RallyProp_braking_marker"), SubResource("RallyProp_safety_net"), SubResource("RallyProp_marshal_tent"), SubResource("RallyProp_light_tower"), SubResource("RallyProp_generator"), SubResource("RallyProp_parked_car"), SubResource("RallyProp_service_car"), SubResource("RallyProp_broken_car"), SubResource("RallyProp_traffic_cone"), SubResource("RallyProp_finish_warning_sign"), SubResource("RallyProp_stop_sign"), SubResource("RallyProp_warning_triangle"), SubResource("RallyProp_forester_house"), SubResource("RallyProp_gate_sign"), SubResource("RallyProp_bunting_post"), SubResource("RallyProp_bunting_tape"), SubResource("RallyProp_power_pole"), SubResource("RallyProp_mud_patch"), SubResource("RallyProp_fog_patch"), SubResource("RallyProp_spectator_person"), SubResource("RallyProp_camera_flash"), SubResource("RallyProp_camper"), SubResource("RallyProp_camper_tent"), SubResource("RallyProp_campfire"), SubResource("RallyProp_spectator_crowd"), SubResource("RallyProp_helicopter")])

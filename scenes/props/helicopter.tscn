@@ -1,0 +1,81 @@
+[gd_scene load_steps=2 format=3 uid="uid://w1w9b3ovwq1o3"]
+
+[ext_resource type="Script" uid="uid://67opd17d27jii" path="res://scripts/track/helicopter.gd" id="script"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_body"]
+albedo_color = Color(0.16, 0.18, 0.20, 1)
+roughness = 0.85
+[sub_resource type="BoxMesh" id="Mesh_body"]
+material = SubResource("Mat_body")
+size = Vector3(2.2, 1.5, 4.6)
+[sub_resource type="BoxMesh" id="Mesh_tail"]
+material = SubResource("Mat_body")
+size = Vector3(0.5, 0.5, 4.2)
+[sub_resource type="BoxMesh" id="Mesh_fin"]
+material = SubResource("Mat_body")
+size = Vector3(1.8, 0.9, 0.25)
+[sub_resource type="StandardMaterial3D" id="Mat_glass"]
+albedo_color = Color(0.35, 0.55, 0.65, 1)
+roughness = 0.6
+[sub_resource type="BoxMesh" id="Mesh_cockpit"]
+material = SubResource("Mat_glass")
+size = Vector3(1.9, 0.7, 1.6)
+[sub_resource type="StandardMaterial3D" id="Mat_rotor"]
+albedo_color = Color(0.08, 0.08, 0.08, 1)
+roughness = 0.9
+[sub_resource type="BoxMesh" id="Mesh_rotor"]
+material = SubResource("Mat_rotor")
+size = Vector3(9, 0.06, 0.5)
+[sub_resource type="StandardMaterial3D" id="Mat_beacon"]
+albedo_color = Color(1, 0.1, 0.08, 1)
+roughness = 0.6
+emission_enabled = true
+emission = Color(1, 0.1, 0.08, 1)
+emission_energy_multiplier = 2.0
+[sub_resource type="SphereMesh" id="Mesh_beacon"]
+material = SubResource("Mat_beacon")
+radius = 0.22
+height = 0.44
+radial_segments = 6
+rings = 3
+[sub_resource type="StandardMaterial3D" id="Mat_cone"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.95, 0.75, 0.07)
+[sub_resource type="CylinderMesh" id="Mesh_cone"]
+material = SubResource("Mat_cone")
+top_radius = 0.4
+bottom_radius = 6.5
+height = 34.0
+radial_segments = 10
+
+[node name="Helicopter" type="Node3D"]
+script = ExtResource("script")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_body")
+[node name="Tail" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, -4)
+mesh = SubResource("Mesh_tail")
+[node name="TailFin" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, -6)
+mesh = SubResource("Mesh_fin")
+[node name="Cockpit" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 1.2)
+mesh = SubResource("Mesh_cockpit")
+[node name="Rotor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0.3)
+mesh = SubResource("Mesh_rotor")
+[node name="Beacon" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, -1.5)
+mesh = SubResource("Mesh_beacon")
+[node name="SearchCone" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.992809, 0.119712, 0, -0.119712, 0.992809, 0, 0, 0, 1, 2.5, -17.5, 1.5)
+mesh = SubResource("Mesh_cone")
+[node name="Searchlight" type="SpotLight3D" parent="."]
+transform = Transform3D(0.990268, 0.0289357, -0.136132, -0.139173, 0.205888, -0.968628, 0, 0.978148, 0.207912, 2.5, -1, 1.5)
+light_color = Color(1, 0.95, 0.78, 1)
+light_energy = 1.2
+spot_range = 70.0
+spot_angle = 16.0

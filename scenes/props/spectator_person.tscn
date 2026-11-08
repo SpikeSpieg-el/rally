@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://2du5x5vilfrt2"]
+
+[ext_resource type="Texture2D" uid="uid://hit345u13esfk" path="res://textures/sprites/spectator_red.png" id="tex_person"]
+
+[node name="SpectatorPerson" type="Node3D"]
+
+[node name="Sprite" type="Sprite3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)
+billboard = 2
+pixel_size = 0.045
+texture_filter = 1
+texture = ExtResource("tex_person")

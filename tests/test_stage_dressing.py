@@ -2,12 +2,22 @@
 
 Godot is not required: these checks pin the integration points so the
 dressing cannot silently fall out of either world-building path
-(streamed chunks and the single-build path) again.
+(streamed chunks and the single-build path) again, and so every dressing
+prop stays an editable scene instead of script-built geometry.
 """
 from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+DRESSING_PROPS = [
+    "braking_marker", "safety_net", "marshal_tent", "light_tower", "generator",
+    "parked_car", "service_car", "broken_car", "traffic_cone",
+    "finish_warning_sign", "stop_sign", "warning_triangle", "forester_house",
+    "gate_sign", "bunting_post", "bunting_tape", "power_pole", "mud_patch",
+    "fog_patch", "spectator_person", "camera_flash", "camper", "camper_tent",
+    "campfire", "spectator_crowd", "helicopter",
+]
 
 
 def read(relative: str) -> str:
@@ -24,6 +34,33 @@ class StageDressingTest(unittest.TestCase):
         ):
             self.assertTrue((ROOT / relative).is_file(), relative)
 
+    def test_every_dressing_prop_is_an_editable_scene(self):
+        library = read("data/stage/default_prop_library.tres")
+        for prop_id in DRESSING_PROPS:
+            scene = ROOT / "scenes" / "props" / f"{prop_id}.tscn"
+            self.assertTrue(scene.is_file(), f"нет сцены пропса {prop_id}")
+            self.assertIn(f'id = "{prop_id}"', library, prop_id)
+            self.assertIn(f"res://scenes/props/{prop_id}.tscn", library, prop_id)
+
+    def test_stage_places_scenes_not_script_boxes(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("func _place_prop(", stage)
+        for prop_id in (
+            "braking_marker", "safety_net", "spectator_crowd", "parked_car",
+            "power_pole", "fog_patch", "forester_house", "broken_car",
+            "warning_triangle", "marshal_tent", "light_tower", "generator",
+            "service_car", "traffic_cone", "finish_warning_sign", "stop_sign",
+            "gate_sign", "helicopter", "mud_patch",
+        ):
+            self.assertIn(f'"{prop_id}"', stage, prop_id)
+        # Bunting/powerline mass props go through the baked-scene MultiMesh.
+        self.assertIn('func _dressing_multimesh(', stage)
+        self.assertIn('"bunting_post"', stage)
+        self.assertIn('"bunting_tape"', stage)
+        # The old script-built dressing helpers must not come back.
+        for gone in ("func _dressing_box(", "func _dressing_label(", "func _dressing_car(", "func _dressing_house("):
+            self.assertNotIn(gone, stage, gone)
+
     def test_stage_builds_dressing_on_both_paths(self):
         stage = read("scripts/rally_stage.gd")
         self.assertIn("_spawn_stage_dressing(0.0, -1.0, null)", stage)
@@ -36,24 +73,26 @@ class StageDressingTest(unittest.TestCase):
         self.assertIn("StageDressing.cluster_factor(distance, track.terrain_seed)", stage)
         self.assertIn("attempt_chance * cluster", stage)
 
-    def test_dressing_features_present(self):
-        stage = read("scripts/rally_stage.gd")
-        for token in (
-            "braking_marker_distances",
-            "select_spectator_corners",
-            "powerline_ranges",
-            "fog_distances",
-            "BuntingTape",
-            "СТАРТ",
-            "ФИНИШ",
-            "СТОП",
-        ):
-            self.assertIn(token, stage, token)
-
-    def test_crowd_has_flashes_fire_and_fleeing_photographers(self):
+    def test_crowd_scene_composes_people_camp_and_flashes(self):
+        Crowd_scene = read("scenes/props/spectator_crowd.tscn")
+        for token in ("spectator_person.tscn", "camera_flash.tscn", "camper.tscn",
+                      "camper_tent.tscn", "campfire.tscn", "spectator_crowd.gd"):
+            self.assertIn(token, Crowd_scene, token)
         Crowd = read("scripts/track/spectator_crowd.gd")
-        for token in ("BILLBOARD_FIXED_Y", "_flash_timers", "_fleeing", "_fire_light", "GPUParticles3D"):
+        for token in ("_flash_timers", "_photographers", "Campfire/FireLight", "func setup("):
             self.assertIn(token, Crowd, token)
+        # Люди и вспышки — текстуры-файлы, которые можно перерисовать.
+        for name in ("spectator_red", "spectator_yellow", "spectator_blue",
+                     "spectator_green", "spectator_orange", "spectator_white", "camera_flash"):
+            self.assertTrue((ROOT / "textures" / "sprites" / f"{name}.png").is_file(), name)
+
+    def test_helicopter_is_a_scene_with_script_only_animating(self):
+        heli_scene = read("scenes/props/helicopter.tscn")
+        for token in ("helicopter.gd", "Rotor", "Beacon", "SearchCone", "Searchlight"):
+            self.assertIn(token, heli_scene, token)
+        heli = read("scripts/track/helicopter.gd")
+        self.assertNotIn("BoxMesh.new()", heli)
+        self.assertNotIn("_make_person", read("scripts/track/spectator_crowd.gd"))
 
     def test_spawn_layout_exposes_dressing_switches(self):
         layout = read("scripts/data/rally_spawn_layout.gd")
