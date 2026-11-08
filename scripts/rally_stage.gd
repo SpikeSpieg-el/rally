@@ -2734,6 +2734,31 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			var car_pos: Vector3 = car_frame[0]
 			var car_dir: Vector3 = car_frame[1]
 			_place_prop(container, "parked_car", car_pos + Vector3(0, 0.05, 0), atan2(car_dir.x, car_dir.z))
+	# Болельщики на бровке: стоят по бокам, самые храбрые — почти на полотне.
+	if cfg.roadside_fans:
+		var fans: Array = StageDressing.roadside_fans(
+			network.total_length, track.terrain_seed, cfg.roadside_fan_spacing, cfg.roadside_fan_max
+		)
+		for fan_index in range(fans.size()):
+			var fan: Dictionary = fans[fan_index]
+			var fan_distance: float = float(fan.get("distance", 0.0))
+			if fan_distance < distance_start or fan_distance >= end:
+				continue
+			var fan_side: float = float(fan.get("side", 1.0))
+			var fan_inset: float = float(fan.get("inset", 0.8))
+			var fan_eager: bool = bool(fan.get("eager", false))
+			var fan_frame: Array = _dressing_frame(fan_distance, corridor + fan_inset, fan_side)
+			var fan_pos: Vector3 = fan_frame[0]
+			var fan_side_vec: Vector3 = fan_frame[2]
+			var toward_road: Vector3 = -fan_side_vec * fan_side
+			toward_road.y = 0.0
+			var fan_node: Node3D = _place_prop(
+				container, "spectator_person", fan_pos, atan2(-toward_road.x, -toward_road.z)
+			)
+			if fan_node != null:
+				fan_node.name = "RoadsideFan_%03d" % fan_index
+				if fan_node.has_method("setup"):
+					fan_node.call("setup", self, fan_eager, toward_road)
 	# Линия ЛЭП: столбы с перекладинами и провисшие провода.
 	for line_range in StageDressing.powerline_ranges(network.total_length, track.terrain_seed):
 		var range_start: float = float(line_range.get("start", 0.0))

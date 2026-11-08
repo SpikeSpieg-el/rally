@@ -50,7 +50,7 @@ func _collect() -> void:
 				_photographers.append({
 					"root": root,
 					"home": root.position,
-					"away": root.position + Vector3(0.4, 0.0, 2.4),
+					"away": root.position + Vector3(0.2, 0.0, 0.7),
 					"t": 0.0,
 				})
 	var flashes := get_node_or_null("Flashes")
@@ -94,6 +94,7 @@ func setup(stage: Node, rng_seed: int, people: int, with_camp: bool) -> void:
 	_rng.seed = rng_seed
 	_collect()
 	_randomize_jackets()
+	_arm_people()
 	for i in range(_persons.size()):
 		_persons[i].visible = i < people
 	var camp := get_node_or_null("Camp")
@@ -126,13 +127,25 @@ func _process(delta: float) -> void:
 			flash.modulate.a = 0.95 if distance < 130.0 else 0.0
 		else:
 			flash.modulate.a = maxf(0.0, flash.modulate.a - delta * 9.0)
-	# Фотографы отскакивают от кромки при приближении машины.
+	# Фотографы едва отступают: слишком любят ралли, чтобы уходить далеко.
 	for entry in _photographers:
 		var root := entry["root"] as Node3D
-		var target: float = 1.0 if distance < 22.0 else 0.0
-		var step: float = delta * (6.0 if target > 0.5 else -2.0)
+		if root.has_method("is_crushed") and bool(root.call("is_crushed")):
+			continue
+		var target: float = 1.0 if distance < 12.0 else 0.0
+		var step: float = delta * (4.0 if target > 0.5 else -1.6)
 		var t: float = clampf(float(entry["t"]) + step, 0.0, 1.0)
 		entry["t"] = t
 		var home: Vector3 = entry["home"]
 		var away: Vector3 = entry["away"]
 		root.position = home.lerp(away, t)
+
+
+func _arm_people() -> void:
+	for person in _persons:
+		if person.has_method("setup"):
+			person.call("setup", _stage, false, Vector3.ZERO)
+	for entry in _photographers:
+		var root := entry["root"] as Node3D
+		if root.has_method("setup"):
+			root.call("setup", _stage, false, Vector3.ZERO)

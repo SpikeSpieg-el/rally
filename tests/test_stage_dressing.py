@@ -29,7 +29,10 @@ class StageDressingTest(unittest.TestCase):
         for relative in (
             "scripts/track/stage_dressing.gd",
             "scripts/track/spectator_crowd.gd",
+            "scripts/track/spectator_person.gd",
             "scripts/track/helicopter.gd",
+            "scripts/effects/rally_blood_fx.gd",
+            "shaders/car_blood.gdshader",
             "tests/stage_dressing.gd",
         ):
             self.assertTrue((ROOT / relative).is_file(), relative)
@@ -45,8 +48,9 @@ class StageDressingTest(unittest.TestCase):
     def test_stage_places_scenes_not_script_boxes(self):
         stage = read("scripts/rally_stage.gd")
         self.assertIn("func _place_prop(", stage)
+        self.assertIn("StageDressing.roadside_fans(", stage)
         for prop_id in (
-            "braking_marker", "safety_net", "spectator_crowd", "parked_car",
+            "braking_marker", "safety_net", "spectator_crowd", "spectator_person", "parked_car",
             "power_pole", "fog_patch", "forester_house", "broken_car",
             "warning_triangle", "marshal_tent", "light_tower", "generator",
             "service_car", "traffic_cone", "finish_warning_sign", "stop_sign",
@@ -79,8 +83,20 @@ class StageDressingTest(unittest.TestCase):
                       "camper_tent.tscn", "campfire.tscn", "spectator_crowd.gd"):
             self.assertIn(token, Crowd_scene, token)
         Crowd = read("scripts/track/spectator_crowd.gd")
-        for token in ("_flash_timers", "_photographers", "Campfire/FireLight", "func setup("):
+        for token in ("_flash_timers", "_photographers", "Campfire/FireLight", "func setup(", "_arm_people"):
             self.assertIn(token, Crowd, token)
+        person_scene = read("scenes/props/spectator_person.tscn")
+        for token in ("spectator_person.gd", "Hitbox", "CapsuleShape3D"):
+            self.assertIn(token, person_scene, token)
+        person = read("scripts/track/spectator_person.gd")
+        for token in ("func crush(", "splatter_blood", "BloodFx.spray"):
+            self.assertIn(token, person, token)
+        blood = read("scripts/effects/rally_blood_fx.gd")
+        for token in ("func add_splat(", "func spray(", "car_blood.gdshader"):
+            self.assertIn(token, blood, token)
+        shader = read("shaders/car_blood.gdshader")
+        self.assertIn("uniform vec3 splat_pos[8];", shader)
+        self.assertNotIn("uniform vec3 splat_pos[8] =", shader)
         # Люди и вспышки — текстуры-файлы, которые можно перерисовать.
         for name in ("spectator_red", "spectator_yellow", "spectator_blue",
                      "spectator_green", "spectator_orange", "spectator_white", "camera_flash"):
@@ -96,7 +112,11 @@ class StageDressingTest(unittest.TestCase):
 
     def test_spawn_layout_exposes_dressing_switches(self):
         layout = read("scripts/data/rally_spawn_layout.gd")
-        for name in ("stage_dressing", "spectator_spacing", "spectator_max_spots", "spectator_crowd_size", "helicopter"):
+        for name in (
+            "stage_dressing", "spectator_spacing", "spectator_max_spots",
+            "spectator_crowd_size", "roadside_fans", "roadside_fan_spacing",
+            "roadside_fan_max", "helicopter",
+        ):
             self.assertIn(f"var {name}", layout, name)
 
 

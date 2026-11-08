@@ -186,7 +186,9 @@ var track_offroad_grip: float = 0.6
 ## а не на старт.
 var tire_marks: Node = null
 const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
+const BloodFxType = preload("res://scripts/effects/rally_blood_fx.gd")
 var surface_effects: SurfaceEffectsType = null
+var blood_fx: BloodFxType = null
 var precipitation_rain: float = 0.0
 var precipitation_snow: float = 0.0
 var reset_provider: Callable = Callable()
@@ -233,6 +235,10 @@ func _ready() -> void:
 	surface_effects.name = "SurfaceEffects"
 	add_child(surface_effects)
 	surface_effects.install(self)
+	blood_fx = BloodFxType.new()
+	blood_fx.name = "BloodFx"
+	add_child(blood_fx)
+	blood_fx.install(self)
 
 	_setup_speed_motes()
 	_reset_camera_feel()
@@ -736,6 +742,8 @@ func _physics_process(delta: float) -> void:
 		tire_marks.call("update_wheels", wheel_array, linear_velocity.length())
 		if is_instance_valid(surface_effects):
 			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta, precipitation_rain, precipitation_snow)
+	if is_instance_valid(blood_fx):
+		blood_fx.update(self)
 
 	_surface_roughness_value = _surface_roughness()
 
@@ -1577,6 +1585,13 @@ func recenter_look() -> void:
 	smoothed_mouse_yaw = 0.0
 	smoothed_mouse_pitch = 0.0
 	mouse_idle_timer = 10.0
+
+
+## Удар по болельщику: пятно крови на кузове и короткий rumble.
+func splatter_blood(world_point: Vector3, world_velocity: Vector3) -> void:
+	if is_instance_valid(blood_fx):
+		blood_fx.add_splat(self, world_point, world_velocity)
+	_rumble(0.22, 0.62, 0.18)
 
 
 func reset_to_spawn() -> void:

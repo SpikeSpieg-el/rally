@@ -143,3 +143,48 @@ static func landmark_distance(track_length: float, seed_value: int, salt: int, l
 	if track_length <= 0.0:
 		return 0.0
 	return track_length * lerpf(low, high, hash01(seed_value, salt))
+
+
+## Слишком храбрые болельщики на бровке: стоят по бокам дороги, часть —
+## почти на полотне. Каждый элемент — Dictionary: distance, side (+1/-1),
+## eager (шаг навстречу машине), inset (смещение от кромки, м; минус —
+## на полотно).
+static func roadside_fans(track_length: float, seed_value: int, spacing: float, max_count: int) -> Array:
+	var result: Array = []
+	if track_length < 200.0 or spacing <= 1.0 or max_count <= 0:
+		return result
+	var cursor: float = 70.0
+	var guard: int = 0
+	while cursor < track_length - 110.0 and result.size() < max_count and guard < 4000:
+		guard += 1
+		var salt: int = int(round(cursor * 10.0))
+		var keep: float = hash01(salt, seed_value + 91)
+		if keep > 0.32:
+			var side: float = 1.0 if hash01(salt, seed_value + 92) > 0.5 else -1.0
+			var eager: bool = hash01(salt, seed_value + 93) > 0.58
+			var inset: float = lerpf(0.45, 1.7, hash01(salt, seed_value + 94))
+			if eager:
+				inset = lerpf(-0.55, 0.45, hash01(salt, seed_value + 95))
+			if hash01(salt, seed_value + 101) > 0.86:
+				eager = true
+				# Совсем без чувства края: уже на полотне у бровки.
+				inset = lerpf(-1.35, -0.65, hash01(salt, seed_value + 102))
+			result.append({
+				"distance": cursor,
+				"side": side,
+				"eager": eager,
+				"inset": inset,
+			})
+			if result.size() < max_count and hash01(salt, seed_value + 96) > 0.55:
+				var other_eager: bool = hash01(salt, seed_value + 97) > 0.62
+				var other_inset: float = lerpf(0.55, 1.8, hash01(salt, seed_value + 98))
+				if other_eager:
+					other_inset = lerpf(-0.45, 0.50, hash01(salt, seed_value + 99))
+				result.append({
+					"distance": cursor + 1.2,
+					"side": -side,
+					"eager": other_eager,
+					"inset": other_inset,
+				})
+		cursor += spacing * lerpf(0.72, 1.38, hash01(salt, seed_value + 100))
+	return result
