@@ -1,6 +1,7 @@
 [gd_scene format=4 uid="uid://wm1brqrr6p8v"]
 
 [ext_resource type="Script" uid="uid://bd80nxls366kq" path="res://scripts/rally_car.gd" id="1_car"]
+[ext_resource type="PackedScene" uid="uid://cwipersfxscene" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 [ext_resource type="Script" uid="uid://cpjpw2srbbum2" path="res://scripts/engine_sound.gd" id="2_audio"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_hbgor"]
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="3_wheel"]
@@ -1563,3 +1564,6 @@ shadow_enabled = true
 spot_range = 85.0
 spot_attenuation = 0.75
 spot_angle = 32.0
+
+[node name="Wipers" parent="." instance=ExtResource("wipers") unique_id=873402911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.03, 0.97)

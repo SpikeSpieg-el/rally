@@ -1,6 +1,7 @@
 [gd_scene format=4 uid="uid://drt6o1umbpvu8"]
 
 [ext_resource type="Script" uid="uid://bd80nxls366kq" path="res://scripts/rally_car.gd" id="1_ggxr1"]
+[ext_resource type="PackedScene" uid="uid://cwipersfxscene" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="2_endy0"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_nx6sy"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_4ms5t"]
@@ -2349,3 +2350,6 @@ mesh = SubResource("ArrayMesh_8hhh1")
 
 [node name="Object_134" type="MeshInstance3D" parent="FINAL_MODEL_01_fbx_1/RootNode_2/Object_3_3/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_87/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_sub_1_MAT_Glass_049_0_90" unique_id=755497244]
 mesh = SubResource("ArrayMesh_hnnea")
+
+[node name="Wipers" parent="." instance=ExtResource("wipers") unique_id=650194823]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.17, 0.95)
