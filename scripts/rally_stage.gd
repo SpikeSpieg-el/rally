@@ -2743,6 +2743,7 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 		var line_side: float = float(line_range.get("side", 1.0))
 		var pole_transforms: Array = []
 		var tops: Array = []
+		var arm_height: float = _power_pole_arm_height()
 		var d: float = maxf(range_start, distance_start)
 		while d <= minf(range_end, end):
 			var frame: Array = _dressing_frame(d, corridor + 7.5, line_side)
@@ -2750,7 +2751,7 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 			var dir: Vector3 = frame[1]
 			var yaw: float = atan2(dir.x, dir.z)
 			pole_transforms.append(Transform3D(Basis(Vector3.UP, yaw), pos))
-			tops.append(pos + Vector3(0, 6.6, 0))
+			tops.append(pos + Vector3(0, arm_height, 0))
 			d += 42.0
 		_dressing_multimesh(container, "PowerlinePoles", "power_pole", pole_transforms, [])
 		_dressing_wires(container, tops)
@@ -2804,6 +2805,25 @@ func _dressing_samples() -> Dictionary:
 		points[i] = network.point_at(d)
 		distances[i] = d
 	return {"points": points, "distances": distances}
+
+
+## Высота крепления проводов — перекладина столба из его сцены, уже с масштабом
+## корня (power_pole.tscn: корень 1.915, перекладина Arm на 6.6 м локально).
+## Раньше здесь была константа 6.6 м без масштаба: провода висели примерно
+## на половине высоты перекладин, и любые правки столба в сцене их не двигали.
+func _power_pole_arm_height() -> float:
+	var prop: RallyProp = s_props().by_id("power_pole")
+	if prop != null and prop.scene != null:
+		var root := prop.scene.instantiate() as Node3D
+		if root != null:
+			var height: float = -1.0
+			var arm := root.get_node_or_null("Arm") as Node3D
+			if arm != null:
+				height = (root.transform * arm.transform).origin.y
+			root.free()
+			if height > 0.0:
+				return height
+	return 6.6 * 1.915
 
 
 ## Провода ЛЭП: по два провода на пролёт, каждый — три сегмента с провисом.
