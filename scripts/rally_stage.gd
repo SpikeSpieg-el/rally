@@ -1901,6 +1901,10 @@ func _build_road_decals() -> void:
 	decals.fade_begin = cfg.road_decals_fade_begin
 	decals.fade_length = cfg.road_decals_fade_length
 	decals.mark_grip_zones = cfg.road_decals_mark_grip_zones
+	decals.use_normal_maps = cfg.road_decals_use_normal_maps
+	decals.use_orm = cfg.road_decals_use_orm
+	# Сами пятна — ресурсы (data/stage/road_decals/*.tres), правятся в инспекторе.
+	decals.profiles = cfg.road_decal_profiles
 	generated.add_child(decals)
 	decals.build(network, track, surface_state, _weather_snow_cover(), grip_zone_spans())
 	road_decals = decals
