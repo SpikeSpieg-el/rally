@@ -2,7 +2,13 @@
 
 [ext_resource type="Script" uid="uid://bdaj34wupumx2" path="res://scripts/data/rally_shader_parameter.gd" id="1_cpkj1"]
 [ext_resource type="Script" uid="uid://rwx0tgnuruiw" path="res://scripts/data/rally_stage_settings.gd" id="1_settings"]
+[ext_resource type="Resource" path="res://data/stage/road_decals/gravel.tres" id="rd_gravel"]
+[ext_resource type="Resource" path="res://data/stage/road_decals/mud.tres" id="rd_mud"]
+[ext_resource type="Resource" path="res://data/stage/road_decals/asphalt.tres" id="rd_asphalt"]
+[ext_resource type="Resource" path="res://data/stage/road_decals/snow.tres" id="rd_snow"]
+[ext_resource type="Resource" path="res://data/stage/road_decals/grass.tres" id="rd_grass"]
 
 [resource]
 script = ExtResource("1_settings")
 retro_style_strength = 0.05
+road_decal_profiles = Array[Resource]([ExtResource("rd_gravel"), ExtResource("rd_mud"), ExtResource("rd_asphalt"), ExtResource("rd_snow"), ExtResource("rd_grass")])

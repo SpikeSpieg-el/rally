@@ -1,10 +1,15 @@
 ## Пятна на полотне: лужи, грязь, рыхлый гравий, снежный накат, лёд и трещины.
 ##
-## Это настоящие Decal-узлы: у каждого своя текстура, собранная из шума
-## (NoiseTexture2D + FastNoiseLite + Gradient), своя карта нормалей и карта ORM
-## (шероховатость/металл), поэтому лужа блестит, рыхлый гравий шершавый, а
-## слякоть матовая. Набор пятен на каждый вид полотна задаёт
-## RallyRoadDecalProfile — гравий, грязь, асфальт и снег выглядят по-разному.
+## Это настоящие Decal-узлы. Текстура пятна не готовая картинка и не «шум на
+## весь квадрат»: маска печётся здесь же — несколько капель с радиальным
+## затуханием, край рвётся шумом, альфа уходит в ноль к краю. Поэтому пятно
+## читается как лужа или размазанная грязь, а не как прямоугольник. Дополнительно
+## делаются карта нормалей (рельеф) и карта ORM (шероховатость), так что лужа
+## блестит, а рыхлый гравий шершавый.
+##
+## Что выпадает на каждом покрытии, какого цвета и размера — это ресурсы
+## RallyRoadDecalProfile (data/stage/road_decals/*.tres), правятся в инспекторе.
+## Этот скрипт только раскладывает их по трассе.
 ##
 ## Раскладка детерминированная: позиции берутся из хеша расстояния по трассе,
 ## поэтому пятна стоят на одних и тех же местах при каждом заезде и не
@@ -22,10 +27,13 @@ const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 
 ## Высота коробки проекции: пятно достаёт до полотна даже на кочках.
 const DECAL_HEIGHT := 1.6
+## Насколько шум сдвигает точку выборки маски (рваный контур пятна).
+const WARP_STRENGTH := 0.12
 
 @export_group("Профили")
-## Свои наборы пятен по видам полотна. Пусто — встроенные (ProfileType.defaults()).
-@export var profiles: Array[RallyRoadDecalProfile] = []
+## Наборы пятен по видам полотна (data/stage/road_decals/*.tres). Пусто —
+## читаются эти же файлы, а если их нет — простой заводской набор.
+@export var profiles: Array[Resource] = []
 
 @export_group("Раскладка")
 ## Предел числа пятен на трассу: генерация обрывается на нём.
@@ -121,13 +129,30 @@ func _clear_decals() -> void:
 func _ensure_profiles() -> void:
 	if not _profiles_by_kind.is_empty():
 		return
-	var list: Array = profiles.duplicate()
-	if list.is_empty():
-		list = ProfileType.defaults()
-	for profile in list:
+	for profile in profiles:
+		_register_profile(profile)
+	if _profiles_by_kind.is_empty():
+		for profile in _file_profiles():
+			_register_profile(profile)
+	# Недостающие виды покрытия добираем встроенными: пусть лучше пятна
+	# будут заводские, чем на снегу вообще ничего.
+	for profile in ProfileType.defaults():
 		if profile == null:
 			continue
-		_profiles_by_kind[String(profile.kind_name())] = profile
+		var key := String(profile.kind_name())
+		if not _profiles_by_kind.has(key):
+			_profiles_by_kind[key] = profile
+
+
+func _register_profile(profile) -> void:
+	if not (profile is RallyRoadDecalProfile):
+		return
+	var typed := profile as RallyRoadDecalProfile
+	_profiles_by_kind[String(typed.kind_name())] = typed
+
+
+func _file_profiles() -> Array:
+	return ProfileType.load_files()
 
 
 ## Сколько пятен вообще нужно: средняя плотность профилей на метраж трассы.
@@ -237,7 +262,9 @@ func _place_slippery_zones() -> void:
 			var distance: float = start + (float(piece) + 0.5) * piece_length
 			var jitter: float = (TrackConfigType.hash_noise(distance, 59.0) - 0.5) * half_width * 0.5
 			var spot: Vector3 = _network.point_at(distance) + _across(distance) * (offset + jitter)
-			var footprint := Vector2(half_width * 2.1, piece_length * 1.35)
+			# Коробка заметно больше самого пятна: соседние куски перекрываются
+			# и полоса читается как одна мокрая лента, а не как набор пятен.
+			var footprint := Vector2(half_width * 2.2, piece_length * 1.7)
 			var dir: Vector3 = _network.direction_at(distance)
 			_place_decal(spec, spot, atan2(dir.x, dir.z), footprint)
 
@@ -293,10 +320,10 @@ func _textures_for(spec) -> Dictionary:
 	var key: int = spec.get_instance_id()
 	if _textures.has(key):
 		return _textures[key]
-	var albedo := _make_noise_texture(spec, 1.0, false)
+	var albedo := _bake_albedo(spec)
 	var normal_map = null
 	if use_normal_maps and float(spec.normal_strength) > 0.0:
-		normal_map = _make_noise_texture(spec, maxf(0.1, float(spec.normal_scale)), true)
+		normal_map = _make_normal_texture(spec)
 	var orm_map = null
 	if use_orm:
 		orm_map = _make_orm_texture(spec)
@@ -305,39 +332,137 @@ func _textures_for(spec) -> Dictionary:
 	return textures
 
 
-func _make_noise_texture(spec, frequency_scale: float, as_normal: bool) -> NoiseTexture2D:
+## Маска пятна — самое важное. Альбедо печётся по пикселям: несколько «капель»
+## с радиальным затуханием, радиус «дышит» от шума, внутри маску проедает
+## фрактальный шум. Альфа на краю текстуры ровно ноль, поэтому декаль не видна
+## прямоугольником — только самим пятном.
+func _bake_albedo(spec) -> ImageTexture:
+	var size: int = clampi(texture_size, 32, 512)
+	# Шум частотой «на 128 пикселей» — чтобы рисунок не зависел от размера текстуры.
+	var pixel_scale: float = float(size) / 128.0
+	var noise := _make_noise(spec, 1.0, 0)
+	var warp := _make_noise(spec, 0.5, 331)
+	var blobs := _blob_centers(spec)
+	var stretch: Vector2 = spec.blob_stretch
+	var stretch_x: float = maxf(0.15, float(stretch.x))
+	var stretch_y: float = maxf(0.15, float(stretch.y))
+	var feather: float = clampf(float(spec.edge_feather), 0.05, 0.95)
+	var threshold: float = clampf(float(spec.mask_threshold), 0.0, 0.85)
+	var gain: float = clampf(float(spec.mask_gain), 0.2, 4.0)
+	var edge: Color = spec.edge_color
+	var core: Color = spec.core_color
+	var data := PackedByteArray()
+	data.resize(size * size * 4)
+	var index := 0
+	for y in range(size):
+		for x in range(size):
+			var u := (float(x) + 0.5) / float(size)
+			var v := (float(y) + 0.5) / float(size)
+			# Доменный варп: точку выборки сдвигает шум, поэтому контур капли
+			# получается рваным и с заливами, а не ровным овалом.
+			var warp_x := (
+				float(warp.get_noise_2d(float(x) * pixel_scale * 0.5, float(y) * pixel_scale * 0.5))
+			)
+			var warp_y := (
+				float(
+					warp.get_noise_2d(
+						float(x) * pixel_scale * 0.5 + 137.0,
+						float(y) * pixel_scale * 0.5 - 91.0
+					)
+				)
+			)
+			var sample_u := u + warp_x * WARP_STRENGTH
+			var sample_v := v + warp_y * WARP_STRENGTH
+			var mask := 0.0
+			for blob in blobs:
+				var du: float = (sample_u - float(blob.x)) / stretch_x
+				var dv: float = (sample_v - float(blob.y)) / stretch_y
+				var radius: float = float(blob.z)
+				var fall := 1.0 - smoothstep(radius * (1.0 - feather), radius, sqrt(du * du + dv * dv))
+				if fall > mask:
+					mask = fall
+			var value := 0.0
+			if mask > 0.0:
+				var grain := (
+					float(noise.get_noise_2d(float(x) * pixel_scale, float(y) * pixel_scale)) * 0.5
+					+ 0.5
+				)
+				# Шум сильнее всего рвёт край (там пятно тает), в ядре остаётся
+				# лёгкая мраморность: иначе пятно выглядит залитым аэрографом.
+				var erosion := smoothstep(threshold, 1.0, grain)
+				var rim := clampf(1.0 - mask, 0.0, 1.0)
+				value = mask * lerpf(1.0, erosion, 0.35 + 0.65 * rim)
+				value *= 0.72 + 0.28 * grain
+			value = pow(clampf(value, 0.0, 1.0), gain)
+			var color: Color = edge
+			if value > 0.0:
+				color = edge.lerp(core, sqrt(value))
+				color.a = lerpf(edge.a, core.a, value)
+			data[index] = int(clampf(color.r, 0.0, 1.0) * 255.0)
+			data[index + 1] = int(clampf(color.g, 0.0, 1.0) * 255.0)
+			data[index + 2] = int(clampf(color.b, 0.0, 1.0) * 255.0)
+			data[index + 3] = int(clampf(color.a, 0.0, 1.0) * 255.0)
+			index += 4
+	var image := Image.create_from_data(size, size, false, Image.FORMAT_RGBA8, data)
+	image.generate_mipmaps()
+	return ImageTexture.create_from_image(image)
+
+
+## Центры «капель» в координатах текстуры (0..1), радиус — в долях её ширины.
+## Детерминированно от noise_seed: одно и то же пятно каждый заезд одинаково.
+func _blob_centers(spec) -> Array:
+	var count: int = clampi(int(spec.blob_count), 1, 6)
+	var seed_value: int = int(spec.noise_seed) + 41
+	var stretch: Vector2 = spec.blob_stretch
+	var stretch_x: float = maxf(0.15, float(stretch.x))
+	var stretch_y: float = maxf(0.15, float(stretch.y))
+	var result: Array = []
+	if count <= 1:
+		result.append(Vector3(0.5, 0.5, 0.46))
+		return result
+	var base_radius: float = 0.44 / sqrt(float(count))
+	for i in range(count):
+		var h1 := TrackConfigType.hash_noise(float(i) * 3.7 + 1.0, float(seed_value))
+		var h2 := TrackConfigType.hash_noise(float(i) * 7.3 + 2.0, float(seed_value))
+		var h3 := TrackConfigType.hash_noise(float(i) * 5.1 + 3.0, float(seed_value))
+		var radius: float = clampf(base_radius * (0.7 + 0.6 * h3), 0.06, 0.45)
+		# Центр выбираем внутри того места, где капля ещё целиком влезает в
+		# текстуру: край маски всегда гаснет до края декали, а не обрезается им.
+		var span_x: float = maxf(0.0, 0.5 - radius * 1.02 * stretch_x - WARP_STRENGTH)
+		var span_y: float = maxf(0.0, 0.5 - radius * 1.02 * stretch_y - WARP_STRENGTH)
+		result.append(
+			Vector3(
+				0.5 + (h1 * 2.0 - 1.0) * span_x,
+				0.5 + (h2 * 2.0 - 1.0) * span_y,
+				radius
+			)
+		)
+	return result
+
+
+func _make_noise(spec, frequency_scale: float, seed_offset: int) -> FastNoiseLite:
 	var noise := FastNoiseLite.new()
-	noise.seed = int(spec.noise_seed) + 17
+	noise.seed = int(spec.noise_seed) + seed_offset
 	noise.noise_type = _noise_type(int(spec.noise_type))
 	noise.frequency = maxf(0.001, float(spec.noise_frequency) * frequency_scale)
 	noise.fractal_octaves = clampi(int(spec.noise_octaves), 1, 6)
 	noise.fractal_lacunarity = float(spec.noise_lacunarity)
 	noise.fractal_gain = float(spec.noise_gain)
+	return noise
+
+
+## Рельеф пятна. Влияние карты нормалей декаль домножает на альфу альбедо,
+## поэтому она сама ограничена формой пятна.
+func _make_normal_texture(spec) -> NoiseTexture2D:
+	var noise := _make_noise(spec, maxf(0.1, float(spec.normal_scale)), 17)
 	var texture := NoiseTexture2D.new()
 	texture.noise = noise
 	texture.width = texture_size
 	texture.height = texture_size
 	texture.generate_mipmaps = true
-	texture.normalize = true
-	if as_normal:
-		texture.as_normal_map = true
-		texture.bump_strength = float(spec.normal_strength)
-		return texture
-	texture.color_ramp = _ramp(spec)
+	texture.as_normal_map = true
+	texture.bump_strength = float(spec.normal_strength)
 	return texture
-
-
-## Форма пятна: от прозрачного края через полупрозрачную середину к плотному ядру.
-func _ramp(spec) -> Gradient:
-	var edge: Color = spec.edge_color
-	var core: Color = spec.core_color
-	var middle: Color = edge.lerp(core, 0.6)
-	middle.a = lerpf(edge.a, core.a, 0.45)
-	var rim: float = clampf(float(spec.rim), 0.02, 0.6)
-	var ramp := Gradient.new()
-	ramp.offsets = PackedFloat32Array([0.0, rim, clampf(rim + 0.28, 0.05, 0.95), 1.0])
-	ramp.colors = PackedColorArray([edge, middle, core, core])
-	return ramp
 
 
 ## ORM: R — затенение (не затемняем), G — шероховатость, B — металл.

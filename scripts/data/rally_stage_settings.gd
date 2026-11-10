@@ -189,6 +189,14 @@ extends Resource
 @export_range(0.0, 200.0, 5.0) var road_decals_fade_length: float = 40.0
 ## Отмечать скользкие полосы физики лужами и рыхлой грязью в тех же местах.
 @export var road_decals_mark_grip_zones: bool = true
+## Карты нормалей (рельеф пятна). Выключить, если нужен максимум FPS.
+@export var road_decals_use_normal_maps: bool = true
+## Карта ORM: глянец луж и льда. Выключить, если нужен максимум FPS.
+@export var road_decals_use_orm: bool = true
+## Наборы пятен по видам полотна (data/stage/road_decals/*.tres). Каждый вид
+## правится в инспекторе: пятна, цвета, шум, размеры, веса. Пусто — файлы
+## читаются автоматически; виды, которых нет, добираются заводскими.
+@export var road_decal_profiles: Array[Resource] = []
 
 @export_group("Свои параметры шейдеров (максимальная правка без кода)")
 ## Параметры, которые применяются поверх заводских значений земли.

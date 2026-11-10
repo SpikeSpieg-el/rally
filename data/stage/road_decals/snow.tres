@@ -1,0 +1,119 @@
+[gd_resource type="Resource" script_class="RallyRoadDecalProfile" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_road_decal_profile.gd" id="1_profile"]
+[ext_resource type="Script" path="res://scripts/data/rally_road_decal_spec.gd" id="2_spec"]
+
+[sub_resource type="Resource" id="Decal0"]
+script = ExtResource("2_spec")
+display_name = "Укатанный снег"
+kind = 1
+weight = 2.0
+edge_color = Color(0.8, 0.83, 0.88, 0.0)
+core_color = Color(0.92, 0.95, 0.99, 0.85)
+noise_type = 1
+noise_frequency = 0.03
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 419
+blob_count = 2
+edge_feather = 0.6
+mask_threshold = 0.1
+mask_gain = 0.9
+size_min = Vector2(1.8, 2.6)
+size_max = Vector2(3.8, 5.6)
+albedo_mix = 0.9
+opacity = 0.88
+roughness = 0.85
+metallic = 0.0
+normal_strength = 4.0
+normal_scale = 2.0
+blob_stretch = Vector2(1.8, 1.0)
+
+[sub_resource type="Resource" id="Decal1"]
+script = ExtResource("2_spec")
+display_name = "Лёд"
+kind = 4
+weight = 1.0
+edge_color = Color(0.56, 0.62, 0.7, 0.0)
+core_color = Color(0.7, 0.78, 0.88, 0.7)
+noise_type = 2
+noise_frequency = 0.03
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 443
+blob_count = 2
+edge_feather = 0.5
+mask_threshold = 0.05
+mask_gain = 0.9
+size_min = Vector2(1.4, 1.8)
+size_max = Vector2(3.2, 4.4)
+albedo_mix = 0.85
+opacity = 0.8
+roughness = 0.05
+metallic = 0.0
+normal_strength = 1.5
+normal_scale = 1.5
+blob_stretch = Vector2(1.4, 0.9)
+
+[sub_resource type="Resource" id="Decal2"]
+script = ExtResource("2_spec")
+display_name = "Слякоть"
+kind = 0
+weight = 1.2
+edge_color = Color(0.3, 0.32, 0.35, 0.0)
+core_color = Color(0.36, 0.39, 0.43, 0.8)
+noise_type = 2
+noise_frequency = 0.042
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 467
+blob_count = 3
+edge_feather = 0.6
+mask_threshold = 0.2
+mask_gain = 1.0
+size_min = Vector2(1.6, 2.2)
+size_max = Vector2(3.4, 4.8)
+albedo_mix = 0.85
+opacity = 0.85
+roughness = 0.25
+metallic = 0.0
+normal_strength = 3.0
+normal_scale = 2.0
+blob_stretch = Vector2(1.5, 1.0)
+
+[sub_resource type="Resource" id="Decal3"]
+script = ExtResource("2_spec")
+display_name = "Сугроб"
+kind = 1
+weight = 1.1
+edge_color = Color(0.84, 0.87, 0.92, 0.0)
+core_color = Color(0.95, 0.97, 1.0, 0.9)
+noise_type = 2
+noise_frequency = 0.026
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 491
+blob_count = 3
+edge_feather = 0.7
+mask_threshold = 0.08
+mask_gain = 0.9
+size_min = Vector2(1.6, 2.4)
+size_max = Vector2(3.6, 5.2)
+albedo_mix = 0.95
+opacity = 0.9
+roughness = 0.8
+metallic = 0.0
+normal_strength = 6.0
+normal_scale = 2.0
+blob_stretch = Vector2(1.6, 1.0)
+
+[resource]
+script = ExtResource("1_profile")
+road_kind = 3
+density = 9.0
+spread = 0.9
+decals = Array[ExtResource("2_spec")]([SubResource("Decal0"), SubResource("Decal1"), SubResource("Decal2"), SubResource("Decal3")])

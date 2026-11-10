@@ -1,0 +1,119 @@
+[gd_resource type="Resource" script_class="RallyRoadDecalProfile" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_road_decal_profile.gd" id="1_profile"]
+[ext_resource type="Script" path="res://scripts/data/rally_road_decal_spec.gd" id="2_spec"]
+
+[sub_resource type="Resource" id="Decal0"]
+script = ExtResource("2_spec")
+display_name = "Грязь"
+kind = 2
+weight = 2.0
+edge_color = Color(0.22, 0.16, 0.09, 0.0)
+core_color = Color(0.14, 0.1, 0.06, 0.92)
+noise_type = 2
+noise_frequency = 0.032
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 211
+blob_count = 2
+edge_feather = 0.5
+mask_threshold = 0.12
+mask_gain = 0.9
+size_min = Vector2(1.8, 2.6)
+size_max = Vector2(3.6, 5.4)
+albedo_mix = 0.95
+opacity = 0.92
+roughness = 0.72
+metallic = 0.0
+normal_strength = 9.0
+normal_scale = 2.0
+blob_stretch = Vector2(1.7, 0.9)
+
+[sub_resource type="Resource" id="Decal1"]
+script = ExtResource("2_spec")
+display_name = "Жижа"
+kind = 0
+weight = 1.2
+edge_color = Color(0.18, 0.14, 0.09, 0.0)
+core_color = Color(0.09, 0.07, 0.05, 0.9)
+noise_type = 2
+noise_frequency = 0.04
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 241
+blob_count = 3
+edge_feather = 0.6
+mask_threshold = 0.1
+mask_gain = 1.0
+size_min = Vector2(1.6, 2.2)
+size_max = Vector2(3.4, 4.8)
+albedo_mix = 0.85
+opacity = 0.9
+roughness = 0.22
+metallic = 0.0
+normal_strength = 4.0
+normal_scale = 2.0
+blob_stretch = Vector2(1.5, 1.0)
+
+[sub_resource type="Resource" id="Decal2"]
+script = ExtResource("2_spec")
+display_name = "Сухая корка"
+kind = 5
+weight = 0.7
+edge_color = Color(0.36, 0.3, 0.21, 0.0)
+core_color = Color(0.42, 0.35, 0.24, 0.7)
+noise_type = 4
+noise_frequency = 0.08
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 269
+blob_count = 3
+edge_feather = 0.5
+mask_threshold = 0.28
+mask_gain = 1.5
+size_min = Vector2(1.2, 1.8)
+size_max = Vector2(2.6, 3.8)
+albedo_mix = 0.8
+opacity = 0.75
+roughness = 0.98
+metallic = 0.0
+normal_strength = 3.0
+normal_scale = 3.0
+blob_stretch = Vector2(3.0, 0.6)
+
+[sub_resource type="Resource" id="Decal3"]
+script = ExtResource("2_spec")
+display_name = "Лужа"
+kind = 3
+weight = 0.8
+edge_color = Color(0.12, 0.13, 0.14, 0.0)
+core_color = Color(0.07, 0.08, 0.09, 0.85)
+noise_type = 1
+noise_frequency = 0.026
+noise_octaves = 3
+noise_lacunarity = 2.0
+noise_gain = 0.5
+noise_seed = 293
+blob_count = 2
+edge_feather = 0.45
+mask_threshold = 0.03
+mask_gain = 1.15
+size_min = Vector2(1.6, 2.0)
+size_max = Vector2(3.4, 4.8)
+albedo_mix = 0.85
+opacity = 0.9
+roughness = 0.05
+metallic = 0.0
+normal_strength = 0.0
+normal_scale = 1.0
+blob_stretch = Vector2(1.6, 0.9)
+
+[resource]
+script = ExtResource("1_profile")
+road_kind = 1
+density = 9.0
+spread = 0.85
+decals = Array[ExtResource("2_spec")]([SubResource("Decal0"), SubResource("Decal1"), SubResource("Decal2"), SubResource("Decal3")])
