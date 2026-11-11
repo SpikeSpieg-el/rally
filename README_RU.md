@@ -104,6 +104,14 @@ Speed`). Поля вкладок создаются при запуске из �
 зажимаются искусственно в HUD и звуке. Проверка:
 `godot --headless --path . --script res://tests/rev_limiter.gd`.
 
+Максимальную скорость ограничивают мощность мотора, передачи и аэродинамика из
+сетапа (`coefficient_of_drag` × `frontal_area`, группа «Аэродинамика»).
+Встроенное в Godot линейное демпфирование `RigidBody3D` на кузове отключено:
+раньше эта скрытая сила удерживала стоковый Lancer около 140 км/ч при любой
+главной паре. Таблица «Cx → потолок скорости» и объяснение — в
+`RALLY_SETUP_RU.md`, проверка:
+`godot --headless --path . --fixed-fps 120 --script res://tests/top_speed.gd`.
+
 Ливрея, цвет, покрытие и размер колёс сразу обновляются на витрине; модель
 можно повернуть перетаскиванием и приблизить колёсиком мыши. Все перечисленные
 физические настройки применяются к автомобилю в заезде. В игровом HUD показаны
@@ -1311,6 +1319,7 @@ godot --headless --path . --fixed-fps 120 --script res://tests/rally_regression.
 godot --headless --path . --fixed-fps 120 --script res://tests/controller_input.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/stage_smoke.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/handling_benchmark.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/top_speed.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/engine_audio.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/conditions_smoke.gd
 godot --headless --path . --script res://tests/ps1_style.gd

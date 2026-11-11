@@ -59,6 +59,16 @@ var torque_shape: int = TorqueShape.TURBO_PUNCH
 @export_range(0.35, 0.70, 0.01) var front_weight_distribution: float = 0.53
 @export_range(-0.30, 0.30, 0.005) var center_of_gravity_height_offset: float = -0.10
 
+@export_group("Аэродинамика")
+## Коэффициент лобового сопротивления Cx. Вместе с лобовой площадью задаёт
+## потолок скорости и накат на большой скорости:
+## сила воздуха = 0.5 · 1.225 · Cx · площадь · скорость².
+## Меньше — выше максималка. 0.45 подобрано так, чтобы стоковый Lancer выходил
+## на ≈258 км/ч; таблица «Cx → потолок скорости» — в RALLY_SETUP_RU.md.
+@export_range(0.15, 1.2, 0.01) var coefficient_of_drag: float = 0.45
+## Лобовая площадь кузова, м². У седана такого размера — около 2.2.
+@export_range(1.0, 3.5, 0.01, "suffix:м²") var frontal_area: float = 2.2
+
 @export_group("Подвеска")
 @export_range(0.10, 0.60, 0.005) var front_spring_length: float = 0.30
 @export_range(0.10, 0.60, 0.005) var rear_spring_length: float = 0.32

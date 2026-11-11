@@ -477,9 +477,12 @@ func _configure_gevp() -> void:
 	front_wheel_mass = 15.0
 	rear_wheel_mass = 15.0
 
-	coefficient_of_drag = 0.28
+	# База совпадает с дефолтами RallyCarSetup; сетап задаёт свои значения
+	# в группе «Аэродинамика». Линейное демпфирование кузова выключено в сцене
+	# (linear_damp_mode = Replace), поэтому потолок скорости задаёт воздух.
+	coefficient_of_drag = 0.45
 	air_density = 1.225
-	frontal_area = 1.9
+	frontal_area = 2.2
 
 
 func _resolve_setup() -> void:
@@ -525,6 +528,8 @@ func apply_setup(setup_resource: CarSetupType) -> void:
 	vehicle_mass = setup_resource.vehicle_mass
 	front_weight_distribution = setup_resource.front_weight_distribution
 	center_of_gravity_height_offset = setup_resource.center_of_gravity_height_offset
+	coefficient_of_drag = setup_resource.coefficient_of_drag
+	frontal_area = setup_resource.frontal_area
 	front_spring_length = setup_resource.front_spring_length
 	rear_spring_length = setup_resource.rear_spring_length
 	front_resting_ratio = setup_resource.front_resting_ratio

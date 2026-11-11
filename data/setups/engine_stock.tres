@@ -9,4 +9,3 @@ display_name = "2.0 TURBO · СТОК"
 description = "Стоковый турбомотор Lancer Evolution: 470 Нм, ровная полка с 2800 об/мин, длинные передачи и мягкая подвеска. Прощает ошибки, любит широкие дуги."
 body_color = Color(0.86, 0.87, 0.89, 1)
 engine_name = "4G63T · 2.0 TURBO"
-final_drive = 3.3
