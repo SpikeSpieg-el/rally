@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://ciiy3lxvgasok"]
 
+[ext_resource type="Script" uid="uid://dhqqnoi54ek8o" path="res://scripts/data/rally_bridge_placement.gd" id="1_5pxf1"]
 [ext_resource type="Curve3D" uid="uid://bkghptxor73rx" path="res://data/tracks/stage_forest_route2.tres" id="1_kgtpe"]
 [ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_5pxf1"]
 [ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="3_lxkbn"]

@@ -2,17 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bd9g2ounfecf"
+uid="uid://beag2ounfecf"
 path.s3tc="res://.godot/imported/mossy_masonry.png-2074751f3576dda5e0f0949aba5007be.s3tc.ctex"
+path.etc2="res://.godot/imported/mossy_masonry.png-2074751f3576dda5e0f0949aba5007be.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/environment/mossy_masonry.png"
-dest_files=["res://.godot/imported/mossy_masonry.png-2074751f3576dda5e0f0949aba5007be.s3tc.ctex"]
+dest_files=["res://.godot/imported/mossy_masonry.png-2074751f3576dda5e0f0949aba5007be.s3tc.ctex", "res://.godot/imported/mossy_masonry.png-2074751f3576dda5e0f0949aba5007be.etc2.ctex"]
 
 [params]
 

@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c2iy4pw5mnma"
 path.s3tc="res://.godot/imported/wet_slate.png-516105dec7c38972a79467fb7cb2a21a.s3tc.ctex"
+path.etc2="res://.godot/imported/wet_slate.png-516105dec7c38972a79467fb7cb2a21a.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://textures/environment/wet_slate.png"
-dest_files=["res://.godot/imported/wet_slate.png-516105dec7c38972a79467fb7cb2a21a.s3tc.ctex"]
+dest_files=["res://.godot/imported/wet_slate.png-516105dec7c38972a79467fb7cb2a21a.s3tc.ctex", "res://.godot/imported/wet_slate.png-516105dec7c38972a79467fb7cb2a21a.etc2.ctex"]
 
 [params]
 

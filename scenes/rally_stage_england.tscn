@@ -1,7 +1,6 @@
-[gd_scene format=3 uid="uid://e9ixdqa7ldqw"]
+[gd_scene format=3 uid="uid://faixdqa7ldqw"]
 
 [ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_stage"]
-[ext_resource type="Resource" uid="uid://cdhbkw8z1qc7" path="res://data/tracks/stage_england.tres" id="track_england"]
 [ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="2_car"]
 [ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_way4p"]
 [ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="3_6y0e7"]
@@ -21,10 +20,10 @@
 [ext_resource type="PackedScene" uid="uid://cm7js1v8kufmn" path="res://scenes/ui/rally_hud.tscn" id="hud_layout"]
 [ext_resource type="Environment" uid="uid://bb8gswph2upes" path="res://data/tracks/night_environment.tres" id="night_environment"]
 [ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="retro_screen"]
-[ext_resource type="PackedScene" uid="uid://dblndqw45wkp4" path="res://scenes/props/road_sign.tscn" id="road_sign"]
+[ext_resource type="Resource" uid="uid://cdhbkw801qc7" path="res://data/tracks/stage_england.tres" id="track_england"]
 [ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="visual_effects"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_4d4ml"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3pw6d"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("3_6y0e7")
@@ -33,10 +32,10 @@ shader_parameter/rock_texture = ExtResource("6_ni4f4")
 shader_parameter/ground_texture_smooth = ExtResource("5_qj60p")
 shader_parameter/rock_texture_smooth = ExtResource("6_ni4f4")
 shader_parameter/ps1_textures = true
-shader_parameter/ground_color = Color(0.3, 0.38, 0.23, 1)
-shader_parameter/ground_color_2 = Color(0.42, 0.45, 0.28, 1)
-shader_parameter/road_edge_color = Color(0.31, 0.25, 0.17, 1)
-shader_parameter/rock_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/ground_color = Color(0.055, 0.075, 0.045, 1)
+shader_parameter/ground_color_2 = Color(0.1, 0.13, 0.075, 1)
+shader_parameter/road_edge_color = Color(0.17, 0.14, 0.1, 1)
+shader_parameter/rock_color = Color(0.2, 0.21, 0.21, 1)
 shader_parameter/surface_roughness = 0.99
 shader_parameter/grain_scale = 1.4
 shader_parameter/flat_shading = 1.0
@@ -65,7 +64,7 @@ shader_parameter/snow_specular = 0.1
 shader_parameter/wet_specular = 0.42
 shader_parameter/dry_specular = 0.16
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_huph0"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_k8627"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("7_4d4ml")
@@ -82,7 +81,7 @@ shader_parameter/road_roughness = 0.96
 shader_parameter/wetness = 0.0
 shader_parameter/snow_cover = 0.0
 shader_parameter/zone_offset = 1.5
-shader_parameter/stage_length = 2572.885
+shader_parameter/stage_length = 4711.281
 shader_parameter/zone_period = 240.0
 shader_parameter/zone_start = 150.0
 shader_parameter/zone_end_margin = 40.0
@@ -90,7 +89,7 @@ shader_parameter/zone_length = 20.0
 shader_parameter/zone_half_width = 1.5
 shader_parameter/zone_softness = 0.7
 shader_parameter/zone_fade = 3.0
-shader_parameter/zone_contrast = 0.8
+shader_parameter/zone_contrast = 0.28
 shader_parameter/zone_wet_darken = 0.38
 shader_parameter/zone_dry_lighten = 0.28
 shader_parameter/gravel_uv_scale = 0.3
@@ -111,9 +110,9 @@ shader_parameter/dry_specular = 0.22
 shader_parameter/texture_gain = 1.25
 shader_parameter/texture_base = 0.65
 shader_parameter/puddle_roughness = 0.18
-shader_parameter/puddle_mix = 0.8
+shader_parameter/puddle_mix = 0.35
 
-[sub_resource type="Resource" id="Resource_h4p6t"]
+[sub_resource type="Resource" id="Resource_f0fu1"]
 script = ExtResource("9_h4p6t")
 preview_in_editor = false
 show_debug_info = true
@@ -124,12 +123,12 @@ road_roughness = 0.96
 road_loose_relief = 0.5
 road_detail_strength = 0.08
 road_track_strength = 0.06
-ground_material = SubResource("ShaderMaterial_4d4ml")
-road_material = SubResource("ShaderMaterial_huph0")
+ground_material = SubResource("ShaderMaterial_3pw6d")
+road_material = SubResource("ShaderMaterial_k8627")
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_xfxr1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lbkgu"]
 resource_local_to_scene = true
 shader = ExtResource("19_fvvtf")
 shader_parameter/retro_strength = 1.0
@@ -148,13 +147,13 @@ shader_parameter/speed_stretch_gain = 1.0
 [node name="RallyStage" type="Node3D" unique_id=651009656]
 script = ExtResource("1_stage")
 game_config = ExtResource("2_way4p")
-settings = SubResource("Resource_h4p6t")
+track_override = ExtResource("track_england")
+settings = SubResource("Resource_f0fu1")
 legacy_effects_imported = true
 spawn_layout = ExtResource("10_xfxr1")
 fx_profile = ExtResource("11_1v6xi")
 scenery = ExtResource("12_5kwpf")
 prop_library = ExtResource("13_props")
-track_override = ExtResource("track_england")
 
 [node name="VisualEffects" parent="." unique_id=349289573 instance=ExtResource("visual_effects")]
 editor_description = "Визуальные настройки: скорость, дождь, снег и материалы. Ретро-экран — под HUD."
@@ -185,6 +184,7 @@ physics_material_override = SubResource("PhysicsMaterial_gxar1")
 curve = ExtResource("4_route")
 
 [node name="ManualProps" type="Node3D" parent="." unique_id=569895657]
+visible = false
 
 [node name="RallyCar" parent="." unique_id=1474183300 instance=ExtResource("2_car")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -195,11 +195,12 @@ setup_override = ExtResource("6_fxige")
 
 [node name="SpeedShaderRect" parent="HUD" unique_id=1844040114 instance=ExtResource("retro_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_xfxr1")
+material = SubResource("ShaderMaterial_lbkgu")
 look = 0
 
 [node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("hud_layout")]
 
 [node name="Props" type="Node3D" parent="." unique_id=113635271]
+visible = false
 
 [node name="StudioProps" type="Node3D" parent="." unique_id=1239958993]
