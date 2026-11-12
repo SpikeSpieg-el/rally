@@ -1,11 +1,13 @@
 # godot --headless --path . --script res://tests/speed_feel.gd
-## Ощущение скорости без тряски: чистая математика камеры и поведение
-## в заезде. Проверяем, что отдача только плавная и предсказуемая:
-## нет дрожания между кадрами, нет мгновенных скачков, стоянка — ноль.
+## Ощущение скорости: чистая математика камеры и поведение в заезде.
+## Проверяем, что отдача только плавная и предсказуемая: нет мгновенных
+## скачков, стоянка — ноль, а микро-вибрация кузова остаётся микроскопической
+## и гаснет вместе с ползунком «Ощущение скорости».
 extends SceneTree
 
 const Sway = preload("res://scripts/effects/rally_speed_sway.gd")
 const Feel = preload("res://scripts/data/rally_car_feel_config.gd")
+const SpeedFeel = preload("res://scripts/effects/rally_speed_feel.gd")
 const CarScript = preload("res://scripts/rally_car.gd")
 const CarScene = preload("res://scenes/rally_car.tscn")
 
@@ -27,9 +29,10 @@ func _run() -> void:
 	_check_lean()
 	_check_smoothness()
 	_check_fov_curve()
+	_check_shake()
 	await _check_camera_in_game()
 	if failures.is_empty():
-		print("PASS: ощущение скорости — плавное, без тряски, стоянка спокойна")
+		print("PASS: ощущение скорости — плавное, дрожь микроскопическая, стоянка спокойна")
 		quit(0)
 	else:
 		printerr("FAIL: ощущение скорости: %d проблем(ы)" % failures.size())
@@ -101,6 +104,32 @@ func _check_fov_curve() -> void:
 	_check(feel.high_speed_bob_hz < 2.0, "«дыхание» камеры должно быть медленнее 2 Гц")
 	_check(feel.corner_lean_max_deg <= 4.0, "занос камеры должен оставаться деликатным")
 	_check(feel.speed_motes_enabled, "придорожный поток должен быть включён по умолчанию")
+	feel.free()
+
+
+## Микро-вибрация: ноль на стоянке, амплитуда ровно из `shake_percent`,
+## меняется во времени и полностью гаснет при нулевом ползунке.
+func _check_shake() -> void:
+	var feel := SpeedFeel.new()
+	feel.shake_percent = 0.35
+	feel.shake_frequency = 24.0
+	_check(is_zero_approx(feel.shake_intensity_for(0.0, true)), "на стоянке вибрации быть не должно")
+	var amt: float = feel.shake_intensity_for(400.0, true)
+	_check(is_equal_approx(amt, 0.35), "на максималке сила вибрации равна shake_percent (%.3f)" % amt)
+	var offset: Vector3 = feel.sample_camera_shake_offset(400.0, true, 1.0, 0.035)
+	_check(maxf(absf(offset.x), absf(offset.y)) <= 0.035 * amt + 0.000001, "смещение камеры должно оставаться микроскопическим (%.4f м)" % offset.length())
+	var angles: Vector3 = feel.sample_camera_shake_angles_rad(400.0, true, 1.0, 0.45)
+	_check(angles.length() <= deg_to_rad(0.45) * amt + 0.000001, "углы вибрации — доли градуса, не больше")
+	var later: Vector3 = feel.sample_camera_shake_offset(400.0, true, 1.02, 0.035)
+	_check(not offset.is_equal_approx(later), "вибрация должна меняться во времени, а не сдвигать кадр навсегда")
+	feel.shake_percent = 0.0
+	_check(is_zero_approx(feel.shake_intensity_for(400.0, true)), "нулевая сила должна полностью выключать вибрацию")
+	feel.shake_percent = 0.35
+	feel.shake_frequency = 0.0
+	var stuck_a: Vector3 = feel.sample_camera_shake_offset(400.0, true, 1.0, 0.035)
+	var stuck_b: Vector3 = feel.sample_camera_shake_offset(400.0, true, 1.5, 0.035)
+	_check(not stuck_a.is_equal_approx(stuck_b), "нулевая частота не должна «замораживать» смещение")
+	_check(is_zero_approx(feel.shake_intensity_for(400.0, false)), "запрет эффекта на трассе выключает и вибрацию")
 	feel.free()
 
 

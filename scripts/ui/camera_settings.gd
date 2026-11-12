@@ -55,9 +55,9 @@ func _on_value_changed(value: float, row_name: String) -> void:
 			car.cockpit_motion_strength = value
 			value_label.text = "%d%%" % roundi(value * 100.0)
 		"SpeedFeel":
-			# Общий выключатель «живой» камеры: занос, крен и «дыхание».
-			# Тряски в ней нет, поэтому 0% даёт спокойный, но полностью
-			# управляемый кадр без потери FOV по скорости.
+			# Общий выключатель «живой» камеры: занос, крен, «дыхание» и
+			# микро-вибрация кузова (её числа — в узле VisualEffects/Speed).
+			# 0% даёт полностью неподвижный кадр без потери FOV по скорости.
 			car.camera_feel_strength = value
 			value_label.text = "%d%%" % roundi(value * 100.0)
 		"Sensitivity":

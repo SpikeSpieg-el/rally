@@ -144,7 +144,8 @@ var camera_yaw: float = 0.0
 var camera_position: Vector3 = Vector3.ZERO
 var camera_initialized: bool = false
 ## Выключатель «живой» камеры для меню паузы. 0 — камера строго по маркеру.
-## Тряски в отдаче нет: только медленный занос, крен и мягкая инерция.
+## Грубой тряски нет: медленный занос, крен, мягкая инерция и микро-вибрация
+## кузова (доли процента из `VisualEffects/Speed`).
 var camera_feel_strength: float = 1.0
 ## Медленная фаза «дыхания» камеры на скорости; не тряска, а плавная волна.
 var _feel_time: float = 0.0
@@ -1105,6 +1106,40 @@ func _update_cameras(delta: float) -> void:
 		var target_fov: float = base_fov + fov_bonus * inside_fov_factor()
 		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().inside_fov_response, delta)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
+
+	_apply_camera_shake(delta)
+
+
+## Микро-вибрация камеры на скорости: дрожь кузова, а не «стиральная доска».
+##
+## Числа (сила % и частота Гц) — в узле `VisualEffects/Speed`; этап отдаёт их
+## через `speed_shake_offset()` / `speed_shake_angles()`. Здесь только масштаб:
+## ползунок «Ощущение скорости» в паузе (`camera_feel_strength`) и
+## `speed_feel_strength` из профиля камеры. 0 % — кадр неподвижен.
+##
+## Смещение — сдвиг самой камеры в её собственных осях (метры дрожи кузова),
+## углы — локальным поворотом на доли градуса. Применяется ПОСЛЕ look_at и
+## проверки стен и не копит состояние: положение камеры каждый кадр считается
+## заново, поэтому дрожь не «уезжает» и не ломает прицел.
+## `h_offset`/`v_offset` для этого не годятся: они переключают камеру на
+## фрустум и меряются у ближней плоскости, а не в метрах вибрации кузова.
+func _apply_camera_shake(delta: float) -> void:
+	if active_camera == null:
+		return
+	var shake_scale: float = camera_feel_strength * f().speed_feel_strength
+	if shake_scale <= 0.001 or delta <= 0.0:
+		return
+	var stage := get_parent()
+	if stage == null or not stage.has_method("speed_shake_offset"):
+		return
+	var offset: Vector3 = stage.call("speed_shake_offset", speed_kmh, _feel_time)
+	var angles: Vector3 = stage.call("speed_shake_angles", speed_kmh, _feel_time)
+	if not offset.is_zero_approx():
+		active_camera.global_position += active_camera.global_transform.basis * offset * shake_scale
+	if not angles.is_zero_approx():
+		active_camera.rotate_object_local(Vector3.RIGHT, angles.x * shake_scale)
+		active_camera.rotate_object_local(Vector3.UP, angles.y * shake_scale)
+		active_camera.rotate_object_local(Vector3.FORWARD, angles.z * shake_scale)
 
 
 func _update_action_camera(delta: float) -> void:

@@ -4334,6 +4334,23 @@ func _apply_speed_uniforms(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("speed_stretch", _speed_feel.edge_stretch_percent / 100.0)
 
 
+## Микро-вибрация камеры от скорости: смещение в метрах.
+## Числа живут в узле `VisualEffects/Speed` (`RallySpeedFeel`), этап только
+## добавляет флаг трассы «эффект разрешён» и не считает ничего своего.
+## Масштаб (ползунок «Ощущение скорости» в паузе) применяет камера машины.
+func speed_shake_offset(speed_kmh: float, time_sec: float) -> Vector3:
+	if _speed_feel == null:
+		return Vector3.ZERO
+	return _speed_feel.sample_camera_shake_offset(speed_kmh, _track_allows_speed(), time_sec)
+
+
+## Микро-углы вибрации (pitch, yaw, roll) в радианах — той же природы.
+func speed_shake_angles(speed_kmh: float, time_sec: float) -> Vector3:
+	if _speed_feel == null:
+		return Vector3.ZERO
+	return _speed_feel.sample_camera_shake_angles_rad(speed_kmh, _track_allows_speed(), time_sec)
+
+
 ## Флаг трассы «запретить эффект скорости». Нет поля — значит не запрещено.
 func _track_allows_speed() -> bool:
 	if track == null:
