@@ -14,6 +14,7 @@ const InputSettings = preload("res://scripts/ui/input_settings.gd")
 @onready var settings_button: Button = $Menu/Column/Actions/SettingsButton
 @onready var quit_button: Button = $Menu/Column/Actions/QuitButton
 var input_settings = null
+var vr_button: Button
 var _preview_clock := 0.0
 
 
@@ -32,6 +33,10 @@ func _ready() -> void:
 	# Кнопка есть только тогда, когда полигон прописан в конфиге игры.
 	var game: Node = _game()
 	testpad_button.visible = game != null and bool(game.call("has_test_polygon"))
+	vr_button = Button.new()
+	vr_button.text = "РЕЖИМ: ПК (включить VR / OpenXR)"
+	vr_button.pressed.connect(_toggle_vr)
+	start_button.get_parent().add_child(vr_button)
 	start_button.grab_focus()
 
 
@@ -75,3 +80,12 @@ func _open_settings() -> void:
 		input_settings.name = "InputSettings"
 		add_child(input_settings)
 	input_settings.open()
+
+func _toggle_vr() -> void:
+	if VRMode.requested:
+		VRMode.stop()
+		vr_button.text = "РЕЖИМ: ПК (включить VR / OpenXR)"
+	elif VRMode.start():
+		vr_button.text = "РЕЖИМ: VR (вернуться к ПК)"
+	else:
+		vr_button.text = "OpenXR не найден — подключите Pico 4 к SteamVR"
