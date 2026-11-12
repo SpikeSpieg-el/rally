@@ -119,8 +119,10 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 @export var torque_curve : Curve
 ## Variable motor drag based on RPM.
 @export var motor_drag := 0.005
-## Constant motor drag.
-@export var motor_brake := 10.0
+## Engine braking: closed-throttle motor torque in NM per 1000 RPM above idle.
+## Торможение двигателем при закрытом дросселе: Н·м на каждую 1000 об/мин
+## сверх холостых. С открытием газа плавно исчезает.
+@export var motor_brake := 5.0
 ## Moment of inertia for the motor.
 @export var motor_moment := 0.5
 ## The motor will use this rpm when launching from a stop.
@@ -346,6 +348,8 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 @export var frontal_area := 2.0
 
 const ANGULAR_VELOCITY_TO_RPM := 60.0 / TAU
+## Обороты, на которые нормирован motor_brake (Н·м на 1000 об/мин).
+const MOTOR_BRAKE_REFERENCE_RPM := 1000.0
 
 var wheel_array : Array[GEVPWheel] = []
 var axles : Array[Axle] = []
@@ -781,6 +785,7 @@ func process_motor(delta : float) -> void:
 	torque_output = get_torque_at_rpm(motor_rpm) * throttle_amount
 	## Adjust torque based on throttle input, clutch input, and motor drag
 	torque_output -= drag_torque * (1.0 + (clutch_amount * (1.0 - throttle_amount)))
+	torque_output -= get_engine_brake_torque(throttle_amount)
 	
 	# Отсечка совпадает с max_rpm из сетапа/HUD, без скрытых +10%.
 	torque_output = _limit_motor_torque(torque_output, delta)
@@ -822,8 +827,19 @@ func _process_manual_motor(delta: float) -> void:
 	var effective_throttle := maxf(throttle_amount, idle_assist)
 	torque_output = get_torque_at_rpm(motor_rpm) * effective_throttle
 	torque_output -= drag_torque * (1.0 + clutch_amount * (1.0 - effective_throttle))
+	torque_output -= get_engine_brake_torque(effective_throttle)
 	torque_output = _limit_motor_torque(torque_output, delta)
 	motor_rpm = maxf(motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment, 0.0)
+
+
+## Торможение двигателем: момент сопротивления мотора при сброшенном газе.
+## Растёт с оборотами выше холостых и исчезает с открытием дросселя, поэтому
+## не отнимает тягу под полным газом и не глушит мотор на холостых. До колёс
+## доходит через сцепление: в нейтрали и с выжатой педалью машина катится
+## свободно, а мотор лишь быстрее сбрасывает обороты.
+func get_engine_brake_torque(throttle: float) -> float:
+	var rpm_above_idle := maxf(motor_rpm - idle_rpm, 0.0)
+	return motor_brake * (rpm_above_idle / MOTOR_BRAKE_REFERENCE_RPM) * (1.0 - clampf(throttle, 0.0, 1.0))
 
 
 ## Обороты мотора, соответствующие фактическому вращению ведущих колёс.

@@ -40,7 +40,11 @@ enum TorqueShape { CUSTOM, TURBO_PUNCH, ATMO_LINEAR, HIGH_REV }
 var torque_shape: int = TorqueShape.TURBO_PUNCH
 ## Необязательная кривая момента. Если пусто — строится по torque_shape.
 @export var torque_curve: Curve = null
-## Торможение двигателем относительно базы (1.0 — как в машине сцены).
+## Торможение двигателем: множитель к RallyCar.BASE_MOTOR_BRAKE — моменту
+## сопротивления мотора при закрытом дросселе. Больше — сильнее замедление на
+## сбросе газа; под полным газом и на холостых не действует. Тормозит только
+## ведущая ось, поэтому на заднем приводе большие значения доворачивают машину
+## в повороте. Замеры — в RALLY_SETUP_RU.md, раздел «Торможение двигателем».
 @export_range(0.2, 3.0, 0.05) var engine_brake_scale: float = 1.0
 ## Турбина: сброс газа даёт blow-off и хлопки в выхлопе. У атмо этого нет.
 @export var turbo: bool = true
@@ -58,6 +62,16 @@ var torque_shape: int = TorqueShape.TURBO_PUNCH
 @export_range(700.0, 2200.0, 1.0) var vehicle_mass: float = 1230.0
 @export_range(0.35, 0.70, 0.01) var front_weight_distribution: float = 0.53
 @export_range(-0.30, 0.30, 0.005) var center_of_gravity_height_offset: float = -0.10
+
+@export_group("Аэродинамика")
+## Коэффициент лобового сопротивления Cx. Вместе с лобовой площадью задаёт
+## потолок скорости и накат на большой скорости:
+## сила воздуха = 0.5 · 1.225 · Cx · площадь · скорость².
+## Меньше — выше максималка. 0.45 подобрано так, чтобы стоковый Lancer выходил
+## на ≈258 км/ч; таблица «Cx → потолок скорости» — в RALLY_SETUP_RU.md.
+@export_range(0.15, 1.2, 0.01) var coefficient_of_drag: float = 0.45
+## Лобовая площадь кузова, м². У седана такого размера — около 2.2.
+@export_range(1.0, 3.5, 0.01, "suffix:м²") var frontal_area: float = 2.2
 
 @export_group("Подвеска")
 @export_range(0.10, 0.60, 0.005) var front_spring_length: float = 0.30

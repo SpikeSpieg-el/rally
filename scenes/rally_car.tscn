@@ -995,6 +995,7 @@ mass = 1230.0
 physics_material_override = SubResource("PhysicsMaterial_37cw1")
 center_of_mass_mode = 1
 continuous_cd = true
+linear_damp_mode = 1
 script = ExtResource("1_car")
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
