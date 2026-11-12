@@ -231,7 +231,7 @@ class SpeedFeelWiringTest(unittest.TestCase):
             "scenes/effects/retro_screen.tscn",
             "scenes/rally_stage.tscn",
             "scenes/rally_stage2_forest.tscn",
-            "scenes/editor/visual_effects_lab.tscn",
+            "scenes/rally_stage_testpad.tscn",
         ):
             scene = read(rel)
             self.assertIn("shader_parameter/speed_stretch", scene, rel)
@@ -343,7 +343,7 @@ class OneSpeedEffectEverywhereTest(unittest.TestCase):
     SCENES = (
         "scenes/rally_stage.tscn",
         "scenes/rally_stage2_forest.tscn",
-        "scenes/editor/visual_effects_lab.tscn",
+        "scenes/rally_stage_testpad.tscn",
         "scenes/effects/retro_screen.tscn",
     )
 

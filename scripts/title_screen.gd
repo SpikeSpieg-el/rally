@@ -10,6 +10,7 @@ const InputSettings = preload("res://scripts/ui/input_settings.gd")
 @onready var preview: TextureRect = $Preview
 @onready var driver = $WorldViewport/MenuStage/Driver
 @onready var start_button: Button = $Menu/Column/Actions/StartButton
+@onready var testpad_button: Button = $Menu/Column/Actions/TestPadButton
 @onready var settings_button: Button = $Menu/Column/Actions/SettingsButton
 @onready var quit_button: Button = $Menu/Column/Actions/QuitButton
 var input_settings = null
@@ -23,10 +24,14 @@ func _ready() -> void:
 	_resize_preview()
 	get_viewport().size_changed.connect(_resize_preview)
 	start_button.pressed.connect(_open_tracks)
+	testpad_button.pressed.connect(_open_test_polygon)
 	settings_button.pressed.connect(_open_settings)
 	quit_button.pressed.connect(get_tree().quit)
-	for button in [start_button, settings_button, quit_button]:
+	for button in [start_button, testpad_button, settings_button, quit_button]:
 		button.mouse_entered.connect(button.grab_focus)
+	# Кнопка есть только тогда, когда полигон прописан в конфиге игры.
+	var game: Node = _game()
+	testpad_button.visible = game != null and bool(game.call("has_test_polygon"))
 	start_button.grab_focus()
 
 
@@ -51,6 +56,17 @@ func _resize_preview() -> void:
 
 func _open_tracks() -> void:
 	get_tree().change_scene_to_file(track_menu_scene)
+
+
+## Прямой вход в тест-полигон: ни выбора трассы, ни гаража — сразу заезд.
+func _open_test_polygon() -> void:
+	var game: Node = _game()
+	if game != null and game.has_method("start_test_polygon"):
+		game.call("start_test_polygon")
+
+
+func _game() -> Node:
+	return get_node_or_null("/root/RallyGame")
 
 
 func _open_settings() -> void:

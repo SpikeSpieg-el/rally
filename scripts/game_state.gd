@@ -585,6 +585,21 @@ func get_race_setup_override() -> CarSetupType:
 	return current_setup as CarSetupType
 
 
+## Есть ли тест-полигон в конфиге: от этого зависит кнопка главного экрана.
+func has_test_polygon() -> bool:
+	return config != null and config.test_track != null
+
+
+## Прямой вход в тест-полигон. Выбор трассы в меню не меняем: после полигона
+## меню откроется на прежней трассе, а не на «тестовой».
+func start_test_polygon() -> void:
+	if not has_test_polygon():
+		return
+	clear_marathon()
+	current_track = config.test_track
+	start_race()
+
+
 func start_race() -> void:
 	_race_uses_selected_setup = true
 	last_time = 0.0
