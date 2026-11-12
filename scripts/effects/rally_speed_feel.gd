@@ -1,5 +1,5 @@
 ## Эффект скорости как отдельный объект сцены.
-## Выбирайте готовый характер, а не угадывайтедробные uniform'ы.
+## Выбирайте готовый характер, а не угадывайте дробные uniform'ы.
 ## Точные значения открываются только в режиме «Свой характер».
 ##
 ## Единственный источник истины для эффекта скорости — этот узел.
@@ -15,12 +15,12 @@ signal settings_changed
 enum Feel { CUSTOM, OFF, COMFORT, EXPRESSIVE, ARCADE }
 
 ## enabled, start_kmh, full_kmh, strength, edge_blur%, vignette%, blur_gain,
-## cockpit_scale, edge_stretch%.
+## cockpit_scale, edge_stretch%, shake%, shake_freq.
 const PRESETS := {
-	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 1.0, 0.8, 0.0],
-	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.4, 6.0, 1.2, 0.7, 0.6],
-	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.0, 12.0, 2.0, 0.8, 2.0],
-	Feel.ARCADE: [true, 45.0, 160.0, 1.2, 1.6, 18.0, 2.6, 0.9, 3.2],
+	Feel.OFF: [false, 65.0, 180.0, 1.0, 0.0, 0.0, 1.0, 0.8, 0.0, 0.0, 22.0],
+	Feel.COMFORT: [true, 90.0, 210.0, 0.6, 0.4, 6.0, 1.2, 0.7, 0.6, 0.15, 20.0],
+	Feel.EXPRESSIVE: [true, 65.0, 180.0, 1.0, 1.0, 12.0, 2.0, 0.8, 2.0, 0.35, 24.0],
+	Feel.ARCADE: [true, 45.0, 160.0, 1.2, 1.6, 18.0, 2.6, 0.9, 3.2, 0.55, 28.0],
 }
 
 @export_group("Характер эффекта")
@@ -83,10 +83,22 @@ const PRESETS := {
 		_mark_custom()
 		_refresh()
 ## Растяжение картинки от центра к краям, % экрана. Это тот самый «поток»,
-## который читается как скорость, но не трясёт кадр: центр остаётся резким.
+## который читается как скорость, но не мылит центр дороги.
 @export_range(0.0, 6.0, 0.1, "suffix:% экрана") var edge_stretch_percent: float = 2.0:
 	set(value):
 		edge_stretch_percent = value
+		_mark_custom()
+		_refresh()
+## Лёгкая высокочастотная вибрация камеры от скорости (микро-дрожь кузова).
+@export_range(0.0, 2.0, 0.05, "suffix:%") var shake_percent: float = 0.35:
+	set(value):
+		shake_percent = value
+		_mark_custom()
+		_refresh()
+## Частота вибрации камеры на скорости.
+@export_range(5.0, 45.0, 1.0, "suffix:Гц") var shake_frequency: float = 24.0:
+	set(value):
+		shake_frequency = value
 		_mark_custom()
 		_refresh()
 
@@ -107,7 +119,18 @@ func _ready() -> void:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "description":
 		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-	if property.name in ["start_kmh", "full_kmh", "strength", "edge_blur_percent", "vignette_percent", "blur_gain", "cockpit_scale", "edge_stretch_percent"] and feel != Feel.CUSTOM:
+	if property.name in [
+		"start_kmh",
+		"full_kmh",
+		"strength",
+		"edge_blur_percent",
+		"vignette_percent",
+		"blur_gain",
+		"cockpit_scale",
+		"edge_stretch_percent",
+		"shake_percent",
+		"shake_frequency"
+	] and feel != Feel.CUSTOM:
 		property.usage = PROPERTY_USAGE_STORAGE
 
 
@@ -140,6 +163,8 @@ func _apply_preset() -> void:
 	blur_gain = p[6]
 	cockpit_scale = p[7]
 	edge_stretch_percent = p[8] if p.size() > 8 else 0.0
+	shake_percent = p[9] if p.size() > 9 else 0.35
+	shake_frequency = p[10] if p.size() > 10 else 24.0
 	_applying_preset = false
 
 
@@ -149,9 +174,9 @@ func _refresh() -> void:
 		# делится на ноль и эффект молча пропадает.
 		full_kmh = start_kmh + 1.0
 		return
-	description = "Меняет только ощущение скорости: края кадра мягко размываются, темнеют и тянутся от центра.\n"
-	description += "Центр (дорога и прицел) остаётся резким; капот сохраняет прежний спокойный вариант.\n"
-	description += "Кадр не трясётся: скорость дают ускорение, поток в мире и ветер, а не дрожь камеры.\n"
+	description = "Меняет ощущение скорости: края кадра мягко размываются, темнеют и тянутся от центра.\n"
+	description += "Центр (дорога и прицел) остаётся резким; капот сохраняет более спокойный вариант.\n"
+	description += "Добавлена лёгкая микро-вибрация камеры (%.2f%% при %.0f Гц) для ощущения скорости и шасси.\n" % [shake_percent, shake_frequency]
 	description += "PS1-пиксели, палитра, дождь и снег не изменяются.\n"
 	if not enabled:
 		description += "Сейчас: выключено."
@@ -179,6 +204,8 @@ func adopt_settings(cfg: Resource) -> void:
 	cockpit_scale = float(cfg.get("speed_cockpit_scale"))
 	var stored_stretch: Variant = cfg.get("speed_edge_stretch")
 	edge_stretch_percent = float(stored_stretch if stored_stretch != null else 0.02) * 100.0
+	var stored_shake: Variant = cfg.get("speed_camera_shake")
+	shake_percent = float(stored_shake if stored_shake != null else 0.35)
 	_applying_preset = false
 	_refresh()
 
@@ -188,6 +215,56 @@ func intensity_for(speed_kmh: float, track_allows: bool) -> float:
 		return 0.0
 	var span := maxf(1.0, full_kmh - start_kmh)
 	return clampf((speed_kmh - start_kmh) / span * strength, 0.0, 1.0)
+
+
+## Возвращает нормализованную силу тряски камеры (0..1) с мягким нарастанием.
+func shake_intensity_for(speed_kmh: float, track_allows: bool) -> float:
+	if shake_percent <= 0.0:
+		return 0.0
+	var base := intensity_for(speed_kmh, track_allows)
+	# Квадратичная кривая (smooth), чтобы на малых скоростях тряска не мешала,
+	# а ближе к максималке ощущалась отчётливее.
+	return base * base * (shake_percent * 0.01)
+
+
+## Готовое локальное смещение для Camera3D (в метрах) для микро-вибрации.
+## Можно прибавлять к camera.h_offset / camera.v_offset или локальной позиции.
+func sample_camera_shake_offset(
+	speed_kmh: float,
+	track_allows: bool,
+	time_sec: float = -1.0,
+	max_offset_m: float = 0.035
+) -> Vector3:
+	var amt := shake_intensity_for(speed_kmh, track_allows)
+	if amt <= 0.00001:
+		return Vector3.ZERO
+	var t := (Time.get_ticks_msec() * 0.001) if time_sec < 0.0 else time_sec
+	var w := t * shake_frequency * TAU
+	# Несоизмеримые гармоники дают живую вибрацию кузова без заметного цикла
+	var nx := sin(w * 1.0) * 0.65 + sin(w * 2.31 + 1.3) * 0.35
+	var ny := cos(w * 1.37 + 0.7) * 0.70 + sin(w * 3.13 + 2.1) * 0.30
+	var nz := sin(w * 0.83 + 2.9) * 0.25
+	var scale_m := max_offset_m * (amt * 100.0) # нормировка под shake_percent
+	return Vector3(nx * 0.7, ny, nz * 0.3) * scale_m
+
+
+## Готовые микро-углы (pitch, yaw, roll в радианах) для лёгкого покачивания камеры.
+func sample_camera_shake_angles_rad(
+	speed_kmh: float,
+	track_allows: bool,
+	time_sec: float = -1.0,
+	max_angle_deg: float = 0.45
+) -> Vector3:
+	var amt := shake_intensity_for(speed_kmh, track_allows)
+	if amt <= 0.00001:
+		return Vector3.ZERO
+	var t := (Time.get_ticks_msec() * 0.001) if time_sec < 0.0 else time_sec
+	var w := t * shake_frequency * TAU
+	var pitch := sin(w * 1.43 + 0.4) * 0.7 + cos(w * 2.87 + 1.8) * 0.3
+	var yaw := cos(w * 0.91 + 2.4) * 0.4
+	var roll := sin(w * 1.17 + 1.1) * 0.8
+	var max_rad := deg_to_rad(max_angle_deg) * (amt * 100.0)
+	return Vector3(pitch, yaw, roll) * max_rad
 
 
 ## Почему эффект сейчас молчит. Пустая строка — всё работает.

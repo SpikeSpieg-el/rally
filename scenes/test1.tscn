@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://c6do5nl5mx4ej"]
+
+[ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_exc4g"]
+[ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_uea8f"]
+[ext_resource type="Script" uid="uid://bdaj34wupumx2" path="res://scripts/data/rally_shader_parameter.gd" id="3_s7mpx"]
+[ext_resource type="Resource" uid="uid://btrusv15yonrx" path="res://data/stage/road_decals/gravel.tres" id="4_o5jvj"]
+[ext_resource type="Resource" uid="uid://ccfbe5brcqpr6" path="res://data/stage/road_decals/mud.tres" id="5_acji4"]
+[ext_resource type="Resource" uid="uid://2ap7kwx63sl" path="res://data/stage/road_decals/asphalt.tres" id="6_xmbrk"]
+[ext_resource type="Resource" uid="uid://bhd5l50uhtsjw" path="res://data/stage/road_decals/snow.tres" id="7_5luch"]
+[ext_resource type="Resource" uid="uid://7frbhx2sx4c7" path="res://data/stage/road_decals/grass.tres" id="8_tbiuu"]
+[ext_resource type="Script" uid="uid://rwx0tgnuruiw" path="res://scripts/data/rally_stage_settings.gd" id="9_ayt1t"]
+[ext_resource type="Resource" uid="uid://cgiuoadihlh3q" path="res://data/stage/default_spawn_layout.tres" id="10_cxpfw"]
+[ext_resource type="Resource" uid="uid://cg2eebrwf3kpw" path="res://data/stage/default_fx_profile.tres" id="11_agtxj"]
+[ext_resource type="Resource" uid="uid://br257lnwff4ev" path="res://data/stage/default_scenery.tres" id="12_1tcx8"]
+[ext_resource type="Resource" uid="uid://h8pv006o5rfw" path="res://data/stage/default_prop_library.tres" id="13_1ex47"]
+
+[sub_resource type="Resource" id="Resource_i4kvx"]
+script = ExtResource("9_ayt1t")
+ps1_enabled = false
+retro_style_strength = 0.05
+road_decal_profiles = Array[Resource]([ExtResource("4_o5jvj"), ExtResource("5_acji4"), ExtResource("6_xmbrk"), ExtResource("7_5luch"), ExtResource("8_tbiuu")])
+
+[node name="Test1" type="Node3D" unique_id=486238478]
+script = ExtResource("1_exc4g")
+game_config = ExtResource("2_uea8f")
+settings = SubResource("Resource_i4kvx")
+spawn_layout = ExtResource("10_cxpfw")
+fx_profile = ExtResource("11_agtxj")
+scenery = ExtResource("12_1tcx8")
+prop_library = ExtResource("13_1ex47")
+
+[node name="Terrain" type="StaticBody3D" parent="." unique_id=1694134835]

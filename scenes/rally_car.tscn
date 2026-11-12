@@ -1547,7 +1547,7 @@ transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.965
 mesh = SubResource("BoxMesh_harness")
 
 [node name="HeadlightL" type="SpotLight3D" parent="." unique_id=539570592]
-transform = Transform3D(-0.97420615, 0.015741242, -0.2251102, 9.844174e-16, 0.997564, 0.069756486, 0.22565988, 0.0679572, -0.971833, 0.8031842, 0.74156404, 2.8338642)
+transform = Transform3D(-0.97420615, 0.015741242, -0.22511019, 9.844174e-16, 0.9975641, 0.06975649, 0.22565988, 0.06795721, -0.97183305, 0.8031842, 0.8095547, 2.880949)
 light_color = Color(1, 0.91, 0.76, 1)
 light_energy = 8.0
 light_volumetric_fog_energy = 0.45
@@ -1557,7 +1557,7 @@ spot_attenuation = 0.75
 spot_angle = 32.0
 
 [node name="HeadlightR" type="SpotLight3D" parent="." unique_id=1823748999]
-transform = Transform3D(-0.9972683, -0.0051525193, 0.07368443, 1.0954397e-15, 0.997564, 0.069756486, -0.073864356, 0.06956594, -0.994839, -0.7841496, 0.74156404, 2.8122394)
+transform = Transform3D(-0.9972683, -0.005152519, 0.073684424, 1.0954397e-15, 0.9975641, 0.06975649, -0.073864356, 0.069565944, -0.994839, -0.7841496, 0.74156404, 2.9193437)
 light_color = Color(1, 0.91, 0.76, 1)
 light_energy = 8.0
 light_volumetric_fog_energy = 0.45

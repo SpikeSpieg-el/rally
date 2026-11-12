@@ -2,11 +2,11 @@
 
 [ext_resource type="Script" uid="uid://bdaj34wupumx2" path="res://scripts/data/rally_shader_parameter.gd" id="1_cpkj1"]
 [ext_resource type="Script" uid="uid://rwx0tgnuruiw" path="res://scripts/data/rally_stage_settings.gd" id="1_settings"]
-[ext_resource type="Resource" path="res://data/stage/road_decals/gravel.tres" id="rd_gravel"]
-[ext_resource type="Resource" path="res://data/stage/road_decals/mud.tres" id="rd_mud"]
-[ext_resource type="Resource" path="res://data/stage/road_decals/asphalt.tres" id="rd_asphalt"]
-[ext_resource type="Resource" path="res://data/stage/road_decals/snow.tres" id="rd_snow"]
-[ext_resource type="Resource" path="res://data/stage/road_decals/grass.tres" id="rd_grass"]
+[ext_resource type="Resource" uid="uid://2ap7kwx63sl" path="res://data/stage/road_decals/asphalt.tres" id="rd_asphalt"]
+[ext_resource type="Resource" uid="uid://7frbhx2sx4c7" path="res://data/stage/road_decals/grass.tres" id="rd_grass"]
+[ext_resource type="Resource" uid="uid://btrusv15yonrx" path="res://data/stage/road_decals/gravel.tres" id="rd_gravel"]
+[ext_resource type="Resource" uid="uid://ccfbe5brcqpr6" path="res://data/stage/road_decals/mud.tres" id="rd_mud"]
+[ext_resource type="Resource" uid="uid://bhd5l50uhtsjw" path="res://data/stage/road_decals/snow.tres" id="rd_snow"]
 
 [resource]
 script = ExtResource("1_settings")
