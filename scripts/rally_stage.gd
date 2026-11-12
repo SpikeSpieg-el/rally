@@ -50,6 +50,9 @@ var _fx_profile_from_scene: bool = false
 const TireMarksType = preload("res://scripts/tire_marks.gd")
 const GroundShader = preload("res://shaders/forest_ground.gdshader")
 const RoadShader = preload("res://shaders/gravel_road.gdshader")
+const RiverWaterShader = preload("res://shaders/river_water.gdshader")
+const RiverConfigType = preload("res://scripts/data/rally_river_config.gd")
+const RiverNetworkType = preload("res://scripts/track/river_network.gd")
 const GroundTexture = preload("res://textures/environment/forest_floor.png")
 const GravelTexture = preload("res://textures/environment/gravel.png")
 const NeedleTexture = preload("res://textures/environment/needles.png")
@@ -130,6 +133,17 @@ var time_choice: int = 0
 var track_profile: ProfileType = null
 var car: CarType = null
 var network: RoadNetworkType = null
+## Река карты: чистая геометрия русла (см. scripts/track/river_network.gd).
+## Её же читает потоковый рельеф в рабочем потоке — только чтение.
+var river_network: RiverNetworkType = null
+## Центры мостов в мире и радиусы их пролётов: внутри радиуса рельеф
+## прорезается до дна, а не держит насыпь полотна.
+var _bridge_points := PackedVector3Array()
+var _bridge_radii := PackedFloat32Array()
+## Расширение русла под мостом и радиус его сглаживания.
+var _bridge_scales := PackedFloat32Array()
+var _bridge_widen_radii := PackedFloat32Array()
+var _river_material: ShaderMaterial = null
 const WorldStreamer = preload("res://scripts/world_streamer.gd")
 const RoadDecalsType = preload("res://scripts/road_decals.gd")
 const STREAM_SLICE_USEC := 1800
@@ -771,6 +785,10 @@ func _build_world_async() -> void:
 	finish_pos = network.point_at(length)
 	start_dir = network.direction_at(0.0)
 	finish_dir = network.direction_at(length)
+	# Река и мосты считаются ДО рельефа: русло — часть той же функции высоты,
+	# что и дорога, поэтому земля, вода и мосты не могут разойтись.
+	_setup_bridges()
+	_setup_river()
 	if not Engine.is_editor_hint():
 		# Свет и небо применяем только в игре: иначе редактор помечает сцену
 		# изменённой при каждом предпросмотре.
@@ -799,6 +817,11 @@ func _build_world_async() -> void:
 		_report_progress(0.81, "Пятна, лужи и снег на полотне…")
 		await get_tree().process_frame
 	_build_road_decals()
+	if has_progress:
+		_report_progress(0.815, "Река и мосты…")
+		await get_tree().process_frame
+	_build_river()
+	_spawn_bridges()
 	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
@@ -905,7 +928,8 @@ func _height_with_distance(x: float, z: float, distance: float) -> float:
 ## changed the network's one-entry query cache in the meantime.
 func _height_with_sample(x: float, z: float, distance: float, along: float) -> float:
 	var road_y: float = network.height_at_along(along)
-	return _blend_height(road_y, _base_height(x, z, distance), distance, along)
+	var height: float = _blend_height(road_y, _base_height(x, z, distance), distance, along)
+	return _apply_river(x, z, height, distance)
 
 
 ## Called on the main thread, before streaming starts. Only this detached
@@ -915,8 +939,26 @@ func _make_streaming_terrain_sampler() -> RallyStage:
 	var sampler := RallyStage.new()
 	sampler.track = track.duplicate(true) as TrackConfigType
 	sampler.network = network.sparse_reader()
+	# Река собирается на главном потоке и дальше только читается: у Curve3D
+	# внутри есть ленивое запекание, которого в рабочем потоке быть не должно.
+	sampler.river_network = river_network
+	sampler._bridge_points = _bridge_points
+	sampler._bridge_radii = _bridge_radii
+	sampler._bridge_scales = _bridge_scales
+	sampler._bridge_widen_radii = _bridge_widen_radii
 	sampler._setup_noise()
 	return sampler
+
+
+## Высота обочины/земли в коридоре полотна БЕЗ реки: по ней строится лента
+## дороги, поэтому мост остаётся настилом, а не провалом в русло.
+func _road_shoulder_height(x: float, z: float) -> float:
+	if network == null:
+		return 0.0
+	var distance: float = network.distance_to_road(x, z)
+	var along: float = network.along_road(x, z)
+	var road_y: float = network.height_at_along(along)
+	return _blend_height(road_y, _base_height(x, z, distance), distance, along)
 
 
 ## «Свой» рельеф точки без влияния полотна: региональный уровень + холмы,
@@ -952,6 +994,254 @@ func _blend_height(road_y: float, base: float, distance: float, along: float) ->
 		# Кочки/волны полотна — те же, что в меше дороги.
 		height += _surface_bumps_along(along) * near
 	return height
+
+
+# ------------------------------------------------------------- река и мосты
+
+
+## Мосты из конфига трассы: мировые центры пролётов, их радиусы и параметры
+## расширения русла. Считается один раз на сборку, до рельефа.
+func _setup_bridges() -> void:
+	_bridge_points.clear()
+	_bridge_radii.clear()
+	_bridge_scales.clear()
+	_bridge_widen_radii.clear()
+	if track == null or network == null:
+		return
+	for placement in track.bridges:
+		if placement == null or not placement.enabled:
+			continue
+		var point: Vector3 = network.point_at(clampf(placement.distance, 0.0, network.total_length))
+		_bridge_points.append(point)
+		_bridge_radii.append(maxf(1.0, placement.open_radius))
+		_bridge_scales.append(maxf(1.0, placement.channel_scale))
+		_bridge_widen_radii.append(maxf(1.0, placement.channel_scale_radius))
+
+
+## Сеть реки: то же, что дорога, но для русла. Ничего не создаёт в сцене.
+func _setup_river() -> void:
+	river_network = null
+	_river_material = null
+	if track == null or track.river == null or not track.river.enabled:
+		return
+	if track.river.water_curve == null:
+		push_warning("RallyStage: у реки нет осевой линии (RallyRiverConfig.water_curve).")
+		return
+	# Прогрев кривой на главном потоке (см. _make_streaming_terrain_sampler).
+	track.river.water_curve.sample_baked(0.0)
+	river_network = RiverNetworkType.build(
+		track.river, _bridge_points, _bridge_scales, _bridge_widen_radii
+	)
+	_warn_bridge_clearance()
+
+
+## Мост, под которым вода подошла к настилу вплотную, — ошибка авторинга,
+## а не «так получилось»: предупреждаем сразу при сборке мира. Допуск 0,5 м,
+## потому что метраж моста и выборка кривой реки считаются по-разному.
+func _warn_bridge_clearance() -> void:
+	if river_network == null or network == null:
+		return
+	for placement in track.bridges:
+		if placement == null or not placement.enabled:
+			continue
+		var center: Vector3 = network.point_at(clampf(placement.distance, 0.0, network.total_length))
+		var info: Vector3 = river_network.channel_at(center.x, center.z)
+		if info.x == INF:
+			continue
+		var clearance: float = center.y + placement.deck_offset - info.y
+		var margin: float = maxf(1.0, placement.water_clearance - 0.5)
+		if clearance < margin:
+			push_warning(
+				"RallyStage: мост '%s' (%d м) — вода всего %.2f м под настилом (ожидалось %.2f м)."
+				% [placement.display_name, int(round(placement.distance)), clearance, placement.water_clearance]
+			)
+
+
+## Точка попадает в открытый пролёт моста? Только там рельеф прорезается до
+## дна и под полотном: иначе насыпь дороги работала бы плотиной.
+func _bridge_open_at(x: float, z: float) -> bool:
+	for i in range(_bridge_points.size()):
+		var dx: float = x - _bridge_points[i].x
+		var dz: float = z - _bridge_points[i].z
+		if dx * dx + dz * dz <= _bridge_radii[i] * _bridge_radii[i]:
+			return true
+	return false
+
+
+## Русло в функции высоты. Порядок важен: сначала обычный откос полотна, потом
+## река — поэтому вода всегда ниже земли, а берега остаются естественными.
+func _apply_river(x: float, z: float, height: float, road_distance: float) -> float:
+	if river_network == null or track.river == null:
+		return height
+	var carved: float = river_network.carve(x, z, height, track.river)
+	if carved >= height:
+		return height
+	var keep: float = maxf(0.0, track.river.road_keep_zone)
+	var corridor: float = corridor_half()
+	if road_distance >= corridor + keep or _bridge_open_at(x, z):
+		return carved
+	# Без моста насыпь полотна держится: русло уходит под дорогу только там,
+	# где стоит мост.
+	var t: float = smoothstep(corridor, corridor + maxf(0.1, keep), road_distance)
+	return lerpf(height, carved, t)
+
+
+## Участок дороги, который нельзя закрывать водой: насыпь без моста.
+func _water_blocked_at(x: float, z: float) -> bool:
+	if network == null or track == null or track.river == null:
+		return false
+	if _bridge_open_at(x, z):
+		return false
+	return network.distance_to_road(x, z) < corridor_half() + track.river.road_keep_zone
+
+
+## Зеркало воды и берега. Строится после рельефа: камни на берегу садятся по
+## уже готовой сетке высот.
+func _build_river() -> void:
+	if river_network == null or track.river == null or generated == null:
+		return
+	# В потоковом мире сетки высот целиком нет: воду строим без посадки на
+	# грунт (иначе кромка «прилипала» бы к первому же загруженному чанку).
+	var ground := Callable() if world_streamer != null else Callable(self, "ground_height")
+	var mesh: ArrayMesh = river_network.build_water_mesh(
+		track.river, Callable(self, "_water_blocked_at"), ground
+	)
+	if mesh == null:
+		return
+	var water := MeshInstance3D.new()
+	water.name = "River"
+	water.mesh = mesh
+	water.material_override = _make_river_material()
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Вода в темноте не должна светиться от лунного света сильнее берегов.
+	water.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	generated.add_child(water)
+	_spawn_river_banks()
+
+
+func _make_river_material() -> ShaderMaterial:
+	if _river_material != null:
+		return _river_material
+	var cfg: RiverConfigType = track.river
+	_river_material = ShaderMaterial.new()
+	_river_material.shader = RiverWaterShader
+	_river_material.set_shader_parameter("shallow_color", cfg.shallow_color)
+	_river_material.set_shader_parameter("deep_color", cfg.deep_color)
+	_river_material.set_shader_parameter("foam_color", cfg.foam_color)
+	_river_material.set_shader_parameter("flow_speed", cfg.flow_speed)
+	_river_material.set_shader_parameter("foam_amount", cfg.foam_amount)
+	_river_material.set_shader_parameter("foam_width", cfg.foam_width)
+	_river_material.set_shader_parameter("gloss", cfg.gloss)
+	_river_material.set_shader_parameter("opacity", cfg.opacity)
+	_river_material.set_shader_parameter("wave_height", cfg.wave_height)
+	_river_material.set_shader_parameter("ripple_scale", cfg.ripple_scale)
+	_river_material.set_shader_parameter(
+		"vertex_snap", s_settings().retro_vertex_snap if s_settings().is_retro(track) else 0.0
+	)
+	_river_material.set_shader_parameter("resolution_y", float(s_settings().retro_resolution_height))
+	_river_material.set_shader_parameter("wetness", _weather_wetness())
+	_river_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+	return _river_material
+
+
+## Мосты: модульные сцены из библиотеки на своих метрах трассы. Настил
+## ставится чуть ниже гравия, поэтому полотно остаётся проезжей поверхностью,
+## а сцена моста даёт парапеты, опоры и арочные пролёты.
+func _spawn_bridges() -> void:
+	if generated == null or network == null or track == null:
+		return
+	for placement in track.bridges:
+		if placement == null or not placement.enabled:
+			continue
+		var distance: float = clampf(placement.distance, 0.0, network.total_length)
+		var center: Vector3 = network.point_at(distance)
+		var direction: Vector3 = network.direction_at(distance)
+		var yaw: float = atan2(-direction.z, direction.x) + deg_to_rad(placement.yaw_offset_deg)
+		var spot := Vector3(center.x, center.y + placement.deck_offset, center.z)
+		var node: Node3D = _place_prop(generated, placement.prop_id, spot, yaw)
+		if node == null:
+			continue
+		if not placement.display_name.is_empty():
+			node.name = "Bridge_%d" % int(round(placement.distance))
+
+
+## Камни и подпорные стенки по берегам. Всё — модульные сцены из библиотеки,
+## поэтому берег правится в редакторе как обычный пропс.
+func _spawn_river_banks() -> void:
+	if river_network == null or track.river == null or generated == null:
+		return
+	# В потоковом мире сетки высот ещё нет: камни сажали бы «в воздух».
+	if world_streamer != null:
+		return
+	var cfg: RiverConfigType = track.river
+	var library := s_props()
+	var rock: RallyProp = library.by_id(cfg.bank_rock_prop_id)
+	var wall: RallyProp = library.by_id(cfg.bank_wall_prop_id)
+	if rock == null and wall == null:
+		return
+	var container := Node3D.new()
+	container.name = "RiverBanks"
+	generated.add_child(container)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = track.terrain_seed ^ 51293
+	var rock_transforms: Array = []
+	var rock_colors: Array = []
+	var wall_transforms: Array = []
+	var wall_colors: Array = []
+	var samples: PackedVector3Array = river_network.samples
+	var reach: float = 0.0
+	var next_rock: float = 0.0
+	var next_wall: float = cfg.bank_wall_margin
+	var total: float = 0.0
+	for i in range(1, samples.size()):
+		var previous: Vector3 = samples[i - 1]
+		var point: Vector3 = samples[i]
+		var flat: float = Vector2(point.x - previous.x, point.z - previous.z).length()
+		total += flat
+		var tangent := Vector3(point.x - previous.x, 0.0, point.z - previous.z)
+		if tangent.length_squared() < 0.0001:
+			continue
+		tangent = tangent.normalized()
+		var side := Vector3(tangent.z, 0.0, -tangent.x)
+		var width_scale: float = river_network.width_scales[i]
+		var water_edge: float = cfg.half_width * width_scale
+		while total >= next_rock:
+			next_rock += maxf(1.0, cfg.bank_rock_spacing) * rng.randf_range(0.6, 1.4)
+			if rock == null or rng.randf() > cfg.bank_rock_chance:
+				continue
+			var sign := -1.0 if rng.randf() < 0.5 else 1.0
+			var lateral: float = water_edge + cfg.bank_rock_lateral * rng.randf_range(0.4, 1.6)
+			var spot := point + side * (lateral * sign)
+			if _water_blocked_at(spot.x, spot.z):
+				continue
+			var ground: float = ground_height(spot.x, spot.z)
+			var rock_size: float = rng.randf_range(rock.size.x, rock.size.y) * 0.9
+			rock_transforms.append(Transform3D(
+				Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * rock_size),
+				Vector3(spot.x, ground + rock.y_offset * rock_size, spot.z)
+			))
+			rock_colors.append(Color(1.0, rng.randf_range(0.85, 1.0), 1.0, 1.0))
+		while total >= next_wall:
+			next_wall += maxf(1.0, cfg.bank_wall_spacing)
+			if wall == null or cfg.bank_wall_chance <= 0.0 or rng.randf() > cfg.bank_wall_chance:
+				continue
+			if total < cfg.bank_wall_margin or total > river_network.total_length - cfg.bank_wall_margin:
+				continue
+			var sign := -1.0 if rng.randf() < 0.5 else 1.0
+			var lateral: float = water_edge + cfg.bank_wall_lateral
+			var spot := point + side * (lateral * sign)
+			if _water_blocked_at(spot.x, spot.z):
+				continue
+			var ground: float = ground_height(spot.x, spot.z)
+			wall_transforms.append(Transform3D(
+				Basis(Vector3.UP, atan2(-tangent.z, tangent.x)),
+				Vector3(spot.x, ground, spot.z)
+			))
+			wall_colors.append(Color(1.0, 1.0, 1.0, 1.0))
+	if rock != null and not rock_transforms.is_empty():
+		_dressing_multimesh(container, "RiverBankRocks", rock.id, rock_transforms, rock_colors)
+	if wall != null and not wall_transforms.is_empty():
+		_dressing_multimesh(container, "RiverBankWalls", wall.id, wall_transforms, wall_colors)
 
 
 ## Высота земли «как она нарисована» — с точностью до треугольника меша
@@ -1250,7 +1540,12 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 				Vector2(x, z).distance_to(start_xz),
 				Vector2(x, z).distance_to(finish_xz)
 			)
-			cap[index] = 1 if distances[index] >= nearest_end - 1.0 else 0
+			var capped: bool = distances[index] >= nearest_end - 1.0
+			# Под мостом земля тоже сплошная: дно и берега видны из-под настила,
+			# а не «дыра с видом в небо».
+			if not capped and _bridge_open_at(x, z):
+				capped = true
+			cap[index] = 1 if capped else 0
 
 	# 2) Кювет: земля у кромки опускается. Полотно всегда выше земли, поэтому
 	#    «протыкания» дороги рельефом не бывает даже на косогорах.
@@ -1265,6 +1560,20 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	#    поэтому он — якорь: раньше ограничитель «размазывал» и его, утягивая
 	#    землю у дороги на несколько метров вниз и делая из откоса стенку.
 	heights = _limit_terrain_slopes(heights, distances, deltas, cols, rows, cell)
+
+	# 4) Русло реки. Прорезается ПОСЛЕ ограничителя склонов — иначе он
+	#    «замазывал» бы канал обратно и вода стояла бы на насыпи.
+	if river_network != null and track.river != null:
+		for gz in range(rows):
+			var river_z: float = origin.y + float(gz) * cell
+			for gx in range(cols):
+				var river_index: int = gz * cols + gx
+				heights[river_index] = _apply_river(
+					origin.x + float(gx) * cell,
+					river_z,
+					heights[river_index],
+					distances[river_index]
+				)
 	_ground_grid = heights.duplicate()
 	_ground_origin = origin
 	_ground_cell = cell
@@ -1584,8 +1893,14 @@ func _build_road(light: bool = false, from_pct: float = 0.0, to_pct: float = 0.0
 				var crown: float = track.road_camber * pow(absf(lat) / maxf(corridor, 0.01), 2.0)
 				y = surface_height - crown
 			elif absf(lat) <= corridor:
-				# Обочина: ровно та же функция, что и у земли в коридоре.
-				y = height_at(point.x, point.z)
+				# Обочина: ровно та же функция, что и у земли в коридоре, но БЕЗ
+				# русла реки: на мосту обочина — часть настила, а не дно оврага.
+				y = _road_shoulder_height(point.x, point.z)
+			elif _bridge_open_at(point.x, point.z) and ground_height(point.x, point.z) < surface_height - 0.6:
+				# Кромка на мосту не ныряет в ущелье: это борт настила.
+				# Проверка по земле оставляет естественную обочину там, где
+				# под кромкой обычная насыпь (у торцов настила).
+				y = surface_height - 0.12
 			else:
 				# Внешняя кромка ложится на нарисованный меш земли (кювет),
 				# поэтому между дорогой и рельефом нет ни щели, ни стыка.
@@ -2178,6 +2493,12 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				if not terrain_rect.has_point(Vector2(point.x, point.z)):
 					continue
 				if network.distance_to_road(point.x, point.z) < corridor + cfg.road_clearance:
+					continue
+				# В воду и на береговой откос ничего не сажаем: лес стоит по берегам,
+				# а не посреди реки.
+				if river_network != null and river_network.blocks(point.x, point.z, cfg.road_clearance):
+					continue
+				if _bridge_open_at(point.x, point.z):
 					continue
 				var ground: float = ground_height(point.x, point.z)
 				var size: float = rng.randf_range(prop.size.x, prop.size.y)
@@ -3411,6 +3732,9 @@ func _spawn_edge_posts(distance_start: float = 0.0, distance_end: float = -1.0, 
 		var side := Vector3(dir.z, 0.0, -dir.x)
 		for side_sign in [-1.0, 1.0]:
 			var point: Vector3 = center + side * (lateral * float(side_sign))
+			# На мосту столбик стоял бы в воде под пролётом.
+			if _bridge_open_at(point.x, point.z):
+				continue
 			var y: float = ground_height(point.x, point.z)
 			transforms.append(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), Vector3(point.x, y, point.z)))
 	var multimesh := MultiMesh.new()

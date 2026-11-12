@@ -9,6 +9,10 @@
 [ext_resource type="PackedScene" uid="uid://dex4lac2e6w4q" path="res://scenes/props/bunting_post.tscn" id="scene_bunting_post"]
 [ext_resource type="PackedScene" uid="uid://dce5u5w7ba1ck" path="res://scenes/props/bunting_tape.tscn" id="scene_bunting_tape"]
 [ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="scene_bush"]
+[ext_resource type="PackedScene" path="res://scenes/props/dry_stone_wall.tscn" id="scene_dry_stone_wall"]
+[ext_resource type="PackedScene" path="res://scenes/props/river_bank_rock.tscn" id="scene_river_bank_rock"]
+[ext_resource type="PackedScene" path="res://scenes/props/bridge_small.tscn" id="scene_bridge_small"]
+[ext_resource type="PackedScene" path="res://scenes/props/bridge_large.tscn" id="scene_bridge_large"]
 [ext_resource type="PackedScene" uid="uid://bbreyhlr7ikfh" path="res://scenes/props/camera_flash.tscn" id="scene_camera_flash"]
 [ext_resource type="PackedScene" uid="uid://d2e13cemy2hs6" path="res://scenes/props/camper.tscn" id="scene_camper"]
 [ext_resource type="PackedScene" uid="uid://dihocl82pl0x5" path="res://scenes/props/camper_tent.tscn" id="scene_camper_tent"]
@@ -643,6 +647,42 @@ weight = 0.0
 random_yaw = false
 category = 5
 
+[sub_resource type="Resource" id="RallyProp_bridge_small"]
+script = ExtResource("2_prop")
+id = "bridge_small"
+display_name = "Малый мост (камень и дуб, 22 м)"
+scene = ExtResource("scene_bridge_small")
+weight = 0.0
+random_yaw = false
+category = 4
+
+[sub_resource type="Resource" id="RallyProp_bridge_large"]
+script = ExtResource("2_prop")
+id = "bridge_large"
+display_name = "Большой мост (три опоры, две арки, 46 м)"
+scene = ExtResource("scene_bridge_large")
+weight = 0.0
+random_yaw = false
+category = 4
+
+[sub_resource type="Resource" id="RallyProp_river_bank_rock"]
+script = ExtResource("2_prop")
+id = "river_bank_rock"
+display_name = "Мокрый валун на берегу реки"
+scene = ExtResource("scene_river_bank_rock")
+weight = 0.0
+random_yaw = false
+category = 2
+
+[sub_resource type="Resource" id="RallyProp_dry_stone_wall"]
+script = ExtResource("2_prop")
+id = "dry_stone_wall"
+display_name = "Сухая кладка (модуль 3 м)"
+scene = ExtResource("scene_dry_stone_wall")
+weight = 0.0
+random_yaw = false
+category = 3
+
 [resource]
 script = ExtResource("1_lib")
-props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers"), SubResource("RallyProp_metal_guardrail"), SubResource("RallyProp_braking_marker"), SubResource("RallyProp_safety_net"), SubResource("RallyProp_marshal_tent"), SubResource("RallyProp_light_tower"), SubResource("RallyProp_generator"), SubResource("RallyProp_parked_car"), SubResource("RallyProp_service_car"), SubResource("RallyProp_broken_car"), SubResource("RallyProp_traffic_cone"), SubResource("RallyProp_finish_warning_sign"), SubResource("RallyProp_stop_sign"), SubResource("RallyProp_warning_triangle"), SubResource("RallyProp_forester_house"), SubResource("RallyProp_gate_sign"), SubResource("RallyProp_bunting_post"), SubResource("RallyProp_bunting_tape"), SubResource("RallyProp_power_pole"), SubResource("RallyProp_mud_patch"), SubResource("RallyProp_fog_patch"), SubResource("RallyProp_spectator_person"), SubResource("RallyProp_camera_flash"), SubResource("RallyProp_camper"), SubResource("RallyProp_camper_tent"), SubResource("RallyProp_campfire"), SubResource("RallyProp_spectator_crowd"), SubResource("RallyProp_helicopter")])
+props = Array[ExtResource("2_prop")]([SubResource("RallyProp_fir_tree"), SubResource("RallyProp_pine_tree"), SubResource("RallyProp_birch_tree"), SubResource("RallyProp_dead_tree"), SubResource("RallyProp_bush"), SubResource("RallyProp_fern"), SubResource("RallyProp_grass"), SubResource("RallyProp_grass2"), SubResource("RallyProp_grass3"), SubResource("RallyProp_boulder"), SubResource("RallyProp_rock_cluster"), SubResource("RallyProp_dirt_mound"), SubResource("RallyProp_stump"), SubResource("RallyProp_log"), SubResource("RallyProp_hay_bale"), SubResource("RallyProp_tire_stack"), SubResource("RallyProp_wooden_fence"), SubResource("RallyProp_sandbag_barrier"), SubResource("RallyProp_sponsor_banner"), SubResource("RallyProp_juniper"), SubResource("RallyProp_dry_shrub"), SubResource("RallyProp_moss_rock"), SubResource("RallyProp_mushroom_cluster"), SubResource("RallyProp_wildflowers"), SubResource("RallyProp_metal_guardrail"), SubResource("RallyProp_braking_marker"), SubResource("RallyProp_safety_net"), SubResource("RallyProp_marshal_tent"), SubResource("RallyProp_light_tower"), SubResource("RallyProp_generator"), SubResource("RallyProp_parked_car"), SubResource("RallyProp_service_car"), SubResource("RallyProp_broken_car"), SubResource("RallyProp_traffic_cone"), SubResource("RallyProp_finish_warning_sign"), SubResource("RallyProp_stop_sign"), SubResource("RallyProp_warning_triangle"), SubResource("RallyProp_forester_house"), SubResource("RallyProp_gate_sign"), SubResource("RallyProp_bunting_post"), SubResource("RallyProp_bunting_tape"), SubResource("RallyProp_power_pole"), SubResource("RallyProp_mud_patch"), SubResource("RallyProp_fog_patch"), SubResource("RallyProp_spectator_person"), SubResource("RallyProp_camera_flash"), SubResource("RallyProp_camper"), SubResource("RallyProp_camper_tent"), SubResource("RallyProp_campfire"), SubResource("RallyProp_spectator_crowd"), SubResource("RallyProp_helicopter"), SubResource("RallyProp_bridge_small"), SubResource("RallyProp_bridge_large"), SubResource("RallyProp_river_bank_rock"), SubResource("RallyProp_dry_stone_wall")])

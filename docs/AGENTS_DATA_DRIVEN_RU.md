@@ -64,6 +64,8 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | --- | --- | --- |
 | `RallyGameConfig` | `data/game_config.tres` | список трасс, сетапов, сцена этапа, пути сохранений |
 | `RallyTrackConfig` + `RallyTrackProfile` | `data/tracks/*.tres` | геометрия трассы, покрытие, ширина, кочки, сцепление, целевое время, небо/туман |
+| `RallyRiverConfig` | подресурс в `RallyTrackConfig` | река трассы: осевая линия `water_curve` (Y — уровень воды), ширина русла и берега, глубина дна, полоса `road_keep_zone` у насыпи, цвет/пена/блеск/рябь воды, пропсы берега (камни, подпорные стенки) и их плотность. `enabled = false` — трасса без реки |
+| `RallyBridgePlacement` | `RallyTrackConfig.bridges` | мост: метраж, `prop_id` из библиотеки пропсов, `deck_offset` (настил относительно полотна), `open_radius` (где рельеф прорезается насквозь), `channel_scale`/`channel_scale_radius` (расширение русла под пролётом), `water_clearance`, `yaw_offset_deg` |
 | `RallyWeatherConfig` | `data/weather/*.tres` | дождь, снег, мокрота, ветер, тон неба, видимость, сцепление |
 | `RallyStageSettings` | `data/stage/default_stage_settings.tres` | совместимость и оставшиеся общие настройки этапа: окружение, туман, солнце, процедурная обстановка. Визуальные эффекты PS1/скорости/осадков/материалов переехали в узлы сцены |
 | `RallySpawnLayout` | `data/stage/default_spawn_layout.tres` | расстановка: старт, финиш, КПП, ворота, столбики, знаки, отступы и зазоры |
@@ -197,6 +199,13 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
    `rally_stage.gd` не нужно.
 6. Текстуры пропсов лежат в `textures/environment/` и генерируются
    `tools/make_prop_textures.py`; сцены — `tools/make_prop_scenes.py`.
+7. Мосты через реку и камни на её берегах — тоже пропсы из библиотеки
+   (`bridge_small`, `bridge_large`, `river_bank_rock`, `dry_stone_wall`),
+   только ставятся они не генератором обстановки, а по `RallyBridgePlacement`
+   и вдоль оси русла; вес у них `0.0` (только вручную). Ширина настила
+   подобрана под ленту полотна с обочиной и внешней кромкой (полотно ±6,6 м),
+   парапеты стоят **снаружи** ленты. Подробности и числа —
+   `docs/ENGLAND_STAGE_RU.md`.
 
 ## 4б. Редакторские инструменты — плагины, а не меню
 
@@ -329,6 +338,10 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 - Без движка: `python3 tools/check_project.py` — сверяет обращения к полям
   «пультов» (`cfg.поле`) с реальными полями ресурсов и проверяет, что все
   ссылки в `.tscn`/`.tres` объявлены и ведут на существующие файлы.
+- Без движка: `python3 tests/test_england_stage.py` — эталонная проверка
+  трассы с рекой: длина, уклоны, число пересечений русла, метраж мостов,
+  просвет под настилом и зазор дороги до воды. Берите её за образец, если
+  добавляете трассу со своей геометрией.
 
 ## 9. Чек-лист перед коммитом
 

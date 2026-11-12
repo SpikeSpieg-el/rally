@@ -602,8 +602,19 @@ func start_race() -> void:
 	if token != _loading_fade_token:
 		return
 	await get_tree().process_frame
-	var scene_path: String = config.stage_scene if config != null and not config.stage_scene.is_empty() else "res://scenes/rally_stage.tscn"
-	call_deferred("_change_scene", scene_path)
+	call_deferred("_change_scene", _stage_scene_path())
+
+
+## Сцена заезда: своя у трассы (участки со своей обстановкой и светом) или
+## общая из RallyGameConfig.
+func _stage_scene_path() -> String:
+	if current_track != null:
+		var own: String = String(current_track.get("stage_scene"))
+		if not own.is_empty():
+			return own
+	if config != null and not config.stage_scene.is_empty():
+		return config.stage_scene
+	return "res://scenes/rally_stage.tscn"
 
 
 func restart_race() -> void:
