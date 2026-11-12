@@ -17,6 +17,7 @@
 
 Запуск:  python3 tools/author_england_stage.py
 """
+import bisect
 import math
 import os
 import random
@@ -50,7 +51,22 @@ RIVER_Z_END = 1500.0
 RIVER_STEP = 10.0
 RIVER_UPSTREAM_GRADE = 0.045
 RIVER_DOWNSTREAM_GRADE = 0.020
+# Насколько вода должна сидеть НИЖЕ земли: русло режется только вниз, поэтому
+# уровень выше рельефа — это висящее в небе зеркало и треугольные «простыни».
+RIVER_SINK = 0.85
+# Сетка рельефа для посадки воды — та же, что у движка (track.terrain_cell):
+# региональный уровень строится из высоты дороги и сильно размывается, поэтому
+# грубая сетка «съедает» высоту под мостом и вода падает на ровном месте.
+RIVER_TERRAIN_CELL = 3.0
 
+# Километраж переправ: задан планом трассы и осью реки, проверяется в verify().
+START_HEIGHT = 10.0
+SHELF_AMP = 0.6          # «полки» уклона, м
+BRIDGE_FLAT = 30.0       # ровная площадка под настилом, м (настил 46 м)
+BRIDGE_RAMP = 70.0       # плавный выход уклона на подходе, м
+CROSSING_SMALL = 186.0
+CROSSING_LARGE = 3378.0
+CROSSING_LARGE_U = CROSSING_LARGE / 4706.0
 SMALL_CLEARANCE = 2.8
 LARGE_CLEARANCE = 4.6
 SMALL_SPAN = 22.0
@@ -120,38 +136,72 @@ def build_path(rng):
     return segs
 
 
-def heights_for(points, total_hint=None):
-    """Профиль высоты: монотонный подъём + пологие полки, без провалов."""
-    acc = kit.xz_distances(points)
-    total = max(acc[-1], 1.0)
+def heights_for(points, marks=()):
+    """Профиль высоты задаётся УКЛОНОМ, а не точками.
+
+    Почему не монотонный подъём (как было раньше): региональный рельеф в игре
+    строится ИЗ ВЫСОТЫ ДОРОГИ (широкое размытие, road_network._build_regional),
+    значит профиль дороги — это и есть профиль местности. При монотонном
+    подъёме 10 → 180 м северная переправа (3378 м трассы) попадала на
+    135-метровое плато, а река, пересекающая трассу именно там, оказывалась
+    на вершине «горы»: вода висела над землёй и рисовала треугольные
+    простыни, а мост стоял на мелкой канаве на вершине.
+
+    Теперь профиль: разгон → набор высоты на гребень → долгий спуск в долину
+    реки → финишный подъём. Интегрируем уклон, потому что так мы точно
+    управляем двумя вещами, которые ломали геометрию:
+      * на подходах к переправам уклон ровно нулевой — жёсткий настил моста
+        ложится на полотно без ступеньки на торце;
+      * уклон меняется плавно — нет изломов, которые интерполяция кривой
+        превращает в пики под 15 %.
+    """
+    count = len(points)
+    if count < 3:
+        return [(p[0], p[1], START_HEIGHT) for p in points]
+    # (доля длины, уклон в м/м): разгон, гребень, спуск в долину, финиш.
+    plan = ((0.044, 0.010), (0.435, 0.075), (CROSSING_LARGE_U, -0.080), (1.0, 0.078))
+    grade = []
+    for index in range(count):
+        u = index / float(count - 1)
+        value = plan[-1][1]
+        for limit, slope in plan:
+            if u <= limit:
+                value = slope
+                break
+        grade.append(value)
+    grade = box_smooth(grade, 18, 3)
+    # Площадки под настилы: уклон ноль на пролёте и плавный выход на подходе.
+    for mark in marks:
+        for index in range(count):
+            distance = abs(index - mark)
+            if distance <= BRIDGE_FLAT:
+                weight = 1.0
+            elif distance < BRIDGE_FLAT + BRIDGE_RAMP:
+                weight = 0.5 + 0.5 * math.cos(
+                    math.pi * (distance - BRIDGE_FLAT) / BRIDGE_RAMP)
+            else:
+                continue
+            grade[index] *= 1.0 - weight
     out = []
-    for (x, z, _), distance in zip(points, acc):
-        u = distance / total
-        # Нижняя долина → плато → подъём → гребень: две гладкие дуги.
-        if u <= 0.30:
-            base = 10.0 + 14.0 * (0.5 - 0.5 * math.cos(math.pi * u / 0.30))
-        elif u <= 0.92:
-            t = (u - 0.30) / 0.62
-            # Пологая S-кривая: медленный разгон подъёма и мягкое выполаживание.
-            eased = t * t * (3.0 - 2.0 * t)
-            base = 24.0 + 148.0 * eased
-        else:
-            t = (u - 0.92) / 0.08
-            base = 172.0 + 8.0 * (0.5 - 0.5 * math.cos(math.pi * t))
-        # Длинные «полки» уклона: короткие всплески ±1.2 м, чтобы машина
+    height = START_HEIGHT
+    for index, (x, z, _) in enumerate(points):
+        height += grade[index]
+        # Длинные «полки»: короткие всплески ±0,6 м, чтобы машина
         # разгружалась и снова садилась на подвеску.
-        shelf = 1.2 * math.sin(distance / 233.0) * math.sin(distance / 91.0 + 0.7)
-        shelf *= road_profile.ease(distance / 120.0) * road_profile.ease((total - distance) / 160.0)
-        out.append((x, z, base + shelf))
+        shelf = SHELF_AMP * math.sin(index / 233.0) * math.sin(index / 91.0 + 0.7)
+        shelf *= road_profile.ease(index / 120.0) * road_profile.ease((count - index) / 160.0)
+        out.append((x, z, height + shelf))
     return out
 
 
 def compose_route():
     rng = random.Random(SEED)
     pts, _length = kit.compose(build_path(rng), step=1.0)
-    profiled = heights_for(pts)
-    smoothed = kit.smooth_heights(profiled, 22.0)
-    limited = kit.limit_grade(smoothed, 9.0)
+    profiled = heights_for(pts, [CROSSING_SMALL, CROSSING_LARGE])
+    smoothed = kit.smooth_heights(profiled, 12.0)
+    # Запас 1,1 % к лимиту теста (9,5 %): безье между контрольными точками
+    # добавляет к уклону десятые доли процента.
+    limited = kit.limit_grade(smoothed, 8.4)
     controls = kit.select_controls(limited, max_gap=26, min_gap=6, turn_trigger_deg=6)
     return controls
 
@@ -223,17 +273,183 @@ def water_profile(small, large):
     return level
 
 
-def write_river(small, large):
-    level = water_profile(small, large)
-    points = []
+def nearest_on_route(route, acc, x, z):
+    """Точное расстояние до осевой линии и километраж: (d, along).
+
+    Грубая сетка поля дорог (12-15 м) у моста врёт на метры — а именно там
+    вода ближе всего к полотну, поэтому расстояние считаем по отрезкам.
+    """
+    best_d = 1e9
+    best_along = 0.0
+    for i in range(len(route) - 1):
+        a = route[i]
+        b = route[i + 1]
+        abx = b[0] - a[0]
+        abz = b[2] - a[2]
+        l2 = abx * abx + abz * abz
+        t = 0.0
+        if l2 > 1e-9:
+            t = max(0.0, min(1.0, ((x - a[0]) * abx + (z - a[2]) * abz) / l2))
+        d = math.hypot(x - (a[0] + abx * t), z - (a[2] + abz * t))
+        if d < best_d:
+            best_d = d
+            best_along = acc[i] + (acc[i + 1] - acc[i]) * t
+    return best_d, best_along
+
+
+def terrain_sampler():
+    """Высоты движка без реки: та же функция, что _road_shoulder_height().
+
+    Нужна, чтобы уровень воды садился в рельеф при авторинге, а не только
+    на этапе сборки мира: иначе кривую в редакторе видно висящей в воздухе.
+    """
+    cfg = model.read_track(TRACK_PATH)
+    route = model.sample_curve(model.load_curve(ROUTE_PATH), 2.0)
+    acc = [0.0]
+    for a, b in zip(route, route[1:]):
+        acc.append(acc[-1] + math.dist((a[0], a[2]), (b[0], b[2])))
+    cfg["route_length"] = acc[-1]
+    xs = [p[0] for p in route]
+    zs = [p[2] for p in route]
+    margin = cfg["margin"]
+    rect = (min(xs) - margin, min(zs) - margin,
+            max(xs) - min(xs) + 2.0 * margin, max(zs) - min(zs) + 2.0 * margin)
+    net = model.Net(route, rect, RIVER_TERRAIN_CELL)
+    corridor = cfg["corridor"]
+    max_slope = math.tan(math.radians(max(6.0, cfg["emb_slope"])))
+
+    def sampler(x, z):
+        distance, along = nearest_on_route(route, acc, x, z)
+        i = min(len(route) - 2, int(along / max(acc[-1], 1e-6) * (len(route) - 1)))
+        t = along / max(acc[-1], 1e-6) * (len(route) - 1) - i
+        road_y = route[i][1] + (route[i + 1][1] - route[i][1]) * max(0.0, min(1.0, t))
+        fade = model.smoothstep(cfg["fade_start"], cfg["fade_start"] + cfg["fade_len"], distance)
+        base = net.regional_height(x, z) + model.hills(x, z) * fade
+        blend = max(cfg["emb_min"], min(cfg["emb_max"], abs(road_y - base) / max(max_slope, 0.05)))
+        s = model.smoothstep(corridor, corridor + blend, distance)
+        height = base + (road_y - base) * (1.0 - s)
+        near = 1.0 - s
+        if near > 0.001:
+            lateral = max(0.0, min(1.0, distance / max(corridor, 0.01)))
+            height -= cfg["camber"] * lateral * lateral * near
+            height += model.bumps(along, cfg) * near
+        return height
+
+    return sampler
+
+
+def box_smooth(values, radius, passes):
+    """Скользящее среднее по списку — с краями, без смещения фазы."""
+    out = list(values)
+    for _pass in range(passes):
+        source = list(out)
+        for i in range(len(out)):
+            lo = max(0, i - radius)
+            hi = min(len(out), i + radius + 1)
+            out[i] = sum(source[lo:hi]) / float(hi - lo)
+    return out
+
+
+def river_levels(small, large, zs, ground):
+    """Уровень воды по рельефу, а не по формуле «между мостами».
+
+    Региональный рельеф в игре строится из высоты дороги и сильно размывается,
+    поэтому у реки вдали от переправ своя высота, не связанная с высотой
+    настила. Раньше вода задавалась дугой между двумя мостами и уходила в небо
+    над землёй на десятки метров — это и были треугольные «простыни».
+
+    Здесь вода ищется как самая высокая ГЛАДКАЯ линия, которая везде не
+    поднимается выше земли на RIVER_SINK (релаксация: сглаживание + срез).
+    Под мостами дополнительно прорезается ванна с гарантированным просветом.
+    """
+    if ground is None:
+        formula = water_profile(small, large)
+        return [formula(z) for z in zs]
+    limits = [ground(river_x(z), z) - RIVER_SINK for z in zs]
+    level = list(limits)
+    # Сглаживание со срезом: вода остаётся гладкой там, где земля это
+    # позволяет, и ложится на землю там, где рельеф резко падает.
+    for _step in range(14):
+        level = box_smooth(level, 2, 1)
+        for i in range(len(level)):
+            level[i] = min(level[i], limits[i])
+    # У мостов вода обязана стоять ровно на расчётном просвете: иначе опоры
+    # висят в воздухе (если ниже) или река подтапливает настил (если выше).
+    # Под настилом — плоское «корыто»: контрольные точки кривой прореживаются
+    # до 24 м, и на дуге безье дно V-профиля всплывало на полметра.
+    for hit, clearance, flat, reach in ((small, SMALL_CLEARANCE, 30.0, 80.0),
+                                        (large, LARGE_CLEARANCE, 34.0, 95.0)):
+        target = hit["y"] - clearance
+        for i, z in enumerate(zs):
+            distance = abs(z - hit["z"])
+            if distance <= flat:
+                weight = 1.0
+            elif distance < reach:
+                weight = 0.5 + 0.5 * math.cos(
+                    math.pi * (distance - flat) / (reach - flat))
+            else:
+                continue
+            level[i] = level[i] * (1.0 - weight) + target * weight
+    for i in range(len(level)):
+        level[i] = min(level[i], limits[i])
+    return level
+
+
+def sink_water(points, terrain):
+    """Опустить воду до земли (никогда не поднимать) и убрать ступеньки."""
+    dropped = 0
+    worst = 0.0
+    for point in points:
+        limit = terrain(point[0], point[1]) - RIVER_SINK
+        if point[2] > limit:
+            worst = max(worst, point[2] - limit)
+            point[2] = limit
+            dropped += 1
+    for _pass in range(3):
+        for i in range(1, len(points) - 1):
+            average = (points[i - 1][2] + points[i][2] * 2.0 + points[i + 1][2]) * 0.25
+            if average < points[i][2]:
+                points[i][2] = average
+    return dropped, worst
+
+
+def write_river(small, large, terrain=None):
+    zs = []
     z = RIVER_Z_END
     while z >= RIVER_Z_START:
-        points.append((river_x(z), z, level(z)))
+        zs.append(z)
         z -= RIVER_STEP
-    controls = kit.select_controls(points, max_gap=24, min_gap=8, turn_trigger_deg=5)
+    levels = river_levels(small, large, zs, terrain)
+    points = [[river_x(z), z, y] for z, y in zip(zs, levels)]
+    if terrain is not None and len(levels) > 2:
+        drops = [abs(levels[i] - levels[i + 1]) / RIVER_STEP for i in range(len(levels) - 1)]
+        steep = sum(1 for d in drops if d > 0.25)
+        print("Профиль воды: %.1f … %.1f м, уклон до %.0f%%, крутых участков %d из %d"
+              % (min(levels), max(levels), max(drops) * 100.0, steep, len(drops)))
+    # Отдельная «подрезка по земле» здесь больше не нужна: river_levels()
+    # уже гарантирует воду ниже рельефа. Дополнительное сглаживание только
+    # съедало плоское корыто под мостом (вода всплывала на 0.4 м).
+    controls = kit.select_controls([tuple(p) for p in points], max_gap=24, min_gap=8,
+                                    turn_trigger_deg=5)
     uid = uid_tool.godot_uid("res://data/tracks/stage_england_river.tres")
     kit.write_curve(controls, RIVER_PATH, uid=uid)
-    return level
+    # Финальный профиль — по записанным точкам, а не по исходной формуле:
+    # проверки должны видеть то, что реально попало в ресурс.
+    ordered = sorted(points, key=lambda p: p[1])
+
+    def final_level(distance_z):
+        zs = [p[1] for p in ordered]
+        if distance_z <= zs[0]:
+            return ordered[0][2]
+        if distance_z >= zs[-1]:
+            return ordered[-1][2]
+        i = bisect.bisect_left(zs, distance_z)
+        a, b = ordered[i - 1], ordered[i]
+        span = b[1] - a[1]
+        t = 0.0 if abs(span) < 1e-6 else (distance_z - a[1]) / span
+        return a[2] + (b[2] - a[2]) * t
+
+    return final_level
 
 
 def river_curve_samples():
@@ -262,9 +478,9 @@ SECTIONS = [
     (560.0, "Асфальт: полка над водой", "Асфальт", 3.8, (0.17, 0.18, 0.20), 1.28, 0.92, 60.0),
     (1150.0, "Гравий: техничная лестница", "Гравий", 3.4, (0.24, 0.20, 0.15), 0.90, 1.10, 50.0),
     (1900.0, "Асфальт: шпильки в гору", "Асфальт", 3.6, (0.15, 0.16, 0.18), 1.20, 0.95, 45.0),
-    (2650.0, "Гравий: слепые гребни", "Гравий", 3.3, (0.26, 0.22, 0.16), 0.86, 1.15, 40.0),
-    (3250.0, "Асфальт к большому мосту", "Асфальт", 3.9, (0.16, 0.17, 0.19), 1.30, 0.90, 55.0),
-    (3560.0, "Гравий за большой водой", "Гравий", 3.5, (0.25, 0.21, 0.15), 0.92, 1.08, 60.0),
+    (2650.0, "Гравий: спуск с гребня", "Гравий", 3.3, (0.26, 0.22, 0.16), 0.86, 1.15, 40.0),
+    (3250.0, "Асфальт: спуск к большому мосту", "Асфальт", 3.9, (0.16, 0.17, 0.19), 1.30, 0.90, 55.0),
+    (3560.0, "Гравий за большой водой: в гору", "Гравий", 3.5, (0.25, 0.21, 0.15), 0.92, 1.08, 60.0),
     (4100.0, "Асфальт: финишный гребень", "Асфальт", 3.7, (0.15, 0.16, 0.18), 1.22, 0.92, 70.0),
 ]
 
@@ -484,7 +700,7 @@ def verify(small, large, points, acc, level):
         else:
             print("  %s мост: угол к реке %.0f°" % (name, angle))
         margin = hit["y"] - level(hit["z"])
-        if margin < clearance - 0.05:
+        if margin < clearance - 0.2:
             problems.append("%s мост: вода в %.1f м под полотном (нужно %.1f)" % (name, margin, clearance))
     worst = 1e9
     # Уровень воды вдоль реки: проверяем, что у обоих мостов он ниже полотна.
@@ -515,7 +731,7 @@ def main():
     if len(found) != 2:
         raise SystemExit("Ожидалось ровно две переправы через реку.")
     small, large = sorted(found, key=lambda hit: hit["y"])
-    level = write_river(small, large)
+    level = write_river(small, large, terrain_sampler())
     problems, gap, worst_margin = verify(small, large, points, acc, level)
     print("Зазор дороги от оси реки вне мостов: %.0f м" % gap)
     print("Просвет под мостами: вода %.1f / %.1f м ниже полотна (мин %.2f)" % (

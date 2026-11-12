@@ -53,7 +53,7 @@ transition_length = 45.0
 [sub_resource type="Resource" id="Section_4"]
 script = ExtResource("section")
 start_distance = 2650.0
-title = "Гравий: слепые гребни"
+title = "Гравий: спуск с гребня"
 surface_name = "Гравий"
 half_width = 3.3
 road_color = Color(0.2600, 0.2200, 0.1600, 1)
@@ -64,7 +64,7 @@ transition_length = 40.0
 [sub_resource type="Resource" id="Section_5"]
 script = ExtResource("section")
 start_distance = 3250.0
-title = "Асфальт к большому мосту"
+title = "Асфальт: спуск к большому мосту"
 surface_name = "Асфальт"
 half_width = 3.9
 road_color = Color(0.1600, 0.1700, 0.1900, 1)
@@ -75,7 +75,7 @@ transition_length = 55.0
 [sub_resource type="Resource" id="Section_6"]
 script = ExtResource("section")
 start_distance = 3560.0
-title = "Гравий за большой водой"
+title = "Гравий за большой водой: в гору"
 surface_name = "Гравий"
 half_width = 3.5
 road_color = Color(0.2500, 0.2100, 0.1500, 1)
