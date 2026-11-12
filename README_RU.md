@@ -112,6 +112,13 @@ Speed`). Поля вкладок создаются при запуске из �
 `RALLY_SETUP_RU.md`, проверка:
 `godot --headless --path . --fixed-fps 120 --script res://tests/top_speed.gd`.
 
+Замедление на сбросе газа задаёт торможение двигателем: ползунок в гараже и
+поле `engine_brake_scale` сетапа меняют момент сопротивления мотора при
+закрытом дросселе. Он действует только на ведущую ось и только на включённой
+передаче, а под полным газом исчезает. Таблица замеров — в `RALLY_SETUP_RU.md`,
+проверка:
+`godot --headless --path . --fixed-fps 120 --script res://tests/engine_brake.gd`.
+
 Ливрея, цвет, покрытие и размер колёс сразу обновляются на витрине; модель
 можно повернуть перетаскиванием и приблизить колёсиком мыши. Все перечисленные
 физические настройки применяются к автомобилю в заезде. В игровом HUD показаны
@@ -1320,6 +1327,7 @@ godot --headless --path . --fixed-fps 120 --script res://tests/controller_input.
 godot --headless --path . --fixed-fps 120 --script res://tests/stage_smoke.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/handling_benchmark.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/top_speed.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/engine_brake.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/engine_audio.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/conditions_smoke.gd
 godot --headless --path . --script res://tests/ps1_style.gd

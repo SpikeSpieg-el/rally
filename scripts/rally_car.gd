@@ -31,8 +31,12 @@ const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.04, "Grass": 0.06}
 const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
 ## На какой скорости ещё можно включить задний ход из первой передачи.
 const REVERSE_SHIFT_MAX_KMH: float = 15.0
-## Базовое торможение двигателем. Сетап задаёт множитель к нему.
-const BASE_MOTOR_BRAKE: float = 10.0
+## Базовое торможение двигателем: момент при закрытом дросселе, Н·м на каждую
+## 1000 об/мин сверх холостых. Сетап задаёт множитель к нему (engine_brake_scale).
+## 5.0 вместе с motor_drag даёт около 58 Н·м на 7000 об/мин — порядок величины
+## настоящего мотора 2–2.5 л. Больше — сильнее замедление на сбросе газа, но
+## задняя ось (RWD и AWD с упором назад) заметнее доворачивает машину в повороте.
+const BASE_MOTOR_BRAKE: float = 5.0
 ## Опорное ускорение для перегрузок: замена «g» без магических чисел.
 const FEEL_GRAVITY: float = 9.81
 
@@ -412,7 +416,7 @@ func _configure_gevp() -> void:
 	max_rpm = 7600.0
 	idle_rpm = 900.0
 	motor_drag = 0.004
-	motor_brake = 10.0
+	motor_brake = BASE_MOTOR_BRAKE
 	motor_moment = 0.30
 	clutch_out_rpm = 2300.0
 	max_clutch_torque_ratio = 1.65

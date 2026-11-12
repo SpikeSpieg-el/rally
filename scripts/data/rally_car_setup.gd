@@ -40,7 +40,11 @@ enum TorqueShape { CUSTOM, TURBO_PUNCH, ATMO_LINEAR, HIGH_REV }
 var torque_shape: int = TorqueShape.TURBO_PUNCH
 ## Необязательная кривая момента. Если пусто — строится по torque_shape.
 @export var torque_curve: Curve = null
-## Торможение двигателем относительно базы (1.0 — как в машине сцены).
+## Торможение двигателем: множитель к RallyCar.BASE_MOTOR_BRAKE — моменту
+## сопротивления мотора при закрытом дросселе. Больше — сильнее замедление на
+## сбросе газа; под полным газом и на холостых не действует. Тормозит только
+## ведущая ось, поэтому на заднем приводе большие значения доворачивают машину
+## в повороте. Замеры — в RALLY_SETUP_RU.md, раздел «Торможение двигателем».
 @export_range(0.2, 3.0, 0.05) var engine_brake_scale: float = 1.0
 ## Турбина: сброс газа даёт blow-off и хлопки в выхлопе. У атмо этого нет.
 @export var turbo: bool = true
