@@ -33,6 +33,9 @@
 class_name RallyStage
 extends Node3D
 
+## Подавление автопересборки в редакторе (когда работает плагин «Студия трассы»).
+var editor_suspend_auto_rebuild: bool = false
+
 const CarType = preload("res://scripts/rally_car.gd")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const GameSettings = preload("res://scripts/ui/game_settings.gd")
@@ -476,12 +479,12 @@ func _exit_tree() -> void:
 
 ## Кнопка «Пересобрать трассу» в инспекторе (и предпросмотр в редакторе).
 ## Тот же пересчёт запускается автоматически, когда правка кривой затихла.
-func rebuild_preview() -> void:
+func rebuild_preview(fast_mode: bool = false) -> void:
 	if not is_inside_tree():
 		return
 	var started: int = Time.get_ticks_msec()
 	_resolve_track()
-	_build_world()
+	_build_world(fast_mode)
 	_built_curve_signature = _curve_signature(_effective_curve())
 	_watch_sources()
 	if Engine.is_editor_hint() and network != null:
@@ -527,6 +530,8 @@ func _curve_signature(curve: Curve3D) -> float:
 
 
 func _queue_rebuild() -> void:
+	if editor_suspend_auto_rebuild:
+		return
 	# Сам пересчёт тяжёлый, поэтому не дёргаем его на каждый сдвиг точки:
 	# ждём, пока правка затихнет.
 	_rebuild_pending = true
@@ -534,6 +539,8 @@ func _queue_rebuild() -> void:
 
 
 func _queue_rebuild_from_track() -> void:
+	if editor_suspend_auto_rebuild:
+		return
 	_pending_from_track = true
 	_rebuild_pending = true
 	_rebuild_timer = 0.0
@@ -741,15 +748,15 @@ func _curve_terrain_rect(curve: Curve3D) -> Rect2:
 	)
 
 
-func _build_world() -> void:
+func _build_world(fast_mode: bool = false) -> void:
 	# Обёртка для редактора (кнопка и предпросмотр): редакторский путь внутри
 	# _build_world_async() синхронный — ожиданий там не выполняется.
-	_build_world_async()
+	_build_world_async(fast_mode)
 
 
 ## Генерация мира в порциях по кадрам: в игре прогресс и статус «живой»
 ## полосой на экране загрузки (autoload RallyGame), в редакторе — синхронно.
-func _build_world_async() -> void:
+func _build_world_async(fast_mode: bool = false) -> void:
 	surface_state.clear()
 	_sync_visual_settings()
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
@@ -779,7 +786,10 @@ func _build_world_async() -> void:
 	terrain_rect = _curve_terrain_rect(curve)
 	var route_length: float = curve.get_baked_length()
 	var streaming: bool = track.stream_world or route_length >= 20000.0 or (not track.use_baked_props and route_length >= 5000.0)
-	network = RoadNetworkType.build_sparse(curve) if streaming else RoadNetworkType.build(curve, terrain_rect, maxf(1.5, track.terrain_cell))
+	var effective_cell: float = maxf(1.5, track.terrain_cell)
+	if fast_mode and Engine.is_editor_hint():
+		effective_cell = maxf(3.0, effective_cell * 2.0)
+	network = RoadNetworkType.build_sparse(curve) if streaming else RoadNetworkType.build(curve, terrain_rect, effective_cell)
 	var length: float = network.total_length
 	start_pos = network.point_at(0.0)
 	finish_pos = network.point_at(length)
@@ -795,6 +805,11 @@ func _build_world_async() -> void:
 		_configure_world()
 	if has_progress:
 		await get_tree().process_frame
+	var saved_cell: float = track.terrain_cell
+	var saved_road_step: float = track.road_step
+	if fast_mode and Engine.is_editor_hint():
+		track.terrain_cell = effective_cell
+		track.road_step = maxf(2.0, saved_road_step * 1.5)
 	if streaming:
 		if terrain_mesh != null:
 			terrain_mesh.mesh = null
@@ -813,10 +828,14 @@ func _build_world_async() -> void:
 			_report_progress(0.60, "Полотно дороги…")
 			await get_tree().process_frame
 		await _build_road(has_progress, 0.60, 0.80)
-	if has_progress:
-		_report_progress(0.81, "Пятна, лужи и снег на полотне…")
-		await get_tree().process_frame
-	_build_road_decals()
+	if fast_mode and Engine.is_editor_hint():
+		track.terrain_cell = saved_cell
+		track.road_step = saved_road_step
+	if not fast_mode:
+		if has_progress:
+			_report_progress(0.81, "Пятна, лужи и снег на полотне…")
+			await get_tree().process_frame
+		_build_road_decals()
 	if has_progress:
 		_report_progress(0.815, "Река и мосты…")
 		await get_tree().process_frame
@@ -825,7 +844,7 @@ func _build_world_async() -> void:
 	if has_progress:
 		_report_progress(0.82, "Ассеты, ворота и КПП…")
 		await get_tree().process_frame
-	if s_settings().snap_props_on_build and track.use_baked_props:
+	if not fast_mode and s_settings().snap_props_on_build and track.use_baked_props:
 		# Только «лес» из Props (запечённая обстановка лесной трассы):
 		# ручные объекты в ManualProps не двигаем, их можно поставить
 		# руками на нужную высоту. У трасс без запечённых пропсов
@@ -833,18 +852,18 @@ func _build_world_async() -> void:
 		_snap_prop_nodes(false)
 	if s_spawn().spawn_route_markers and track.spawn_route_markers:
 		_spawn_route_markers()
-	if not streaming and s_spawn().edge_posts and track.spawn_edge_posts:
+	if not fast_mode and not streaming and s_spawn().edge_posts and track.spawn_edge_posts:
 		_spawn_edge_posts()
-	if not streaming:
+	if not fast_mode and not streaming:
 		await _spawn_guardrails(0.0, -1.0, null, has_progress)
 	if track.spawn_checkpoints:
 		_spawn_checkpoints()
-	if track.procedural_scenery and not streaming:
+	if not fast_mode and track.procedural_scenery and not streaming:
 		if has_progress:
 			_report_progress(0.90, "Лес, камни и знаки…")
 			await get_tree().process_frame
 		await _spawn_procedural_scenery(has_progress)
-	if s_spawn().stage_dressing and not streaming:
+	if not fast_mode and s_spawn().stage_dressing and not streaming:
 		_spawn_stage_dressing(0.0, -1.0, null)
 	if s_spawn().stage_dressing and s_spawn().helicopter and not Engine.is_editor_hint():
 		var helicopter_node: Node3D = _place_prop(generated, "helicopter", Vector3.ZERO, 0.0)
@@ -4797,6 +4816,11 @@ func _report_speed_fx(speed: float) -> void:
 
 ## Отложенная пересборка в редакторе (см. settings.auto_rebuild_delay).
 func _process_editor(delta: float) -> void:
+	if editor_suspend_auto_rebuild:
+		_rebuild_pending = false
+		_rebuild_timer = 0.0
+		_pending_from_track = false
+		return
 	if not _rebuild_pending:
 		return
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):

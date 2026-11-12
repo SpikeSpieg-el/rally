@@ -82,6 +82,33 @@ func _test() -> void:
 		for b in studio._stroke_nodes:
 			if a != b:
 				assert(Vector2(a.global_position.x - b.global_position.x, a.global_position.z - b.global_position.z).length() >= 1.999)
+
+	# Удобные операции: посадка на землю, разворот, кольцо, авто-КПП и очистка пропсов.
+	studio.curve = Curve3D.new()
+	studio.curve.add_point(Vector3(0.0, 2.0, 0.0), Vector3.ZERO, Vector3(10.0, 0.0, 0.0))
+	studio.curve.add_point(Vector3(300.0, 40.0, 0.0))
+	studio.curve.add_point(Vector3(600.0, 2.0, 0.0), Vector3(-10.0, 0.0, 0.0), Vector3.ZERO)
+	studio._refresh_analysis()
+	studio.selected_control = 1
+	studio.level_grade_between_points()
+	assert(is_equal_approx(studio.curve.get_point_position(1).y, 2.0))
+	studio.snap_route_to_ground(false)
+	assert(is_equal_approx(studio.curve.get_point_position(0).y, 12.0))
+	studio.reverse_route()
+	assert(studio.curve.get_point_position(0).is_equal_approx(Vector3(600.0, 12.0, 0.0)))
+	studio.toggle_closed_loop()
+	assert(studio.curve.closed)
+	studio.toggle_closed_loop()
+	assert(not studio.curve.closed)
+	var SpawnType = preload("res://scripts/data/rally_spawn_layout.gd")
+	studio.spawn = SpawnType.new()
+	studio.auto_place_checkpoints(200.0)
+	assert(studio.spawn.custom_checkpoint_distances.size() >= 1)
+	studio.clear_custom_checkpoints()
+	assert(studio.spawn.custom_checkpoint_distances.is_empty())
+	studio.clear_studio_props()
+	assert(stage.get_node("StudioProps").get_child_count() == 0)
+
 	scene.free()
 	print("Track studio editing: OK")
 	quit(0)

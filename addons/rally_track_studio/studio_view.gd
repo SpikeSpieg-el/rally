@@ -31,12 +31,25 @@ var _cache_right := PackedVector2Array()
 var _cache_visible := PackedByteArray()
 var _cache_depth := PackedFloat32Array()
 
+# Кэш профиля высот и полос покрытий: зависит только от геометрии и ширины
+# экрана, поэтому пересчитывать на каждый кадр не нужно.
+var _prof_cache_key := 0
+var _prof_data: Dictionary = {}
+var _prof_bands: Array = []
+
 
 func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType) -> void:
 	_overlay = overlay
 	_studio = studio
 	_camera = camera
 	_st = settings
+	studio.hud_rect = Rect2()
+	studio.warnings_rect = Rect2()
+	studio.profile_rect = Rect2()
+	studio.mode_chip_rects = []
+	studio.warning_item_rects = []
+	if not _st.show_overlay:
+		return
 	if _font == null:
 		_font = ThemeDB.fallback_font
 	if _font == null:
@@ -45,9 +58,6 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 		_panel_style = StyleBoxFlat.new()
 		_panel_style.set_corner_radius_all(7)
 		_panel_style.set_border_width_all(1)
-	studio.hud_rect = Rect2()
-	studio.warnings_rect = Rect2()
-	studio.profile_rect = Rect2()
 	var points: PackedVector3Array = studio.samples.get("points", PackedVector3Array())
 	if points.size() < 2 or not studio.route_ready:
 		_draw_empty(studio)
@@ -69,11 +79,13 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 	var right_edge: PackedVector2Array = _cache_right
 	var visible: PackedByteArray = _cache_visible
 	var depth: PackedFloat32Array = _cache_depth
-	if _st.show_ribbon:
+	var eco: bool = _st.eco_mode
+	if _st.show_ribbon and not eco:
 		_draw_ribbon(studio, screen, left_edge, right_edge, visible, depth, dists)
 	_draw_edges(left_edge, right_edge, visible, depth)
-	_draw_dashes(screen, visible, depth, dists)
-	if _st.show_direction:
+	if _st.show_dashes and not eco:
+		_draw_dashes(screen, visible, depth, dists)
+	if _st.show_direction and not eco:
 		_draw_direction(points, visible, dists)
 	if _st.show_km:
 		_draw_km(studio, points, visible)
@@ -92,9 +104,9 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 	if studio.mode == Modes.Mode.ROUTE and studio.hover_new_valid:
 		_draw_new_point(studio)
 	_draw_selection(studio)
-	if _st.show_cursor:
+	if _st.show_cursor and not eco:
 		_draw_cursor(studio)
-	if _st.show_profile:
+	if _st.show_profile and _st.show_hud:
 		_draw_profile(studio, markers)
 	if _st.show_hud:
 		_draw_hud(studio)
@@ -311,6 +323,8 @@ func _draw_dashes(screen: PackedVector2Array, visible: PackedByteArray,
 		depth: PackedFloat32Array, dists: PackedFloat32Array) -> void:
 	var period: float = maxf(2.0, _st.dash_period)
 	var dash: float = clampf(_st.dash_length, 0.5, period)
+	var segs := PackedVector2Array()
+	var colors := PackedColorArray()
 	for i in range(screen.size() - 1):
 		if visible[i] == 0 or visible[i + 1] == 0:
 			continue
@@ -322,7 +336,11 @@ func _draw_dashes(screen: PackedVector2Array, visible: PackedByteArray,
 		var alpha: float = _fade(depth[i]) * 0.9
 		if alpha <= 0.05:
 			continue
-		_overlay.draw_line(screen[i], screen[i + 1], _with_alpha(_st.center_line_color, alpha), _st.line_width, true)
+		segs.append(screen[i])
+		segs.append(screen[i + 1])
+		colors.append(_with_alpha(_st.center_line_color, alpha))
+	if segs.size() >= 2:
+		_overlay.draw_multiline_colors(segs, colors, _st.line_width, true)
 
 
 func _draw_direction(points: PackedVector3Array, visible: PackedByteArray, dists: PackedFloat32Array) -> void:
@@ -654,7 +672,12 @@ func _draw_profile(studio, markers: Array) -> void:
 	if inner.size.x < 20.0 or inner.size.y < 10.0:
 		return
 	var bins: int = clampi(int(inner.size.x / 4.0), 32, 512)
-	var data: Dictionary = Analysis.profile(studio.samples, bins)
+	var prof_key: int = hash([int(studio.route_version), bins])
+	if prof_key != _prof_cache_key or _prof_data.is_empty():
+		_prof_data = Analysis.profile(studio.samples, bins)
+		_prof_bands = Analysis.section_bands(studio.track, studio.length, _st.road_edge_color)
+		_prof_cache_key = prof_key
+	var data: Dictionary = _prof_data
 	var values: PackedFloat32Array = data.get("values", PackedFloat32Array())
 	if values.size() < 2:
 		return
@@ -696,7 +719,7 @@ func _draw_profile(studio, markers: Array) -> void:
 	_text(Vector2(inner.position.x, baseline + 9.0), "%.0f м" % low, _with_alpha(_st.muted_color, 0.9), _small_size() - 1)
 	# полоса покрытий
 	var band := Rect2(inner.position.x, baseline + 4.0, inner.size.x, 5.0)
-	var bands: Array = Analysis.section_bands(studio.track, studio.length, _st.road_edge_color)
+	var bands: Array = _prof_bands
 	for entry in bands:
 		var start: float = float(entry.get("start", 0.0))
 		var end: float = float(entry.get("end", studio.length))
@@ -817,6 +840,7 @@ func _draw_hud(studio) -> void:
 		var label: String = _st.mode_names[i]
 		var chip_w: float = _text_width(label, _small_size()) + 16.0
 		var chip := Rect2(Vector2(chip_x, modes_y), Vector2(chip_w, 22.0))
+		studio.mode_chip_rects.append(chip)
 		var selected: bool = i == studio.mode
 		_panel(chip, _st.accent_color if selected else _with_alpha(_st.muted_color, 0.5),
 			_with_alpha(_st.accent_color, 0.18) if selected else _with_alpha(_st.panel_bg, 0.92))
@@ -853,20 +877,23 @@ func _draw_warnings_panel(studio) -> void:
 	if shown <= 0:
 		return
 	var width: float = 250.0
-	var height: float = 14.0 + float(shown) * (_small_size() + 7.0) + 12.0
+	var row_h: float = _small_size() + 7.0
+	var height: float = 14.0 + float(shown) * row_h + 12.0
 	var rect := Rect2(Vector2(_overlay.size.x - width - _st.panel_margin, _st.panel_margin), Vector2(width, height))
 	studio.warnings_rect = rect
 	_panel(rect, _with_alpha(_st.danger_color, 0.85), _st.panel_bg)
-	_text(Vector2(rect.position.x + 10.0, rect.position.y + 12.0 + _small_size()), "ПРОВЕРЬТЕ", _st.danger_color, _small_size())
+	_text(Vector2(rect.position.x + 10.0, rect.position.y + 12.0 + _small_size()), "ПРОВЕРЬТЕ (клик — фокус)", _st.danger_color, _small_size())
 	var y: float = rect.position.y + 12.0 + _small_size() + 8.0
 	for i in range(shown):
 		var warning: Dictionary = studio.warnings[i]
 		var distance: float = float(warning.get("distance", 0.0))
+		var row_rect := Rect2(rect.position.x + 6.0, y - float(_small_size()) + 1.0, width - 12.0, row_h)
+		studio.warning_item_rects.append({"rect": row_rect, "distance": distance})
 		var text := "%s · %.2f км" % [String(warning.get("text", "")), distance / 1000.0]
 		var color: Color = _st.danger_color if int(warning.get("severity", 1)) >= 2 else _st.warning_color
 		_overlay.draw_circle(Vector2(rect.position.x + 13.0, y - 3.0), 2.5, color)
 		_text(Vector2(rect.position.x + 20.0, y), text, _st.text_color, _small_size())
-		y += _small_size() + 7.0
+		y += row_h
 	if studio.warnings.size() > shown:
 		_text(Vector2(rect.position.x + 20.0, y), "и ещё %d…" % (studio.warnings.size() - shown), _with_alpha(_st.muted_color, 0.8), _small_size() - 1)
 
@@ -883,12 +910,13 @@ func _project_samples(camera: Camera3D, studio, points: PackedVector3Array,
 	_cache_visible.resize(count)
 	_cache_depth.resize(count)
 	var cam_pos: Vector3 = camera.global_position
+	var proj_scale: Vector2 = studio.screen_scale(camera)
 	for i in range(count):
 		_cache_visible[i] = 0
 		var point: Vector3 = points[i]
 		if not camera.is_position_in_frustum(point):
 			continue
-		var projected: Vector2 = studio.project_point(camera, point)
+		var projected: Vector2 = camera.unproject_position(point) * proj_scale
 		if not _in_picture(projected):
 			continue
 		var distance: float = dists[i] if i < dists.size() else 0.0
@@ -896,8 +924,8 @@ func _project_samples(camera: Camera3D, studio, points: PackedVector3Array,
 		var side := Vector3(dir.z, 0.0, -dir.x)
 		var half: float = studio.half_width_at(distance)
 		_cache_screen[i] = projected
-		_cache_left[i] = studio.project_point(camera, point + side * half)
-		_cache_right[i] = studio.project_point(camera, point - side * half)
+		_cache_left[i] = camera.unproject_position(point + side * half) * proj_scale
+		_cache_right[i] = camera.unproject_position(point - side * half) * proj_scale
 		_cache_depth[i] = cam_pos.distance_to(point)
 		_cache_visible[i] = 1
 
