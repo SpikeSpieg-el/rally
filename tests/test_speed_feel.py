@@ -1,9 +1,14 @@
 """Статические контракты ощущения скорости без запуска Godot.
 
-Главное правило: ощущение скорости не строится на тряске камеры.
-Высокочастотная дрожь (10–20 Гц) укачивает и читается как баг — вместо неё
+Главное правило: ощущение скорости не строится на грубой тряске камеры.
+Высокочастотная дрожь укачивает и читается как баг, поэтому основа —
 медленный занос в повороте, мягкая инерция дистанции, придорожный поток
 частиц, ветер и лёгкое растяжение картинки от центра к краям.
+
+Микро-вибрация кузова (доли процента, `shake_percent`/`shake_frequency`
+в `RallySpeedFeel`) — исключение и живёт под теми же правилами: числа в
+одном узле `VisualEffects/Speed`, на стоянке ноль, ползунок «Ощущение
+скорости» в паузе выключает её вместе с остальной отдачей.
 """
 from pathlib import Path
 import unittest
@@ -354,7 +359,8 @@ class OneSpeedEffectEverywhereTest(unittest.TestCase):
     def test_template_stores_explicit_numbers(self):
         node = self._node_values()
         for key in ("feel", "start_kmh", "full_kmh", "edge_blur_percent", "vignette_percent",
-                    "blur_gain", "cockpit_scale", "edge_stretch_percent"):
+                    "blur_gain", "cockpit_scale", "edge_stretch_percent",
+                    "shake_percent", "shake_frequency"):
             self.assertIn(key, node, f"шаблон эффекта должен явно хранить {key}")
         # «Свой характер»: иначе сохранённые числа снова спорили бы с пресетом.
         self.assertEqual(node["feel"], "0")
@@ -412,6 +418,77 @@ class OneSpeedEffectEverywhereTest(unittest.TestCase):
     def test_legacy_migration_is_editor_only(self):
         stage = read("scripts/rally_stage.gd")
         self.assertIn("not legacy_effects_imported and Engine.is_editor_hint()", stage)
+
+
+class CameraShakeTest(unittest.TestCase):
+    """Микро-вибрация: числа в узле скорости, камера только масштабирует их.
+
+    Дрожь — не отдельный «эффект камеры»: она обязана расти из того же
+    `shake_percent` из `VisualEffects/Speed`, что и остальной эффект, и
+    выключаться тем же ползунком в паузе. Иначе появляется второй пульт,
+    который никто не находит.
+    """
+
+    @staticmethod
+    def _speed_node() -> dict:
+        node = {}
+        for line in read("scenes/effects/speed_effect.tscn").splitlines():
+            if " = " in line and not line.startswith("["):
+                key, value = line.split(" = ", 1)
+                node[key.strip()] = value.strip()
+        return node
+
+    def test_shake_numbers_live_in_the_speed_node(self):
+        node = self._speed_node()
+        percent = float(node["shake_percent"])
+        frequency = float(node["shake_frequency"])
+        # Микро, а не «стиральная доска»: доли процента и разумная частота.
+        self.assertTrue(0.0 < percent <= 1.0, f"сила вибрации вне микро-диапазона: {percent}")
+        self.assertTrue(20.0 <= frequency <= 30.0, f"частота вибрации вне рабочего диапазона: {frequency}")
+
+    def test_amplitude_really_follows_the_slider(self):
+        speed = read("scripts/effects/rally_speed_feel.gd")
+        intensity = speed.split("func shake_intensity_for", 1)[1].split("\nfunc ", 1)[0]
+        # Сила уже в процентах: множитель 100 обнулял бы ползунок.
+        self.assertIn("base * base * shake_percent", intensity)
+        for name in ("func sample_camera_shake_offset", "func sample_camera_shake_angles_rad"):
+            body = speed.split(name, 1)[1].split("\nfunc ", 1)[0]
+            self.assertIn("* amt", body, name)
+            self.assertNotIn("* 100.0", body, name)
+            # Нулевая частота дала бы неподвижное смещение, а не дрожь.
+            self.assertIn("maxf(shake_frequency, 1.0)", body, name)
+
+    def test_car_applies_the_shake_after_every_camera_mode(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn("func _apply_camera_shake(delta: float) -> void:", car)
+        update = car.split("func _update_cameras(delta: float) -> void:", 1)[1].split("\nfunc ", 1)[0]
+        # Один вызов на кадр, в самом конце: после look_at, FOV и всех режимов.
+        self.assertEqual(update.count("_apply_camera_shake("), 1)
+        code = [line.strip() for line in update.splitlines() if line.strip() and not line.strip().startswith("#")]
+        self.assertEqual(code[-1], "_apply_camera_shake(delta)", "вибрация должна применяться последней, после всех режимов")
+        body = car.split("func _apply_camera_shake", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("camera_feel_strength * f().speed_feel_strength", body)
+        self.assertIn('stage.call("speed_shake_offset"', body)
+        self.assertIn('stage.call("speed_shake_angles"', body)
+        # Дрожь — локальный сдвиг и доли градуса, без телепортации камеры.
+        self.assertIn("active_camera.global_position +=", body)
+        self.assertIn("rotate_object_local", body)
+        self.assertNotIn("h_offset", body)
+        self.assertNotIn("v_offset", body)
+
+    def test_shake_is_off_when_the_feel_slider_is_zero(self):
+        car = read("scripts/rally_car.gd")
+        body = car.split("func _apply_camera_shake", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("if shake_scale <= 0.001 or delta <= 0.0:", body)
+        self.assertIn("return", body.split("if shake_scale <= 0.001 or delta <= 0.0:", 1)[1])
+
+    def test_stage_hands_the_shake_to_the_car(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("func speed_shake_offset(speed_kmh: float, time_sec: float) -> Vector3:", stage)
+        self.assertIn("func speed_shake_angles(speed_kmh: float, time_sec: float) -> Vector3:", stage)
+        offset = stage.split("func speed_shake_offset", 1)[1].split("\nfunc ", 1)[0]
+        # Флаг трассы «эффект разрешён» проходит насквозь — как и у остальной отдачи.
+        self.assertIn("_track_allows_speed()", offset)
 
 
 class SpeedFeelDiagnosticsTest(unittest.TestCase):

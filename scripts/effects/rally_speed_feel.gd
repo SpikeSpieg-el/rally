@@ -217,18 +217,21 @@ func intensity_for(speed_kmh: float, track_allows: bool) -> float:
 	return clampf((speed_kmh - start_kmh) / span * strength, 0.0, 1.0)
 
 
-## Возвращает нормализованную силу тряски камеры (0..1) с мягким нарастанием.
+## Сила тряски камеры в единицах `shake_percent`: 0 — нет, 1 — «полная»
+## амплитуда (`max_offset_m`/`max_angle_deg`), 2 — вдвое сильнее.
+## Кривая квадратичная: на малых скоростях тряска не мешает, у максималки
+## ощущается отчётливее.
 func shake_intensity_for(speed_kmh: float, track_allows: bool) -> float:
 	if shake_percent <= 0.0:
 		return 0.0
 	var base := intensity_for(speed_kmh, track_allows)
-	# Квадратичная кривая (smooth), чтобы на малых скоростях тряска не мешала,
-	# а ближе к максималке ощущалась отчётливее.
-	return base * base * (shake_percent * 0.01)
+	return base * base * shake_percent
 
 
-## Готовое локальное смещение для Camera3D (в метрах) для микро-вибрации.
-## Можно прибавлять к camera.h_offset / camera.v_offset или локальной позиции.
+## Готовое смещение (в метрах) для микро-вибрации камеры: прибавляется к
+## положению камеры в её собственных осях. `h_offset`/`v_offset` для этого
+## не годятся — они переключают камеру на фрустум и меряются у ближней
+## плоскости, а не в метрах дрожи кузова.
 func sample_camera_shake_offset(
 	speed_kmh: float,
 	track_allows: bool,
@@ -239,13 +242,14 @@ func sample_camera_shake_offset(
 	if amt <= 0.00001:
 		return Vector3.ZERO
 	var t := (Time.get_ticks_msec() * 0.001) if time_sec < 0.0 else time_sec
-	var w := t * shake_frequency * TAU
+	# Частота 0 (битый .tscn, нулевая ручка) дала бы неподвижное смещение —
+	# не дрожь, а сдвинутый кадр. Поэтому минимум 1 Гц.
+	var w := t * maxf(shake_frequency, 1.0) * TAU
 	# Несоизмеримые гармоники дают живую вибрацию кузова без заметного цикла
 	var nx := sin(w * 1.0) * 0.65 + sin(w * 2.31 + 1.3) * 0.35
 	var ny := cos(w * 1.37 + 0.7) * 0.70 + sin(w * 3.13 + 2.1) * 0.30
 	var nz := sin(w * 0.83 + 2.9) * 0.25
-	var scale_m := max_offset_m * (amt * 100.0) # нормировка под shake_percent
-	return Vector3(nx * 0.7, ny, nz * 0.3) * scale_m
+	return Vector3(nx * 0.7, ny, nz * 0.3) * (max_offset_m * amt)
 
 
 ## Готовые микро-углы (pitch, yaw, roll в радианах) для лёгкого покачивания камеры.
@@ -259,11 +263,11 @@ func sample_camera_shake_angles_rad(
 	if amt <= 0.00001:
 		return Vector3.ZERO
 	var t := (Time.get_ticks_msec() * 0.001) if time_sec < 0.0 else time_sec
-	var w := t * shake_frequency * TAU
+	var w := t * maxf(shake_frequency, 1.0) * TAU
 	var pitch := sin(w * 1.43 + 0.4) * 0.7 + cos(w * 2.87 + 1.8) * 0.3
 	var yaw := cos(w * 0.91 + 2.4) * 0.4
 	var roll := sin(w * 1.17 + 1.1) * 0.8
-	var max_rad := deg_to_rad(max_angle_deg) * (amt * 100.0)
+	var max_rad := deg_to_rad(max_angle_deg) * amt
 	return Vector3(pitch, yaw, roll) * max_rad
 
 
