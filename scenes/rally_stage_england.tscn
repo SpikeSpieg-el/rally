@@ -1,0 +1,205 @@
+[gd_scene format=3 uid="uid://e9ixdqa7ldqw"]
+
+[ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_stage"]
+[ext_resource type="Resource" uid="uid://cdhbkw8z1qc7" path="res://data/tracks/stage_england.tres" id="track_england"]
+[ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="2_car"]
+[ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_way4p"]
+[ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="3_6y0e7"]
+[ext_resource type="Curve3D" uid="uid://fkvjdvnta4xy" path="res://data/tracks/stage_england_route.tres" id="4_route"]
+[ext_resource type="Texture2D" uid="uid://bci7my2yjh4da" path="res://textures/environment/forest_floor.png" id="5_qj60p"]
+[ext_resource type="Resource" uid="uid://csy3ssx2uxglk" path="res://data/setups/11_gravel.tres" id="6_fxige"]
+[ext_resource type="Texture2D" uid="uid://cg6o1bxkd7ixj" path="res://textures/environment/rock.png" id="6_ni4f4"]
+[ext_resource type="Script" uid="uid://bdaj34wupumx2" path="res://scripts/data/rally_shader_parameter.gd" id="6_v58wt"]
+[ext_resource type="Shader" uid="uid://cg0r2rrjileeb" path="res://shaders/gravel_road.gdshader" id="7_4d4ml"]
+[ext_resource type="Texture2D" uid="uid://cjwjdclmhmapv" path="res://textures/environment/gravel.png" id="8_huph0"]
+[ext_resource type="Script" uid="uid://rwx0tgnuruiw" path="res://scripts/data/rally_stage_settings.gd" id="9_h4p6t"]
+[ext_resource type="Resource" uid="uid://cgiuoadihlh3q" path="res://data/stage/default_spawn_layout.tres" id="10_xfxr1"]
+[ext_resource type="Resource" uid="uid://cg2eebrwf3kpw" path="res://data/stage/default_fx_profile.tres" id="11_1v6xi"]
+[ext_resource type="Resource" uid="uid://br257lnwff4ev" path="res://data/stage/default_scenery.tres" id="12_5kwpf"]
+[ext_resource type="Resource" uid="uid://h8pv006o5rfw" path="res://data/stage/default_prop_library.tres" id="13_props"]
+[ext_resource type="Shader" uid="uid://cjk0afgvjqwx0" path="res://shaders/speed_fx.gdshader" id="19_fvvtf"]
+[ext_resource type="PackedScene" uid="uid://cm7js1v8kufmn" path="res://scenes/ui/rally_hud.tscn" id="hud_layout"]
+[ext_resource type="Environment" uid="uid://bb8gswph2upes" path="res://data/tracks/night_environment.tres" id="night_environment"]
+[ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="retro_screen"]
+[ext_resource type="PackedScene" uid="uid://dblndqw45wkp4" path="res://scenes/props/road_sign.tscn" id="road_sign"]
+[ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="visual_effects"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4d4ml"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("3_6y0e7")
+shader_parameter/ground_texture = ExtResource("5_qj60p")
+shader_parameter/rock_texture = ExtResource("6_ni4f4")
+shader_parameter/ground_texture_smooth = ExtResource("5_qj60p")
+shader_parameter/rock_texture_smooth = ExtResource("6_ni4f4")
+shader_parameter/ps1_textures = true
+shader_parameter/ground_color = Color(0.3, 0.38, 0.23, 1)
+shader_parameter/ground_color_2 = Color(0.42, 0.45, 0.28, 1)
+shader_parameter/road_edge_color = Color(0.31, 0.25, 0.17, 1)
+shader_parameter/rock_color = Color(0.3, 0.31, 0.32, 1)
+shader_parameter/surface_roughness = 0.99
+shader_parameter/grain_scale = 1.4
+shader_parameter/flat_shading = 1.0
+shader_parameter/vertex_snap = 0.15
+shader_parameter/resolution_y = 270.0
+shader_parameter/wetness = 0.0
+shader_parameter/snow_cover = 0.0
+shader_parameter/broad_scale = 0.05
+shader_parameter/ground_uv_scale = 0.25
+shader_parameter/rock_uv_scale = 0.22
+shader_parameter/shade_min = 0.8
+shader_parameter/shade_max = 1.14
+shader_parameter/ground_detail_base = 0.65
+shader_parameter/ground_detail_gain = 1.5
+shader_parameter/rock_detail_base = 0.65
+shader_parameter/rock_detail_gain = 1.3
+shader_parameter/shoulder_blend = 0.3
+shader_parameter/rock_slope_inner = 0.55
+shader_parameter/rock_slope_outer = 0.85
+shader_parameter/wet_darken = 0.78
+shader_parameter/snow_slope_inner = 0.15
+shader_parameter/snow_slope_outer = 0.65
+shader_parameter/snow_color = Color(0.88, 0.91, 0.96, 1)
+shader_parameter/snow_roughness = 0.62
+shader_parameter/snow_specular = 0.1
+shader_parameter/wet_specular = 0.42
+shader_parameter/dry_specular = 0.16
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_huph0"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("7_4d4ml")
+shader_parameter/gravel_texture = ExtResource("8_huph0")
+shader_parameter/gravel_texture_smooth = ExtResource("8_huph0")
+shader_parameter/ps1_textures = true
+shader_parameter/vertex_snap = 0.15
+shader_parameter/resolution_y = 270.0
+shader_parameter/section_surfaces = true
+shader_parameter/loose_relief = 0.5
+shader_parameter/detail_strength = 0.08
+shader_parameter/track_strength = 0.06
+shader_parameter/road_roughness = 0.96
+shader_parameter/wetness = 0.0
+shader_parameter/snow_cover = 0.0
+shader_parameter/zone_offset = 1.5
+shader_parameter/stage_length = 2572.885
+shader_parameter/zone_period = 240.0
+shader_parameter/zone_start = 150.0
+shader_parameter/zone_end_margin = 40.0
+shader_parameter/zone_length = 20.0
+shader_parameter/zone_half_width = 1.5
+shader_parameter/zone_softness = 0.7
+shader_parameter/zone_fade = 3.0
+shader_parameter/zone_contrast = 0.8
+shader_parameter/zone_wet_darken = 0.38
+shader_parameter/zone_dry_lighten = 0.28
+shader_parameter/gravel_uv_scale = 0.3
+shader_parameter/detail_scale = 3.5
+shader_parameter/broad_scale = 0.18
+shader_parameter/rut_center = 0.95
+shader_parameter/rut_inner = 0.12
+shader_parameter/rut_outer = 0.4
+shader_parameter/relief_strength = 0.32
+shader_parameter/snow_tint_strength = 0.85
+shader_parameter/snow_tint = Color(0.87, 0.9, 0.95, 1)
+shader_parameter/wet_roughness = 0.22
+shader_parameter/wet_specular = 0.55
+shader_parameter/snow_roughness = 0.72
+shader_parameter/snow_specular = 0.08
+shader_parameter/wet_darken = 0.62
+shader_parameter/dry_specular = 0.22
+shader_parameter/texture_gain = 1.25
+shader_parameter/texture_base = 0.65
+shader_parameter/puddle_roughness = 0.18
+shader_parameter/puddle_mix = 0.8
+
+[sub_resource type="Resource" id="Resource_h4p6t"]
+script = ExtResource("9_h4p6t")
+preview_in_editor = false
+show_debug_info = true
+retro_color_bits_override = 5
+ground_surface_roughness = 0.99
+ground_grain_scale = 1.4
+road_roughness = 0.96
+road_loose_relief = 0.5
+road_detail_strength = 0.08
+road_track_strength = 0.06
+ground_material = SubResource("ShaderMaterial_4d4ml")
+road_material = SubResource("ShaderMaterial_huph0")
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xfxr1"]
+resource_local_to_scene = true
+shader = ExtResource("19_fvvtf")
+shader_parameter/retro_strength = 1.0
+shader_parameter/resolution_y = 270.0
+shader_parameter/color_levels = 31.0
+shader_parameter/dither_strength = 1.0
+shader_parameter/speed_intensity = 0.0
+shader_parameter/blur_strength = 0.02
+shader_parameter/vignette_strength = 0.26
+shader_parameter/camera_mode = 0
+shader_parameter/blur_gain = 2.8
+shader_parameter/cockpit_scale = 0.7
+shader_parameter/speed_stretch = 0.031
+shader_parameter/speed_stretch_gain = 1.0
+
+[node name="RallyStage" type="Node3D" unique_id=651009656]
+script = ExtResource("1_stage")
+game_config = ExtResource("2_way4p")
+settings = SubResource("Resource_h4p6t")
+legacy_effects_imported = true
+spawn_layout = ExtResource("10_xfxr1")
+fx_profile = ExtResource("11_1v6xi")
+scenery = ExtResource("12_5kwpf")
+prop_library = ExtResource("13_props")
+track_override = ExtResource("track_england")
+
+[node name="VisualEffects" parent="." unique_id=349289573 instance=ExtResource("visual_effects")]
+editor_description = "Визуальные настройки: скорость, дождь, снег и материалы. Ретро-экран — под HUD."
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=905732852]
+environment = ExtResource("night_environment")
+
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1953427338]
+transform = Transform3D(0.76604444, -0.34062552, 0.54511476, 0, 0.8480481, 0.52991927, -0.6427876, -0.4059417, 0.6496425, 0, 0, 0)
+light_color = Color(0.64, 0.74, 1, 1)
+light_energy = 0.48
+light_indirect_energy = 0.26
+light_volumetric_fog_energy = 0.55
+light_angular_distance = 5.12
+light_specular = 0.374
+shadow_enabled = true
+shadow_bias = 0.06
+shadow_normal_bias = 0.8
+directional_shadow_split_1 = 0.086
+directional_shadow_max_distance = 120.0
+
+[node name="Terrain" type="StaticBody3D" parent="." unique_id=1380247706]
+physics_material_override = SubResource("PhysicsMaterial_gxar1")
+
+[node name="Generated" type="Node3D" parent="." unique_id=1137851449]
+
+[node name="Route" type="Path3D" parent="." unique_id=1159324951]
+curve = ExtResource("4_route")
+
+[node name="ManualProps" type="Node3D" parent="." unique_id=569895657]
+
+[node name="RallyCar" parent="." unique_id=1474183300 instance=ExtResource("2_car")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mass = 648.405
+setup_override = ExtResource("6_fxige")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2049044365]
+
+[node name="SpeedShaderRect" parent="HUD" unique_id=1844040114 instance=ExtResource("retro_screen")]
+editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
+material = SubResource("ShaderMaterial_xfxr1")
+look = 0
+
+[node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("hud_layout")]
+
+[node name="Props" type="Node3D" parent="." unique_id=113635271]
+
+[node name="StudioProps" type="Node3D" parent="." unique_id=1239958993]

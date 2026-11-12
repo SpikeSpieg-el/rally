@@ -1,0 +1,136 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/mossy_masonry.png" id="mossy_masonry"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/wet_stone.png" id="wet_stone"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_masonry"]
+albedo_color = Color(0.66, 0.72, 0.62, 1)
+albedo_texture = ExtResource("mossy_masonry")
+roughness = 0.97
+metallic = 0
+metallic_specular = 0.3
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_coping"]
+albedo_color = Color(0.58, 0.62, 0.6, 1)
+albedo_texture = ExtResource("wet_stone")
+roughness = 0.8
+metallic = 0
+metallic_specular = 0.3
+specular_mode = 2
+
+[sub_resource type="BoxMesh" id="Stone_0"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.36, 0.56)
+
+[sub_resource type="BoxMesh" id="Stone_1"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.36, 0.52)
+
+[sub_resource type="BoxMesh" id="Stone_2"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.36, 0.48)
+
+[sub_resource type="BoxMesh" id="Stone_3"]
+material = SubResource("Mat_masonry")
+size = Vector3(1.45, 0.34, 0.52)
+
+[sub_resource type="BoxMesh" id="Stone_4"]
+material = SubResource("Mat_masonry")
+size = Vector3(1.45, 0.34, 0.48)
+
+[sub_resource type="BoxMesh" id="Stone_5"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.3, 0.48)
+
+[sub_resource type="BoxMesh" id="Stone_6"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.3, 0.56)
+
+[sub_resource type="BoxMesh" id="Stone_7"]
+material = SubResource("Mat_masonry")
+size = Vector3(0.95, 0.3, 0.52)
+
+[sub_resource type="BoxMesh" id="Coping_0"]
+material = SubResource("Mat_coping")
+size = Vector3(0.58, 0.16, 0.66)
+
+[sub_resource type="BoxMesh" id="Coping_1"]
+material = SubResource("Mat_coping")
+size = Vector3(0.58, 0.16, 0.66)
+
+[sub_resource type="BoxMesh" id="Coping_2"]
+material = SubResource("Mat_coping")
+size = Vector3(0.58, 0.16, 0.66)
+
+[sub_resource type="BoxMesh" id="Coping_3"]
+material = SubResource("Mat_coping")
+size = Vector3(0.58, 0.16, 0.66)
+
+[sub_resource type="BoxMesh" id="Coping_4"]
+material = SubResource("Mat_coping")
+size = Vector3(0.58, 0.16, 0.66)
+
+[sub_resource type="BoxShape3D" id="Collision_Wall"]
+size = Vector3(3, 1.2, 0.62)
+
+[node name="DryStoneWall" type="Node3D"]
+[node name="Stone_0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0.18, 0)
+mesh = SubResource("Stone_0")
+
+[node name="Stone_1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.18, 0)
+mesh = SubResource("Stone_1")
+
+[node name="Stone_2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.18, 0)
+mesh = SubResource("Stone_2")
+
+[node name="Stone_3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.56, 0)
+mesh = SubResource("Stone_3")
+
+[node name="Stone_4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.56, 0)
+mesh = SubResource("Stone_4")
+
+[node name="Stone_5" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0.92, 0)
+mesh = SubResource("Stone_5")
+
+[node name="Stone_6" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 0)
+mesh = SubResource("Stone_6")
+
+[node name="Stone_7" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.92, 0)
+mesh = SubResource("Stone_7")
+
+[node name="Coping_0" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 1.14, 0)
+mesh = SubResource("Coping_0")
+
+[node name="Coping_1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 1.14, 0)
+mesh = SubResource("Coping_1")
+
+[node name="Coping_2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.14, 0)
+mesh = SubResource("Coping_2")
+
+[node name="Coping_3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 1.14, 0)
+mesh = SubResource("Coping_3")
+
+[node name="Coping_4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1.14, 0)
+mesh = SubResource("Coping_4")
+
+[node name="Collision" type="StaticBody3D" parent="."]
+collision_layer = 2
+
+[node name="Wall" type="CollisionShape3D" parent="Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("Collision_Wall")

@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://textures/environment/wet_slate.png" id="wet_slate"]
+
+[ext_resource type="Texture2D" path="res://textures/environment/mossy_masonry.png" id="mossy_masonry"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_slate"]
+albedo_color = Color(0.72, 0.76, 0.72, 1)
+albedo_texture = ExtResource("wet_slate")
+roughness = 0.62
+metallic = 0.04
+metallic_specular = 0.3
+specular_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_moss"]
+albedo_color = Color(0.62, 0.72, 0.52, 1)
+albedo_texture = ExtResource("mossy_masonry")
+roughness = 0.98
+metallic = 0
+metallic_specular = 0.3
+specular_mode = 2
+
+[sub_resource type="SphereMesh" id="Rock_A"]
+material = SubResource("Mat_slate")
+radius = 1.05
+height = 1.5
+radial_segments = 7
+rings = 3
+
+[sub_resource type="SphereMesh" id="Rock_B"]
+material = SubResource("Mat_slate")
+radius = 0.72
+height = 1.1
+radial_segments = 6
+rings = 3
+
+[sub_resource type="SphereMesh" id="Rock_C"]
+material = SubResource("Mat_slate")
+radius = 0.55
+height = 0.85
+radial_segments = 6
+rings = 2
+
+[sub_resource type="SphereMesh" id="Moss_Cap"]
+material = SubResource("Mat_moss")
+radius = 0.62
+height = 0.22
+radial_segments = 6
+rings = 2
+
+[node name="RiverBankRock" type="Node3D"]
+[node name="Rock_A" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, 0)
+mesh = SubResource("Rock_A")
+
+[node name="Rock_B" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 0.34, 0.25)
+mesh = SubResource("Rock_B")
+
+[node name="Rock_C" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0.26, -0.3)
+mesh = SubResource("Rock_C")
+
+[node name="Moss_Cap" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.86, 0.05)
+mesh = SubResource("Moss_Cap")

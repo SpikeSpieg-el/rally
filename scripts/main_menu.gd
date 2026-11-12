@@ -1011,7 +1011,11 @@ func _on_garage_start(index: int, tuned_setup: CarSetupType) -> void:
 		game.set("current_setup", tuned_setup)
 		game.call("start_race")
 	else:
-		get_tree().change_scene_to_file(config.stage_scene)
+		var scene_path: String = config.stage_scene
+		var chosen := _current_track()
+		if chosen != null and not chosen.stage_scene.is_empty():
+			scene_path = chosen.stage_scene
+		get_tree().change_scene_to_file(scene_path)
 
 
 func _on_back_to_title() -> void:
