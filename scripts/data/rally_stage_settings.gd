@@ -273,5 +273,3 @@ func color_bits_for(track: Resource) -> int:
 ## Есть ли дизер тумана у трассы.
 func dither_for(track: Resource) -> bool:
 	return track != null and bool(track.get("dither_fog"))
-
-

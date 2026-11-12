@@ -1,119 +1,86 @@
-[gd_resource type="Resource" script_class="RallyRoadDecalProfile" format=3]
+[gd_resource type="Resource" script_class="RallyRoadDecalProfile" format=3 uid="uid://btrusv15yonrx"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_road_decal_profile.gd" id="1_profile"]
-[ext_resource type="Script" path="res://scripts/data/rally_road_decal_spec.gd" id="2_spec"]
+[ext_resource type="Script" uid="uid://10ambsn3mrff" path="res://scripts/data/rally_road_decal_profile.gd" id="1_profile"]
+[ext_resource type="Script" uid="uid://yv06llwdxd4k" path="res://scripts/data/rally_road_decal_spec.gd" id="2_spec"]
 
 [sub_resource type="Resource" id="Decal0"]
 script = ExtResource("2_spec")
 display_name = "Мокрый гравий"
-kind = 0
 weight = 1.6
-edge_color = Color(0.24, 0.2, 0.15, 0.0)
+edge_color = Color(0.24, 0.2, 0.15, 0)
 core_color = Color(0.13, 0.11, 0.09, 0.85)
-noise_type = 2
-noise_frequency = 0.035
-noise_octaves = 3
-noise_lacunarity = 2.0
-noise_gain = 0.5
 noise_seed = 101
 blob_count = 3
 edge_feather = 0.6
 mask_threshold = 0.22
 mask_gain = 1.1
+blob_stretch = Vector2(1.4, 1)
 size_min = Vector2(1.6, 2.2)
 size_max = Vector2(3.2, 4.6)
-albedo_mix = 0.9
-opacity = 0.85
 roughness = 0.42
-metallic = 0.0
-normal_strength = 6.0
-normal_scale = 2.0
-blob_stretch = Vector2(1.4, 1.0)
 
 [sub_resource type="Resource" id="Decal1"]
 script = ExtResource("2_spec")
 display_name = "Рыхлый гравий"
 kind = 1
 weight = 1.4
-edge_color = Color(0.52, 0.45, 0.33, 0.0)
+edge_color = Color(0.52, 0.45, 0.33, 0)
 core_color = Color(0.58, 0.5, 0.37, 0.8)
-noise_type = 2
 noise_frequency = 0.06
-noise_octaves = 3
-noise_lacunarity = 2.0
-noise_gain = 0.5
 noise_seed = 131
 blob_count = 4
 edge_feather = 0.5
 mask_threshold = 0.28
 mask_gain = 1.2
+blob_stretch = Vector2(1.5, 1)
 size_min = Vector2(1.2, 1.6)
 size_max = Vector2(2.6, 3.6)
 albedo_mix = 0.95
 opacity = 0.9
 roughness = 0.95
-metallic = 0.0
 normal_strength = 5.0
 normal_scale = 2.5
-blob_stretch = Vector2(1.5, 1.0)
 
 [sub_resource type="Resource" id="Decal2"]
 script = ExtResource("2_spec")
 display_name = "Натасканная грязь"
 kind = 2
-weight = 1.0
-edge_color = Color(0.26, 0.19, 0.11, 0.0)
+edge_color = Color(0.26, 0.19, 0.11, 0)
 core_color = Color(0.17, 0.12, 0.07, 0.88)
-noise_type = 2
 noise_frequency = 0.03
-noise_octaves = 3
-noise_lacunarity = 2.0
-noise_gain = 0.5
 noise_seed = 163
 blob_count = 2
-edge_feather = 0.55
 mask_threshold = 0.2
-mask_gain = 1.0
-size_min = Vector2(1.4, 2.0)
+blob_stretch = Vector2(1.6, 0.9)
 size_max = Vector2(2.8, 4.2)
-albedo_mix = 0.9
 opacity = 0.88
 roughness = 0.78
-metallic = 0.0
 normal_strength = 7.0
-normal_scale = 2.0
-blob_stretch = Vector2(1.6, 0.9)
 
 [sub_resource type="Resource" id="Decal3"]
 script = ExtResource("2_spec")
 display_name = "Лужа"
 kind = 3
 weight = 0.6
-edge_color = Color(0.12, 0.14, 0.16, 0.0)
+edge_color = Color(0.12, 0.14, 0.16, 0)
 core_color = Color(0.06, 0.07, 0.08, 0.82)
 noise_type = 1
 noise_frequency = 0.028
-noise_octaves = 3
-noise_lacunarity = 2.0
-noise_gain = 0.5
 noise_seed = 197
 blob_count = 2
 edge_feather = 0.45
 mask_threshold = 0.03
 mask_gain = 1.2
+blob_stretch = Vector2(1.6, 0.9)
 size_min = Vector2(1.4, 1.8)
-size_max = Vector2(3.0, 4.4)
+size_max = Vector2(3, 4.4)
 albedo_mix = 0.85
 opacity = 0.9
 roughness = 0.06
-metallic = 0.0
 normal_strength = 0.0
 normal_scale = 1.0
-blob_stretch = Vector2(1.6, 0.9)
 
 [resource]
 script = ExtResource("1_profile")
-road_kind = 0
 density = 8.0
-spread = 0.85
 decals = Array[ExtResource("2_spec")]([SubResource("Decal0"), SubResource("Decal1"), SubResource("Decal2"), SubResource("Decal3")])
