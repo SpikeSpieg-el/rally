@@ -1,6 +1,7 @@
 ## Главный список данных игры. Откройте res://data/rally_game_config.tres
 ## в инспекторе, чтобы добавить/убрать трассы и конфигурации машины.
-## Порядок элементов в массивах = порядок в меню и горячие клавиши F1..F5.
+## Порядок элементов в массивах = порядок в меню. Горячие клавиши F1..F5
+## (`track_hotkey_count`) достаются первым пяти трассам.
 @tool
 class_name RallyGameConfig
 extends Resource
@@ -31,6 +32,12 @@ extends Resource
 @export var default_setup_index: int = 0
 @export var default_weather_index: int = 0
 @export var default_profile_index: int = 0
+
+@export_group("Тест-полигон")
+## Лёгкая кольцевая трасса для проверки эффектов, погоды, камеры и пропсов
+## (data/tracks/stage_testpad.tres). На неё ведёт отдельная кнопка главного
+## экрана: заезд начинается без выбора трассы и без гаража. Пусто — кнопки нет.
+@export var test_track: Resource = null
 
 @export_group("Сцены")
 @export_file("*.tscn") var menu_scene: String = "res://scenes/main_menu.tscn"

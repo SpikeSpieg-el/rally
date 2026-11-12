@@ -1,0 +1,82 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://e6iz6gtccpoj"]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="track"]
+[ext_resource type="Curve3D" uid="uid://cxk8ieanp2vm" path="res://data/tracks/stage_testpad_route.tres" id="curve"]
+
+[resource]
+script = ExtResource("track")
+id = "test_polygon"
+display_name = "ТЕСТ-ПОЛИГОН"
+description = "Лёгкое кольцо 1.3 км для проверки эффектов, погоды, камеры и пропсов.\nПолотно плоское и широкое, рельефа нет: любой эффект видно сразу.\nВдоль обеих прямых выставлены все пропсы игры."
+surface_name = "Асфальт"
+difficulty = 1
+target_time = 45.0
+stage_scene = "res://scenes/rally_stage_testpad.tscn"
+
+road_curve = ExtResource("curve")
+road_half_width = 6.0
+road_shoulder = 2.5
+road_step = 2.0
+road_camber = 0.05
+offroad_grip = 0.75
+
+terrain_margin = 60.0
+terrain_cell = 3.00
+terrain_seed = 7701
+hills_height = 0.0
+ridge_height = 0.0
+max_terrain_slope_deg = 25.0
+road_ditch_depth = 0.15
+detail_height = 0.15
+embankment_slope_deg = 22.0
+embankment_min_width = 4.0
+embankment_max_width = 18.0
+road_feature_height = 0.0
+road_feature_spacing = 320.0
+bumps_amplitude = 0.0
+bumps_roughness = 0.0
+bumps_cross = 0.0
+
+use_baked_props = true
+procedural_scenery = true
+scenery_density = 0.35
+spawn_route_markers = true
+spawn_edge_posts = true
+spawn_checkpoints = true
+checkpoint_interval = 300.0
+stream_world = false
+procedural = false
+
+ground_color = Color(0.3000, 0.3400, 0.2700, 1.0000)
+ground_color_2 = Color(0.4000, 0.4400, 0.3300, 1.0000)
+rock_color = Color(0.4200, 0.4300, 0.4500, 1.0000)
+road_color = Color(0.2000, 0.2000, 0.2200, 1.0000)
+road_color_2 = Color(0.3000, 0.3000, 0.3200, 1.0000)
+shoulder_color = Color(0.3200, 0.3000, 0.2400, 1.0000)
+edge_post_color = Color(0.9000, 0.1600, 0.1000, 1.0000)
+
+sky_top_color = Color(0.2800, 0.4800, 0.8000, 1.0000)
+sky_horizon_color = Color(0.7800, 0.8500, 0.9200, 1.0000)
+fog_color = Color(0.7600, 0.8200, 0.8800, 1.0000)
+fog_near = 140.0
+fog_far = 420.0
+fog_density = 0.0
+sun_color = Color(1.0000, 0.9600, 0.8800, 1.0000)
+ambient_color = Color(0.6200, 0.6800, 0.7800, 1.0000)
+ambient_energy = 0.85
+exposure = 1.05
+sun_energy = 1.45
+sun_pitch = -42.0
+sun_yaw = 35.0
+screen_space_ao = true
+volumetric_fog = false
+
+grip_scale = 1.0
+rolling_resistance_scale = 1.0
+
+ps1_style = true
+flat_shading = true
+dither_fog = true
+color_banding = 5
+sky_flat = true
+enable_speed_fx = true

@@ -223,13 +223,18 @@ def monotone_slopes(ctrl):
 
 
 # ---------------------------------------------------------------- запись
-def write_curve(ctrl, path, slopes=None, uid=None):
+def write_curve(ctrl, path, slopes=None, uid=None, closed=False):
     """Контрольные точки -> Curve3D (.tres).
 
     План (XZ): ручки по направлению хорды «сосед → сосед», длина = треть
     расстояния до соседа — как раньше, план от этого не портился.
     Высота (Y): ручки по монотонным наклонам Фрича—Карлсона — раньше тут
     был средний наклон хорды, из-за чего полки вспухали и проваливались.
+
+    `closed=True` — замкнутое кольцо: у первой и последней точки соседями
+    считаются точки ЧЕРЕЗ стык. Без этого ручки на стыке вышли бы нулевыми,
+    кривая на мгновение «останавливалась» и в полотне кольца появлялся
+    плоский клин на стартовой линии.
 
     ВАЖНО: Godot хранит point_in / point_out ОТНОСИТЕЛЬНО самой точки.
     """
@@ -239,8 +244,12 @@ def write_curve(ctrl, path, slopes=None, uid=None):
     values = []
     for i in range(n):
         px, pz, py = ctrl[i][0], ctrl[i][1], ctrl[i][2]
-        prev = ctrl[max(0, i - 1)]
-        nxt = ctrl[min(n - 1, i + 1)]
+        if closed and n > 2:
+            prev = ctrl[i - 1] if i > 0 else ctrl[n - 2]
+            nxt = ctrl[i + 1] if i < n - 1 else ctrl[1]
+        else:
+            prev = ctrl[max(0, i - 1)]
+            nxt = ctrl[min(n - 1, i + 1)]
         tx, tz = nxt[0] - prev[0], nxt[1] - prev[1]
         tl = math.hypot(tx, tz) or 1.0
         hx, hz = tx / tl, tz / tl            # единичное направление в плане

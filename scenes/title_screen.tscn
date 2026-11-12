@@ -169,7 +169,7 @@ theme_override_constants/separation = 6
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 focus_neighbor_top = NodePath("../QuitButton")
-focus_neighbor_bottom = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../TestPadButton")
 theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
 theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
 theme_override_colors/font_focus_color = Color(0.08, 0.07, 0.05, 1)
@@ -181,10 +181,24 @@ theme_override_styles/focus = SubResource("Focus")
 text = "01     НАЧАТЬ ЗАЕЗД                         →"
 alignment = 0
 
-[node name="SettingsButton" type="Button" parent="Menu/Column/Actions"]
+[node name="TestPadButton" type="Button" parent="Menu/Column/Actions"]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 focus_neighbor_top = NodePath("../StartButton")
+focus_neighbor_bottom = NodePath("../SettingsButton")
+theme_override_colors/font_color = Color(0.88, 0.91, 0.88, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("Secondary")
+theme_override_styles/hover = SubResource("SecondaryHover")
+theme_override_styles/pressed = SubResource("SecondaryHover")
+theme_override_styles/focus = SubResource("Focus")
+text = "02     ТЕСТ-ПОЛИГОН"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Menu/Column/Actions"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+focus_neighbor_top = NodePath("../TestPadButton")
 focus_neighbor_bottom = NodePath("../QuitButton")
 theme_override_colors/font_color = Color(0.88, 0.91, 0.88, 1)
 theme_override_font_sizes/font_size = 18
@@ -192,7 +206,7 @@ theme_override_styles/normal = SubResource("Secondary")
 theme_override_styles/hover = SubResource("SecondaryHover")
 theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "02     НАСТРОЙКИ"
+text = "03     НАСТРОЙКИ"
 alignment = 0
 
 [node name="QuitButton" type="Button" parent="Menu/Column/Actions"]
@@ -206,7 +220,7 @@ theme_override_styles/normal = SubResource("Secondary")
 theme_override_styles/hover = SubResource("SecondaryHover")
 theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "03     ВЫХОД"
+text = "04     ВЫХОД"
 alignment = 0
 
 [node name="BottomSpace" type="Control" parent="Menu/Column"]
