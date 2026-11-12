@@ -1686,31 +1686,48 @@ func _build_terrain(light: bool = false, from_pct: float = 0.0, to_pct: float = 
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	terrain_mesh.mesh = mesh
 	terrain_mesh.material_override = _make_ground_material()
-	terrain_collider.shape = _make_terrain_collider(mesh, heights, cols, rows, cell, origin)
+	terrain_collider.shape = _make_terrain_collider(
+		mesh, heights, cols, rows, cell, origin, distances, cap, hole_distance
+	)
 
 
-## Коллизия рельефа строится по разрежённой сетке: физике не нужна точность
-## видимого меша, а треугольников в нём сотни тысяч — это и были главные
-## секунды загрузки карты. Дыр под полотном здесь нет (в отличие от видимого
-## меша): лента дороги лежит выше и перекрывает их своей коллизией.
+## Коллизия рельефа: вдали — разрежённая сетка, у полотна — точная.
+##
+## Разрежённая сетка экономит секунды загрузки, но у полотна она врёт: при
+## `terrain_cell` 3 м и `terrain_collider_stride` 2 ячейка коллизии — 6 м, и
+## на склоне выреза/насыпи хорда проходит НАД лентой дороги. Видимый меш под
+## полотном вырезан дырой, поэтому кочка невидимая: машину подбрасывает на
+## ровном месте, «будто утопили дорогу». Замер на «Чёрной долине»
+## (`tools/check_road_collision.py --coarse`): земляная коллизия выше ленты на
+## 29 % длины трассы, местами до 1,74 м.
+##
+## Поэтому в полосе у дороги (её ширина — дыра плюс две грубые ячейки)
+## коллизия строится по ТОЙ ЖЕ сетке и с ТЕМИ ЖЕ дырами, что и видимый меш:
+## что видно — то и твердое, что вырезано — того не существует. Дальше от
+## дороги шаг снова грубый.
 func _make_terrain_collider(
 	mesh: ArrayMesh,
 	heights: PackedFloat32Array,
 	cols: int,
 	rows: int,
 	cell: float,
-	origin: Vector2
+	origin: Vector2,
+	distances: PackedFloat32Array,
+	caps: PackedByteArray,
+	hole_distance: float
 ) -> Shape3D:
 	var stride: int = maxi(1, s_settings().terrain_collider_stride)
 	if stride <= 1 and mesh != null:
 		var exact := mesh.create_trimesh_shape()
 		exact.backface_collision = true
 		return exact
+	# Полоса точной коллизии у полотна: дыра плюс две грубые ячейки в каждую
+	# сторону — дальше хорда уже не достаёт до ленты.
+	var near_limit: float = hole_distance + cell * float(stride) * 2.0
+	var exact_band: bool = distances.size() == cols * rows and caps.size() == cols * rows
 	var grid_cols: int = maxi(2, ceili(float(cols - 1) / float(stride)) + 1)
 	var grid_rows: int = maxi(2, ceili(float(rows - 1) / float(stride)) + 1)
 	var faces := PackedVector3Array()
-	faces.resize((grid_cols - 1) * (grid_rows - 1) * 6)
-	var write: int = 0
 	for cz in range(grid_rows - 1):
 		var gz0: int = mini(cz * stride, rows - 1)
 		var gz1: int = mini(gz0 + stride, rows - 1)
@@ -1719,19 +1736,50 @@ func _make_terrain_collider(
 		for cx in range(grid_cols - 1):
 			var gx0: int = mini(cx * stride, cols - 1)
 			var gx1: int = mini(gx0 + stride, cols - 1)
+			var near: bool = false
+			if exact_band:
+				var d00: float = distances[gz0 * cols + gx0]
+				var d10: float = distances[gz0 * cols + gx1]
+				var d01: float = distances[gz1 * cols + gx0]
+				var d11: float = distances[gz1 * cols + gx1]
+				near = minf(minf(d00, d10), minf(d01, d11)) < near_limit
+			if near:
+				# Точные подъячейки: ровно та же сетка и те же дыры, что у
+				# видимого меша. Ничего невидимого физика здесь не видит.
+				for sz in range(gz0, gz1):
+					var fz0: float = origin.y + float(sz) * cell
+					var fz1: float = origin.y + float(sz + 1) * cell
+					for sx in range(gx0, gx1):
+						var i00: int = sz * cols + sx
+						var i10: int = i00 + 1
+						var i01: int = i00 + cols
+						var i11: int = i01 + 1
+						if distances[i00] < hole_distance and caps[i00] == 0 \
+								and distances[i10] < hole_distance and caps[i10] == 0 \
+								and distances[i01] < hole_distance and caps[i01] == 0 \
+								and distances[i11] < hole_distance and caps[i11] == 0:
+							continue
+						var fx0: float = origin.x + float(sx) * cell
+						var fx1: float = origin.x + float(sx + 1) * cell
+						faces.push_back(Vector3(fx0, heights[i00], fz0))
+						faces.push_back(Vector3(fx1, heights[i10], fz0))
+						faces.push_back(Vector3(fx0, heights[i01], fz1))
+						faces.push_back(Vector3(fx1, heights[i10], fz0))
+						faces.push_back(Vector3(fx1, heights[i11], fz1))
+						faces.push_back(Vector3(fx0, heights[i01], fz1))
+				continue
 			var x0: float = origin.x + float(gx0) * cell
 			var x1: float = origin.x + float(gx1) * cell
 			var h00: float = heights[gz0 * cols + gx0]
 			var h10: float = heights[gz0 * cols + gx1]
 			var h01: float = heights[gz1 * cols + gx0]
 			var h11: float = heights[gz1 * cols + gx1]
-			faces[write] = Vector3(x0, h00, z0)
-			faces[write + 1] = Vector3(x1, h10, z0)
-			faces[write + 2] = Vector3(x0, h01, z1)
-			faces[write + 3] = Vector3(x1, h10, z0)
-			faces[write + 4] = Vector3(x1, h11, z1)
-			faces[write + 5] = Vector3(x0, h01, z1)
-			write += 6
+			faces.push_back(Vector3(x0, h00, z0))
+			faces.push_back(Vector3(x1, h10, z0))
+			faces.push_back(Vector3(x0, h01, z1))
+			faces.push_back(Vector3(x1, h10, z0))
+			faces.push_back(Vector3(x1, h11, z1))
+			faces.push_back(Vector3(x0, h01, z1))
 	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
 	_set_shape_faces(shape, faces)
