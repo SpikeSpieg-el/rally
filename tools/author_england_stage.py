@@ -76,6 +76,28 @@ MAX_ROUTE_LENGTH = 4800.0
 
 
 # ------------------------------------------------------------------ река
+UID_RE = re.compile(r'uid="(uid://[^"]+)"')
+
+
+def resource_uid(res_path, file_path):
+    """uid ресурса: из существующего файла, иначе детерминированный.
+
+    Godot при пересохранении в редакторе выдаёт СВОЙ uid и прописывает его в
+    ссылках (`ext_resource ... uid="uid://..."`). Если инструмент подставит
+    пересчитанный хеш, ссылки в сцене и в трассе повиснут. Поэтому uid
+    существующего файла — закон.
+    """
+    try:
+        with open(file_path, encoding="utf-8") as handle:
+            head = handle.readline()
+    except OSError:
+        head = ""
+    found = UID_RE.search(head)
+    if found:
+        return found.group(1)
+    return uid_tool.godot_uid(res_path)
+
+
 def river_x(z):
     return (RIVER_CX
             + RIVER_A1 * math.sin(z / RIVER_F1)
@@ -207,7 +229,7 @@ def compose_route():
 
 
 def write_route(controls):
-    uid = uid_tool.godot_uid("res://data/tracks/stage_england_route.tres")
+    uid = resource_uid("res://data/tracks/stage_england_route.tres", ROUTE_PATH)
     kit.write_curve(controls, ROUTE_PATH, uid=uid)
     samples = model.sample_curve(model.load_curve(ROUTE_PATH), 1.0)
     points = [(p[0], p[2], p[1]) for p in samples]
@@ -431,7 +453,7 @@ def write_river(small, large, terrain=None):
     # съедало плоское корыто под мостом (вода всплывала на 0.4 м).
     controls = kit.select_controls([tuple(p) for p in points], max_gap=24, min_gap=8,
                                     turn_trigger_deg=5)
-    uid = uid_tool.godot_uid("res://data/tracks/stage_england_river.tres")
+    uid = resource_uid("res://data/tracks/stage_england_river.tres", RIVER_PATH)
     kit.write_curve(controls, RIVER_PATH, uid=uid)
     # Финальный профиль — по записанным точкам, а не по исходной формуле:
     # проверки должны видеть то, что реально попало в ресурс.
@@ -486,7 +508,7 @@ SECTIONS = [
 
 
 def track_text(route_uid, river_uid, small, large):
-    track_uid = uid_tool.godot_uid("res://data/tracks/stage_england.tres")
+    track_uid = resource_uid("res://data/tracks/stage_england.tres", TRACK_PATH)
     lines = []
     lines.append('[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="%s"]' % track_uid)
     lines.append("")
@@ -645,7 +667,11 @@ def track_text(route_uid, river_uid, small, large):
 
 
 def scene_text():
-    with open(BASE_SCENE, encoding="utf-8") as handle:
+    # База — сама сцена этапа, если она уже есть: цвета земли, свет и прочие
+    # правки из редактора Godot должны переживать перегенерацию. Шаблон
+    # scenes/rally_stage.tscn нужен только для первого раза.
+    base = SCENE_PATH if os.path.exists(SCENE_PATH) else BASE_SCENE
+    with open(base, encoding="utf-8") as handle:
         text = handle.read()
     header, _sep, body = text.partition("\n[node ")
     blocks = ["[node " + chunk for chunk in body.split("\n[node ")]
@@ -656,15 +682,17 @@ def scene_text():
             continue
         kept.append(block)
     body = "\n".join(kept)
-    scene_uid = uid_tool.godot_uid("res://scenes/rally_stage_england.tscn")
+    scene_uid = resource_uid("res://scenes/rally_stage_england.tscn", SCENE_PATH)
     header = re.sub(r"\[gd_scene format=3[^\]]*\]",
                     '[gd_scene format=3 uid="%s"]' % scene_uid, header)
-    route_uid = uid_tool.godot_uid("res://data/tracks/stage_england_route.tres")
+    route_uid = resource_uid("res://data/tracks/stage_england_route.tres", ROUTE_PATH)
     header = re.sub(r'\[ext_resource type="Curve3D"[^\]]*id="4_route"\]',
                     '[ext_resource type="Curve3D" uid="%s" '
                     'path="res://data/tracks/stage_england_route.tres" id="4_route"]' % route_uid,
                     header)
-    track_uid = uid_tool.godot_uid("res://data/tracks/stage_england.tres")
+    track_uid = resource_uid("res://data/tracks/stage_england.tres", TRACK_PATH)
+    # Идемпотентность: повторный прогон не должен плодить дубли ссылок.
+    header = re.sub(r'\[ext_resource type="Resource"[^\]]*id="track_england"\]\n?', "", header)
     added = ('[ext_resource type="Resource" uid="%s" path="res://data/tracks/stage_england.tres" '
              'id="track_england"]' % track_uid)
     header = header.replace('[ext_resource type="Script" uid="uid://bxev3gfr3ewld" '
@@ -672,6 +700,7 @@ def scene_text():
                             '[ext_resource type="Script" uid="uid://bxev3gfr3ewld" '
                             'path="res://scripts/rally_stage.gd" id="1_stage"]\n' + added)
     # Своя трасса и своя сцена: заезд всегда открывает этот участок.
+    body = re.sub(r'\ntrack_override = ExtResource\("track_england"\)', "", body)
     body = body.replace('prop_library = ExtResource("13_props")',
                         'prop_library = ExtResource("13_props")\ntrack_override = ExtResource("track_england")')
     # Деревья лесной трассы больше не нужны — убираем их ext_resource.
@@ -740,12 +769,17 @@ def main():
         for problem in problems:
             print("  ПРОБЛЕМА: " + problem)
         raise SystemExit("Проверки не пройдены.")
-    route_uid = uid_tool.godot_uid("res://data/tracks/stage_england_route.tres")
-    river_uid = uid_tool.godot_uid("res://data/tracks/stage_england_river.tres")
+    route_uid = resource_uid("res://data/tracks/stage_england_route.tres", ROUTE_PATH)
+    river_uid = resource_uid("res://data/tracks/stage_england_river.tres", RIVER_PATH)
+    # ВАЖНО: тексты собираются ДО open(..., "w"). Открытие на запись обрезает
+    # файл, а обе функции читают его же (uid и правки редактора) — иначе файл
+    # затирается пустотой ещё до чтения.
+    track_body = track_text(route_uid, river_uid, small, large)
+    scene_body = scene_text()
     with open(TRACK_PATH, "w", encoding="utf-8") as handle:
-        handle.write(track_text(route_uid, river_uid, small, large))
+        handle.write(track_body)
     with open(SCENE_PATH, "w", encoding="utf-8") as handle:
-        handle.write(scene_text())
+        handle.write(scene_body)
     print("Готово: %s, %s, %s" % (
         os.path.relpath(ROUTE_PATH, ROOT), os.path.relpath(RIVER_PATH, ROOT),
         os.path.relpath(TRACK_PATH, ROOT)))

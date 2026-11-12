@@ -1,7 +1,6 @@
 [gd_scene format=4 uid="uid://drt6o1umbpvu8"]
 
 [ext_resource type="Script" uid="uid://bd80nxls366kq" path="res://scripts/rally_car.gd" id="1_ggxr1"]
-[ext_resource type="PackedScene" uid="uid://cwipersfxscene" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="2_endy0"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_nx6sy"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_4ms5t"]
@@ -35,6 +34,7 @@
 [ext_resource type="Texture2D" uid="uid://dplqcf8qp0vr8" path="res://car1/2006_subaru_impreza_wrx_s_ti_24.png" id="40_j6ytk"]
 [ext_resource type="Texture2D" uid="uid://uitwbuigmcen" path="res://car1/2006_subaru_impreza_wrx_s_ti_26.png" id="41_mdxq3"]
 [ext_resource type="Texture2D" uid="uid://dljsvacnxtg0x" path="res://car1/2006_subaru_impreza_wrx_s_ti_27.png" id="42_mgb74"]
+[ext_resource type="PackedScene" uid="uid://bmcd7ia5sn87s" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.15
@@ -1888,11 +1888,11 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_i0doc")
 
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
-mass = 1230.0
 collision_mask = 3
-continuous_cd = true
+mass = 1230.0
 physics_material_override = SubResource("PhysicsMaterial_37cw1")
 center_of_mass_mode = 1
+continuous_cd = true
 linear_damp_mode = 1
 script = ExtResource("1_ggxr1")
 front_left_wheel = NodePath("Wheel_FL")
@@ -2352,5 +2352,28 @@ mesh = SubResource("ArrayMesh_8hhh1")
 [node name="Object_134" type="MeshInstance3D" parent="FINAL_MODEL_01_fbx_1/RootNode_2/Object_3_3/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_87/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_sub_1_MAT_Glass_049_0_90" unique_id=755497244]
 mesh = SubResource("ArrayMesh_hnnea")
 
-[node name="Wipers" parent="." instance=ExtResource("wipers") unique_id=650194823]
+[node name="Wipers" parent="." unique_id=650194823 instance=ExtResource("wipers")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.17, 0.95)
+
+[node name="HeadlightL" type="SpotLight3D" parent="." unique_id=1144666079]
+transform = Transform3D(-0.97420615, 0.015741242, -0.22511019, 9.844174e-16, 0.9975641, 0.06975649, 0.22565988, 0.06795721, -0.97183305, 0.8031842, 0.9547056, 2.9127183)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0
+
+[node name="HeadlightR" type="SpotLight3D" parent="." unique_id=1698940101]
+transform = Transform3D(-0.9972683, -0.005152519, 0.073684424, 1.0954397e-15, 0.9975641, 0.06975649, -0.073864356, 0.069565944, -0.994839, -0.7841496, 0.9688642, 3.0079124)
+light_color = Color(1, 0.91, 0.76, 1)
+light_energy = 8.0
+light_volumetric_fog_energy = 0.45
+shadow_enabled = true
+spot_range = 85.0
+spot_attenuation = 0.75
+spot_angle = 32.0
+
+[node name="WindshieldWipers" parent="." unique_id=453340048 instance=ExtResource("wipers")]
+transform = Transform3D(1, 0, 0, 0, 0.73183566, 0.6814811, 0, -0.6814811, 0.73183566, -0.2802538, 1.3914678, 1.4935719)

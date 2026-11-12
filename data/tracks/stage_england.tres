@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://cdhbkw8z1qc7"]
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://cdhbkw801qc7"]
 
 [ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="track"]
 [ext_resource type="Curve3D" uid="uid://fkvjdvnta4xy" path="res://data/tracks/stage_england_route.tres" id="curve"]
-[ext_resource type="Curve3D" uid="uid://bobde9hz73gy" path="res://data/tracks/stage_england_river.tres" id="river_curve"]
+[ext_resource type="Curve3D" uid="uid://bobdfah073gy" path="res://data/tracks/stage_england_river.tres" id="river_curve"]
 [ext_resource type="Script" path="res://scripts/data/rally_river_config.gd" id="river"]
 [ext_resource type="Script" path="res://scripts/data/rally_bridge_placement.gd" id="bridge"]
 [ext_resource type="Script" path="res://scripts/data/rally_route_section.gd" id="section"]
