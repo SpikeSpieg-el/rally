@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://faixdqa7ldqw"]
 
 [ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_stage"]
+[ext_resource type="Resource" uid="uid://cdhbkw801qc7" path="res://data/tracks/stage_england.tres" id="track_england"]
 [ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="2_car"]
 [ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_way4p"]
 [ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="3_6y0e7"]
@@ -20,7 +21,6 @@
 [ext_resource type="PackedScene" uid="uid://cm7js1v8kufmn" path="res://scenes/ui/rally_hud.tscn" id="hud_layout"]
 [ext_resource type="Environment" uid="uid://bb8gswph2upes" path="res://data/tracks/night_environment.tres" id="night_environment"]
 [ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="retro_screen"]
-[ext_resource type="Resource" uid="uid://cdhbkw801qc7" path="res://data/tracks/stage_england.tres" id="track_england"]
 [ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="visual_effects"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3pw6d"]
@@ -147,13 +147,13 @@ shader_parameter/speed_stretch_gain = 1.0
 [node name="RallyStage" type="Node3D" unique_id=651009656]
 script = ExtResource("1_stage")
 game_config = ExtResource("2_way4p")
-track_override = ExtResource("track_england")
 settings = SubResource("Resource_f0fu1")
 legacy_effects_imported = true
 spawn_layout = ExtResource("10_xfxr1")
 fx_profile = ExtResource("11_1v6xi")
 scenery = ExtResource("12_5kwpf")
 prop_library = ExtResource("13_props")
+track_override = ExtResource("track_england")
 
 [node name="VisualEffects" parent="." unique_id=349289573 instance=ExtResource("visual_effects")]
 editor_description = "Визуальные настройки: скорость, дождь, снег и материалы. Ретро-экран — под HUD."

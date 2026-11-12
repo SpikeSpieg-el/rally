@@ -215,10 +215,13 @@ material = SubResource("Mat_masonry")
 size = Vector3(3.4, 3.6, 0.8)
 
 [sub_resource type="BoxShape3D" id="Collision_ParapetL"]
-size = Vector3(22, 1.6, 0.9)
+size = Vector3(22, 1.6, 0.7)
 
 [sub_resource type="BoxShape3D" id="Collision_ParapetR"]
-size = Vector3(22, 1.6, 0.9)
+size = Vector3(22, 1.6, 0.7)
+
+[sub_resource type="BoxShape3D" id="Collision_Deck"]
+size = Vector3(22, 0.5, 13.4)
 
 [sub_resource type="BoxShape3D" id="Collision_AbutmentL"]
 size = Vector3(2.6, 5.4, 16)
@@ -407,17 +410,21 @@ mesh = SubResource("Wing_1_1")
 collision_layer = 2
 
 [node name="ParapetL" type="CollisionShape3D" parent="Collision"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -6.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -7.25)
 shape = SubResource("Collision_ParapetL")
 
 [node name="ParapetR" type="CollisionShape3D" parent="Collision"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 6.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 7.25)
 shape = SubResource("Collision_ParapetR")
 
+[node name="Deck" type="CollisionShape3D" parent="Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.27, 0)
+shape = SubResource("Collision_Deck")
+
 [node name="AbutmentL" type="CollisionShape3D" parent="Collision"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.1, -2.6, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.1, -2.85, 0)
 shape = SubResource("Collision_AbutmentL")
 
 [node name="AbutmentR" type="CollisionShape3D" parent="Collision"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.1, -2.6, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.1, -2.85, 0)
 shape = SubResource("Collision_AbutmentR")

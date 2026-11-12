@@ -172,15 +172,22 @@ def bridge_small():
                       (sign * (span * 0.5 + 2.3), -1.4, z_sign * (width * 0.5 + 0.2)),
                       (0.0, sign * z_sign * 28.0, 0.0))
 
-    parapet_thickness = 0.9
+    # Коллизия не должна вылезать на полотно:
+    #   * парапет — за внешней кромкой ленты дороги (±6,6 м), иначе машина
+    #     цепляет его краем колеи;
+    #   * пятка опоры — ниже полотна, иначе на торце моста получается
+    #     невидимая ступенька в 3 см;
+    #   * настил — сплошной «пол» под лентой, чтобы пролёт оставался
+    #     проезжим даже там, где лента над прорезанным руслом провисает.
+    parapet_z = width * 0.5 + 0.15
     shapes = []
     for sign in (-1.0, 1.0):
-        z = sign * (width * 0.5 - 0.12)
         key = "ParapetL" if sign < 0 else "ParapetR"
-        shapes.append((key, (span, 1.6, parapet_thickness), (0.0, 0.8, z)))
+        shapes.append((key, (span, 1.6, 0.7), (0.0, 0.8, sign * parapet_z)))
+    shapes.append(("Deck", (span, 0.5, width - 0.8), (0.0, -0.27, 0.0)))
     for sign in (-1.0, 1.0):
         shapes.append(("Abutment" + ("L" if sign < 0 else "R"),
-                       (2.6, 5.4, width + 1.8), (sign * (span * 0.5 + 1.1), -2.6, 0.0)))
+                       (2.6, 5.4, width + 1.8), (sign * (span * 0.5 + 1.1), -2.85, 0.0)))
     scene.body("Collision", shapes)
     write("bridge_small", scene)
 
@@ -242,9 +249,10 @@ def bridge_large():
 
     shapes = []
     for sign in (-1.0, 1.0):
-        z = sign * (width * 0.5 - 0.15)
+        z = sign * (width * 0.5 + 0.15)
         shapes.append(("Parapet" + ("L" if sign < 0 else "R"),
-                       (span, 1.9, 1.1), (0.0, 0.95, z)))
+                       (span, 1.9, 0.9), (0.0, 0.95, z)))
+    shapes.append(("Deck", (span, 0.5, width - 0.8), (0.0, -0.27, 0.0)))
     for i, x in enumerate(pier_x):
         shapes.append(("Pier%d" % i, (3.6, 2.0, width + 1.8), (x, -1.6, 0.0)))
     for sign in (-1.0, 1.0):

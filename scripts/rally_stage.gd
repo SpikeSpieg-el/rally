@@ -1032,7 +1032,37 @@ func _setup_river() -> void:
 	river_network = RiverNetworkType.build(
 		track.river, _bridge_points, _bridge_scales, _bridge_widen_radii
 	)
+	_clamp_river_water()
 	_warn_bridge_clearance()
+
+
+## Вода не может стоять выше земли. Реку рисуют по плану и профилю, который
+## не знает про холмы: если уровень выше рельефа, землю под ним не поднять
+## (русло только режет), и зеркало улетает в небо, а его кромка падает на
+## землю — получаются длинные треугольные «простыни». Поэтому уровень
+## опускаем до земли с запасом, сглаживаем и опускаем ещё раз. Поднять
+## обратно нельзя: земля под руслом будет вырезана только в _build_terrain.
+func _clamp_river_water() -> void:
+	if river_network == null or network == null or track == null or track.river == null:
+		return
+	var samples: PackedVector3Array = river_network.samples
+	if samples.size() < 3:
+		return
+	var depth: float = maxf(0.6, track.river.bed_depth * 0.4)
+	var limits := PackedFloat32Array()
+	limits.resize(samples.size())
+	for i in range(samples.size()):
+		var point: Vector3 = samples[i]
+		limits[i] = _road_shoulder_height(point.x, point.z) - depth
+		if point.y > limits[i]:
+			samples[i] = Vector3(point.x, limits[i], point.z)
+	# Ступеньки на воде — только пороги, случайных уступов быть не должно.
+	for _pass_index in range(3):
+		for i in range(1, samples.size() - 1):
+			var average: float = (samples[i - 1].y + samples[i].y * 2.0 + samples[i + 1].y) * 0.25
+			if average < samples[i].y:
+				samples[i] = Vector3(samples[i].x, average, samples[i].z)
+	river_network.samples = samples
 
 
 ## Мост, под которым вода подошла к настилу вплотную, — ошибка авторинга,
@@ -3377,6 +3407,10 @@ func _dressing_corner_fence(
 		var b: Vector3 = GuardrailPlacement.offset_point(
 			network, track, next, outer_sign, cfg.corner_fence_offset
 		)
+		# На мосту место занимают его собственные парапеты.
+		if _bridge_open_at(a.x, a.z) or _bridge_open_at(b.x, b.z):
+			d = next
+			continue
 		a.y = ground_height(a.x, a.z)
 		b.y = ground_height(b.x, b.z)
 		var span: Vector3 = Vector3(b.x - a.x, 0.0, b.z - a.z)
@@ -3571,6 +3605,10 @@ func _spawn_guardrails(distance_start: float = 0.0, distance_end: float = -1.0, 
 		var a: Vector3 = GuardrailPlacement.offset_point(network, track, start, outer, cfg.guardrail_offset)
 		var b: Vector3 = GuardrailPlacement.offset_point(network, track, finish, outer, cfg.guardrail_offset)
 		if not _guardrail_span_is_clear(a, b, cfg.guardrail_road_clearance):
+			continue
+		# На мосту отбойник «нырял» бы в прорезанное русло и работал бы
+		# барьером поперёк полотна: там стоят парапеты самого моста.
+		if _bridge_open_at(a.x, a.z) or _bridge_open_at(b.x, b.z):
 			continue
 		a.y = ground_height(a.x, a.z)
 		b.y = ground_height(b.x, b.z)

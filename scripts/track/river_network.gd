@@ -247,10 +247,11 @@ func build_water_mesh(
 		var right_y: float = center_y + wave * 0.55
 		if ground.is_valid():
 			# Кромка садится на береговую линию из carve(): вода не висит над
-			# землёй и не перерезает берег. Запас 3 см — чтобы кромка не
-			# мерцала с землёй в одной плоскости.
-			left_y = minf(left_y, float(ground.call(left_x, left_z)) - 0.03)
-			right_y = minf(right_y, float(ground.call(right_x, right_z)) - 0.03)
+			# землёй и не перерезает берег. Опускаем не больше чем на полметра:
+			# иначе на грубой сетке рельефа кромка «съезжает» по склону и
+			# получаются длинные косые треугольники под водой.
+			left_y = maxf(left_y - 0.5, minf(left_y, float(ground.call(left_x, left_z)) - 0.03))
+			right_y = maxf(right_y - 0.5, minf(right_y, float(ground.call(right_x, right_z)) - 0.03))
 		var left := Vector3(left_x, left_y, left_z)
 		var right := Vector3(right_x, right_y, right_z)
 		var middle := Vector3(point.x, center_y, point.z)
