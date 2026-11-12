@@ -134,9 +134,15 @@ python3 tools/plot_stage_plan.py data/tracks/stage_england.tres docs/england_sta
 
 ```bash
 python3 tools/check_project.py                 # ссылки в .tres/.tscn
+python3 tools/check_road_collision.py          # нет ли коллизии над лентой
 python3 tests/test_england_stage.py            # маршрут, река, мосты (без Godot)
 godot --headless --path . --script res://tests/stage_smoke.gd
 ```
+
+`tools/check_road_collision.py` ловит «невидимые кочки»: разрежённая коллизия
+рельефа проходит над лентой дороги там, где видимый меш вырезан дырой. На
+этом этапе превышение было 29 % длины и до 1,74 м — машину подбрасывало на
+ровном месте. С `--coarse` проверка воспроизводит старое поведение.
 
 `tests/test_england_stage.py` не доверяет инструменту, а перечитывает готовые
 ресурсы: считает длину и уклоны по всей кривой, находит пересечения русла по
