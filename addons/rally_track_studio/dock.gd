@@ -42,9 +42,13 @@ var _studio = null
 var _rows: Array = []
 var _hint: Label = null
 var _body: VBoxContainer = null
+var _apply_box: HBoxContainer = null
 var _apply_button: Button = null
+var _apply_full_button: Button = null
+var _ops_box: GridContainer = null
 var _dragging_index: int = -1
 var _hint_text := ""
+var _last_refresh_hash := 0
 
 
 func setup(studio) -> void:
@@ -66,11 +70,39 @@ func _build() -> void:
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.add_theme_font_size_override("font_size", 11)
 	add_child(_hint)
+
+	_apply_box = HBoxContainer.new()
+	_apply_box.add_theme_constant_override("separation", 4)
+	add_child(_apply_box)
+
 	_apply_button = Button.new()
-	_apply_button.text = "Собрать мир по этим числам"
-	_apply_button.tooltip_text = "То же, что Ctrl+R во вьюпорте"
+	_apply_button.text = "Собрать мир"
+	_apply_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_apply_button.tooltip_text = "Пересобрать мир (Ctrl+R во вьюпорте; учитывает режим «Быстро»)"
 	_apply_button.pressed.connect(_on_apply_pressed)
-	add_child(_apply_button)
+	_apply_box.add_child(_apply_button)
+
+	_apply_full_button = Button.new()
+	_apply_full_button.text = "Финально"
+	_apply_full_button.tooltip_text = "Полная чистовая сборка со всеми деревьями, рекой и отбойниками"
+	_apply_full_button.pressed.connect(_on_apply_full_pressed)
+	_apply_box.add_child(_apply_full_button)
+
+	_ops_box = GridContainer.new()
+	_ops_box.columns = 3
+	_ops_box.add_theme_constant_override("h_separation", 4)
+	_ops_box.add_theme_constant_override("v_separation", 4)
+	add_child(_ops_box)
+	_add_op_button("По рельефу", "Посадить точки трассы на поверхность земли (G)", _on_snap_ground)
+	_add_op_button("Уклон", "Плавно выровнять профиль высот / уклон точки (L)", _on_level_grade)
+	_add_op_button("Реверс", "Развернуть направление старта и финиша (I)", _on_reverse_route)
+	_add_op_button("Кольцо", "Замкнуть или разомкнуть кольцо трассы", _on_toggle_loop)
+	_add_op_button("Авто-КПП", "Равномерно расставить контрольные точки по длине (A)", _on_auto_cp)
+	_add_op_button("Сброс КПП", "Очистить ручные КПП и вернуться к шагу ресурса", _on_clear_cp)
+	_add_op_button("Пропсы вниз", "Посадить расставленные объекты StudioProps на землю", _on_snap_props)
+	_add_op_button("Очистить лес", "Удалить все объекты из узла StudioProps (с поддержкой Ctrl+Z)", _on_clear_props)
+	_add_op_button("К началу", "Направить камеру к старту спецучастка", _on_focus_start)
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0.0, 220.0)
@@ -86,6 +118,16 @@ func _build() -> void:
 			group = row_group
 			_body.add_child(_make_group_label(group))
 		_body.add_child(_make_row(entry))
+
+
+func _add_op_button(label_text: String, tip: String, handler: Callable) -> void:
+	var btn := Button.new()
+	btn.text = label_text
+	btn.tooltip_text = tip
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.pressed.connect(handler)
+	_ops_box.add_child(btn)
 
 
 func _make_group_label(text: String) -> Label:
@@ -146,6 +188,7 @@ func refresh() -> void:
 		return
 	var target = _resource()
 	var ready_now: bool = target != null
+	var has_stage: bool = ready_now and _studio.stage != null
 	if _hint != null:
 		var wanted := "Откройте сцену этапа RallyStage — правки пишутся в её ресурс трассы."
 		if ready_now:
@@ -153,8 +196,19 @@ func refresh() -> void:
 		if wanted != _hint_text:
 			_hint_text = wanted
 			_hint.text = wanted
-	if _apply_button != null:
-		_apply_button.visible = ready_now and _studio.stage != null
+	if _apply_box != null:
+		_apply_box.visible = has_stage
+	if _ops_box != null:
+		_ops_box.visible = has_stage
+	var state_items: Array = [ready_now, has_stage, _dragging_index]
+	if ready_now:
+		for i in range(_rows.size()):
+			var entry_probe: Dictionary = _rows[i]
+			state_items.append(target.get(StringName(entry_probe["property"])))
+	var current_hash := hash(state_items)
+	if current_hash == _last_refresh_hash:
+		return
+	_last_refresh_hash = current_hash
 	for i in range(_rows.size()):
 		var entry: Dictionary = _rows[i]
 		var slider: HSlider = entry["slider"]
@@ -180,11 +234,19 @@ func _on_slider_value(value: float, index: int) -> void:
 	if target == null or index < 0 or index >= _rows.size():
 		return
 	var entry: Dictionary = _rows[index]
-	target.set(StringName(entry["property"]), value)
+	var prop := StringName(entry["property"])
+	target.set(prop, value)
 	var value_label: Label = entry["value"]
 	value_label.text = String(entry["fmt"]) % value
 	if _studio != null:
-		_studio.world_param_changed()
+		# Если road_half_width поменяли ползунком, лента во вьюпорте должна
+		# сразу показать новую ширину без пересборки 3D-мира.
+		if prop == &"road_half_width":
+			_studio.route_version += 1
+		if _dragging_index == index:
+			_studio.request_redraw()
+		else:
+			_studio.world_param_changed()
 
 
 func _on_slider_drag_started(index: int) -> void:
@@ -209,6 +271,7 @@ func _on_slider_drag_ended(_changed: bool, index: int) -> void:
 		return
 	var undo = _studio.host.get_undo_redo()
 	if undo == null:
+		_studio.world_param_changed()
 		return
 	undo.create_action("Студия трассы: " + String(entry["title"]))
 	undo.add_do_property(target, StringName(entry["property"]), after)
@@ -221,3 +284,53 @@ func _on_slider_drag_ended(_changed: bool, index: int) -> void:
 func _on_apply_pressed() -> void:
 	if _studio != null:
 		_studio.rebuild_stage()
+
+
+func _on_apply_full_pressed() -> void:
+	if _studio != null:
+		_studio.rebuild_stage(true)
+
+
+func _on_snap_ground() -> void:
+	if _studio != null:
+		_studio.snap_route_to_ground(_studio.selected_control >= 0)
+
+
+func _on_level_grade() -> void:
+	if _studio != null:
+		_studio.level_grade_between_points()
+
+
+func _on_reverse_route() -> void:
+	if _studio != null:
+		_studio.reverse_route()
+
+
+func _on_toggle_loop() -> void:
+	if _studio != null:
+		_studio.toggle_closed_loop()
+
+
+func _on_auto_cp() -> void:
+	if _studio != null:
+		_studio.auto_place_checkpoints()
+
+
+func _on_clear_cp() -> void:
+	if _studio != null:
+		_studio.clear_custom_checkpoints()
+
+
+func _on_snap_props() -> void:
+	if _studio != null:
+		_studio.snap_studio_props_to_ground()
+
+
+func _on_clear_props() -> void:
+	if _studio != null:
+		_studio.clear_studio_props()
+
+
+func _on_focus_start() -> void:
+	if _studio != null:
+		_studio.focus_distance(0.0)

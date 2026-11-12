@@ -177,7 +177,10 @@ class TrackStudioTest(unittest.TestCase):
         self.assertIn('script="plugin.gd"', config)
         self.assertTrue(os.path.exists(os.path.join(ROOT, "addons/rally_track_studio/plugin.gd")))
         scene = read("scenes/rally_stage2_forest.tscn")
-        block = scene[scene.index('[sub_resource type="Resource" id="Resource_sodgx"]'):]
+        m = re.search(r'settings\s*=\s*SubResource\("([^"]+)"\)', scene)
+        self.assertIsNotNone(m, "в rally_stage2_forest.tscn должен быть ресурс settings")
+        sub_header = '[sub_resource type="Resource" id="%s"]' % m.group(1)
+        block = scene[scene.index(sub_header):]
         block = block[:block.index("[sub_resource", 10)] if "[sub_resource" in block[10:] else block
         # Поле может не сериализоваться, когда совпадает со значением по умолчанию.
         default = read("scripts/data/rally_stage_settings.gd")
@@ -307,6 +310,30 @@ class TrackStudioEditingRegressionTest(unittest.TestCase):
         self.assertIn("_stroke_nodes.size() == 8", test)
         self.assertIn("StudioProps", test)
         self.assertIn("global_position.y - 12.0", test)
+
+    def test_stage_suspends_background_rebuilds_when_studio_active(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("var editor_suspend_auto_rebuild: bool = false", stage)
+        self.assertIn("editor_suspend_auto_rebuild", stage[stage.index("func _queue_rebuild("):stage.index("func _queue_rebuild_from_track(")])
+        self.assertIn("func rebuild_preview(fast_mode: bool = false)", stage)
+        studio = read("addons/rally_track_studio/studio.gd")
+        self.assertIn("_set_stage_suspend", studio)
+        self.assertIn("rebuild_preview", studio)
+
+    def test_performance_and_convenience_features_wired(self):
+        studio = read("addons/rally_track_studio/studio.gd")
+        for fn in ("focus_distance", "focus_selected_or_hovered", "snap_route_to_ground",
+                   "level_grade_between_points", "reverse_route", "toggle_closed_loop",
+                   "remove_section_at", "snap_studio_props_to_ground", "clear_studio_props",
+                   "auto_place_checkpoints", "clear_custom_checkpoints"):
+            self.assertIn("func %s(" % fn, studio, "нет удобного метода %s" % fn)
+        view = read("addons/rally_track_studio/studio_view.gd")
+        self.assertIn("draw_multiline_colors", view, "штрихи должны рисоваться одним вызовом")
+        self.assertIn("_prof_cache_key", view, "профиль высот должен кэшироваться")
+        self.assertIn("mode_chip_rects", view)
+        self.assertIn("warning_item_rects", view)
+        plugin = read("addons/rally_track_studio/plugin.gd")
+        self.assertIn("_last_toolbar_state", plugin, "панель не должна перерисовываться вхолостую")
 
 
 if __name__ == "__main__":

@@ -33,11 +33,16 @@ var _bar: HBoxContainer = null
 var _toggle: Button = null
 var _mode_box: HBoxContainer = null
 var _mode_buttons: Array = []
+var _focus_button: Button = null
 var _rebuild_button: Button = null
+var _fast_button: Button = null
 var _auto_button: Button = null
+var _eco_button: Button = null
 var _hud_button: Button = null
 var _save_button: Button = null
 var _timer: Timer = null
+var _dock_refresh_accum := 0.0
+var _last_toolbar_state := -1
 
 
 func _enter_tree() -> void:
@@ -115,12 +120,27 @@ func _build_toolbar() -> void:
 		_mode_box.add_child(button)
 		_mode_buttons.append(button)
 
+	_focus_button = Button.new()
+	_focus_button.text = "Фокус"
+	_focus_button.tooltip_text = "Переместить камеру к выбранной точке или километражу (F)"
+	_focus_button.focus_mode = Control.FOCUS_NONE
+	_focus_button.pressed.connect(_on_focus)
+	_bar.add_child(_focus_button)
+
 	_rebuild_button = Button.new()
 	_rebuild_button.text = "Собрать"
 	_rebuild_button.tooltip_text = "Пересобрать мир по текущей осевой (Ctrl+R)"
 	_rebuild_button.focus_mode = Control.FOCUS_NONE
 	_rebuild_button.pressed.connect(_on_rebuild)
 	_bar.add_child(_rebuild_button)
+
+	_fast_button = Button.new()
+	_fast_button.text = "Быстро"
+	_fast_button.toggle_mode = true
+	_fast_button.tooltip_text = "Черновая пересборка мира (крупнее шаг сетки, без леса/реки/отбойников — в разы быстрее)"
+	_fast_button.focus_mode = Control.FOCUS_NONE
+	_fast_button.toggled.connect(_on_fast_toggled)
+	_bar.add_child(_fast_button)
 
 	_auto_button = Button.new()
 	_auto_button.text = "Авто"
@@ -129,6 +149,14 @@ func _build_toolbar() -> void:
 	_auto_button.focus_mode = Control.FOCUS_NONE
 	_auto_button.toggled.connect(_on_auto_toggled)
 	_bar.add_child(_auto_button)
+
+	_eco_button = Button.new()
+	_eco_button.text = "Эко"
+	_eco_button.toggle_mode = true
+	_eco_button.tooltip_text = "Облегчённая отрисовка вьюпорта без заливки ленты и штрихов (максимум FPS)"
+	_eco_button.focus_mode = Control.FOCUS_NONE
+	_eco_button.toggled.connect(_on_eco_toggled)
+	_bar.add_child(_eco_button)
 
 	_hud_button = Button.new()
 	_hud_button.text = "HUD"
@@ -159,20 +187,33 @@ func _on_tick() -> void:
 	if studio == null:
 		return
 	studio.tick(TICK_SECONDS)
-	if _dock != null:
+	_dock_refresh_accum += TICK_SECONDS
+	if _dock != null and _dock.is_visible_in_tree() and _dock_refresh_accum >= 0.4:
+		_dock_refresh_accum = 0.0
 		_dock.refresh()
 	_sync_toolbar()
 
 
 func _sync_toolbar() -> void:
-	if studio == null or _toggle == null:
+	if studio == null or _toggle == null or _settings == null:
 		return
+	var state_hash := hash([
+		studio.active, studio.stage != null, int(studio.mode),
+		_settings.auto_rebuild, _settings.show_hud, _settings.eco_mode, _settings.fast_rebuild
+	])
+	if state_hash == _last_toolbar_state:
+		return
+	_last_toolbar_state = state_hash
 	_toggle.set_pressed_no_signal(studio.active)
 	for i in range(_mode_buttons.size()):
 		var button: Button = _mode_buttons[i]
 		button.set_pressed_no_signal(i == studio.mode)
+	if _fast_button != null and _fast_button.button_pressed != _settings.fast_rebuild:
+		_fast_button.set_pressed_no_signal(_settings.fast_rebuild)
 	if _auto_button != null and _auto_button.button_pressed != _settings.auto_rebuild:
 		_auto_button.set_pressed_no_signal(_settings.auto_rebuild)
+	if _eco_button != null and _eco_button.button_pressed != _settings.eco_mode:
+		_eco_button.set_pressed_no_signal(_settings.eco_mode)
 	if _hud_button != null and _hud_button.button_pressed != _settings.show_hud:
 		_hud_button.set_pressed_no_signal(_settings.show_hud)
 	_update_visibility()
@@ -183,8 +224,11 @@ func _update_visibility() -> void:
 		return
 	var ready_now: bool = studio.active and studio.stage != null
 	_mode_box.visible = ready_now
+	_focus_button.visible = ready_now
 	_rebuild_button.visible = ready_now
+	_fast_button.visible = ready_now
 	_auto_button.visible = ready_now
+	_eco_button.visible = ready_now
 	_hud_button.visible = ready_now
 	_save_button.visible = ready_now
 
@@ -193,12 +237,19 @@ func _on_toggle(pressed: bool) -> void:
 	if studio == null:
 		return
 	studio.set_active(pressed)
+	_sync_toolbar()
 
 
 func _on_mode_toggled(pressed: bool, index: int) -> void:
 	if studio == null or not pressed:
 		return
 	studio.set_mode(index)
+	_sync_toolbar()
+
+
+func _on_focus() -> void:
+	if studio != null:
+		studio.focus_selected_or_hovered()
 
 
 func _on_rebuild() -> void:
@@ -206,15 +257,32 @@ func _on_rebuild() -> void:
 		studio.rebuild_stage()
 
 
+func _on_fast_toggled(pressed: bool) -> void:
+	if _settings != null:
+		_settings.fast_rebuild = pressed
+		_sync_toolbar()
+
+
 func _on_auto_toggled(pressed: bool) -> void:
 	if _settings != null:
 		_settings.auto_rebuild = pressed
+		_sync_toolbar()
+
+
+func _on_eco_toggled(pressed: bool) -> void:
+	if _settings == null:
+		return
+	_settings.eco_mode = pressed
+	_sync_toolbar()
+	if studio != null:
+		studio.request_redraw()
 
 
 func _on_hud_toggled(pressed: bool) -> void:
 	if _settings == null:
 		return
 	_settings.show_hud = pressed
+	_sync_toolbar()
 	if studio != null:
 		studio.request_redraw()
 
@@ -230,6 +298,8 @@ func _on_scene_changed(_scene_root: Node) -> void:
 	if studio == null:
 		return
 	studio.sync_scene()
+	if _dock != null:
+		_dock.refresh()
 	_sync_toolbar()
 
 
@@ -246,11 +316,11 @@ func _handles(object: Object) -> bool:
 
 
 func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
-	if studio == null:
+	if studio == null or not studio.active:
 		return EditorPlugin.AFTER_GUI_INPUT_PASS
 	return studio.forward_input(camera, event)
 
 
 func _forward_3d_draw_over_viewport(overlay: Control) -> void:
-	if studio != null:
+	if studio != null and studio.active:
 		studio.draw_overlay(overlay)

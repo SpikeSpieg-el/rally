@@ -59,6 +59,8 @@ var overlay_size := Vector2(1280.0, 720.0)
 var hud_rect := Rect2()
 var warnings_rect := Rect2()
 var profile_rect := Rect2()
+var mode_chip_rects: Array = []
+var warning_item_rects: Array = []
 var mouse_pos := Vector2(-1000.0, -1000.0)
 
 var hover_distance: float = -1.0
@@ -103,16 +105,20 @@ var _spawn_before: Dictionary = {}
 var _drag_index: int = -1
 var _drag_side: int = 1
 var _stroke_nodes: Array = []
+var _erased_entries: Array = []
 var _stroke_last := Vector3.ZERO
 var _stroke_grid: Dictionary = {}
 var _width_distance: float = 0.0
 var _road_cells: Dictionary = {}
 const ROAD_CELL_SIZE := 32.0
 var _rebuild_timer: float = 0.0
+var _save_timer: float = 0.0
 var _curve_hash_value: int = 0
 var _signature_timer: float = 0.0
 var _building_timer: float = 0.0
 var _zone_grab: float = 0.0
+var _control_distances: PackedFloat32Array = PackedFloat32Array()
+var _control_distances_dirty: bool = true
 
 
 # ------------------------------------------------------------------ жизненный цикл
@@ -127,6 +133,10 @@ func setup(host_plugin: EditorPlugin, settings_resource: SettingsType) -> void:
 
 
 func shutdown() -> void:
+	if _save_timer > 0.0:
+		save_now()
+		_save_timer = 0.0
+	_set_stage_suspend(false)
 	_disconnect_curve()
 	stage = null
 	scene_root = null
@@ -136,13 +146,13 @@ func shutdown() -> void:
 	active = false
 
 
+func _set_stage_suspend(value: bool) -> void:
+	if stage != null and is_instance_valid(stage) and "editor_suspend_auto_rebuild" in stage:
+		stage.set("editor_suspend_auto_rebuild", value)
+
+
 func toggle_active() -> void:
-	active = not active
-	if active:
-		sync_scene()
-		_focus_stage_root()
-	_dirty = true
-	_request_redraw()
+	set_active(not active)
 
 
 func set_active(value: bool) -> void:
@@ -152,6 +162,11 @@ func set_active(value: bool) -> void:
 	if active:
 		sync_scene()
 		_focus_stage_root()
+	else:
+		if _save_timer > 0.0:
+			save_now()
+			_save_timer = 0.0
+	_set_stage_suspend(active)
 	_dirty = true
 	_request_redraw()
 
@@ -176,6 +191,7 @@ func sync_scene() -> bool:
 		return false
 	var edited: Node = host.get_editor_interface().get_edited_scene_root()
 	if edited != scene_root or (stage != null and not is_instance_valid(stage)):
+		_set_stage_suspend(false)
 		_reset_scene()
 		scene_root = edited
 		if scene_root != null:
@@ -183,6 +199,7 @@ func sync_scene() -> bool:
 	if stage == null or not is_instance_valid(stage):
 		_reset_scene()
 		return false
+	_set_stage_suspend(active)
 	_bind_resources()
 	return true
 
@@ -273,6 +290,7 @@ func _focus_stage_root() -> void:
 
 
 func _on_curve_changed() -> void:
+	_control_distances_dirty = true
 	_dirty = true
 	_request_redraw()
 
@@ -286,17 +304,26 @@ func tick(delta: float) -> void:
 	if stage == null or not is_instance_valid(stage):
 		if not sync_scene():
 			return
-	if dragging and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		# Отпускание кнопки могло случиться вне вьюпорта — не залипаем в драге.
-		_end_drag()
-	_signature_timer -= delta
-	if _signature_timer <= 0.0:
-		# Кривую могли править и мимо студии (гизмо Path3D, скрипт, Undo).
-		_signature_timer = 0.25
-		var current_hash := _curve_hash()
-		if current_hash != _curve_hash_value:
-			_curve_hash_value = current_hash
-			_dirty = true
+	_set_stage_suspend(true)
+	if dragging:
+		var hold_button := MOUSE_BUTTON_RIGHT if drag_kind == "erase_props" else MOUSE_BUTTON_LEFT
+		if not Input.is_mouse_button_pressed(hold_button):
+			# Отпускание кнопки могло случиться вне вьюпорта — не залипаем в драге.
+			_end_drag()
+	if _save_timer > 0.0 and not dragging:
+		_save_timer -= delta
+		if _save_timer <= 0.0:
+			save_now()
+	if not dragging:
+		_signature_timer -= delta
+		if _signature_timer <= 0.0:
+			# Кривую могли править и мимо студии (гизмо Path3D, скрипт, Undo).
+			_signature_timer = 0.4
+			var current_hash := _curve_hash()
+			if current_hash != _curve_hash_value:
+				_curve_hash_value = current_hash
+				_control_distances_dirty = true
+				_dirty = true
 	if _building_timer > 0.0:
 		_building_timer -= delta
 		if _building_timer <= 0.0:
@@ -304,10 +331,12 @@ func tick(delta: float) -> void:
 			_curve_hash_value = _curve_hash()
 			_request_redraw()
 	if _dirty:
-		_refresh_analysis()
+		# Во время перетаскивания точки делаем облегчённый анализ осевой (без
+		# дорогого O(N) поиска близких витков и углов на каждый сдвиг мыши).
+		_refresh_analysis(dragging)
 		_dirty = false
 		_request_redraw()
-	if _rebuild_timer > 0.0:
+	if _rebuild_timer > 0.0 and not dragging:
 		_rebuild_timer -= delta
 		if _rebuild_timer <= 0.0:
 			rebuild_stage()
@@ -328,20 +357,24 @@ func _curve_hash() -> int:
 	return acc
 
 
-func _refresh_analysis() -> void:
+func _refresh_analysis(light_only: bool = false) -> void:
 	if curve == null or settings == null:
 		route_ready = false
 		length = 0.0
 		return
-	samples = Analysis.sample_curve(curve, settings.sample_step, settings.max_samples)
-	_road_cells.clear()
-	var road_points: PackedVector3Array = samples.get("points", PackedVector3Array())
-	for i in range(road_points.size()):
-		var p := road_points[i]
-		var key := Vector2i(floori(p.x / ROAD_CELL_SIZE), floori(p.z / ROAD_CELL_SIZE))
-		if not _road_cells.has(key):
-			_road_cells[key] = []
-		_road_cells[key].append(i)
+	var step_used: float = settings.sample_step * (1.8 if (settings.eco_mode or light_only) else 1.0)
+	var max_used: int = mini(settings.max_samples, 1800) if (settings.eco_mode or light_only) else settings.max_samples
+	samples = Analysis.sample_curve(curve, step_used, max_used)
+	_control_distances_dirty = true
+	if not light_only:
+		_road_cells.clear()
+		var road_points: PackedVector3Array = samples.get("points", PackedVector3Array())
+		for i in range(road_points.size()):
+			var p := road_points[i]
+			var key := Vector2i(floori(p.x / ROAD_CELL_SIZE), floori(p.z / ROAD_CELL_SIZE))
+			if not _road_cells.has(key):
+				_road_cells[key] = []
+			_road_cells[key].append(i)
 	route_version += 1
 	length = float(samples.get("length", 0.0))
 	route_ready = length > 0.0
@@ -349,6 +382,11 @@ func _refresh_analysis() -> void:
 		corners = []
 		warnings = []
 		stats = {}
+		return
+	if light_only:
+		stats["length"] = length
+		var speed: float = maxf(5.0, settings.estimate_speed_kmh) / 3.6
+		stats["seconds"] = length / speed if length > 0.0 else 0.0
 		return
 	corners = Analysis.find_corners(
 		samples,
@@ -403,7 +441,7 @@ func _request_redraw() -> void:
 		host.update_overlays()
 
 
-func _screen_scale(camera: Camera3D) -> Vector2:
+func screen_scale(camera: Camera3D) -> Vector2:
 	if camera == null:
 		return Vector2.ONE
 	var viewport := camera.get_viewport()
@@ -415,10 +453,14 @@ func _screen_scale(camera: Camera3D) -> Vector2:
 	return overlay_size / area
 
 
+func _screen_scale(camera: Camera3D) -> Vector2:
+	return screen_scale(camera)
+
+
 func project_point(camera: Camera3D, world: Vector3) -> Vector2:
 	if camera == null:
 		return Vector2.ZERO
-	return camera.unproject_position(world) * _screen_scale(camera)
+	return camera.unproject_position(world) * screen_scale(camera)
 
 
 func is_on_screen(camera: Camera3D, world: Vector3) -> bool:
@@ -445,9 +487,13 @@ func forward_input(camera: Camera3D, event: InputEvent) -> int:
 			_apply_drag(camera, motion.position)
 			_request_redraw()
 			return INPUT_STOP
+		# При навигации камерой в 3D (зажата ПКМ или СКМ) не пускаем лучи под мышь.
+		if (motion.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0:
+			return INPUT_PASS
 		_last_mouse = motion.position
 		var now := Time.get_ticks_msec()
-		var period := int(1000.0 / maxf(4.0, settings.hover_hz))
+		var hz: float = maxf(4.0, settings.hover_hz * (0.5 if settings.eco_mode else 1.0))
+		var period := int(1000.0 / hz)
 		if now - _last_hover_ms >= period:
 			_last_hover_ms = now
 			if _update_hover(camera, motion.position):
@@ -464,10 +510,8 @@ func _on_mouse_button(camera: Camera3D, event: InputEventMouseButton) -> int:
 	mouse_pos = event.position
 	var left := event.button_index == MOUSE_BUTTON_LEFT
 	var right := event.button_index == MOUSE_BUTTON_RIGHT
-	if event.pressed and _hud_contains(event.position):
-		return INPUT_STOP
-	if left and not event.pressed:
-		if dragging:
+	if (left or right) and not event.pressed:
+		if dragging and ((left and drag_kind != "erase_props") or (right and drag_kind == "erase_props")):
 			_end_drag()
 			return INPUT_STOP
 		return INPUT_PASS
@@ -481,14 +525,35 @@ func _on_mouse_button(camera: Camera3D, event: InputEventMouseButton) -> int:
 	if not event.pressed:
 		return INPUT_PASS
 	if left:
+		for i in range(mode_chip_rects.size()):
+			var chip: Rect2 = mode_chip_rects[i]
+			if chip.has_point(event.position):
+				set_mode(i)
+				return INPUT_STOP
+		for item in warning_item_rects:
+			var wrect: Rect2 = item.get("rect", Rect2())
+			if wrect.has_point(event.position):
+				var wdist := float(item.get("distance", 0.0))
+				focus_distance(wdist)
+				return INPUT_STOP
 		if profile_rect.has_point(event.position):
+			_scrub_profile(event.position)
+			if event.double_click:
+				focus_distance(selected_distance)
+				return INPUT_STOP
 			drag_kind = "profile"
 			dragging = true
-			_scrub_profile(event.position)
+			return INPUT_STOP
+		if _hud_contains(event.position):
 			return INPUT_STOP
 		_update_hover(camera, event.position)
+		if event.double_click and hover_valid and hover_distance >= 0.0:
+			focus_distance(hover_distance)
+			return INPUT_STOP
 		return _press_left(camera, event)
 	if right:
+		if _hud_contains(event.position):
+			return INPUT_STOP
 		return _press_right(camera, event)
 	return INPUT_PASS
 
@@ -651,10 +716,20 @@ func _press_right(camera: Camera3D, event: InputEventMouseButton) -> int:
 			_commit_curve("удалить точку", _curve_before)
 			return INPUT_STOP
 		return INPUT_PASS
-	if mode == Modes.Mode.PROPS:
-		if _erase_prop(camera, event.position):
-			return INPUT_STOP
+	if mode == Modes.Mode.ROAD:
+		if track != null:
+			var boundary := _nearest_section_boundary(camera, event.position)
+			if boundary >= 0 and boundary < track.route_sections.size():
+				remove_section_at(boundary)
+				return INPUT_STOP
 		return INPUT_PASS
+	if mode == Modes.Mode.PROPS:
+		_erased_entries = []
+		_erase_prop_stroke_step(camera, event.position)
+		drag_kind = "erase_props"
+		dragging = true
+		_last_mouse = event.position
+		return INPUT_STOP
 	if mode == Modes.Mode.ZONES:
 		var zone := _nearest_zone(camera, event.position)
 		if not zone.is_empty() and String(zone.get("kind", "")) == "checkpoint":
@@ -701,6 +776,28 @@ func _on_key(camera: Camera3D, event: InputEventKey) -> int:
 				return INPUT_STOP
 		KEY_DELETE, KEY_BACKSPACE:
 			return _delete_hovered()
+		KEY_F:
+			focus_selected_or_hovered()
+			return INPUT_STOP
+		KEY_G:
+			if mode == Modes.Mode.ROUTE:
+				snap_route_to_ground(selected_control >= 0)
+				return INPUT_STOP
+			if mode == Modes.Mode.PROPS:
+				snap_studio_props_to_ground()
+				return INPUT_STOP
+		KEY_L:
+			if mode == Modes.Mode.ROUTE:
+				level_grade_between_points()
+				return INPUT_STOP
+		KEY_I:
+			if mode == Modes.Mode.ROUTE:
+				reverse_route()
+				return INPUT_STOP
+		KEY_A:
+			if mode == Modes.Mode.ZONES:
+				auto_place_checkpoints()
+				return INPUT_STOP
 		KEY_S:
 			if mode == Modes.Mode.ROUTE:
 				_smooth_route()
@@ -735,11 +832,18 @@ func _on_key(camera: Camera3D, event: InputEventKey) -> int:
 
 
 func _delete_hovered() -> int:
-	if mode == Modes.Mode.ROUTE and hover_control >= 0 and curve != null:
-		_curve_before = capture_curve(curve)
-		curve.remove_point(hover_control)
-		_refresh_handles([hover_control - 1, hover_control])
-		_commit_curve("удалить точку", _curve_before)
+	if mode == Modes.Mode.ROUTE and curve != null:
+		var idx := hover_control if hover_control >= 0 else selected_control
+		if idx >= 0 and idx < curve.point_count:
+			_curve_before = capture_curve(curve)
+			curve.remove_point(idx)
+			_refresh_handles([idx - 1, idx])
+			if selected_control == idx:
+				selected_control = -1
+			_commit_curve("удалить точку", _curve_before)
+			return INPUT_STOP
+	if mode == Modes.Mode.ROAD and track != null and selected_section >= 0 and selected_section < track.route_sections.size():
+		remove_section_at(selected_section)
 		return INPUT_STOP
 	return INPUT_PASS
 
@@ -816,7 +920,13 @@ func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool:
 
 
 func _hud_contains(point: Vector2) -> bool:
-	return hud_rect.has_point(point) or profile_rect.has_point(point) or warnings_rect.has_point(point)
+	if hud_rect.has_point(point) or profile_rect.has_point(point) or warnings_rect.has_point(point):
+		return true
+	for raw_chip in mode_chip_rects:
+		var chip: Rect2 = raw_chip
+		if chip.has_point(point):
+			return true
+	return false
 
 
 func _scrub_profile(point: Vector2) -> void:
@@ -855,12 +965,13 @@ func _nearest_sample_screen(camera: Camera3D, screen_pos: Vector2, limit_px: flo
 	var points: PackedVector3Array = samples.get("points", PackedVector3Array())
 	var best := -1
 	var best_dist := limit_px
+	var proj_scale: Vector2 = screen_scale(camera)
 	for i in range(points.size()):
 		# Проверка по фрустуму в разы дешевле проекции: при наведении мыши
 		# этот цикл идёт 24 раза в секунду по ~1800 выборкам.
 		if not camera.is_position_in_frustum(points[i]):
 			continue
-		var screen := project_point(camera, points[i])
+		var screen := camera.unproject_position(points[i]) * proj_scale
 		if absf(screen.x - screen_pos.x) > best_dist or absf(screen.y - screen_pos.y) > best_dist:
 			continue
 		var dist := screen.distance_to(screen_pos)
@@ -875,20 +986,45 @@ func _nearest_control(camera: Camera3D, screen_pos: Vector2) -> int:
 		return -1
 	var best := -1
 	var best_dist := settings.handle_radius_px
+	var proj_scale: Vector2 = screen_scale(camera)
 	for i in range(curve.point_count):
 		var world := curve.get_point_position(i)
 		if camera.is_position_behind(world):
 			continue
-		var dist := project_point(camera, world).distance_to(screen_pos)
+		var dist := (camera.unproject_position(world) * proj_scale).distance_to(screen_pos)
 		if dist < best_dist:
 			best_dist = dist
 			best = i
 	return best
 
 
+func _ensure_control_distances() -> void:
+	if not _control_distances_dirty and _control_distances.size() == (curve.point_count if curve != null else 0):
+		return
+	_control_distances.clear()
+	_control_distances_dirty = false
+	if curve == null or curve.point_count == 0:
+		return
+	_control_distances.resize(curve.point_count)
+	var prev_offset := 0.0
+	for i in range(curve.point_count):
+		var p := curve.get_point_position(i)
+		var near := Analysis.nearest(samples, p)
+		var est := float(near.get("distance", -1.0))
+		if int(near.get("index", -1)) < 0:
+			est = curve.get_closest_offset(p)
+		if i > 0 and est < prev_offset - 5.0 and not curve.closed:
+			est = curve.get_closest_offset(p)
+		_control_distances[i] = maxf(0.0, est)
+		prev_offset = _control_distances[i]
+
+
 func _control_distance(index: int) -> float:
 	if curve == null or index < 0 or index >= curve.point_count:
 		return 0.0
+	_ensure_control_distances()
+	if index < _control_distances.size():
+		return _control_distances[index]
 	return curve.get_closest_offset(curve.get_point_position(index))
 
 
@@ -1009,8 +1145,9 @@ func _insert_point(distance: float) -> int:
 func _insertion_index(distance: float) -> int:
 	if curve == null:
 		return 0
+	_ensure_control_distances()
 	for i in range(curve.point_count):
-		if curve.get_closest_offset(curve.get_point_position(i)) > distance:
+		if _control_distance(i) > distance:
 			return i
 	return curve.point_count
 
@@ -1130,11 +1267,13 @@ func apply_curve_state(target: Curve3D, state: Dictionary) -> void:
 	target.closed = bool(state.get("closed", false))
 	target.bake_interval = float(state.get("bake_interval", 0.5))
 	target.emit_changed()
+	_control_distances_dirty = true
 	_dirty = true
 	_request_redraw()
 
 
 func _after_curve_changed() -> void:
+	_control_distances_dirty = true
 	_dirty = true
 	_request_redraw()
 
@@ -1143,6 +1282,14 @@ func _curve_changed(before: Dictionary, after: Dictionary) -> bool:
 	var old_points: PackedVector3Array = before.get("positions", PackedVector3Array())
 	var new_points: PackedVector3Array = after.get("positions", PackedVector3Array())
 	if old_points != new_points:
+		return true
+	var old_ins: PackedVector3Array = before.get("ins", PackedVector3Array())
+	var new_ins: PackedVector3Array = after.get("ins", PackedVector3Array())
+	if old_ins != new_ins:
+		return true
+	var old_outs: PackedVector3Array = before.get("outs", PackedVector3Array())
+	var new_outs: PackedVector3Array = after.get("outs", PackedVector3Array())
+	if old_outs != new_outs:
 		return true
 	if bool(before.get("closed", false)) != bool(after.get("closed", false)):
 		return true
@@ -1702,11 +1849,24 @@ func _attach_node(node: Node, parent: Node, owner_node: Node) -> void:
 
 
 func _erase_prop(camera: Camera3D, screen_pos: Vector2) -> bool:
-	if stage == null:
+	_erased_entries = []
+	_erase_prop_stroke_step(camera, screen_pos)
+	if _erased_entries.is_empty():
 		return false
-	var best: Node3D = null
-	var best_dist := settings.brush_radius
-	# Старые мазки лежали в Props, новые хранятся отдельно от запечённого леса.
+	_commit_erased_stroke()
+	return true
+
+
+func _erase_prop_stroke_step(camera: Camera3D, screen_pos: Vector2) -> void:
+	if stage == null or camera == null:
+		return
+	var ground := _ray_ground(camera, screen_pos)
+	var use_world := bool(ground.get("ok", false))
+	var center: Vector3 = ground.get("point", Vector3.ZERO) as Vector3
+	var radius: float = maxf(1.0, settings.brush_radius)
+	var radius_sq: float = radius * radius
+	var screen_radius: float = maxf(16.0, settings.brush_radius * 2.0)
+	var found: Array = []
 	for root_name in ["StudioProps", "ManualProps", "Props"]:
 		var props_root := stage.get_node_or_null(root_name) as Node3D
 		if props_root == null:
@@ -1716,16 +1876,44 @@ func _erase_prop(camera: Camera3D, screen_pos: Vector2) -> bool:
 			if node == null:
 				continue
 			var world := node.global_position
-			if camera.is_position_behind(world):
-				continue
-			var dist := project_point(camera, world).distance_to(screen_pos)
-			if dist < best_dist:
-				best_dist = dist
-				best = node
-	if best == null:
-		return false
-	_commit_props_erased(best)
-	return true
+			var hit := false
+			if use_world:
+				var dx := world.x - center.x
+				var dz := world.z - center.z
+				if dx * dx + dz * dz <= radius_sq:
+					hit = true
+			elif not camera.is_position_behind(world):
+				if project_point(camera, world).distance_to(screen_pos) <= screen_radius:
+					hit = true
+			if hit:
+				found.append({"node": node, "parent": props_root})
+	for item in found:
+		var node: Node3D = item["node"]
+		var parent_node: Node = item["parent"]
+		_detach_node(node)
+		_erased_entries.append({"node": node, "parent": parent_node})
+
+
+func _commit_erased_stroke() -> void:
+	if host == null or scene_root == null or _erased_entries.is_empty():
+		_erased_entries = []
+		return
+	var ur := host.get_undo_redo()
+	ur.create_action("Студия трассы: убрать обстановку (%d)" % _erased_entries.size())
+	for item in _erased_entries:
+		var node: Node3D = item["node"]
+		var parent_node: Node = item["parent"]
+		if node == null or not is_instance_valid(node) or parent_node == null:
+			continue
+		ur.add_do_method(self, "_detach_node", node)
+		ur.add_undo_method(self, "_attach_node", node, parent_node, scene_root)
+		ur.add_undo_reference(node)
+	ur.add_do_method(self, "_mark_scene_dirty")
+	ur.add_undo_method(self, "_mark_scene_dirty")
+	ur.add_do_method(self, "_after_props_edit")
+	ur.add_undo_method(self, "_after_props_edit")
+	ur.commit_action()
+	_erased_entries = []
 
 
 # ------------------------------------------------------------------ перетаскивание
@@ -1746,13 +1934,15 @@ func _apply_drag(camera: Camera3D, screen_pos: Vector2) -> void:
 			_drag_section_start(camera, screen_pos)
 		"paint":
 			_paint_drag(camera, screen_pos)
+		"erase_props":
+			_erase_prop_stroke_step(camera, screen_pos)
 		"start":
 			_drag_zone(camera, screen_pos, "start")
 		"finish":
 			_drag_zone(camera, screen_pos, "finish")
 		"checkpoint":
 			_drag_zone(camera, screen_pos, "checkpoint")
-	if drag_kind != "paint" and drag_kind != "width" and drag_kind != "section_start":
+	if drag_kind != "paint" and drag_kind != "erase_props" and drag_kind != "width" and drag_kind != "section_start":
 		_update_hover(camera, screen_pos)
 
 
@@ -1767,12 +1957,15 @@ func _end_drag() -> void:
 			_commit_spawn("положение зоны")
 		"paint":
 			_commit_props_placed()
+		"erase_props":
+			_commit_erased_stroke()
 		_:
 			_after_edit()
 	drag_kind = ""
 	_drag_index = -1
 	_section = null
 	_sections_before = []
+	_dirty = true
 	_request_redraw()
 
 
@@ -1794,9 +1987,16 @@ func _cancel_drag() -> void:
 				node.free()
 			_stroke_nodes = []
 			_stroke_grid.clear()
+		"erase_props":
+			for item in _erased_entries:
+				var node: Node3D = item["node"]
+				var parent_node: Node = item["parent"]
+				_attach_node(node, parent_node, scene_root)
+			_erased_entries = []
 	drag_kind = ""
 	_drag_index = -1
 	_section = null
+	_dirty = true
 	_request_redraw()
 
 
@@ -1931,17 +2131,298 @@ func _paint_drag(camera: Camera3D, screen_pos: Vector2) -> void:
 	_place_brush(point)
 
 
+# ------------------------------------------------------------------ удобные операции
+
+## Направить 3D-камеру редактора к точке на километраже `distance`.
+func focus_distance(distance: float) -> void:
+	if not route_ready:
+		return
+	var clamped := clampf(distance, 0.0, length)
+	selected_distance = clamped
+	var target := Analysis.point_at_distance(samples, clamped)
+	var camera := current_camera()
+	if camera != null and settings != null:
+		var dir := _direction_at_distance(clamped)
+		var back := maxf(10.0, settings.camera_focus_distance)
+		var height := maxf(5.0, settings.camera_focus_height)
+		var eye := target - dir * back + Vector3.UP * height
+		camera.look_at_from_position(eye, target + Vector3.UP * 1.5, Vector3.UP)
+	_request_redraw()
+
+
+## Телепортировать камеру к выделенной точке/месту под курсором (клавиша F).
+func focus_selected_or_hovered() -> void:
+	if mode == Modes.Mode.ROUTE and selected_control >= 0 and curve != null and selected_control < curve.point_count:
+		focus_distance(_control_distance(selected_control))
+		return
+	if hover_valid and hover_distance >= 0.0:
+		focus_distance(hover_distance)
+		return
+	if selected_distance >= 0.0:
+		focus_distance(selected_distance)
+
+
+## Посадить точки осевой линии на рельеф (все или только выбранную точку).
+func snap_route_to_ground(only_selected: bool = false) -> void:
+	if curve == null or curve.point_count == 0 or stage == null:
+		return
+	var before := capture_curve(curve)
+	var indices: Array = []
+	if only_selected and selected_control >= 0 and selected_control < curve.point_count:
+		indices.append(selected_control)
+	else:
+		for i in range(curve.point_count):
+			indices.append(i)
+	var changed_count := 0
+	for raw_idx in indices:
+		var idx := int(raw_idx)
+		var p := curve.get_point_position(idx)
+		var ground_h: float = p.y
+		var found := false
+		if stage.has_method("editor_cached_ground_height"):
+			var cached: Dictionary = stage.call("editor_cached_ground_height", p.x, p.z)
+			if not cached.is_empty():
+				ground_h = float(cached["height"])
+				found = true
+		if not found:
+			var hit := _terrain_ray(p + Vector3.UP * 800.0, p - Vector3.UP * 800.0)
+			if not hit.is_empty():
+				ground_h = (hit["position"] as Vector3).y
+				found = true
+		if not found and stage.has_method("ground_height"):
+			ground_h = float(stage.call("ground_height", p.x, p.z))
+			found = true
+		if found:
+			var target_y := ground_h + (settings.point_height_offset if settings != null else 0.0)
+			if absf(target_y - p.y) > 0.001:
+				curve.set_point_position(idx, Vector3(p.x, target_y, p.z))
+				changed_count += 1
+	if changed_count == 0:
+		toast("Точки уже на уровне рельефа (или рельеф не собран)")
+		return
+	var refresh_all: Array = []
+	for i in range(curve.point_count):
+		refresh_all.append(i)
+	_refresh_handles(refresh_all)
+	_after_curve_changed()
+	_commit_curve("посадить трассу на землю", before)
+	toast("Посажено точек на землю: %d" % changed_count)
+
+
+## Плавно выровнять высоту точек между соседями (или по всей трассе, если ничего не выбрано).
+func level_grade_between_points() -> void:
+	if curve == null or curve.point_count < 3:
+		toast("Нужно минимум 3 точки кривой")
+		return
+	var before := capture_curve(curve)
+	if selected_control > 0 and selected_control < curve.point_count - 1:
+		var prev_p := curve.get_point_position(selected_control - 1)
+		var curr_p := curve.get_point_position(selected_control)
+		var next_p := curve.get_point_position(selected_control + 1)
+		var d1 := Vector2(curr_p.x - prev_p.x, curr_p.z - prev_p.z).length()
+		var d2 := Vector2(next_p.x - curr_p.x, next_p.z - curr_p.z).length()
+		var total_d := maxf(0.001, d1 + d2)
+		var new_y := lerpf(prev_p.y, next_p.y, d1 / total_d)
+		curve.set_point_position(selected_control, Vector3(curr_p.x, new_y, curr_p.z))
+		_refresh_handles([selected_control - 1, selected_control, selected_control + 1])
+		_after_curve_changed()
+		_commit_curve("выровнять уклон точки", before)
+		toast("Уклон выбранной точки выровнен")
+		return
+	# Сглаживание профиля высот всей трассы без изменения плана XZ.
+	var ys := PackedFloat32Array()
+	ys.resize(curve.point_count)
+	for i in range(curve.point_count):
+		ys[i] = curve.get_point_position(i).y
+	for i in range(1, curve.point_count - 1):
+		var p := curve.get_point_position(i)
+		var smooth_y := ys[i - 1] * 0.25 + ys[i] * 0.5 + ys[i + 1] * 0.25
+		curve.set_point_position(i, Vector3(p.x, smooth_y, p.z))
+	var all_idx: Array = []
+	for i in range(curve.point_count):
+		all_idx.append(i)
+	_refresh_handles(all_idx)
+	_after_curve_changed()
+	_commit_curve("сгладить профиль высот", before)
+	toast("Профиль высот плавно сглажен")
+
+
+## Развернуть направление трассы (старт ↔ финиш) вместе с касательными.
+func reverse_route() -> void:
+	if curve == null or curve.point_count < 2:
+		return
+	var before := capture_curve(curve)
+	var count := curve.point_count
+	var positions := PackedVector3Array()
+	var ins := PackedVector3Array()
+	var outs := PackedVector3Array()
+	for i in range(count - 1, -1, -1):
+		positions.append(curve.get_point_position(i))
+		# При развороте входящая и исходящая касательные меняются местами.
+		ins.append(curve.get_point_out(i))
+		outs.append(curve.get_point_in(i))
+	var reversed_state := {
+		"positions": positions,
+		"ins": ins,
+		"outs": outs,
+		"closed": curve.closed,
+		"bake_interval": curve.bake_interval,
+	}
+	apply_curve_state(curve, reversed_state)
+	selected_control = -1
+	_commit_curve("развернуть направление трассы", before)
+	toast("Направление трассы развёрнуто")
+
+
+## Замкнуть или разомкнуть кольцо трассы.
+func toggle_closed_loop() -> void:
+	if curve == null or curve.point_count < 3:
+		toast("Для кольца нужно минимум 3 точки")
+		return
+	var before := capture_curve(curve)
+	curve.closed = not curve.closed
+	var all_idx: Array = []
+	for i in range(curve.point_count):
+		all_idx.append(i)
+	_refresh_handles(all_idx)
+	_after_curve_changed()
+	_commit_curve("замкнуть/разомкнуть кольцо", before)
+	toast("Кольцо замкнуто" if curve.closed else "Трасса разомкнута")
+
+
+## Удалить участок полотна по индексу с поддержкой UndoRedo.
+func remove_section_at(index: int) -> void:
+	if track == null or index < 0 or index >= track.route_sections.size():
+		return
+	var before := track.route_sections.duplicate()
+	track.route_sections.remove_at(index)
+	if selected_section == index:
+		selected_section = -1
+	elif selected_section > index:
+		selected_section -= 1
+	if host != null:
+		var ur := host.get_undo_redo()
+		ur.create_action("Студия трассы: удалить участок полотна")
+		ur.add_do_method(self, "apply_sections", track, track.route_sections.duplicate())
+		ur.add_undo_method(self, "apply_sections", track, before)
+		ur.add_do_method(self, "_after_road_edit")
+		ur.add_undo_method(self, "_after_road_edit")
+		ur.commit_action()
+	else:
+		_road_changed()
+	toast("Участок полотна удалён")
+
+
+## Посадить все объекты из StudioProps на текущий рельеф с поддержкой UndoRedo.
+func snap_studio_props_to_ground() -> void:
+	if stage == null:
+		return
+	var root_node := stage.get_node_or_null("StudioProps") as Node3D
+	if root_node == null or root_node.get_child_count() == 0:
+		toast("В StudioProps пока нет объектов")
+		return
+	var moves: Array = []
+	for child in root_node.get_children():
+		var node := child as Node3D
+		if node == null:
+			continue
+		var pos := node.global_position
+		var new_y := pos.y
+		var found := false
+		if stage.has_method("editor_cached_ground_height"):
+			var cached: Dictionary = stage.call("editor_cached_ground_height", pos.x, pos.z)
+			if not cached.is_empty():
+				new_y = float(cached["height"])
+				found = true
+		if not found:
+			var hit := _terrain_ray(pos + Vector3.UP * 500.0, pos - Vector3.UP * 500.0)
+			if not hit.is_empty():
+				new_y = (hit["position"] as Vector3).y
+				found = true
+		if found and absf(new_y - pos.y) > 0.001:
+			moves.append({"node": node, "before": pos, "after": Vector3(pos.x, new_y, pos.z)})
+	if moves.is_empty():
+		toast("Все объекты StudioProps уже стоят на рельефе")
+		return
+	if host != null:
+		var ur := host.get_undo_redo()
+		ur.create_action("Студия трассы: посадить пропсы на землю")
+		for item in moves:
+			var n: Node3D = item["node"]
+			ur.add_do_property(n, &"global_position", item["after"])
+			ur.add_undo_property(n, &"global_position", item["before"])
+		ur.add_do_method(self, "_after_props_edit")
+		ur.add_undo_method(self, "_after_props_edit")
+		ur.commit_action()
+	else:
+		for item in moves:
+			var n: Node3D = item["node"]
+			n.global_position = item["after"]
+	toast("Посажено объектов StudioProps: %d" % moves.size())
+
+
+## Очистить все объекты в StudioProps одним действием с поддержкой UndoRedo.
+func clear_studio_props() -> void:
+	if stage == null or scene_root == null:
+		return
+	var root_node := stage.get_node_or_null("StudioProps") as Node3D
+	if root_node == null or root_node.get_child_count() == 0:
+		toast("В StudioProps нет объектов для очистки")
+		return
+	_erased_entries = []
+	var children := root_node.get_children()
+	for child in children:
+		var node := child as Node3D
+		if node != null:
+			_detach_node(node)
+			_erased_entries.append({"node": node, "parent": root_node})
+	_commit_erased_stroke()
+	toast("Очищено объектов StudioProps: %d" % children.size())
+
+
+## Автоматически расставить равномерные контрольные точки (КПП) по длине трассы.
+func auto_place_checkpoints(step_override: float = -1.0) -> void:
+	if spawn == null or not route_ready:
+		return
+	_spawn_before = _spawn_state()
+	var step: float = step_override if step_override > 0.0 else (settings.auto_checkpoint_step if settings != null else 500.0)
+	step = maxf(settings.checkpoint_spacing_min if settings != null else 100.0, step)
+	var cps := PackedFloat32Array()
+	var d: float = spawn.start_distance + step
+	var limit: float = length - maxf(spawn.finish_margin, spawn.checkpoint_end_margin)
+	while d < limit:
+		cps.append(roundf(d))
+		d += step
+	spawn.custom_checkpoint_distances = cps
+	_commit_spawn("авто-расстановка КПП")
+	toast("Расставлено КПП: %d (шаг %.0f м)" % [cps.size(), step])
+
+
+## Сбросить ручные КПП (вернуться к автоматическому интервалу трассы).
+func clear_custom_checkpoints() -> void:
+	if spawn == null:
+		return
+	if spawn.custom_checkpoint_distances.is_empty():
+		toast("Ручных КПП нет (используется интервал трассы)")
+		return
+	_spawn_before = _spawn_state()
+	spawn.custom_checkpoint_distances = PackedFloat32Array()
+	_commit_spawn("сбросить ручные КПП")
+	toast("Ручные КПП сброшены")
+
+
 # ------------------------------------------------------------------ сборка и сохранение
 
-func rebuild_stage() -> void:
+func rebuild_stage(force_full: bool = false) -> void:
 	if stage == null or not is_instance_valid(stage) or not stage.has_method("rebuild_preview"):
 		return
 	# В редакторе сборка может быть синхронной и тяжёлой; вызываем её
 	# только по явному запросу или при включённой автосборке.
 	building = true
 	_building_timer = maxf(0.5, settings.build_feedback_seconds)
+	var fast: bool = (settings != null and settings.fast_rebuild) and not force_full
 	var started := Time.get_ticks_msec()
-	stage.call("rebuild_preview")
+	stage.call("rebuild_preview", fast)
 	_hover_ground_ok = false
 	last_build_seconds = float(Time.get_ticks_msec() - started) / 1000.0
 	needs_rebuild = false
@@ -1949,7 +2430,10 @@ func rebuild_stage() -> void:
 	_mark_scene_dirty()
 	_refresh_analysis()
 	_request_redraw()
-	toast("Пересборка мира запущена")
+	if fast:
+		toast("Быстрая черновая сборка: %.2f с" % last_build_seconds)
+	else:
+		toast("Мир собран за %.2f с" % last_build_seconds)
 
 
 ## Вызывается UndoRedo (и кодом) после любой правки.
@@ -1958,7 +2442,7 @@ func _after_edit() -> void:
 		return
 	_dirty = true
 	needs_rebuild = true
-	_save_resources()
+	_schedule_save()
 	_schedule_rebuild()
 	_request_redraw()
 
@@ -1972,7 +2456,7 @@ func _road_changed() -> void:
 func _after_road_edit() -> void:
 	_road_changed()
 	needs_rebuild = true
-	_save_resources()
+	_schedule_save()
 	_schedule_rebuild()
 
 
@@ -1994,9 +2478,18 @@ func _mark_scene_dirty() -> void:
 func world_param_changed() -> void:
 	_dirty = true
 	needs_rebuild = true
-	_save_resources()
+	_schedule_save()
 	_schedule_rebuild()
 	_request_redraw()
+
+
+func _schedule_save() -> void:
+	if settings == null or not settings.save_resources_on_commit:
+		_save_timer = 0.0
+		return
+	# Откладываем запись .tres на диск, чтобы при кручении ползунков или серии
+	# правок не блокировать UI редактора синхронной сериализацией Curve3D.
+	_save_timer = 0.8
 
 
 func _schedule_rebuild() -> void:
@@ -2006,17 +2499,16 @@ func _schedule_rebuild() -> void:
 		_rebuild_timer = 0.0
 
 
-## Записать правленые ресурсы на диск (кнопка «Сохранить»).
+## Записать правленые ресурсы на диск (кнопка «Сохранить» или таймер).
 func save_now() -> void:
+	_save_timer = 0.0
 	_save_resource(curve)
 	_save_resource(track)
 	_save_resource(spawn)
 
 
 func _save_resources() -> void:
-	if settings == null or not settings.save_resources_on_commit:
-		return
-	save_now()
+	_schedule_save()
 
 
 func _save_resource(resource: Resource) -> void:
