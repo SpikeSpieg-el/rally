@@ -1,25 +1,41 @@
 [gd_scene format=3 uid="uid://dnglpfyn6nw6"]
 
+[ext_resource type="Shader" uid="uid://cjk0afgvjqwx0" path="res://shaders/speed_fx.gdshader" id="0_screen_shader"]
 [ext_resource type="Script" uid="uid://bxev3gfr3ewld" path="res://scripts/rally_stage.gd" id="1_stage"]
 [ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_config"]
-[ext_resource type="Resource" uid="uid://e6iz6gtccpoj" path="res://data/tracks/stage_testpad.tres" id="3_track"]
+[ext_resource type="Resource" uid="uid://e6i06gtccpoj" path="res://data/tracks/stage_testpad.tres" id="3_track"]
+[ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="4_bw6gc"]
 [ext_resource type="Curve3D" uid="uid://cxk8ieanp2vm" path="res://data/tracks/stage_testpad_route.tres" id="4_route"]
+[ext_resource type="Texture2D" uid="uid://bci7my2yjh4da" path="res://textures/environment/forest_floor.png" id="5_1a1dp"]
 [ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="5_car"]
+[ext_resource type="Texture2D" uid="uid://cg6o1bxkd7ixj" path="res://textures/environment/rock.png" id="6_563j0"]
 [ext_resource type="PackedScene" uid="uid://cm7js1v8kufmn" path="res://scenes/ui/rally_hud.tscn" id="6_hud"]
-[ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="0_screen_shader"]
+[ext_resource type="Script" uid="uid://bdaj34wupumx2" path="res://scripts/data/rally_shader_parameter.gd" id="7_fsy7v"]
 [ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="7_screen"]
 [ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="8_effects"]
+[ext_resource type="Resource" uid="uid://btrusv15yonrx" path="res://data/stage/road_decals/gravel.tres" id="8_n0brd"]
+[ext_resource type="Resource" uid="uid://ccfbe5brcqpr6" path="res://data/stage/road_decals/mud.tres" id="9_fscdg"]
+[ext_resource type="Resource" uid="uid://2ap7kwx63sl" path="res://data/stage/road_decals/asphalt.tres" id="10_8u7po"]
+[ext_resource type="Resource" uid="uid://bhd5l50uhtsjw" path="res://data/stage/road_decals/snow.tres" id="11_wrtuu"]
+[ext_resource type="Resource" uid="uid://7frbhx2sx4c7" path="res://data/stage/road_decals/grass.tres" id="12_nf7g8"]
+[ext_resource type="Shader" uid="uid://cg0r2rrjileeb" path="res://shaders/gravel_road.gdshader" id="13_ewyku"]
+[ext_resource type="Texture2D" uid="uid://cjwjdclmhmapv" path="res://textures/environment/gravel.png" id="14_45pyf"]
+[ext_resource type="Script" uid="uid://rwx0tgnuruiw" path="res://scripts/data/rally_stage_settings.gd" id="15_p5noe"]
+[ext_resource type="Resource" uid="uid://cgiuoadihlh3q" path="res://data/stage/default_spawn_layout.tres" id="16_o6uxo"]
+[ext_resource type="Resource" uid="uid://cg2eebrwf3kpw" path="res://data/stage/default_fx_profile.tres" id="17_ihe82"]
+[ext_resource type="Resource" uid="uid://br257lnwff4ev" path="res://data/stage/default_scenery.tres" id="18_uvmww"]
+[ext_resource type="Resource" uid="uid://h8pv006o5rfw" path="res://data/stage/default_prop_library.tres" id="19_8bbyq"]
 [ext_resource type="PackedScene" uid="uid://drna5vq65dq2v" path="res://scenes/props/birch_tree.tscn" id="prop_0"]
 [ext_resource type="PackedScene" path="res://scenes/props/boulder.tscn" id="prop_1"]
-[ext_resource type="PackedScene" uid="uid://0ibyyurl65b4k" path="res://scenes/props/braking_marker.tscn" id="prop_2"]
-[ext_resource type="PackedScene" uid="uid://wpk16a6yh5o3x" path="res://scenes/props/broken_car.tscn" id="prop_3"]
-[ext_resource type="PackedScene" uid="uid://5gs7pnrtdl2f3" path="res://scenes/props/bunting_post.tscn" id="prop_4"]
-[ext_resource type="PackedScene" uid="uid://1iuefigpoiau5" path="res://scenes/props/bunting_tape.tscn" id="prop_5"]
+[ext_resource type="PackedScene" uid="uid://cburgi83sw2ky" path="res://scenes/props/braking_marker.tscn" id="prop_2"]
+[ext_resource type="PackedScene" uid="uid://dejo70lpn5cb4" path="res://scenes/props/broken_car.tscn" id="prop_3"]
+[ext_resource type="PackedScene" uid="uid://dex4lac2e6w4q" path="res://scenes/props/bunting_post.tscn" id="prop_4"]
+[ext_resource type="PackedScene" uid="uid://dce5u5w7ba1ck" path="res://scenes/props/bunting_tape.tscn" id="prop_5"]
 [ext_resource type="PackedScene" path="res://scenes/props/bush.tscn" id="prop_6"]
 [ext_resource type="PackedScene" uid="uid://bbreyhlr7ikfh" path="res://scenes/props/camera_flash.tscn" id="prop_7"]
-[ext_resource type="PackedScene" uid="uid://lr7saf744g8cp" path="res://scenes/props/camper.tscn" id="prop_8"]
+[ext_resource type="PackedScene" uid="uid://d2e13cemy2hs6" path="res://scenes/props/camper.tscn" id="prop_8"]
 [ext_resource type="PackedScene" uid="uid://dihocl82pl0x5" path="res://scenes/props/camper_tent.tscn" id="prop_9"]
-[ext_resource type="PackedScene" uid="uid://p3mjwnxvaqml2" path="res://scenes/props/campfire.tscn" id="prop_10"]
+[ext_resource type="PackedScene" uid="uid://my2kgau0w4k0" path="res://scenes/props/campfire.tscn" id="prop_10"]
 [ext_resource type="PackedScene" path="res://scenes/props/dead_tree.tscn" id="prop_11"]
 [ext_resource type="PackedScene" path="res://scenes/props/dirt_mound.tscn" id="prop_12"]
 [ext_resource type="PackedScene" uid="uid://drxgo4b1xemgp" path="res://scenes/props/dry_shrub.tscn" id="prop_13"]
@@ -27,10 +43,10 @@
 [ext_resource type="PackedScene" uid="uid://d26nm0fevmqui" path="res://scenes/props/fern.tscn" id="prop_15"]
 [ext_resource type="PackedScene" uid="uid://dapw3awdeo6if" path="res://scenes/props/finish_warning_sign.tscn" id="prop_16"]
 [ext_resource type="PackedScene" uid="uid://d116xkaf32gdd" path="res://scenes/props/fir_tree.tscn" id="prop_17"]
-[ext_resource type="PackedScene" uid="uid://r1h42bvaqrpx2" path="res://scenes/props/fog_patch.tscn" id="prop_18"]
+[ext_resource type="PackedScene" uid="uid://ckuno27ahx7w0" path="res://scenes/props/fog_patch.tscn" id="prop_18"]
 [ext_resource type="PackedScene" uid="uid://bki0mb1cw0a3" path="res://scenes/props/forester_house.tscn" id="prop_19"]
-[ext_resource type="PackedScene" uid="uid://cv39zkiju1oow" path="res://scenes/props/gate_sign.tscn" id="prop_20"]
-[ext_resource type="PackedScene" uid="uid://4rfgy134o5og2" path="res://scenes/props/generator.tscn" id="prop_21"]
+[ext_resource type="PackedScene" uid="uid://cv4a0kiju1oow" path="res://scenes/props/gate_sign.tscn" id="prop_20"]
+[ext_resource type="PackedScene" uid="uid://cpkdunodqqj5p" path="res://scenes/props/generator.tscn" id="prop_21"]
 [ext_resource type="PackedScene" path="res://scenes/props/grass.tscn" id="prop_22"]
 [ext_resource type="PackedScene" uid="uid://6mbw10od76gr" path="res://scenes/props/grass2.tscn" id="prop_23"]
 [ext_resource type="PackedScene" uid="uid://bbuus4mtwbmd6" path="res://scenes/props/grass3.tscn" id="prop_24"]
@@ -42,7 +58,7 @@
 [ext_resource type="PackedScene" uid="uid://bwr5g5gxivpi" path="res://scenes/props/marshal_tent.tscn" id="prop_30"]
 [ext_resource type="PackedScene" uid="uid://dj4lgkn53ln7e" path="res://scenes/props/metal_guardrail.tscn" id="prop_31"]
 [ext_resource type="PackedScene" path="res://scenes/props/moss_rock.tscn" id="prop_32"]
-[ext_resource type="PackedScene" uid="uid://j3mtqrn11t6ap" path="res://scenes/props/mud_patch.tscn" id="prop_33"]
+[ext_resource type="PackedScene" uid="uid://cds3kntjwgfq6" path="res://scenes/props/mud_patch.tscn" id="prop_33"]
 [ext_resource type="PackedScene" path="res://scenes/props/mushroom_cluster.tscn" id="prop_34"]
 [ext_resource type="PackedScene" uid="uid://c2kg6l5pk7ktn" path="res://scenes/props/parked_car.tscn" id="prop_35"]
 [ext_resource type="PackedScene" uid="uid://ugy3qok4c7kj" path="res://scenes/props/pine_tree.tscn" id="prop_36"]
@@ -50,21 +66,123 @@
 [ext_resource type="PackedScene" path="res://scenes/props/river_bank_rock.tscn" id="prop_38"]
 [ext_resource type="PackedScene" uid="uid://dblndqw45wkp4" path="res://scenes/props/road_sign.tscn" id="prop_39"]
 [ext_resource type="PackedScene" path="res://scenes/props/rock_cluster.tscn" id="prop_40"]
-[ext_resource type="PackedScene" uid="uid://j4hbi6jlvhkpo" path="res://scenes/props/safety_net.tscn" id="prop_41"]
+[ext_resource type="PackedScene" uid="uid://cenkc2o3q2s65" path="res://scenes/props/safety_net.tscn" id="prop_41"]
 [ext_resource type="PackedScene" path="res://scenes/props/sandbag_barrier.tscn" id="prop_42"]
 [ext_resource type="PackedScene" uid="uid://busnj4av2gjeq" path="res://scenes/props/service_car.tscn" id="prop_43"]
 [ext_resource type="PackedScene" uid="uid://cj1rcbsi30w5w" path="res://scenes/props/spectator_crowd.tscn" id="prop_44"]
 [ext_resource type="PackedScene" uid="uid://b02trgqm0njp" path="res://scenes/props/spectator_person.tscn" id="prop_45"]
 [ext_resource type="PackedScene" uid="uid://dnfh1hjw5fb5t" path="res://scenes/props/sponsor_banner.tscn" id="prop_46"]
-[ext_resource type="PackedScene" uid="uid://wgliiejexgb2l" path="res://scenes/props/stop_sign.tscn" id="prop_47"]
+[ext_resource type="PackedScene" uid="uid://c4j5j3w44fxar" path="res://scenes/props/stop_sign.tscn" id="prop_47"]
 [ext_resource type="PackedScene" uid="uid://cg6kx3ewyqkfk" path="res://scenes/props/stump.tscn" id="prop_48"]
 [ext_resource type="PackedScene" uid="uid://cybn2n7acr7er" path="res://scenes/props/tire_stack.tscn" id="prop_49"]
 [ext_resource type="PackedScene" uid="uid://c1mq52mk4elhl" path="res://scenes/props/traffic_cone.tscn" id="prop_50"]
-[ext_resource type="PackedScene" uid="uid://r0m9km82zi4gh" path="res://scenes/props/warning_triangle.tscn" id="prop_51"]
+[ext_resource type="PackedScene" uid="uid://cj0r7fk2qpmff" path="res://scenes/props/warning_triangle.tscn" id="prop_51"]
 [ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="prop_52"]
 [ext_resource type="PackedScene" uid="uid://x352v4piuwv6" path="res://scenes/props/wooden_fence.tscn" id="prop_53"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_screen"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_c4s61"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("4_bw6gc")
+shader_parameter/ground_texture = ExtResource("5_1a1dp")
+shader_parameter/rock_texture = ExtResource("6_563j0")
+shader_parameter/ground_texture_smooth = ExtResource("5_1a1dp")
+shader_parameter/rock_texture_smooth = ExtResource("6_563j0")
+shader_parameter/ps1_textures = true
+shader_parameter/ground_color = Color(0.3, 0.34, 0.27, 1)
+shader_parameter/ground_color_2 = Color(0.4, 0.44, 0.33, 1)
+shader_parameter/road_edge_color = Color(0.32, 0.3, 0.24, 1)
+shader_parameter/rock_color = Color(0.42, 0.43, 0.45, 1)
+shader_parameter/surface_roughness = 0.99
+shader_parameter/grain_scale = 1.4
+shader_parameter/flat_shading = 1.0
+shader_parameter/vertex_snap = 0.15
+shader_parameter/resolution_y = 270.0
+shader_parameter/wetness = 0.0
+shader_parameter/snow_cover = 0.0
+shader_parameter/broad_scale = 0.05
+shader_parameter/ground_uv_scale = 0.25
+shader_parameter/rock_uv_scale = 0.22
+shader_parameter/shade_min = 0.8
+shader_parameter/shade_max = 1.14
+shader_parameter/ground_detail_base = 0.65
+shader_parameter/ground_detail_gain = 1.5
+shader_parameter/rock_detail_base = 0.65
+shader_parameter/rock_detail_gain = 1.3
+shader_parameter/shoulder_blend = 0.3
+shader_parameter/rock_slope_inner = 0.55
+shader_parameter/rock_slope_outer = 0.85
+shader_parameter/wet_darken = 0.78
+shader_parameter/snow_slope_inner = 0.15
+shader_parameter/snow_slope_outer = 0.65
+shader_parameter/snow_color = Color(0.88, 0.91, 0.96, 1)
+shader_parameter/snow_roughness = 0.62
+shader_parameter/snow_specular = 0.1
+shader_parameter/wet_specular = 0.42
+shader_parameter/dry_specular = 0.16
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sadah"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("13_ewyku")
+shader_parameter/gravel_texture = ExtResource("14_45pyf")
+shader_parameter/gravel_texture_smooth = ExtResource("14_45pyf")
+shader_parameter/ps1_textures = true
+shader_parameter/vertex_snap = 0.15
+shader_parameter/resolution_y = 270.0
+shader_parameter/section_surfaces = false
+shader_parameter/loose_relief = 0.08
+shader_parameter/detail_strength = 0.08
+shader_parameter/track_strength = 0.06
+shader_parameter/road_roughness = 0.96
+shader_parameter/wetness = 0.0
+shader_parameter/snow_cover = 0.0
+shader_parameter/zone_offset = 0.9
+shader_parameter/stage_length = 1331.099
+shader_parameter/zone_period = 240.0
+shader_parameter/zone_start = 150.0
+shader_parameter/zone_end_margin = 40.0
+shader_parameter/zone_length = 20.0
+shader_parameter/zone_half_width = 1.5
+shader_parameter/zone_softness = 0.7
+shader_parameter/zone_fade = 3.0
+shader_parameter/zone_contrast = 0.28
+shader_parameter/zone_wet_darken = 0.38
+shader_parameter/zone_dry_lighten = 0.28
+shader_parameter/gravel_uv_scale = 0.3
+shader_parameter/detail_scale = 3.5
+shader_parameter/broad_scale = 0.18
+shader_parameter/rut_center = 0.95
+shader_parameter/rut_inner = 0.12
+shader_parameter/rut_outer = 0.4
+shader_parameter/relief_strength = 0.32
+shader_parameter/snow_tint_strength = 0.85
+shader_parameter/snow_tint = Color(0.87, 0.9, 0.95, 1)
+shader_parameter/wet_roughness = 0.22
+shader_parameter/wet_specular = 0.55
+shader_parameter/snow_roughness = 0.72
+shader_parameter/snow_specular = 0.08
+shader_parameter/wet_darken = 0.62
+shader_parameter/dry_specular = 0.22
+shader_parameter/texture_gain = 1.25
+shader_parameter/texture_base = 0.65
+shader_parameter/puddle_roughness = 0.18
+shader_parameter/puddle_mix = 0.35
+
+[sub_resource type="Resource" id="Resource_b2v7p"]
+script = ExtResource("15_p5noe")
+retro_color_bits_override = 5
+ground_surface_roughness = 0.99
+ground_grain_scale = 1.4
+road_roughness = 0.96
+road_loose_relief = 0.08
+road_detail_strength = 0.08
+road_track_strength = 0.06
+road_decal_profiles = Array[Resource]([ExtResource("8_n0brd"), ExtResource("9_fscdg"), ExtResource("10_8u7po"), ExtResource("11_wrtuu"), ExtResource("12_nf7g8")])
+ground_material = SubResource("ShaderMaterial_c4s61")
+road_material = SubResource("ShaderMaterial_sadah")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nqdsk"]
 resource_local_to_scene = true
 shader = ExtResource("0_screen_shader")
 shader_parameter/retro_strength = 1.0
@@ -78,201 +196,207 @@ shader_parameter/camera_mode = 0
 shader_parameter/blur_gain = 2.8
 shader_parameter/cockpit_scale = 0.7
 shader_parameter/speed_stretch = 0.031
+shader_parameter/speed_stretch_gain = 1.0
 
-[node name="RallyStage" type="Node3D"]
+[node name="RallyStage" type="Node3D" unique_id=1985714500]
 script = ExtResource("1_stage")
+game_config = ExtResource("2_config")
 track_override = ExtResource("3_track")
+settings = SubResource("Resource_b2v7p")
+spawn_layout = ExtResource("16_o6uxo")
+fx_profile = ExtResource("17_ihe82")
+scenery = ExtResource("18_uvmww")
+prop_library = ExtResource("19_8bbyq")
 
-[node name="VisualEffects" parent="." instance=ExtResource("8_effects")]
+[node name="VisualEffects" parent="." unique_id=1325808592 instance=ExtResource("8_effects")]
 editor_description = "Визуальные настройки: скорость, дождь, снег и материалы. Ретро-экран — под HUD."
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-
-[node name="SunLight" type="DirectionalLight3D" parent="."]
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1924397361]
 transform = Transform3D(1, 0, 0, 0, 0.7071068, 0.7071068, 0, -0.7071068, 0.7071068, 0, 40, 0)
+light_color = Color(0.67481464, 0.67481464, 0.6748146, 1)
 light_energy = 1.45
 shadow_enabled = true
 directional_shadow_max_distance = 160.0
 
-[node name="Terrain" type="StaticBody3D" parent="."]
+[node name="Terrain" type="StaticBody3D" parent="." unique_id=91264943]
 
-[node name="Generated" type="Node3D" parent="."]
+[node name="Generated" type="Node3D" parent="." unique_id=1395327030]
 
-[node name="Route" type="Path3D" parent="."]
+[node name="Route" type="Path3D" parent="." unique_id=128172365]
 curve = ExtResource("4_route")
 
-[node name="Props" type="Node3D" parent="."]
+[node name="Props" type="Node3D" parent="." unique_id=2017324551]
 editor_description = "Витрина пропсов: по одному экземпляру каждого вида вдоль обеих прямых. Высоту выставляет этап при сборке."
 
-[node name="01_birch_tree" type="Node3D" parent="Props" instance=ExtResource("prop_0")]
+[node name="01_birch_tree" parent="Props" unique_id=122160031 instance=ExtResource("prop_0")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 120)
 
-[node name="02_boulder" type="Node3D" parent="Props" instance=ExtResource("prop_1")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 131.764706)
+[node name="02_boulder" parent="Props" unique_id=199354633 instance=ExtResource("prop_1")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 131.76471)
 
-[node name="03_braking_marker" type="Node3D" parent="Props" instance=ExtResource("prop_2")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 143.529412)
+[node name="03_braking_marker" parent="Props" unique_id=1882177051 instance=ExtResource("prop_2")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0.6090096, 143.52942)
 
-[node name="04_broken_car" type="Node3D" parent="Props" instance=ExtResource("prop_3")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 155.294118)
+[node name="04_broken_car" parent="Props" unique_id=1844796867 instance=ExtResource("prop_3")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 155.29411)
 
-[node name="05_bunting_post" type="Node3D" parent="Props" instance=ExtResource("prop_4")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 167.058824)
+[node name="05_bunting_post" parent="Props" unique_id=279106924 instance=ExtResource("prop_4")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 167.05882)
 
-[node name="06_bunting_tape" type="Node3D" parent="Props" instance=ExtResource("prop_5")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 178.823529)
+[node name="06_bunting_tape" parent="Props" unique_id=1622036845 instance=ExtResource("prop_5")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 178.82353)
 
-[node name="07_bush" type="Node3D" parent="Props" instance=ExtResource("prop_6")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 190.588235)
+[node name="07_bush" parent="Props" unique_id=310711786 instance=ExtResource("prop_6")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 190.58824)
 
-[node name="08_camera_flash" type="Node3D" parent="Props" instance=ExtResource("prop_7")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 202.352941)
+[node name="08_camera_flash" parent="Props" unique_id=882894979 instance=ExtResource("prop_7")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 202.35294)
 
-[node name="09_camper" type="Node3D" parent="Props" instance=ExtResource("prop_8")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 214.117647)
+[node name="09_camper" parent="Props" unique_id=1944748275 instance=ExtResource("prop_8")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 214.11765)
 
-[node name="10_camper_tent" type="Node3D" parent="Props" instance=ExtResource("prop_9")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 225.882353)
+[node name="10_camper_tent" parent="Props" unique_id=923631448 instance=ExtResource("prop_9")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 225.88235)
 
-[node name="11_campfire" type="Node3D" parent="Props" instance=ExtResource("prop_10")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 237.647059)
+[node name="11_campfire" parent="Props" unique_id=83908530 instance=ExtResource("prop_10")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 237.64706)
 
-[node name="12_dead_tree" type="Node3D" parent="Props" instance=ExtResource("prop_11")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 249.411765)
+[node name="12_dead_tree" parent="Props" unique_id=737734546 instance=ExtResource("prop_11")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 249.41176)
 
-[node name="13_dirt_mound" type="Node3D" parent="Props" instance=ExtResource("prop_12")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 261.176471)
+[node name="13_dirt_mound" parent="Props" unique_id=715941999 instance=ExtResource("prop_12")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 261.17648)
 
-[node name="14_dry_shrub" type="Node3D" parent="Props" instance=ExtResource("prop_13")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 272.941176)
+[node name="14_dry_shrub" parent="Props" unique_id=1309784165 instance=ExtResource("prop_13")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 272.94116)
 
-[node name="15_dry_stone_wall" type="Node3D" parent="Props" instance=ExtResource("prop_14")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 284.705882)
+[node name="15_dry_stone_wall" parent="Props" unique_id=1424649585 instance=ExtResource("prop_14")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 284.70587)
 
-[node name="16_fern" type="Node3D" parent="Props" instance=ExtResource("prop_15")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 296.470588)
+[node name="16_fern" parent="Props" unique_id=1612450728 instance=ExtResource("prop_15")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 296.47058)
 
-[node name="17_finish_warning_sign" type="Node3D" parent="Props" instance=ExtResource("prop_16")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 308.235294)
+[node name="17_finish_warning_sign" parent="Props" unique_id=1558397679 instance=ExtResource("prop_16")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 308.2353)
 
-[node name="18_fir_tree" type="Node3D" parent="Props" instance=ExtResource("prop_17")]
+[node name="18_fir_tree" parent="Props" unique_id=833292300 instance=ExtResource("prop_17")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 185, 0, 320)
 
-[node name="19_fog_patch" type="Node3D" parent="Props" instance=ExtResource("prop_18")]
+[node name="19_fog_patch" parent="Props" unique_id=49281989 instance=ExtResource("prop_18")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 120)
 
-[node name="20_forester_house" type="Node3D" parent="Props" instance=ExtResource("prop_19")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 131.764706)
+[node name="20_forester_house" parent="Props" unique_id=1366757732 instance=ExtResource("prop_19")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 131.76471)
 
-[node name="21_gate_sign" type="Node3D" parent="Props" instance=ExtResource("prop_20")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 143.529412)
+[node name="21_gate_sign" parent="Props" unique_id=347324256 instance=ExtResource("prop_20")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0.02053496, 143.52942)
 
-[node name="22_generator" type="Node3D" parent="Props" instance=ExtResource("prop_21")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 155.294118)
+[node name="22_generator" parent="Props" unique_id=1842236238 instance=ExtResource("prop_21")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 155.29411)
 
-[node name="23_grass" type="Node3D" parent="Props" instance=ExtResource("prop_22")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 167.058824)
+[node name="23_grass" parent="Props" unique_id=1153506071 instance=ExtResource("prop_22")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 167.05882)
 
-[node name="24_grass2" type="Node3D" parent="Props" instance=ExtResource("prop_23")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 178.823529)
+[node name="24_grass2" parent="Props" unique_id=1295224881 instance=ExtResource("prop_23")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 178.82353)
 
-[node name="25_grass3" type="Node3D" parent="Props" instance=ExtResource("prop_24")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 190.588235)
+[node name="25_grass3" parent="Props" unique_id=602185704 instance=ExtResource("prop_24")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 190.58824)
 
-[node name="26_hay_bale" type="Node3D" parent="Props" instance=ExtResource("prop_25")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 202.352941)
+[node name="26_hay_bale" parent="Props" unique_id=2080331414 instance=ExtResource("prop_25")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 202.35294)
 
-[node name="27_helicopter" type="Node3D" parent="Props" instance=ExtResource("prop_26")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 214.117647)
+[node name="27_helicopter" parent="Props" unique_id=203576648 instance=ExtResource("prop_26")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 214.11765)
 
-[node name="28_juniper" type="Node3D" parent="Props" instance=ExtResource("prop_27")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 225.882353)
+[node name="28_juniper" parent="Props" unique_id=288324164 instance=ExtResource("prop_27")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 225.88235)
 
-[node name="29_light_tower" type="Node3D" parent="Props" instance=ExtResource("prop_28")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 237.647059)
+[node name="29_light_tower" parent="Props" unique_id=1510589209 instance=ExtResource("prop_28")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 237.64706)
 
-[node name="30_log" type="Node3D" parent="Props" instance=ExtResource("prop_29")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 249.411765)
+[node name="30_log" parent="Props" unique_id=2002604305 instance=ExtResource("prop_29")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 249.41176)
 
-[node name="31_marshal_tent" type="Node3D" parent="Props" instance=ExtResource("prop_30")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 261.176471)
+[node name="31_marshal_tent" parent="Props" unique_id=315037690 instance=ExtResource("prop_30")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 261.17648)
 
-[node name="32_metal_guardrail" type="Node3D" parent="Props" instance=ExtResource("prop_31")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 272.941176)
+[node name="32_metal_guardrail" parent="Props" unique_id=1191614194 instance=ExtResource("prop_31")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 272.94116)
 
-[node name="33_moss_rock" type="Node3D" parent="Props" instance=ExtResource("prop_32")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 284.705882)
+[node name="33_moss_rock" parent="Props" unique_id=102797193 instance=ExtResource("prop_32")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 284.70587)
 
-[node name="34_mud_patch" type="Node3D" parent="Props" instance=ExtResource("prop_33")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 296.470588)
+[node name="34_mud_patch" parent="Props" unique_id=1659589810 instance=ExtResource("prop_33")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 296.47058)
 
-[node name="35_mushroom_cluster" type="Node3D" parent="Props" instance=ExtResource("prop_34")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 308.235294)
+[node name="35_mushroom_cluster" parent="Props" unique_id=96447705 instance=ExtResource("prop_34")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 308.2353)
 
-[node name="36_parked_car" type="Node3D" parent="Props" instance=ExtResource("prop_35")]
+[node name="36_parked_car" parent="Props" unique_id=1680038543 instance=ExtResource("prop_35")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50, 0, 320)
 
-[node name="37_pine_tree" type="Node3D" parent="Props" instance=ExtResource("prop_36")]
+[node name="37_pine_tree" parent="Props" unique_id=62032684 instance=ExtResource("prop_36")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 320)
 
-[node name="38_power_pole" type="Node3D" parent="Props" instance=ExtResource("prop_37")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 308.235294)
+[node name="38_power_pole" parent="Props" unique_id=565404917 instance=ExtResource("prop_37")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 308.2353)
 
-[node name="39_river_bank_rock" type="Node3D" parent="Props" instance=ExtResource("prop_38")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 296.470588)
+[node name="39_river_bank_rock" parent="Props" unique_id=105314869 instance=ExtResource("prop_38")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 296.47058)
 
-[node name="40_road_sign" type="Node3D" parent="Props" instance=ExtResource("prop_39")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 284.705882)
+[node name="40_road_sign" parent="Props" unique_id=1462128976 instance=ExtResource("prop_39")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 284.70587)
 
-[node name="41_rock_cluster" type="Node3D" parent="Props" instance=ExtResource("prop_40")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 272.941176)
+[node name="41_rock_cluster" parent="Props" unique_id=1953592841 instance=ExtResource("prop_40")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 272.94116)
 
-[node name="42_safety_net" type="Node3D" parent="Props" instance=ExtResource("prop_41")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 261.176471)
+[node name="42_safety_net" parent="Props" unique_id=1143175893 instance=ExtResource("prop_41")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 261.17648)
 
-[node name="43_sandbag_barrier" type="Node3D" parent="Props" instance=ExtResource("prop_42")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 249.411765)
+[node name="43_sandbag_barrier" parent="Props" unique_id=1679927092 instance=ExtResource("prop_42")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 249.41176)
 
-[node name="44_service_car" type="Node3D" parent="Props" instance=ExtResource("prop_43")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 237.647059)
+[node name="44_service_car" parent="Props" unique_id=799627151 instance=ExtResource("prop_43")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 237.64706)
 
-[node name="45_spectator_crowd" type="Node3D" parent="Props" instance=ExtResource("prop_44")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 225.882353)
+[node name="45_spectator_crowd" parent="Props" unique_id=413787569 instance=ExtResource("prop_44")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 225.88235)
 
-[node name="46_spectator_person" type="Node3D" parent="Props" instance=ExtResource("prop_45")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 214.117647)
+[node name="46_spectator_person" parent="Props" unique_id=1048789380 instance=ExtResource("prop_45")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 214.11765)
 
-[node name="47_sponsor_banner" type="Node3D" parent="Props" instance=ExtResource("prop_46")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 202.352941)
+[node name="47_sponsor_banner" parent="Props" unique_id=1105423909 instance=ExtResource("prop_46")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 202.35294)
 
-[node name="48_stop_sign" type="Node3D" parent="Props" instance=ExtResource("prop_47")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 190.588235)
+[node name="48_stop_sign" parent="Props" unique_id=471254176 instance=ExtResource("prop_47")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 190.58824)
 
-[node name="49_stump" type="Node3D" parent="Props" instance=ExtResource("prop_48")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 178.823529)
+[node name="49_stump" parent="Props" unique_id=1772812327 instance=ExtResource("prop_48")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 178.82353)
 
-[node name="50_tire_stack" type="Node3D" parent="Props" instance=ExtResource("prop_49")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 167.058824)
+[node name="50_tire_stack" parent="Props" unique_id=589993391 instance=ExtResource("prop_49")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 167.05882)
 
-[node name="51_traffic_cone" type="Node3D" parent="Props" instance=ExtResource("prop_50")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 155.294118)
+[node name="51_traffic_cone" parent="Props" unique_id=1246245239 instance=ExtResource("prop_50")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 155.29411)
 
-[node name="52_warning_triangle" type="Node3D" parent="Props" instance=ExtResource("prop_51")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 143.529412)
+[node name="52_warning_triangle" parent="Props" unique_id=376669146 instance=ExtResource("prop_51")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 143.52942)
 
-[node name="53_wildflowers" type="Node3D" parent="Props" instance=ExtResource("prop_52")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 131.764706)
+[node name="53_wildflowers" parent="Props" unique_id=1186563981 instance=ExtResource("prop_52")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 131.76471)
 
-[node name="54_wooden_fence" type="Node3D" parent="Props" instance=ExtResource("prop_53")]
+[node name="54_wooden_fence" parent="Props" unique_id=1087690177 instance=ExtResource("prop_53")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -85, 0, 120)
 
-[node name="RallyCar" parent="." instance=ExtResource("5_car")]
+[node name="RallyCar" parent="." unique_id=1108445384 instance=ExtResource("5_car")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=273356755]
 
-[node name="SpeedShaderRect" parent="HUD" instance=ExtResource("7_screen")]
+[node name="SpeedShaderRect" parent="HUD" unique_id=1549415691 instance=ExtResource("7_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_screen")
+material = SubResource("ShaderMaterial_nqdsk")
 
-[node name="RallyHUD" parent="HUD" instance=ExtResource("6_hud")]
+[node name="RallyHUD" parent="HUD" unique_id=1254568689 instance=ExtResource("6_hud")]
