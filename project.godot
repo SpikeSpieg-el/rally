@@ -23,6 +23,7 @@ buses/default_bus_layout="uid://yacaej3wfiib"
 RallyGame="*res://scripts/game_state.gd"
 ControllerManager="*res://scripts/input/controller_manager.gd"
 RallyRadio="*res://scripts/radio/rally_radio.gd"
+VRMode="*res://scripts/vr_mode.gd"
 
 [display]
 
