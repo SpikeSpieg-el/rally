@@ -108,6 +108,10 @@ var _stroke_nodes: Array = []
 var _erased_entries: Array = []
 var _stroke_last := Vector3.ZERO
 var _stroke_grid: Dictionary = {}
+var _existing_props_grid: Dictionary = {}
+var _last_paint_ms: int = 0
+var _last_erase_ms: int = 0
+var _hover_ground_ms: int = 0
 var _width_distance: float = 0.0
 var _road_cells: Dictionary = {}
 const ROAD_CELL_SIZE := 32.0
@@ -484,8 +488,11 @@ func forward_input(camera: Camera3D, event: InputEvent) -> int:
 		var motion := event as InputEventMouseMotion
 		mouse_pos = motion.position
 		if dragging:
+			# Не перерисовываем оверлей на каждый микросдвиг мыши: в режиме кисти
+			# «Лес» перерисовка сама зовётся при сдвиге круга или постановке дерева.
 			_apply_drag(camera, motion.position)
-			_request_redraw()
+			if drag_kind != "paint" and drag_kind != "erase_props":
+				_request_redraw()
 			return INPUT_STOP
 		# При навигации камерой в 3D (зажата ПКМ или СКМ) не пускаем лучи под мышь.
 		if (motion.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0:
@@ -653,6 +660,7 @@ func _press_props(camera: Camera3D, event: InputEventMouseButton) -> int:
 	var ground := _ray_ground(camera, event.position)
 	_stroke_nodes = []
 	_stroke_grid.clear()
+	_rebuild_existing_props_grid()
 	if not bool(ground.get("ok", false)) or not bool(ground.get("terrain", false)):
 		toast("Рельеф ещё не собран или не найден под кистью")
 		return INPUT_PASS
@@ -861,7 +869,9 @@ func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool:
 	var old_distance: float = hover_distance
 	var old_point: Vector3 = hover_point
 	var old_brush: Vector3 = hover_brush
+	var old_brush_valid: bool = hover_brush_valid
 	var old_ghost: Vector3 = hover_new_point
+	var old_ghost_valid: bool = hover_new_valid
 	var had_any: bool = hover_valid or hover_control >= 0 or hover_zone >= 0 \
 		or hover_brush_valid or hover_new_valid
 	hover_valid = false
@@ -906,15 +916,16 @@ func _update_hover(camera: Camera3D, screen_pos: Vector2) -> bool:
 			hover_new_point = ghost["point"]
 			hover_new_valid = true
 	if old_valid != hover_valid or old_control != hover_control or old_zone != hover_zone \
-			or old_section != hover_section:
+			or old_section != hover_section or old_brush_valid != hover_brush_valid \
+			or old_ghost_valid != hover_new_valid:
 		return true
 	if hover_valid and old_point.distance_squared_to(hover_point) > 0.01:
 		return true
-	if hover_brush_valid and old_brush.distance_squared_to(hover_brush) > 0.01:
+	if hover_brush_valid and old_brush.distance_squared_to(hover_brush) > 0.04:
 		return true
 	if hover_new_valid and old_ghost.distance_squared_to(hover_new_point) > 0.01:
 		return true
-	if absf(old_distance - hover_distance) > 0.25:
+	if hover_valid and absf(old_distance - hover_distance) > 0.25:
 		return true
 	return false
 
@@ -1051,9 +1062,11 @@ func _terrain_ray(from: Vector3, to: Vector3) -> Dictionary:
 	if world == null:
 		return {}
 	var query := PhysicsRayQueryParameters3D.create(from, to)
-	# Деревья и дорожные объекты не должны перехватывать кисть.
+	# Слой 1 — земля и полотно дороги; деревья/столбы/заборы лежат на слое 2,
+	# поэтому маска 1 отсекает тысячи физических стволов сразу на уровне Broadphase!
+	query.collision_mask = 1
 	var excluded: Array[RID] = []
-	for _i in range(12):
+	for _i in range(4):
 		query.exclude = excluded
 		var hit := world.direct_space_state.intersect_ray(query)
 		if hit.is_empty():
@@ -1068,47 +1081,92 @@ func _terrain_ray(from: Vector3, to: Vector3) -> Dictionary:
 	return {}
 
 
+## Быстрая проекция луча из камеры прямо в CPU-сетку высот рельефа — без PhysicsServer3D!
+## Позволяет кисти «Лес» работать мгновенно без единого intersect_ray по 200 000 полигонов.
+func _ray_height_grid(origin: Vector3, dir: Vector3) -> Dictionary:
+	if stage == null or not stage.has_method("editor_cached_ground_height"):
+		return {}
+	if dir.y >= -0.015:
+		return {}
+	var guess_y: float = _hover_ground.y if _hover_ground_terrain else (
+		curve.get_point_position(curve.point_count - 1).y if curve != null and curve.point_count > 0 else 0.0
+	)
+	var t: float = (guess_y - origin.y) / dir.y
+	if t <= 0.0 or t > 6000.0:
+		t = -origin.y / dir.y
+		if t <= 0.0 or t > 6000.0:
+			return {}
+	var point: Vector3 = origin + dir * t
+	var found := false
+	for _i in range(5):
+		var cached: Dictionary = stage.call("editor_cached_ground_height", point.x, point.z)
+		if cached.is_empty():
+			found = false
+			break
+		found = true
+		var h := float(cached["height"])
+		t = (h - origin.y) / dir.y
+		if t <= 0.0 or t > 6000.0:
+			return {}
+		var next_point: Vector3 = origin + dir * t
+		if absf(next_point.y - h) < 0.08:
+			point = Vector3(next_point.x, h, next_point.z)
+			break
+		point = next_point
+	if not found:
+		return {}
+	return {"point": point}
+
+
 func _ray_ground(camera: Camera3D, screen_pos: Vector2) -> Dictionary:
 	if camera == null:
 		return {"ok": false}
-	if _hover_ground_ok and _hover_ground_pos.distance_to(screen_pos) < 1.0 \
-			and _hover_ground_camera.is_equal_approx(camera.global_transform):
+	var now_ms := Time.get_ticks_msec()
+	if _hover_ground_pos.distance_to(screen_pos) < 2.0 \
+			and _hover_ground_camera.is_equal_approx(camera.global_transform) \
+			and (_hover_ground_ok or now_ms - _hover_ground_ms < 80):
+		if not _hover_ground_ok and not _hover_ground_terrain:
+			return {"ok": false}
 		return {"ok": true, "point": _hover_ground, "terrain": _hover_ground_terrain}
 	var origin := camera.project_ray_origin(screen_pos)
 	var dir := camera.project_ray_normal(screen_pos)
-	var hit := _terrain_ray(origin, origin + dir * 6000.0)
-	var point: Vector3
-	var terrain_found := not hit.is_empty()
-	if terrain_found:
-		point = hit["position"]
+	var point := Vector3.ZERO
+	var terrain_found := false
+	# 1. Сначала мгновенно проецируем луч на готовую CPU-сетку высот (0 физики!).
+	var grid_hit := _ray_height_grid(origin, dir)
+	if not grid_hit.is_empty():
+		point = grid_hit["point"]
+		terrain_found = true
 	else:
-		# Если коллайдер ещё строится, используем только готовую сетку высот.
-		# Не вызываем ground_height на каждом шаге луча: вне сетки он может
-		# запускать дорогой процедурный поиск по всей трассе.
-		if dir.y >= -0.02:
-			return {"ok": false}
-		var plane_y := curve.get_point_position(curve.point_count - 1).y if curve != null and curve.point_count > 0 else 0.0
-		var t := (plane_y - origin.y) / dir.y
-		if t <= 0.0 or t > 6000.0:
-			return {"ok": false}
-		point = origin + dir * t
-		if stage.has_method("editor_cached_ground_height"):
-			# Несколько итераций проекции на сетку вместо сотен дорогих проб.
-			for _i in range(4):
-				var height: Dictionary = stage.call("editor_cached_ground_height", point.x, point.z)
-				if height.is_empty():
-					terrain_found = false
-					break
-				terrain_found = true
-				t = (float(height["height"]) - origin.y) / dir.y
-				if t <= 0.0 or t > 6000.0:
-					return {"ok": false}
-				point = origin + dir * t
+		# 2. Запасной путь через физический коллайдер рельефа (маска 1, без деревьев).
+		var hit := _terrain_ray(origin, origin + dir * 6000.0)
+		if not hit.is_empty():
+			point = hit["position"]
+			terrain_found = true
+		else:
+			if dir.y >= -0.02:
+				_hover_ground_ok = false
+				_hover_ground_terrain = false
+				_hover_ground_pos = screen_pos
+				_hover_ground_camera = camera.global_transform
+				_hover_ground_ms = now_ms
+				return {"ok": false}
+			var plane_y := curve.get_point_position(curve.point_count - 1).y if curve != null and curve.point_count > 0 else 0.0
+			var t := (plane_y - origin.y) / dir.y
+			if t <= 0.0 or t > 6000.0:
+				_hover_ground_ok = false
+				_hover_ground_terrain = false
+				_hover_ground_pos = screen_pos
+				_hover_ground_camera = camera.global_transform
+				_hover_ground_ms = now_ms
+				return {"ok": false}
+			point = origin + dir * t
 	_hover_ground = point
 	_hover_ground_terrain = terrain_found
 	_hover_ground_ok = terrain_found
 	_hover_ground_pos = screen_pos
 	_hover_ground_camera = camera.global_transform
+	_hover_ground_ms = now_ms
 	return {"ok": true, "point": point, "terrain": terrain_found}
 
 
@@ -1678,6 +1736,26 @@ func brush_props() -> Array:
 	return filtered
 
 
+func _rebuild_existing_props_grid() -> void:
+	_existing_props_grid.clear()
+	if stage == null or settings == null:
+		return
+	var spacing: float = maxf(0.5, settings.brush_spacing)
+	for root_name in ["StudioProps", "ManualProps", "Props"]:
+		var props_root := stage.get_node_or_null(root_name) as Node3D
+		if props_root == null:
+			continue
+		for child in props_root.get_children():
+			var node := child as Node3D
+			if node == null:
+				continue
+			var pos := node.global_position
+			var key := Vector2i(floori(pos.x / spacing), floori(pos.z / spacing))
+			if not _existing_props_grid.has(key):
+				_existing_props_grid[key] = []
+			_existing_props_grid[key].append(pos)
+
+
 func _place_brush(world_point: Vector3) -> void:
 	var list := brush_props()
 	if list.is_empty():
@@ -1687,9 +1765,16 @@ func _place_brush(world_point: Vector3) -> void:
 		return
 	var radius: float = maxf(1.0, settings.brush_radius)
 	var spacing: float = maxf(0.5, settings.brush_spacing)
-	var attempts: int = mini(80, int(maxf(1.0, radius * 2.0)))
+	# Ограничиваем число проб и создаваемых узлов за ОДИН шаг мазка: иначе
+	# на широкой кисти (radius=23) один микросдвиг мыши создаёт сразу до 40
+	# сцен деревьев + добавляет их в дерево редактора Godot в одном кадре!
+	var step_cap: int = 4 if settings.eco_mode else 8
+	var attempts: int = mini(24, int(maxf(4.0, radius * 1.2)))
+	var placed_now: int = 0
+	var has_height_grid: bool = stage.has_method("editor_cached_ground_height")
+	var ray_budget: int = 3
 	for _i in range(attempts):
-		if _stroke_nodes.size() >= settings.brush_max_per_stroke:
+		if _stroke_nodes.size() >= settings.brush_max_per_stroke or placed_now >= step_cap:
 			break
 		if randf() > settings.brush_chance:
 			continue
@@ -1701,34 +1786,45 @@ func _place_brush(world_point: Vector3) -> void:
 		if settings.brush_avoid_road and _too_close_to_road(candidate):
 			continue
 		var height: Dictionary = {}
-		if stage.has_method("editor_cached_ground_height"):
+		if has_height_grid:
 			height = stage.call("editor_cached_ground_height", candidate.x, candidate.z)
 		if not height.is_empty():
 			candidate.y = float(height["height"])
-		else:
+		elif ray_budget > 0:
+			ray_budget -= 1
 			var hit := _terrain_ray(candidate + Vector3.UP * 500.0, candidate - Vector3.UP * 500.0)
 			if hit.is_empty():
 				continue
 			candidate.y = (hit["position"] as Vector3).y
+		else:
+			continue
 		var prop: PropType = list[brush_index % list.size()]
 		var node := _instantiate_prop(prop, candidate)
 		if node == null:
 			continue
+		placed_now += 1
 		_stroke_nodes.append(node)
 		var key := Vector2i(floori(candidate.x / spacing), floori(candidate.z / spacing))
 		if not _stroke_grid.has(key):
 			_stroke_grid[key] = []
 		_stroke_grid[key].append(candidate)
-	_request_redraw()
+	if placed_now > 0:
+		_request_redraw()
 
 
 func _stroke_has_space(point: Vector3, spacing: float) -> bool:
 	var key := Vector2i(floori(point.x / spacing), floori(point.z / spacing))
+	var min_sq := spacing * spacing
 	for x in range(-1, 2):
 		for z in range(-1, 2):
-			for other in _stroke_grid.get(key + Vector2i(x, z), []):
+			var cell := key + Vector2i(x, z)
+			for other in _stroke_grid.get(cell, []):
 				var delta: Vector3 = point - other
-				if delta.x * delta.x + delta.z * delta.z < spacing * spacing:
+				if delta.x * delta.x + delta.z * delta.z < min_sq:
+					return false
+			for existing_pos in _existing_props_grid.get(cell, []):
+				var edelta: Vector3 = point - existing_pos
+				if edelta.x * edelta.x + edelta.z * edelta.z < min_sq:
 					return false
 	return true
 
@@ -1789,7 +1885,12 @@ func _instantiate_prop(prop: PropType, world_point: Vector3) -> Node3D:
 		return null
 	props_root.add_child(node)
 	node.global_position = Vector3(world_point.x, world_point.y + prop.y_offset * size_roll, world_point.z)
-	node.owner = scene_root
+	# Если нет host (например, в headless-тестах), назначаем owner сразу.
+	# В самом редакторе Godot откладываем установку owner до конца мазка
+	# (_commit_props_placed), чтобы не вызывать перестроение дерева SceneTreeDock
+	# на каждое отдельное дерево посреди движения мыши!
+	if host == null:
+		node.owner = scene_root
 	return node
 
 
@@ -1797,21 +1898,48 @@ func _commit_props_placed() -> void:
 	if host == null or scene_root == null or _stroke_nodes.is_empty():
 		return
 	var props_root := _props_root()
-	var ur := host.get_undo_redo()
-	ur.create_action("Студия трассы: поставить обстановку")
+	var valid_nodes: Array = []
 	for raw_node in _stroke_nodes:
 		var node: Node3D = raw_node
-		if node == null or not is_instance_valid(node):
-			continue
-		ur.add_do_reference(node)
-		ur.add_do_method(self, "_attach_node", node, props_root, scene_root)
-		ur.add_undo_method(self, "_detach_node", node)
+		if node != null and is_instance_valid(node):
+			valid_nodes.append(node)
+	_stroke_nodes = []
+	if valid_nodes.is_empty():
+		return
+	var ur := host.get_undo_redo()
+	ur.create_action("Студия трассы: поставить обстановку (%d)" % valid_nodes.size())
+	for raw_valid in valid_nodes:
+		var node_ref: Node3D = raw_valid
+		ur.add_do_reference(node_ref)
+	ur.add_do_method(self, "_attach_nodes_batch", valid_nodes, props_root, scene_root)
+	ur.add_undo_method(self, "_detach_nodes_batch", valid_nodes)
 	ur.add_do_method(self, "_mark_scene_dirty")
 	ur.add_undo_method(self, "_mark_scene_dirty")
 	ur.add_do_method(self, "_after_props_edit")
 	ur.add_undo_method(self, "_after_props_edit")
 	ur.commit_action()
-	_stroke_nodes = []
+
+
+func _attach_nodes_batch(nodes: Array, parent: Node, owner_node: Node) -> void:
+	if parent == null:
+		return
+	for raw_node in nodes:
+		var node := raw_node as Node
+		if node == null or not is_instance_valid(node):
+			continue
+		if node.get_parent() != parent:
+			parent.add_child(node)
+		if node.owner != owner_node:
+			node.owner = owner_node
+	_request_redraw()
+
+
+func _detach_nodes_batch(nodes: Array) -> void:
+	for raw_node in nodes:
+		var node := raw_node as Node
+		if node != null and is_instance_valid(node) and node.get_parent() != null:
+			node.get_parent().remove_child(node)
+	_request_redraw()
 
 
 func _commit_props_erased(node: Node3D) -> void:
@@ -1860,12 +1988,20 @@ func _erase_prop(camera: Camera3D, screen_pos: Vector2) -> bool:
 func _erase_prop_stroke_step(camera: Camera3D, screen_pos: Vector2) -> void:
 	if stage == null or camera == null:
 		return
+	var now_ms := Time.get_ticks_msec()
+	if now_ms - _last_erase_ms < 25 and not _erased_entries.is_empty():
+		return
+	_last_erase_ms = now_ms
 	var ground := _ray_ground(camera, screen_pos)
 	var use_world := bool(ground.get("ok", false))
 	var center: Vector3 = ground.get("point", Vector3.ZERO) as Vector3
+	if use_world:
+		hover_brush = center
+		hover_brush_valid = true
 	var radius: float = maxf(1.0, settings.brush_radius)
 	var radius_sq: float = radius * radius
 	var screen_radius: float = maxf(16.0, settings.brush_radius * 2.0)
+	var proj_scale: Vector2 = screen_scale(camera)
 	var found: Array = []
 	for root_name in ["StudioProps", "ManualProps", "Props"]:
 		var props_root := stage.get_node_or_null(root_name) as Node3D
@@ -1883,37 +2019,58 @@ func _erase_prop_stroke_step(camera: Camera3D, screen_pos: Vector2) -> void:
 				if dx * dx + dz * dz <= radius_sq:
 					hit = true
 			elif not camera.is_position_behind(world):
-				if project_point(camera, world).distance_to(screen_pos) <= screen_radius:
+				if (camera.unproject_position(world) * proj_scale).distance_to(screen_pos) <= screen_radius:
 					hit = true
 			if hit:
 				found.append({"node": node, "parent": props_root})
 	for item in found:
 		var node: Node3D = item["node"]
 		var parent_node: Node = item["parent"]
-		_detach_node(node)
+		if node.get_parent() != null:
+			node.get_parent().remove_child(node)
 		_erased_entries.append({"node": node, "parent": parent_node})
+	_request_redraw()
 
 
 func _commit_erased_stroke() -> void:
 	if host == null or scene_root == null or _erased_entries.is_empty():
 		_erased_entries = []
 		return
+	var batch: Array = _erased_entries.duplicate()
+	_erased_entries = []
 	var ur := host.get_undo_redo()
-	ur.create_action("Студия трассы: убрать обстановку (%d)" % _erased_entries.size())
-	for item in _erased_entries:
+	ur.create_action("Студия трассы: убрать обстановку (%d)" % batch.size())
+	for item in batch:
 		var node: Node3D = item["node"]
-		var parent_node: Node = item["parent"]
-		if node == null or not is_instance_valid(node) or parent_node == null:
-			continue
-		ur.add_do_method(self, "_detach_node", node)
-		ur.add_undo_method(self, "_attach_node", node, parent_node, scene_root)
-		ur.add_undo_reference(node)
+		if node != null and is_instance_valid(node):
+			ur.add_undo_reference(node)
+	ur.add_do_method(self, "_detach_entries_batch", batch)
+	ur.add_undo_method(self, "_attach_entries_batch", batch, scene_root)
 	ur.add_do_method(self, "_mark_scene_dirty")
 	ur.add_undo_method(self, "_mark_scene_dirty")
 	ur.add_do_method(self, "_after_props_edit")
 	ur.add_undo_method(self, "_after_props_edit")
 	ur.commit_action()
-	_erased_entries = []
+
+
+func _detach_entries_batch(entries: Array) -> void:
+	for item in entries:
+		var node: Node = item["node"]
+		if node != null and is_instance_valid(node) and node.get_parent() != null:
+			node.get_parent().remove_child(node)
+	_request_redraw()
+
+
+func _attach_entries_batch(entries: Array, owner_node: Node) -> void:
+	for item in entries:
+		var node: Node = item["node"]
+		var parent_node: Node = item["parent"]
+		if node == null or parent_node == null or not is_instance_valid(node):
+			continue
+		if node.get_parent() != parent_node:
+			parent_node.add_child(node)
+		node.owner = owner_node
+	_request_redraw()
 
 
 # ------------------------------------------------------------------ перетаскивание
@@ -1948,6 +2105,8 @@ func _apply_drag(camera: Camera3D, screen_pos: Vector2) -> void:
 
 func _end_drag() -> void:
 	dragging = false
+	var was_props_or_road := drag_kind == "paint" or drag_kind == "erase_props" \
+		or drag_kind == "width" or drag_kind == "section_start"
 	match drag_kind:
 		"point", "point_height":
 			_commit_curve("сдвинуть точку", _curve_before)
@@ -1965,7 +2124,9 @@ func _end_drag() -> void:
 	_drag_index = -1
 	_section = null
 	_sections_before = []
-	_dirty = true
+	_existing_props_grid.clear()
+	if not was_props_or_road:
+		_dirty = true
 	_request_redraw()
 
 
@@ -1973,6 +2134,8 @@ func _cancel_drag() -> void:
 	if not dragging:
 		return
 	dragging = false
+	var was_props_or_road := drag_kind == "paint" or drag_kind == "erase_props" \
+		or drag_kind == "width" or drag_kind == "section_start"
 	match drag_kind:
 		"point", "point_height":
 			apply_curve_state(curve, _curve_before)
@@ -1996,7 +2159,9 @@ func _cancel_drag() -> void:
 	drag_kind = ""
 	_drag_index = -1
 	_section = null
-	_dirty = true
+	_existing_props_grid.clear()
+	if not was_props_or_road:
+		_dirty = true
 	_request_redraw()
 
 
@@ -2119,13 +2284,27 @@ func _drag_zone(camera: Camera3D, screen_pos: Vector2, kind: String) -> void:
 
 
 func _paint_drag(camera: Camera3D, screen_pos: Vector2) -> void:
-	if _stroke_nodes.size() >= settings.brush_max_per_stroke:
+	var now_ms := Time.get_ticks_msec()
+	# Не чаще ~33 раз в секунду (и ~20 Гц в эко-режиме): мышь шлёт сотни событий
+	# в секунду, и проверять луч + спавнить деревья на каждый микросдвиг незачем.
+	var min_interval := 50 if settings.eco_mode else 28
+	if now_ms - _last_paint_ms < min_interval:
 		return
+	_last_paint_ms = now_ms
 	var ground := _ray_ground(camera, screen_pos)
 	if not bool(ground.get("ok", false)) or not bool(ground.get("terrain", false)):
 		return
 	var point: Vector3 = ground["point"]
+	var brush_moved := hover_brush.distance_squared_to(point) > 0.04
+	hover_brush = point
+	hover_brush_valid = true
+	if _stroke_nodes.size() >= settings.brush_max_per_stroke:
+		if brush_moved:
+			_request_redraw()
+		return
 	if _stroke_last.distance_to(point) < settings.brush_spacing:
+		if brush_moved:
+			_request_redraw()
 		return
 	_stroke_last = point
 	_place_brush(point)
@@ -2374,9 +2553,10 @@ func clear_studio_props() -> void:
 	for child in children:
 		var node := child as Node3D
 		if node != null:
-			_detach_node(node)
+			root_node.remove_child(node)
 			_erased_entries.append({"node": node, "parent": root_node})
 	_commit_erased_stroke()
+	_request_redraw()
 	toast("Очищено объектов StudioProps: %d" % children.size())
 
 

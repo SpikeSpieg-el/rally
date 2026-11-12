@@ -206,6 +206,36 @@ func _scenery_vertex_height(lattice: Vector2i, cell: float) -> float:
 	_scenery_height_cache.put_sample(lattice, Vector3(distance, along, height))
 	return height
 
+# Returns {} when the streamed tile is not currently loaded (avoids expensive
+# distance-field searches during editor brush hover).
+func cached_tile_height(x: float, z: float) -> Dictionary:
+	var cell: float = TILE_SIZE / float(TILE_DIVISIONS)
+	var gx: int = floori(x / cell)
+	var gz: int = floori(z / cell)
+	var u: float = x / cell - float(gx)
+	var v: float = z / cell - float(gz)
+	var key := Vector2i(floori(float(gx) / TILE_DIVISIONS), floori(float(gz) / TILE_DIVISIONS))
+	var body = tiles.get(key, _retired_tiles.get(key))
+	if not is_instance_valid(body) or not body.has_meta("terrain_heights"):
+		return {}
+	var heights: PackedFloat32Array = body.get_meta("terrain_heights")
+	if heights.is_empty():
+		return {}
+	var halo: int = TILE_DIVISIONS + 3
+	var lx: int = gx - key.x * TILE_DIVISIONS + 1
+	var lz: int = gz - key.y * TILE_DIVISIONS + 1
+	var index: int = lz * halo + lx
+	var h00: float = heights[index]
+	var h10: float = heights[index + 1]
+	var h01: float = heights[index + halo]
+	var h11: float = heights[index + halo + 1]
+	var h: float
+	if u + v <= 1.0:
+		h = h00 + u * (h10 - h00) + v * (h01 - h00)
+	else:
+		h = h11 * (u + v - 1.0) + h10 * (1.0 - v) + h01 * (1.0 - u)
+	return {"height": h}
+
 func _tile_centre(key: Vector2i) -> Vector3:
 	return Vector3((float(key.x) + 0.5) * TILE_SIZE, 0.0, (float(key.y) + 0.5) * TILE_SIZE)
 
