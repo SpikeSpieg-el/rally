@@ -82,6 +82,12 @@ func _test() -> void:
 		for b in studio._stroke_nodes:
 			if a != b:
 				assert(Vector2(a.global_position.x - b.global_position.x, a.global_position.z - b.global_position.z).length() >= 1.999)
+	# Новый мазок не должен накладываться на уже расставленные StudioProps.
+	studio._stroke_nodes = []
+	studio._stroke_points = PackedVector3Array()
+	studio._rebuild_existing_props_grid(2.0)
+	assert(not studio._stroke_has_space(studio._existing_props_grid.values()[0][0], 2.0))
+	studio._existing_props_grid.clear()
 
 	# Удобные операции: посадка на землю, разворот, кольцо, авто-КПП и очистка пропсов.
 	studio.curve = Curve3D.new()

@@ -335,6 +335,44 @@ class TrackStudioEditingRegressionTest(unittest.TestCase):
         plugin = read("addons/rally_track_studio/plugin.gd")
         self.assertIn("_last_toolbar_state", plugin, "панель не должна перерисовываться вхолостую")
 
+    def test_forest_brush_avoids_editor_bottlenecks(self):
+        studio = read("addons/rally_track_studio/studio.gd")
+
+        def body(name: str) -> str:
+            start = studio.index("func %s" % name)
+            nxt = studio.find("\nfunc ", start + 1)
+            return studio[start:] if nxt < 0 else studio[start:nxt]
+
+        # 1. Луч земли не бьёт в пропсы (collision_mask = 1) и сначала идёт по сетке высот.
+        self.assertIn("collision_mask = 1", body("_terrain_ray"))
+        self.assertIn("_ray_height_grid", body("_ray_ground"))
+        # 2. Во время живого мазка owner не ставится на каждый узел (иначе SceneTreeDock зависает),
+        #    а фиксация UndoRedo идёт пачкой (_attach_nodes_batch / _detach_nodes_batch).
+        self.assertIn("if host == null:\n\t\tnode.owner = scene_root", body("_instantiate_prop"))
+        self.assertIn("_attach_nodes_batch", body("_commit_props_placed"))
+        self.assertIn("_detach_nodes_batch", body("_commit_props_placed"))
+        self.assertIn("_detach_entries_batch", body("_commit_erased_stroke"))
+        self.assertIn("_attach_entries_batch", body("_commit_erased_stroke"))
+        # 3. Завершение/отмена мазка кисти не помечает маршрут грязным (_dirty = true).
+        self.assertIn("if not was_props_or_road:\n\t\t_dirty = true", body("_end_drag"))
+        self.assertIn("if not was_props_or_road:\n\t\t_dirty = true", body("_cancel_drag"))
+        # 4. Мазки и ластик троттлятся и проверяют уже стоящие деревья по пространственной сетке.
+        self.assertIn("_last_paint_ms", body("_paint_drag"))
+        self.assertIn("_last_erase_ms", body("_erase_prop_stroke_step"))
+        self.assertIn("_existing_props_grid", body("_stroke_has_space"))
+        # 5. Стриминг отдаёт закэшированную высоту тайла без sparse-поиска.
+        streamer = read("scripts/world_streamer.gd")
+        self.assertIn("func cached_tile_height(", streamer)
+        stage = read("scripts/rally_stage.gd")
+        eg_start = stage.index("func editor_cached_ground_height(")
+        eg_end = stage.find("\nfunc ", eg_start + 1)
+        self.assertIn("cached_tile_height", stage[eg_start:eg_end])
+        # 6. В режиме «Лес» оверлей пропускает тяжёлые слои (штрихи, стрелки, стенограмму, предупреждения).
+        view = read("addons/rally_track_studio/studio_view.gd")
+        da_start = view.index("func draw_all(")
+        da_end = view.find("\nfunc ", da_start + 1)
+        self.assertIn("in_props", view[da_start:da_end])
+
 
 if __name__ == "__main__":
     unittest.main()

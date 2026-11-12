@@ -1352,6 +1352,8 @@ func surface_height_at(x: float, z: float) -> float:
 ## Быстрый запрос только готовой сетки, без процедурного поиска вне неё.
 func editor_cached_ground_height(x: float, z: float) -> Dictionary:
 	if _ground_grid.is_empty() or _ground_cols < 2 or _ground_rows < 2:
+		if is_instance_valid(world_streamer) and world_streamer.has_method("cached_tile_height"):
+			return world_streamer.cached_tile_height(x, z)
 		return {}
 	var fx: float = (x - _ground_origin.x) / _ground_cell
 	var fz: float = (z - _ground_origin.y) / _ground_cell

@@ -80,37 +80,40 @@ func draw_all(overlay: Control, studio, camera: Camera3D, settings: SettingsType
 	var visible: PackedByteArray = _cache_visible
 	var depth: PackedFloat32Array = _cache_depth
 	var eco: bool = _st.eco_mode
+	var in_props: bool = studio.mode == Modes.Mode.PROPS
 	if _st.show_ribbon and not eco:
 		_draw_ribbon(studio, screen, left_edge, right_edge, visible, depth, dists)
 	_draw_edges(left_edge, right_edge, visible, depth)
-	if _st.show_dashes and not eco:
+	if _st.show_dashes and not eco and not in_props:
 		_draw_dashes(screen, visible, depth, dists)
-	if _st.show_direction and not eco:
+	if _st.show_direction and not eco and not in_props:
 		_draw_direction(points, visible, dists)
-	if _st.show_km:
+	if _st.show_km and (not eco or not in_props):
 		_draw_km(studio, points, visible)
 	if studio.mode == Modes.Mode.ROAD:
 		_draw_sections(studio, points, visible)
-	if _st.show_pace_notes:
+	if _st.show_pace_notes and not in_props:
 		_draw_corners(studio)
 	var markers: Array = studio.zone_markers()
-	_draw_zones(studio, markers)
-	if _st.show_warnings:
+	if not in_props:
+		_draw_zones(studio, markers)
+	if _st.show_warnings and not in_props:
 		_draw_warning_markers(studio)
 	if studio.mode == Modes.Mode.ROUTE:
 		_draw_handles(studio)
-	if studio.mode == Modes.Mode.PROPS and studio.hover_brush_valid:
+	if in_props and studio.hover_brush_valid:
 		_draw_brush(studio)
 	if studio.mode == Modes.Mode.ROUTE and studio.hover_new_valid:
 		_draw_new_point(studio)
 	_draw_selection(studio)
 	if _st.show_cursor and not eco:
 		_draw_cursor(studio)
-	if _st.show_profile and _st.show_hud:
+	if _st.show_profile and _st.show_hud and not (eco and in_props):
 		_draw_profile(studio, markers)
 	if _st.show_hud:
 		_draw_hud(studio)
-		_draw_warnings_panel(studio)
+		if not in_props:
+			_draw_warnings_panel(studio)
 
 
 # ------------------------------------------------------------------ помощники
@@ -577,18 +580,28 @@ func _draw_selection(studio) -> void:
 func _draw_brush(studio) -> void:
 	var radius: float = maxf(1.0, studio.settings.brush_radius)
 	var center: Vector3 = studio.hover_brush
-	var dir: Vector3 = _dir_for_distance(studio, studio.hover_distance if studio.hover_valid else 0.0)
-	var side := Vector3(dir.z, 0.0, -dir.x)
-	var at: Vector2 = studio.project_point(_camera, center)
-	var edge: Vector2 = studio.project_point(_camera, center + side * radius)
+	var cam_right: Vector3 = _camera.global_transform.basis.x
+	var side := Vector3(cam_right.x, 0.0, cam_right.z)
+	if side.length_squared() < 0.001:
+		side = Vector3.RIGHT
+	else:
+		side = side.normalized()
+	var proj_scale: Vector2 = studio.screen_scale(_camera)
+	var at: Vector2 = _camera.unproject_position(center) * proj_scale
+	var edge: Vector2 = _camera.unproject_position(center + side * radius) * proj_scale
 	var pixels: float = maxf(8.0, at.distance_to(edge))
-	var color: Color = _st.hover_color if not Input.is_key_pressed(KEY_SHIFT) else _st.danger_color
-	for i in range(0, 360, 20):
-		var angle := deg_to_rad(float(i))
-		var angle_end := angle + deg_to_rad(12.0)
-		_overlay.draw_arc(at, pixels, angle, angle_end, 4, _with_alpha(color, 0.8), 1.4, true)
-	_overlay.draw_circle(at, 2.0, color)
-	_text(at + Vector2(pixels * 0.75, -pixels * 0.75), "кисть %.0f м" % radius, _with_alpha(_st.muted_color, 0.95), _small_size())
+	var erasing: bool = studio.drag_kind == "erase_props" or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	var color: Color = _st.danger_color if erasing else _st.hover_color
+	_overlay.draw_arc(at, pixels, 0.0, TAU, 36, _with_alpha(color, 0.85), 1.6, true)
+	_overlay.draw_circle(at, 2.5, color)
+	var prop_label := ""
+	var props_list: Array = studio.brush_props()
+	if not props_list.is_empty():
+		var chosen = props_list[int(studio.brush_index) % props_list.size()]
+		if chosen != null:
+			prop_label = " · " + String(chosen.display_name)
+	var mode_tag := "ластик " if erasing else "кисть "
+	_text(at + Vector2(pixels * 0.72 + 4.0, -pixels * 0.72), "%s%.0f м%s" % [mode_tag, radius, prop_label], _with_alpha(_st.text_color, 0.95), _small_size())
 
 
 func _draw_cursor(studio) -> void:
