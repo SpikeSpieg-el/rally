@@ -501,26 +501,13 @@ func _write_splats() -> void:
 
 
 func _attach_to_body(car: Node) -> void:
-	if _material == null:
-		return
-	for mesh in _body_meshes(car):
-		var layer := mesh.get_node_or_null(LAYER_NAME) as MeshInstance3D
-		if layer == null:
-			layer = MeshInstance3D.new()
-			layer.name = LAYER_NAME
-			mesh.add_child(layer)
-			layer.mesh = mesh.mesh
-			layer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			layer.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-			layer.position = Vector3.ZERO
-			layer.rotation = Vector3.ZERO
-			layer.scale = Vector3.ONE
-			layer.extra_cull_margin = 0.45
-		# Кровь рисуется строго после базового слоя кузова (в т.ч. overlay грязи),
-		# чтобы два получапрозрачных прохода не боролись за одни и те же пиксели
-		# и не мерцали на совпадающей геометрии без записи в глубину.
-		layer.draw_order = 1
-		layer.material_override = _material
+	# Кровь на кузове наносится декалями (_add_decal), а не через дублирующий
+	# слой меша с material_override: два прозрачных шейдера (кровь и грязь)
+	# на одной геометрии без записи в глубину мерцали в Godot 4 (у MeshInstance3D
+	# нет draw_order, порядок прозрачных проходов не гарантирован). Декали
+	# рисуются отдельным проходом после геометрии — конфликта со шейдером грязи
+	# на кузове нет, мерцания больше не будет.
+	pass
 
 
 func _add_decal(car: Node3D, local_point: Vector3, into: Vector3, span: float) -> void:
