@@ -2352,9 +2352,6 @@ mesh = SubResource("ArrayMesh_8hhh1")
 [node name="Object_134" type="MeshInstance3D" parent="FINAL_MODEL_01_fbx_1/RootNode_2/Object_3_3/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_87/sub_2_SM_FrontKit_0000_002_SM_FrontKit_0000_002_MAT_Impreza_WRX_Base_062_sub_1_MAT_Glass_049_0_90" unique_id=755497244]
 mesh = SubResource("ArrayMesh_hnnea")
 
-[node name="Wipers" parent="." unique_id=650194823 instance=ExtResource("wipers")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.17, 0.95)
-
 [node name="HeadlightL" type="SpotLight3D" parent="." unique_id=1144666079]
 transform = Transform3D(-0.97420615, 0.015741242, -0.22511019, 9.844174e-16, 0.9975641, 0.06975649, 0.22565988, 0.06795721, -0.97183305, 0.8031842, 0.9547056, 2.9127183)
 light_color = Color(1, 0.91, 0.76, 1)
