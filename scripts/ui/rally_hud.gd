@@ -10,6 +10,7 @@ class_name RallyHUD
 extends Control
 
 signal hud_style_applied(pixel_active: bool)
+signal cockpit_mode_changed(in_cockpit: bool)
 
 enum ThemeMode {
 	AUTO_FROM_STYLE = 0,
@@ -21,6 +22,12 @@ enum SpeedometerDisplayMode {
 	SPRITE_SPEEDOMETER = 0,
 	CLASSIC_TEXT_BOX = 1,
 	BOTH = 2,
+}
+
+enum CockpitHideMode {
+	AUTO_FROM_STYLE = 0,
+	FORCE_HIDE_REDUNDANT = 1,
+	KEEP_ALL_HUD = 2,
 }
 
 @export_group("Стиль HUD")
@@ -48,6 +55,14 @@ enum SpeedometerDisplayMode {
 
 @export var auto_apply_on_ready: bool = true
 
+@export_group("Вид из кабины (1-е лицо)")
+@export var cockpit_hide_mode: CockpitHideMode = CockpitHideMode.AUTO_FROM_STYLE:
+	set(v):
+		cockpit_hide_mode = v
+		if is_inside_tree():
+			_apply_cockpit_visibility()
+@export var sync_cockpit_camera_from_vehicle: bool = true
+
 @export_group("Пути виджетов")
 @export var stage_panel_path: NodePath = NodePath("StagePanel")
 @export var radio_card_path: NodePath = NodePath("RadioCard")
@@ -72,6 +87,9 @@ var _saved_label_styles: Dictionary = {}
 var _saved_button_styles: Dictionary = {}
 var _saved_text_colors: Dictionary = {}
 var _classic_captured: bool = false
+var _current_camera_mode: int = 0
+var _cockpit_hidden_nodes: Dictionary = {}
+var _bound_vehicle: Node = null
 
 
 func _ready() -> void:
@@ -80,6 +98,132 @@ func _ready() -> void:
 	_capture_classic_styles()
 	if auto_apply_on_ready:
 		apply_hud_style()
+	if sync_cockpit_camera_from_vehicle and not Engine.is_editor_hint():
+		_try_bind_scene_vehicle()
+	_apply_cockpit_visibility()
+
+
+func _process(_delta: float) -> void:
+	if Engine.is_editor_hint() or not sync_cockpit_camera_from_vehicle:
+		return
+	if _bound_vehicle == null or not is_instance_valid(_bound_vehicle):
+		_try_bind_scene_vehicle()
+	if _bound_vehicle != null and "camera_mode" in _bound_vehicle:
+		var v_mode: int = int(_bound_vehicle.get("camera_mode"))
+		if v_mode != _current_camera_mode:
+			set_camera_mode(v_mode)
+
+
+func bind_vehicle(vehicle: Node) -> void:
+	if _bound_vehicle != null and is_instance_valid(_bound_vehicle):
+		if _bound_vehicle.has_signal("camera_mode_changed"):
+			var prev_cb := Callable(self, "_on_vehicle_camera_mode_changed")
+			if _bound_vehicle.is_connected("camera_mode_changed", prev_cb):
+				_bound_vehicle.disconnect("camera_mode_changed", prev_cb)
+	_bound_vehicle = vehicle
+	if _bound_vehicle != null and is_instance_valid(_bound_vehicle):
+		if _bound_vehicle.has_signal("camera_mode_changed"):
+			var cb := Callable(self, "_on_vehicle_camera_mode_changed")
+			if not _bound_vehicle.is_connected("camera_mode_changed", cb):
+				_bound_vehicle.connect("camera_mode_changed", cb)
+		if "camera_mode" in _bound_vehicle:
+			set_camera_mode(int(_bound_vehicle.get("camera_mode")))
+	var speedo := get_speedometer()
+	if speedo != null and _bound_vehicle != null:
+		speedo.bind_vehicle(_bound_vehicle)
+
+
+func _try_bind_scene_vehicle() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var cars := tree.get_nodes_in_group("rally_car")
+	if not cars.is_empty():
+		bind_vehicle(cars[0])
+
+
+func _on_vehicle_camera_mode_changed(new_mode: int) -> void:
+	set_camera_mode(new_mode)
+
+
+func set_camera_mode(mode: int) -> void:
+	var clamped: int = clampi(mode, 0, 2)
+	var prev_cockpit: bool = is_cockpit_view()
+	_current_camera_mode = clamped
+	_apply_cockpit_visibility()
+	var now_cockpit: bool = is_cockpit_view()
+	if prev_cockpit != now_cockpit:
+		cockpit_mode_changed.emit(now_cockpit)
+
+
+func is_cockpit_view() -> bool:
+	return _current_camera_mode == 2
+
+
+func _should_hide_in_cockpit() -> Dictionary:
+	var result := {
+		"speed": false,
+		"radio": false,
+		"telemetry": false,
+		"stage": false,
+		"timer": false,
+		"mini_map": false,
+		"fps": false,
+		"hint": false,
+	}
+	if not is_cockpit_view():
+		return result
+	if cockpit_hide_mode == CockpitHideMode.KEEP_ALL_HUD:
+		return result
+	if cockpit_hide_mode == CockpitHideMode.FORCE_HIDE_REDUNDANT:
+		result["speed"] = true
+		result["radio"] = true
+		return result
+	if hud_style == null:
+		result["speed"] = true
+		result["radio"] = true
+		return result
+	if not hud_style.cockpit_hide_redundant_hud:
+		return result
+	result["speed"] = hud_style.cockpit_hide_speed_panel
+	result["radio"] = hud_style.cockpit_hide_radio_card
+	result["telemetry"] = hud_style.cockpit_hide_telemetry_panel
+	result["stage"] = hud_style.cockpit_hide_stage_panel
+	result["timer"] = hud_style.cockpit_hide_timer_panel
+	result["mini_map"] = hud_style.cockpit_hide_mini_map
+	result["fps"] = hud_style.cockpit_hide_fps
+	result["hint"] = hud_style.cockpit_hide_hint
+	return result
+
+
+func _apply_cockpit_visibility() -> void:
+	var flags: Dictionary = _should_hide_in_cockpit()
+	var mapping := [
+		[speed_panel_path, bool(flags["speed"])],
+		[radio_card_path, bool(flags["radio"])],
+		[telemetry_panel_path, bool(flags["telemetry"])],
+		[stage_panel_path, bool(flags["stage"])],
+		[timer_panel_path, bool(flags["timer"])],
+		[mini_map_path, bool(flags["mini_map"])],
+		[fps_label_path, bool(flags["fps"])],
+		[hint_label_path, bool(flags["hint"])],
+	]
+	for entry in mapping:
+		var ctrl_path: NodePath = entry[0]
+		var should_hide: bool = bool(entry[1])
+		var ctrl_node := get_node_or_null(ctrl_path) as Control
+		if ctrl_node == null:
+			continue
+		if should_hide:
+			if not _cockpit_hidden_nodes.has(ctrl_path):
+				_cockpit_hidden_nodes[ctrl_path] = ctrl_node.visible
+			ctrl_node.visible = false
+		elif _cockpit_hidden_nodes.has(ctrl_path):
+			var prev_vis: bool = bool(_cockpit_hidden_nodes[ctrl_path])
+			_cockpit_hidden_nodes.erase(ctrl_path)
+			ctrl_node.visible = prev_vis
 
 
 func set_hud_style(style_res: RallyHudStyle) -> void:
@@ -142,6 +286,7 @@ func apply_hud_style() -> void:
 	_apply_panel_theming(pixel_active, effective_style)
 	_sync_timer_sprite(pixel_active, effective_style)
 	_sync_speedometer_mode()
+	_apply_cockpit_visibility()
 	hud_style_applied.emit(pixel_active)
 
 
@@ -178,6 +323,7 @@ func _sync_speedometer_mode() -> void:
 					speed_box.visible = true
 	elif speed_box != null:
 		speed_box.visible = true
+	_apply_cockpit_visibility()
 
 
 func _sync_timer_sprite(pixel_active: bool, effective_style: RallyHudStyle) -> void:

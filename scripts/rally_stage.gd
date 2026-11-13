@@ -434,6 +434,7 @@ func s_props() -> PropLibraryType:
 
 
 func _ready() -> void:
+	add_to_group("rally_stage")
 	_load_resources()
 	if Engine.is_editor_hint():
 		set_process(true)
@@ -4401,6 +4402,8 @@ func _setup_hud() -> void:
 
 	# Таймер и сплиты.
 	hud_controller = _hud_node("RallyHUD") as RallyHudType
+	if hud_controller != null:
+		hud_controller.bind_vehicle(car)
 	timer_label = _hud_node("RallyHUD/TimerPanel/TimerBox/TimerLabel") as Label
 	split_label = _hud_node("RallyHUD/TimerPanel/TimerBox/SplitLabel") as Label
 
@@ -4524,6 +4527,8 @@ func _on_button_pressed(action: String) -> void:
 func _update_hud() -> void:
 	if car == null:
 		return
+	if hud_controller != null:
+		hud_controller.set_camera_mode(car.camera_mode)
 	var stage_time_str := _format_time(stage_time)
 	if hud_controller != null:
 		hud_controller.update_timer_display(stage_time_str)

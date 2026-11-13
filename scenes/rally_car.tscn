@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" uid="uid://bmcd7ia5sn87s" path="res://scenes/effects/windshield_wipers.tscn" id="13_4mbpt"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
 [ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
+[ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="15_cockpit"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.15
@@ -604,105 +605,6 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6jtoh")
 
-[sub_resource type="GDScript" id="GDScript_cockpit"]
-script/source = "extends Node3D
-
-@export var max_steering_wheel_angle_deg: float = 420.0
-@export var steer_smooth_speed: float = 12.0
-
-@onready var steering_pivot: Node3D = $Dashboard/SteeringColumn/SteeringWheelPivot
-@onready var handbrake_pivot: Node3D = $Controls/HandbrakeBase/HandbrakePivot
-@onready var shifter_pivot: Node3D = $Controls/ShifterBase/ShifterPivot
-@onready var pedal_gas: Node3D = $Controls/PedalBox/PedalGasPivot
-@onready var pedal_brake: Node3D = $Controls/PedalBox/PedalBrakePivot
-
-@onready var gear_label: Label3D = $Dashboard/MotecDisplay/GearLabel
-@onready var speed_label: Label3D = $Dashboard/MotecDisplay/SpeedLabel
-@onready var rpm_label: Label3D = $Dashboard/MotecDisplay/RPMLabel
-@onready var shift_lights: Node3D = $Dashboard/MotecDisplay/ShiftLights
-
-var _car: RigidBody3D
-var _current_steer: float = 0.0
-var _last_gear: String = \"N\"
-var _shifter_kick: float = 0.0
-
-func _ready() -> void:
-	var p: Node = get_parent()
-	while p != null:
-		if p is RigidBody3D:
-			_car = p
-			break
-		p = p.get_parent()
-
-func _process(delta: float) -> void:
-	# 1. Вращение руля
-	var steer_input: float = 0.0
-	if InputMap.has_action(\"steer_left\") and InputMap.has_action(\"steer_right\"):
-		steer_input = Input.get_axis(\"steer_right\", \"steer_left\")
-	else:
-		steer_input = Input.get_axis(\"ui_right\", \"ui_left\")
-
-	if _car and \"steering_input\" in _car:
-		steer_input = float(_car.get(\"steering_input\"))
-
-	_current_steer = lerp(_current_steer, steer_input, clampf(delta * steer_smooth_speed, 0.0, 1.0))
-	if steering_pivot:
-		steering_pivot.rotation.z = deg_to_rad(-_current_steer * (max_steering_wheel_angle_deg * 0.5))
-
-	# 2. Педали и ручник
-	var throttle: float = 1.0 if Input.is_action_pressed(\"ui_up\") else 0.0
-	var brake: float = 1.0 if Input.is_action_pressed(\"ui_down\") else 0.0
-	var handbrake: float = 1.0 if Input.is_action_pressed(\"ui_accept\") else 0.0
-
-	if pedal_gas:
-		pedal_gas.rotation.x = lerp(pedal_gas.rotation.x, deg_to_rad(throttle * 18.0), delta * 15.0)
-	if pedal_brake:
-		pedal_brake.rotation.x = lerp(pedal_brake.rotation.x, deg_to_rad(brake * 14.0), delta * 15.0)
-	if handbrake_pivot:
-		handbrake_pivot.rotation.x = lerp(handbrake_pivot.rotation.x, deg_to_rad(-handbrake * 24.0), delta * 14.0)
-
-	# 3. Приборы (Скорость, Передача, Обороты)
-	var speed_kmh: float = 0.0
-	if _car:
-		speed_kmh = _car.linear_velocity.length() * 3.6
-
-	var rpm: float = clampf(1100.0 + fmod(speed_kmh * 115.0, 6800.0) + throttle * 650.0, 950.0, 8000.0)
-	if _car and \"engine_rpm\" in _car:
-		rpm = float(_car.get(\"engine_rpm\"))
-
-	var gear_str: String = \"N\"
-	if speed_kmh > 1.5:
-		var g: int = clampi(int(speed_kmh / 32.0) + 1, 1, 6)
-		gear_str = str(g)
-	if _car and \"current_gear\" in _car:
-		gear_str = str(_car.get(\"current_gear\"))
-
-	if gear_str != _last_gear:
-		_last_gear = gear_str
-		_shifter_kick = 1.0
-
-	_shifter_kick = move_toward(_shifter_kick, 0.0, delta * 6.0)
-	if shifter_pivot:
-		shifter_pivot.rotation.x = deg_to_rad(-_shifter_kick * 12.0)
-
-	if gear_label:
-		gear_label.text = gear_str
-	if speed_label:
-		speed_label.text = \"%03d KM/H\" % int(round(speed_kmh))
-	if rpm_label:
-		rpm_label.text = \"%04d RPM\" % int(round(rpm))
-
-	# 4. Shift-lights (блинкеры оборотов)
-	if shift_lights:
-		var ratio: float = inverse_lerp(3500.0, 7500.0, rpm)
-		var count: int = shift_lights.get_child_count()
-		for i in range(count):
-			var led := shift_lights.get_child(i) as MeshInstance3D
-			if led:
-				var threshold: float = float(i + 1) / float(count)
-				led.visible = ratio >= threshold
-"
-
 [sub_resource type="StandardMaterial3D" id="Mat_FloorMetal"]
 albedo_color = Color(0.22, 0.23, 0.25, 1)
 metallic = 0.6
@@ -1136,7 +1038,7 @@ mesh = SubResource("ArrayMesh_4awaq")
 
 [node name="RallyCockpit" type="Node3D" parent="." unique_id=1410955852]
 transform = Transform3D(1.071969, 0, 0, 0, 1, 0, 0, 0, 1, -0.027093112, 0.9640378, 0.11260709)
-script = SubResource("GDScript_cockpit")
+script = ExtResource("15_cockpit")
 
 [node name="InteriorShell" type="Node3D" parent="RallyCockpit" unique_id=68268009]
 
