@@ -27,5 +27,18 @@ func _initialize() -> void:
 	assert(is_equal_approx(manager.adaptive_trigger_strength, 0.25))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(manager._settings_path))
 	manager.free()
+	# Дорожная вибрация больше не требует DualSense: обычный геймпад получает
+	# непрерывную отдачу (вибрацию в тесте выключаем, чтобы не дёргать Input).
+	var pads := Manager.new()
+	pads._settings_path = "user://feedback_pads_test.cfg"
+	pads.vibration_enabled = false
+	pads.driving_vibration_enabled = false
+	pads.adaptive_triggers_enabled = false
+	var xbox_info: Dictionary = Manager.classify_device("Xbox 360 Controller", "", 0x045E, 0x028E)
+	xbox_info["device_id"] = 0
+	pads._devices.append(xbox_info)
+	pads.update_driving_feedback(90.0, 0.7, 0.4, true, 0.8, 1.0, 0.0)
+	assert(pads._feedback_last_msec > 0)
+	pads.free()
 	print("Driving feedback tests passed")
 	quit()

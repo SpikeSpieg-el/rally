@@ -86,7 +86,7 @@ func _build() -> void:
 
 	driving_check = CheckBox.new()
 	driving_check.name = "DrivingVibrationToggle"
-	driving_check.text = "ВИБРАЦИЯ ОТ ДОРОГИ (DUALSENSE)"
+	driving_check.text = "ВИБРАЦИЯ ОТ ДОРОГИ"
 	driving_check.add_theme_font_size_override("font_size", t.font_hud_label)
 	add_child(driving_check)
 

@@ -1357,7 +1357,11 @@ func _surface_roughness() -> float:
 			_: roughness += f().surface_roughness_asphalt
 	if contacts <= 0:
 		return 0.0
-	return roughness / float(contacts)
+	# Реальные неровности полотна: вертикальная «работа» кузова поверх базовой
+	# шероховатости покрытия — по кочкам отдача пульсирует, по гладкому
+	# асфальту остаётся ровной.
+	return clampf(roughness / float(contacts)
+		+ clampf(absf(linear_velocity.y) * 0.35, 0.0, 0.8), 0.0, 1.6)
 
 
 ## Один раз за кадр: перегрузки, скорость поворота и сглаженный занос камеры.
@@ -1762,6 +1766,29 @@ func get_average_tire_slip() -> float:
 	for wheel: WheelType in wheel_array:
 		total_slip += absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y)
 	return total_slip / float(maxi(1, wheel_array.size()))
+
+
+## Преобладающее покрытие под колёсами: "gravel", "mud", "snow",
+## "asphalt" или "grass". Пустая строка — колёса сейчас в воздухе (звук и
+## эффекты в этом кадре оставляют прошлую темпру, прыжок бывает на кадр).
+func dominant_surface_kind() -> String:
+	var counts := {}
+	for wheel: WheelType in wheel_array:
+		if wheel == null or not wheel.has_ground_contact():
+			continue
+		var kind := String(wheel.surface_kind)
+		if kind.is_empty():
+			kind = String(wheel.surface_type)
+		if kind.is_empty():
+			continue
+		counts[kind] = int(counts.get(kind, 0)) + 1
+	var best := ""
+	var best_count := 0
+	for kind: String in counts:
+		if int(counts[kind]) > best_count:
+			best = kind
+			best_count = int(counts[kind])
+	return best
 
 
 func get_max_suspension_compression() -> float:
