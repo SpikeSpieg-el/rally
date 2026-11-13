@@ -516,6 +516,10 @@ func _attach_to_body(car: Node) -> void:
 			layer.rotation = Vector3.ZERO
 			layer.scale = Vector3.ONE
 			layer.extra_cull_margin = 0.45
+		# Кровь рисуется строго после базового слоя кузова (в т.ч. overlay грязи),
+		# чтобы два получапрозрачных прохода не боролись за одни и те же пиксели
+		# и не мерцали на совпадающей геометрии без записи в глубину.
+		layer.draw_order = 1
 		layer.material_override = _material
 
 
