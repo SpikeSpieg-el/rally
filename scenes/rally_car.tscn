@@ -611,6 +611,17 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_6jtoh")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_brake"]
+albedo_color = Color(0.45, 0.03, 0.03, 1)
+roughness = 0.25
+emission_enabled = true
+emission = Color(1, 0.1, 0.06, 1)
+emission_energy_multiplier = 0.25
+
+[sub_resource type="BoxMesh" id="BoxMesh_center_brake"]
+material = SubResource("StandardMaterial3D_center_brake")
+size = Vector3(0.46, 0.018, 0.012)
+
 [sub_resource type="StandardMaterial3D" id="Mat_FloorMetal"]
 albedo_color = Color(0.22, 0.23, 0.25, 1)
 metallic = 0.6
@@ -897,17 +908,6 @@ roughness = 0.6
 material = SubResource("Mat_HarnessRed")
 size = Vector3(0.065, 0.68, 0.018)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_brake"]
-albedo_color = Color(0.45, 0.03, 0.03, 1)
-roughness = 0.25
-emission_enabled = true
-emission = Color(1, 0.1, 0.06, 1)
-emission_energy_multiplier = 0.25
-
-[sub_resource type="BoxMesh" id="BoxMesh_center_brake"]
-material = SubResource("StandardMaterial3D_center_brake")
-size = Vector3(0.46, 0.018, 0.012)
-
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 collision_mask = 3
 mass = 1230.0
@@ -1016,7 +1016,7 @@ gizmo_extents = 1.94
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
 transform = Transform3D(-0.9999604, 0, -0.008895908, 0, 1, 0, 0.008895908, 0, -0.9999604, -8.225441e-06, 1.5430684, 0.21586013)
 current = true
-fov = 99.2
+fov = 90.0
 far = 850.0
 
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
@@ -1075,6 +1075,7 @@ spot_angle_attenuation = 0.85
 
 [node name="TaillightGlow" type="OmniLight3D" parent="low poly lance evo" unique_id=1910428303]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 2.044242, -1.911603)
+visible = false
 light_color = Color(1, 0.12, 0.06, 1)
 light_energy = 0.55
 light_volumetric_fog_energy = 0.4
