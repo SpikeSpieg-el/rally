@@ -72,6 +72,8 @@ func _process(_delta: float) -> void:
 		add_theme_color_override(\"font_color\", Color(0.95, 0.35, 0.35, 0.95))
 "
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ni5t3"]
+
 [sub_resource type="GDScript" id="GDScript_speedometer"]
 script/source = "@tool
 extends Control
@@ -923,6 +925,7 @@ offset_bottom = -22.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_ni5t3")
 
 [node name="SpriteSpeedometer" type="Control" parent="SpeedPanel" unique_id=2045382990]
 layout_mode = 2
@@ -930,6 +933,7 @@ mouse_filter = 2
 script = SubResource("GDScript_speedometer")
 sprite_sheet = ExtResource("3_0vuck")
 show_extra_info = false
+juice_intensity = 0.7
 
 [node name="SpeedBox" type="VBoxContainer" parent="SpeedPanel" unique_id=277898344]
 visible = false

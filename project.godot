@@ -13,6 +13,9 @@ config_version=5
 config/name="Rally - Forest Stage"
 run/main_scene="res://scenes/title_screen.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+boot_splash/stretch_mode=0
+boot_splash/image="uid://cqtf6s8s47yph"
+config/icon="uid://cqtf6s8s47yph"
 
 [audio]
 
