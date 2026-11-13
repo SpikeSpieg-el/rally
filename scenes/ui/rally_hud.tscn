@@ -63,6 +63,8 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ni5t3"]
+
 [sub_resource type="StyleBoxFlat" id="SB_rpm_bg"]
 bg_color = Color(0.12, 0.15, 0.2, 0.85)
 skew = Vector2(0.12, 0)
@@ -327,6 +329,7 @@ offset_bottom = -22.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_ni5t3")
 
 [node name="SpriteSpeedometer" type="Control" parent="SpeedPanel" unique_id=2045382990]
 layout_mode = 2
@@ -335,6 +338,7 @@ script = ExtResource("8_speedometer")
 hud_style = ExtResource("7_hud_style")
 sprite_sheet = ExtResource("3_0vuck")
 show_extra_info = false
+juice_intensity = 0.7
 
 [node name="SpeedBox" type="VBoxContainer" parent="SpeedPanel" unique_id=277898344]
 visible = false
