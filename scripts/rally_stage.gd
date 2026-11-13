@@ -80,6 +80,8 @@ const VisualEffectsScene = preload("res://scenes/effects/visual_effects.tscn")
 const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
 const SpeedFeelScene = preload("res://scenes/effects/speed_effect.tscn")
 const ScreenLookType = preload("res://scripts/effects/rally_screen_look.gd")
+const RallyHudType = preload("res://scripts/ui/rally_hud.gd")
+const SpriteSpeedometerType = preload("res://scripts/ui/sprite_speedometer.gd")
 
 ## Файлы-«пульты» по умолчанию (если поле в сцене пустое).
 const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
@@ -239,6 +241,8 @@ var _authored_lod_cache: Dictionary = {}
 # HUD-узлы живут в scenes/ui/rally_hud.tscn (разметка правится в редакторе),
 # в _setup_hud() мы только находим их по путям и держим ссылки для _update_hud.
 var timer_label: Label = null
+var hud_controller: RallyHudType = null
+var sprite_speedometer: SpriteSpeedometerType = null
 var split_label: Label = null
 var stage_label: Label = null
 var best_label: Label = null
@@ -4396,6 +4400,7 @@ func _setup_hud() -> void:
 		stage_title.text = track.display_name
 
 	# Таймер и сплиты.
+	hud_controller = _hud_node("RallyHUD") as RallyHudType
 	timer_label = _hud_node("RallyHUD/TimerPanel/TimerBox/TimerLabel") as Label
 	split_label = _hud_node("RallyHUD/TimerPanel/TimerBox/SplitLabel") as Label
 
@@ -4404,6 +4409,9 @@ func _setup_hud() -> void:
 	_populate_mini_map()
 
 	# Спидометр.
+	sprite_speedometer = _hud_node("RallyHUD/SpeedPanel/SpriteSpeedometer") as SpriteSpeedometerType
+	if sprite_speedometer != null:
+		sprite_speedometer.bind_vehicle(car)
 	speed_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/SpeedLabel") as Label
 	gear_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/GearLabel") as Label
 	drivetrain_label = _hud_node("RallyHUD/SpeedPanel/SpeedBox/DrivetrainLabel") as Label
@@ -4516,8 +4524,11 @@ func _on_button_pressed(action: String) -> void:
 func _update_hud() -> void:
 	if car == null:
 		return
-	if timer_label != null:
-		timer_label.text = _format_time(stage_time)
+	var stage_time_str := _format_time(stage_time)
+	if hud_controller != null:
+		hud_controller.update_timer_display(stage_time_str)
+	elif timer_label != null:
+		timer_label.text = stage_time_str
 	if rpm_bar != null:
 		rpm_bar.max_value = car.max_rpm
 		rpm_bar.value = car.current_rpm
@@ -4592,6 +4603,19 @@ func _update_hud() -> void:
 			clutch_notice.text = car.shift_notice
 	if drivetrain_label != null:
 		drivetrain_label.text = car.get_drivetrain_label()
+	if sprite_speedometer != null and (
+		sprite_speedometer.data_source == SpriteSpeedometerType.DataSource.AUTO
+		or sprite_speedometer.data_source == SpriteSpeedometerType.DataSource.VEHICLE_DIRECT
+	):
+		sprite_speedometer.transmission_text = car.get_transmission_label()
+		sprite_speedometer.drivetrain_text = car.get_drivetrain_label()
+		sprite_speedometer.set_telemetry(
+			car.speed_kmh,
+			car.current_rpm,
+			car.max_rpm,
+			car.get_gear_label(),
+			car.motor_is_redline
+		)
 	# Телеметрия.
 	if throttle_bar != null:
 		throttle_bar.set_value(car.throttle_amount)

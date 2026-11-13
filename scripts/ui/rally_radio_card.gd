@@ -9,8 +9,10 @@ extends PanelContainer
 @export var compact: bool = false
 @export var show_controls: bool = true
 @export var station_override: String = ""
+@export var hud_style: RallyHudStyle = null
 
 var _radio: Node = null
+var _panel_style: StyleBoxFlat = null
 var _cover_a: TextureRect = null
 var _cover_b: TextureRect = null
 var _cover_front: int = 0
@@ -20,9 +22,11 @@ var _title: Label = null
 var _artist: Label = null
 var _time: Label = null
 var _progress: ProgressBar = null
+var _progress_bg: StyleBoxFlat = null
 var _progress_fill: StyleBoxFlat = null
 var _accent_bar: ColorRect = null
 var _mute_button: Button = null
+var _next_button: Button = null
 var _meta_tween: Tween = null
 
 
@@ -30,6 +34,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_build()
+	if hud_style != null:
+		apply_hud_style(hud_style)
 	call_deferred("_connect_radio")
 
 
@@ -40,19 +46,19 @@ func _build() -> void:
 	var eyebrow_size := 10 if compact else 11
 	custom_minimum_size = Vector2(0.0, 94.0 if compact else 108.0)
 
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.025, 0.040, 0.057, 0.88)
-	panel_style.border_color = Color(1.0, 0.48, 0.08, 0.85)
-	panel_style.set_border_width_all(1)
-	panel_style.border_width_left = 3
-	panel_style.set_corner_radius_all(10)
-	panel_style.content_margin_left = 10.0
-	panel_style.content_margin_right = 10.0
-	panel_style.content_margin_top = 9.0
-	panel_style.content_margin_bottom = 9.0
-	panel_style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
-	panel_style.shadow_size = 8
-	add_theme_stylebox_override("panel", panel_style)
+	_panel_style = StyleBoxFlat.new()
+	_panel_style.bg_color = Color(0.025, 0.040, 0.057, 0.88)
+	_panel_style.border_color = Color(1.0, 0.48, 0.08, 0.85)
+	_panel_style.set_border_width_all(1)
+	_panel_style.border_width_left = 3
+	_panel_style.set_corner_radius_all(10)
+	_panel_style.content_margin_left = 10.0
+	_panel_style.content_margin_right = 10.0
+	_panel_style.content_margin_top = 9.0
+	_panel_style.content_margin_bottom = 9.0
+	_panel_style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
+	_panel_style.shadow_size = 8
+	add_theme_stylebox_override("panel", _panel_style)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -101,13 +107,13 @@ func _build() -> void:
 	_progress.step = 0.001
 	_progress.show_percentage = false
 	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var progress_bg := StyleBoxFlat.new()
-	progress_bg.bg_color = Color(1.0, 1.0, 1.0, 0.12)
-	progress_bg.set_corner_radius_all(3)
+	_progress_bg = StyleBoxFlat.new()
+	_progress_bg.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	_progress_bg.set_corner_radius_all(3)
 	_progress_fill = StyleBoxFlat.new()
 	_progress_fill.bg_color = Color(1.0, 0.48, 0.08, 1.0)
 	_progress_fill.set_corner_radius_all(3)
-	_progress.add_theme_stylebox_override("background", progress_bg)
+	_progress.add_theme_stylebox_override("background", _progress_bg)
 	_progress.add_theme_stylebox_override("fill", _progress_fill)
 	_info.add_child(_progress)
 
@@ -119,12 +125,36 @@ func _build() -> void:
 		controls.add_theme_constant_override("separation", 4)
 		controls.mouse_filter = Control.MOUSE_FILTER_PASS
 		row.add_child(controls)
-		var next_button := _make_button("N  NEXT")
-		next_button.pressed.connect(_on_next_pressed)
-		controls.add_child(next_button)
+		_next_button = _make_button("N  NEXT")
+		_next_button.pressed.connect(_on_next_pressed)
+		controls.add_child(_next_button)
 		_mute_button = _make_button("M  MUTE")
 		_mute_button.pressed.connect(_on_mute_pressed)
 		controls.add_child(_mute_button)
+
+
+func apply_hud_style(style_res: RallyHudStyle) -> void:
+	hud_style = style_res
+	if style_res == null or _panel_style == null:
+		return
+	var is_pix := style_res.is_pixel_mode()
+	_panel_style.bg_color = style_res.panel_bg_color
+	_panel_style.border_color = style_res.panel_accent_color
+	_panel_style.set_border_width_all(style_res.border_width)
+	_panel_style.border_width_left = maxi(3, style_res.accent_border_width)
+	_panel_style.set_corner_radius_all(style_res.corner_radius if is_pix else 10)
+	_panel_style.skew = style_res.panel_skew if is_pix else Vector2(0.06, 0.0)
+	_panel_style.shadow_size = style_res.shadow_size if is_pix else 8
+	add_theme_stylebox_override("panel", _panel_style)
+	if _progress_bg != null:
+		_progress_bg.set_corner_radius_all(style_res.corner_radius if is_pix else 3)
+	if _progress_fill != null:
+		_progress_fill.set_corner_radius_all(style_res.corner_radius if is_pix else 3)
+	var filt := CanvasItem.TEXTURE_FILTER_NEAREST if (is_pix and style_res.pixel_crisp_filtering) else CanvasItem.TEXTURE_FILTER_LINEAR
+	if _cover_a != null:
+		_cover_a.texture_filter = filt
+	if _cover_b != null:
+		_cover_b.texture_filter = filt
 
 
 func _make_cover() -> TextureRect:

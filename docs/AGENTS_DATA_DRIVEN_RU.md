@@ -75,6 +75,7 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 | `RallyFxProfile` + `RallySurfaceFxProfile` (кладка `surface_fx_profiles`) | `data/stage/default_fx_profile.tres` | сила всех эффектов, клубы и комья из-под каждого колеса, облако пыли за кормой, слои грязи/мокроты/снега на кузове, свечение пылинок, отдельный профиль для асфальта, гравия, грязи, травы и снега (три уровня интенсивности) |
 | `RallyCarFeelConfig` | `data/car/default_car_feel.tres` | камера, FOV (с плавной S-кривой), клиренс и посадка модели, отклик руля, свободный обзор, скорость эталона, занос камеры в повороте, инерция дистанции, «дыхание» ниже 1 Гц и придорожный поток частиц. Грубой тряски здесь нет: микро-вибрация кузова живёт в `RallySpeedFeel`, а не в конфиге отдачи |
 | `RallyUiTheme` | `data/ui/default_ui_theme.tres` | палитра, шрифты, отступы, стили кнопок/панелей всех меню и HUD |
+| `RallyHudStyle` | `data/ui/default_hud_style.tres` | единый стиль гоночного HUD и подготовка к полной переделке в пиксель-арт: режим `hud_mode` (`CLASSIC_GLASS` / `SPEEDOMETER_PIXEL`), общий спрайт-лист и режим вырезки фона (`keyout_mode`), палитра, пиксельные рамки панелей, режим шкал телеметрии (`GaugeBar`: векторные, пиксельные, спрайтовые) и спрайтовые счётчики (`SpriteCounter` / `RallyFpsCounter`). Координируется корневым `RallyHUD` (`scripts/ui/rally_hud.gd`) и `SpriteSpeedometer` (`scripts/ui/sprite_speedometer.gd`) |
 | `RallyMenuLayout` | `data/ui/default_menu_layout.tres` | тексты, подсказки, горячие клавиши, скорость витрины гаража, сообщения о сиде |
 | `RallyShaderParameter` | внутри узлов эффектов / `RallyStageSettings` | любой uniform любого материала прямо из инспектора |
 | `RallyScreenLook` | `scenes/effects/retro_screen.tscn` | ретро-экран: пиксели, палитра, дизер, дрожание вершин |
@@ -91,7 +92,10 @@ material.set_shader_parameter("wet_darken", _p("ground_wet_darken"))
 
 Дополнительно: погодное окружение — `data/tracks/night_environment.tres`
 (`WorldEnvironment`), миникарта и превью трассы — `@export` прямо на узлах
-(`mini_map.gd`, `stage_preview.gd`), HUD-сцена и `GaugeBar` — тоже `@export`.
+(`mini_map.gd`, `stage_preview.gd`), HUD-сцена — `RallyHUD` (`rally_hud.gd`),
+спидометр — `SpriteSpeedometer` (`sprite_speedometer.gd`, общий атлас
+`hud_sprite_atlas.gd`), счётчики — `SpriteCounter` (`sprite_counter.gd`) и
+`GaugeBar` (`gauge_bar.gd`) — тоже `@export` + общий `hud_style`.
 
 ## 3а. Эффекты колёс — поля `RallyFxProfile`
 

@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="RallyHudStyle" format=3 uid="uid://1qoem1fkj6pwb"]
+
+[ext_resource type="Script" uid="uid://y6mawszn6b8b" path="res://scripts/data/rally_hud_style.gd" id="1_hud_style"]
+[ext_resource type="Texture2D" uid="uid://bah85jbsxbrqn" path="res://scenes/ui/ui_hud_r1_ru.png" id="2_sheet"]
+
+[resource]
+script = ExtResource("1_hud_style")
+hud_mode = 0
+sprite_sheet = ExtResource("2_sheet")
+keyout_mode = 0
+pixel_crisp_filtering = true
+slice_pad_px = 2
+panel_bg_color = Color(0.03, 0.04, 0.06, 0.88)
+panel_border_color = Color(0.92, 0.94, 0.98, 0.85)
+panel_accent_color = Color(1, 0.45, 0.05, 1)
+accent_warm_color = Color(1, 0.78, 0.22, 1)
+accent_hot_color = Color(1, 0.14, 0.06, 1)
+text_primary_color = Color(1, 1, 1, 1)
+text_secondary_color = Color(0.8, 0.88, 0.96, 0.9)
+outline_color = Color(0, 0, 0, 0.92)
+dim_zero_alpha = 0.16
+border_width = 2
+accent_border_width = 4
+corner_radius = 2
+panel_skew = Vector2(0, 0)
+content_margin = Vector2(14, 8)
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 6
+gauge_style_mode = 1
+gauge_segments = 11
+gauge_segment_gap = 2.0
+gauge_inactive_color = Color(0.2, 0.24, 0.3, 0.58)
+gauge_preserve_sprite_colors = false
+use_sprite_digits_for_timer = false
+use_sprite_digits_for_fps = false
+timer_digit_height = 34.0
+fps_digit_height = 16.0
+digit_gap = 2.0
+digit_slot_aspect = 0.66

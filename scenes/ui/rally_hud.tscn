@@ -6,6 +6,11 @@
 [ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 [ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
 [ext_resource type="Script" uid="uid://ct3hs3w6eqtf0" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
+[ext_resource type="Script" uid="uid://p0tltxztkyb9" path="res://scripts/ui/rally_hud.gd" id="6_rally_hud"]
+[ext_resource type="Resource" uid="uid://1qoem1fkj6pwb" path="res://data/ui/default_hud_style.tres" id="7_hud_style"]
+[ext_resource type="Script" uid="uid://1thm1p96wzd09" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
+[ext_resource type="Script" uid="uid://n5mwwvnvq8uq" path="res://scripts/ui/fps_label.gd" id="9_fps"]
+[ext_resource type="Script" uid="uid://1cx7fcdia80jy" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 18.0
@@ -58,621 +63,7 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="GDScript" id="GDScript_fps"]
-script/source = "extends Label
-
-func _process(_delta: float) -> void:
-	var fps := Engine.get_frames_per_second()
-	text = \"%d FPS\" % fps
-	if fps >= 55:
-		add_theme_color_override(\"font_color\", Color(0.35, 0.95, 0.62, 0.95))
-	elif fps >= 30:
-		add_theme_color_override(\"font_color\", Color(1.0, 0.78, 0.2, 0.95))
-	else:
-		add_theme_color_override(\"font_color\", Color(0.95, 0.35, 0.35, 0.95))
-"
-
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ni5t3"]
-
-[sub_resource type="GDScript" id="GDScript_speedometer"]
-script/source = "@tool
-extends Control
-
-@export var sprite_sheet: Texture2D:
-	set(value):
-		sprite_sheet = value
-		if is_node_ready():
-			_rebuild()
-
-@export var show_extra_info: bool = true:
-	set(value):
-		show_extra_info = value
-		queue_redraw()
-
-@export_range(0.0, 2.0, 0.1) var juice_intensity: float = 1.0
-
-var _tex: Texture2D
-var _ready_atlas := false
-
-var _arc_rect: Rect2
-var _big_digits: Array[Rect2] = []
-var _small_digits: Array[Rect2] = []
-var _word_gear: Rect2
-var _unit_kmh: Rect2
-var _unit_mph: Rect2
-var _gear_items: Array[Rect2] = []
-
-var _arc_node: TextureRect
-var _arc_mat: ShaderMaterial
-
-var _rpm_bar: ProgressBar
-var _speed_label: Label
-var _speed_unit: Label
-var _gear_label: Label
-var _drivetrain_label: Label
-var _rpm_caption: Label
-
-var _smooth_rpm := 0.0
-var _peak_rpm := 0.0
-var _peak_hold := 0.0
-var _pulse_time := 0.0
-
-var _first_frame := true
-var _last_gear := \"\"
-var _last_speed := -1
-
-var _gear_pop := 0.0
-var _widget_punch := 0.0
-var _speed_pop := 0.0
-var _shift_flash := 0.0
-var _shake_offset := Vector2.ZERO
-
-func _ready() -> void:
-	_rpm_bar = get_node_or_null(\"../SpeedBox/RPMBar\")
-	_speed_label = get_node_or_null(\"../SpeedBox/SpeedLabel\")
-	_speed_unit = get_node_or_null(\"../SpeedBox/SpeedUnit\")
-	_gear_label = get_node_or_null(\"../SpeedBox/GearLabel\")
-	_drivetrain_label = get_node_or_null(\"../SpeedBox/DrivetrainLabel\")
-	_rpm_caption = get_node_or_null(\"../SpeedBox/RpmCaption\")
-	_rebuild()
-
-func _rebuild() -> void:
-	_ready_atlas = false
-	if _arc_node != null and is_instance_valid(_arc_node):
-		_arc_node.queue_free()
-		_arc_node = null
-	_load_sprite_sheet()
-	if _tex != null:
-		_slice_regions()
-		_setup_arc_node()
-	queue_redraw()
-
-func _load_sprite_sheet() -> void:
-	var raw_tex: Texture2D = sprite_sheet
-	if raw_tex == null:
-		var candidates := [
-			\"res://ui_hud_r1_ru.png\",
-			\"res://assets/ui_hud_r1_ru.png\",
-			\"res://assets/ui/ui_hud_r1_ru.png\",
-			\"res://assets/textures/ui_hud_r1_ru.png\",
-			\"res://textures/ui_hud_r1_ru.png\",
-			\"res://sprites/ui_hud_r1_ru.png\",
-			\"res://ui/ui_hud_r1_ru.png\"
-		]
-		for p in candidates:
-			if ResourceLoader.exists(p):
-				raw_tex = ResourceLoader.load(p)
-				if raw_tex != null:
-					break
-	if raw_tex == null:
-		var found := _find_file_recursive(\"res://\", \"ui_hud_r1_ru.png\")
-		if found != \"\":
-			raw_tex = ResourceLoader.load(found)
-	if raw_tex == null:
-		return
-
-	var img := raw_tex.get_image()
-	if img != null:
-		if img.is_compressed():
-			img.decompress()
-		if _needs_white_keyout(img):
-			_flood_remove_white_bg(img)
-			_tex = ImageTexture.create_from_image(img)
-		else:
-			_tex = raw_tex
-	else:
-		_tex = raw_tex
-
-func _find_file_recursive(dir_path: String, target_name: String) -> String:
-	var dir := DirAccess.open(dir_path)
-	if dir == null:
-		return \"\"
-	dir.list_dir_begin()
-	var item := dir.get_next()
-	while item != \"\":
-		if item.begins_with(\".\"):
-			item = dir.get_next()
-			continue
-		var full := dir_path.path_join(item)
-		if dir.current_is_dir():
-			var found := _find_file_recursive(full, target_name)
-			if found != \"\":
-				dir.list_dir_end()
-				return found
-		elif item.to_lower() == target_name.to_lower():
-			dir.list_dir_end()
-			return full
-		item = dir.get_next()
-	dir.list_dir_end()
-	return \"\"
-
-func _needs_white_keyout(img: Image) -> bool:
-	var w := img.get_width()
-	var h := img.get_height()
-	var corners := [Vector2i(0, 0), Vector2i(w - 1, 0), Vector2i(0, h - 1), Vector2i(w - 1, h - 1)]
-	for pt in corners:
-		var c := img.get_pixelv(pt)
-		if c.a < 0.85 or c.r < 0.90 or c.g < 0.90 or c.b < 0.90:
-			return false
-	return true
-
-func _flood_remove_white_bg(img: Image) -> void:
-	if img.get_format() != Image.FORMAT_RGBA8:
-		img.convert(Image.FORMAT_RGBA8)
-	var w := img.get_width()
-	var h := img.get_height()
-	var visited := PackedByteArray()
-	visited.resize(w * h)
-	var queue: Array[Vector2i] = []
-	for x in range(w):
-		queue.append(Vector2i(x, 0))
-		queue.append(Vector2i(x, h - 1))
-	for y in range(1, h - 1):
-		queue.append(Vector2i(0, y))
-		queue.append(Vector2i(w - 1, y))
-	var head := 0
-	while head < queue.size():
-		var p := queue[head]
-		head += 1
-		if p.x < 0 or p.x >= w or p.y < 0 or p.y >= h:
-			continue
-		var idx := p.y * w + p.x
-		if visited[idx] != 0:
-			continue
-		visited[idx] = 1
-		var c := img.get_pixel(p.x, p.y)
-		if minf(c.r, minf(c.g, c.b)) >= 0.92:
-			img.set_pixel(p.x, p.y, Color(c.r, c.g, c.b, 0.0))
-			queue.append(Vector2i(p.x + 1, p.y))
-			queue.append(Vector2i(p.x - 1, p.y))
-			queue.append(Vector2i(p.x, p.y + 1))
-			queue.append(Vector2i(p.x, p.y - 1))
-
-func _is_solid(c: Color) -> bool:
-	return c.a > 0.30
-
-func _find_tight_rect(img: Image, search: Rect2i, pad: int = 2) -> Rect2:
-	var w := img.get_width()
-	var h := img.get_height()
-	var x0 := clampi(search.position.x, 0, w - 1)
-	var y0 := clampi(search.position.y, 0, h - 1)
-	var x1 := clampi(search.end.x, 0, w)
-	var y1 := clampi(search.end.y, 0, h)
-	var min_x := x1
-	var min_y := y1
-	var max_x := x0 - 1
-	var max_y := y0 - 1
-	for y in range(y0, y1):
-		for x in range(x0, x1):
-			if _is_solid(img.get_pixel(x, y)):
-				if x < min_x: min_x = x
-				if y < min_y: min_y = y
-				if x > max_x: max_x = x
-				if y > max_y: max_y = y
-	if max_x < min_x:
-		return Rect2(search)
-	min_x = maxi(0, min_x - pad)
-	min_y = maxi(0, min_y - pad)
-	max_x = mini(w - 1, max_x + pad)
-	max_y = mini(h - 1, max_y + pad)
-	return Rect2(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
-
-func _find_horizontal_runs(img: Image, search: Rect2i, expected_count: int, pad: int = 2) -> Array[Rect2]:
-	var w := img.get_width()
-	var h := img.get_height()
-	var x0 := clampi(search.position.x, 0, w - 1)
-	var y0 := clampi(search.position.y, 0, h - 1)
-	var x1 := clampi(search.end.x, 0, w)
-	var y1 := clampi(search.end.y, 0, h)
-
-	var active_cols := PackedByteArray()
-	active_cols.resize(x1 - x0)
-	for x in range(x0, x1):
-		for y in range(y0, y1):
-			if _is_solid(img.get_pixel(x, y)):
-				active_cols[x - x0] = 1
-				break
-
-	var runs: Array[Vector2i] = []
-	var in_run := false
-	var run_start := 0
-	var max_gap := maxi(1, int(w * 0.006))
-	var gap := 0
-
-	for i in range(active_cols.size()):
-		if active_cols[i] == 1:
-			if not in_run:
-				in_run = true
-				run_start = x0 + i
-			gap = 0
-		else:
-			if in_run:
-				gap += 1
-				if gap > max_gap:
-					runs.append(Vector2i(run_start, x0 + i - gap))
-					in_run = false
-	if in_run:
-		runs.append(Vector2i(run_start, x1 - 1))
-
-	var out: Array[Rect2] = []
-	if runs.size() == expected_count:
-		for r in runs:
-			out.append(_find_tight_rect(img, Rect2i(r.x, y0, r.y - r.x + 1, y1 - y0), pad))
-		return out
-
-	var slot_w := float(x1 - x0) / float(expected_count)
-	for i in range(expected_count):
-		var sx := int(round(x0 + i * slot_w))
-		var ex := int(round(x0 + (i + 1) * slot_w))
-		out.append(_find_tight_rect(img, Rect2i(sx, y0, ex - sx, y1 - y0), pad))
-	return out
-
-func _slice_regions() -> void:
-	var img := _tex.get_image()
-	if img == null:
-		return
-	if img.is_compressed():
-		img.decompress()
-	var w := float(img.get_width())
-	var h := float(img.get_height())
-
-	_arc_rect = _find_tight_rect(img, Rect2i(0, 0, int(0.44 * w), int(0.425 * h)), 2)
-	_big_digits = _find_horizontal_runs(img, Rect2i(int(0.01 * w), int(0.425 * h), int(0.98 * w), int(0.17 * h)), 10, 2)
-	_small_digits = _find_horizontal_runs(img, Rect2i(int(0.01 * w), int(0.605 * h), int(0.98 * w), int(0.105 * h)), 10, 2)
-
-	_word_gear = _find_tight_rect(img, Rect2i(int(0.01 * w), int(0.72 * h), int(0.51 * w), int(0.135 * h)), 2)
-	_unit_kmh = _find_tight_rect(img, Rect2i(int(0.52 * w), int(0.72 * h), int(0.21 * w), int(0.135 * h)), 2)
-	_unit_mph = _find_tight_rect(img, Rect2i(int(0.73 * w), int(0.72 * h), int(0.26 * w), int(0.135 * h)), 2)
-
-	var gear_splits := [0.01, 0.215, 0.405, 0.595, 0.785, 0.99]
-	_gear_items.clear()
-	for i in range(5):
-		var gx0 := int(gear_splits[i] * w)
-		var gx1 := int(gear_splits[i + 1] * w)
-		_gear_items.append(_find_tight_rect(img, Rect2i(gx0, int(0.86 * h), gx1 - gx0, int(0.12 * h)), 2))
-
-	_ready_atlas = true
-
-func _setup_arc_node() -> void:
-	var shader := Shader.new()
-	shader.code = \"\"\"shader_type canvas_item;
-uniform vec4 uv_rect = vec4(0.0, 0.0, 0.44, 0.42);
-uniform float rpm_ratio : hint_range(0.0, 1.0) = 0.0;
-uniform float peak_ratio : hint_range(0.0, 1.0) = 0.0;
-uniform float redline_start : hint_range(0.0, 1.0) = 0.82;
-uniform float pulse = 0.0;
-uniform float shift_flash = 0.0;
-
-void fragment() {
-	vec2 sample_uv = uv_rect.xy + UV * uv_rect.zw;
-	vec4 tex = texture(TEXTURE, sample_uv);
-
-	vec2 p = vec2(0.97, 0.96) - UV;
-	float ang = atan(max(0.0, p.y), max(0.0001, p.x)) / 1.5707963;
-	ang = clamp(ang, 0.0, 1.0);
-
-	float max_c = max(tex.r, max(tex.g, tex.b));
-	float min_c = min(tex.r, min(tex.g, tex.b));
-	bool is_white_border = max_c > 0.68 && (max_c - min_c) < 0.14;
-	bool is_colored_num = (max_c - min_c) >= 0.14;
-	bool is_shadow = max_c < 0.24 || tex.a < 0.36;
-	bool is_grey_track = !is_white_border && !is_colored_num && !is_shadow;
-
-	if (is_grey_track) {
-		bool in_redline = ang >= redline_start;
-		if (ang <= rpm_ratio) {
-			vec3 active_col = in_redline
-				? vec3(1.0, 0.06, 0.04)
-				: mix(vec3(1.0, 0.70, 0.14), vec3(1.0, 0.26, 0.04), smoothstep(0.35, redline_start, ang));
-			float tip = smoothstep(max(0.0, rpm_ratio - 0.055), rpm_ratio, ang);
-			active_col = mix(active_col, vec3(1.0, 0.96, 0.72), tip * 0.72);
-			active_col = mix(active_col, vec3(1.0, 0.95, 0.75), shift_flash * 0.55);
-			if (rpm_ratio >= redline_start) {
-				active_col *= 1.0 + 0.22 * pulse;
-			}
-			tex.rgb = active_col;
-			tex.a = 0.96;
-		} else if (ang <= peak_ratio && peak_ratio > rpm_ratio + 0.015) {
-			float trail = 1.0 - clamp((ang - rpm_ratio) / max(0.01, peak_ratio - rpm_ratio), 0.0, 1.0);
-			tex.rgb = mix(vec3(0.55, 0.25, 0.10), vec3(1.0, 0.65, 0.25), trail);
-			tex.a = 0.75;
-		} else if (in_redline) {
-			tex.rgb = vec3(0.75, 0.06, 0.05) * (1.0 + (rpm_ratio >= redline_start - 0.08 ? 0.25 * pulse : 0.0));
-			tex.a = 0.80;
-		} else {
-			tex.rgb *= 0.50;
-		}
-	}
-	COLOR = tex;
-}\"\"\"
-	_arc_mat = ShaderMaterial.new()
-	_arc_mat.shader = shader
-	var tex_size := _tex.get_size()
-	_arc_mat.set_shader_parameter(\"uv_rect\", Vector4(
-		_arc_rect.position.x / tex_size.x,
-		_arc_rect.position.y / tex_size.y,
-		_arc_rect.size.x / tex_size.x,
-		_arc_rect.size.y / tex_size.y
-	))
-
-	_arc_node = TextureRect.new()
-	_arc_node.texture = _tex
-	_arc_node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_arc_node.stretch_mode = TextureRect.STRETCH_SCALE
-	_arc_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_arc_node.show_behind_parent = true
-	_arc_node.material = _arc_mat
-	add_child(_arc_node)
-
-func _process(delta: float) -> void:
-	if not _ready_atlas:
-		return
-
-	var target_rpm := _rpm_bar.value if _rpm_bar else 0.0
-	var max_rpm := maxf(_rpm_bar.max_value if _rpm_bar else 8000.0, 1000.0)
-	var dial_max := maxf(8000.0, max_rpm)
-
-	var spd_info := _parse_speed_info()
-	var spd_val: int = spd_info[\"value\"]
-	var g_info := _parse_gear()
-	var gear_str: String = g_info[\"gear\"]
-
-	if Engine.is_editor_hint():
-		_smooth_rpm = target_rpm
-		_peak_rpm = target_rpm
-		_shake_offset = Vector2.ZERO
-		_gear_pop = 0.0
-		_widget_punch = 0.0
-		_speed_pop = 0.0
-		_shift_flash = 0.0
-	else:
-		_smooth_rpm = lerpf(_smooth_rpm, target_rpm, clampf(delta * 22.0, 0.0, 1.0))
-		if _smooth_rpm >= _peak_rpm:
-			_peak_rpm = _smooth_rpm
-			_peak_hold = 0.24
-		elif _peak_hold > 0.0:
-			_peak_hold -= delta
-		else:
-			_peak_rpm = lerpf(_peak_rpm, _smooth_rpm, clampf(delta * 5.5, 0.0, 1.0))
-
-		_pulse_time += delta * 16.0
-
-		if _first_frame:
-			_last_gear = gear_str
-			_last_speed = spd_val
-			_first_frame = false
-		else:
-			if gear_str != _last_gear:
-				_gear_pop = 1.0
-				_widget_punch = 1.0 * juice_intensity
-				_shift_flash = 1.0 * juice_intensity
-				_last_gear = gear_str
-			if spd_val != _last_speed:
-				if spd_val > _last_speed:
-					_speed_pop = minf(1.0, _speed_pop + 0.55 * juice_intensity)
-				_last_speed = spd_val
-
-		_gear_pop = move_toward(_gear_pop, 0.0, delta * 4.5)
-		_widget_punch = move_toward(_widget_punch, 0.0, delta * 6.5)
-		_speed_pop = move_toward(_speed_pop, 0.0, delta * 8.0)
-		_shift_flash = move_toward(_shift_flash, 0.0, delta * 5.0)
-
-		var rpm_norm := clampf(_smooth_rpm / max_rpm, 0.0, 1.0)
-		var shake_amp := 0.0
-		if rpm_norm > 0.84:
-			shake_amp += ((rpm_norm - 0.84) / 0.16) * 1.6
-		if spd_val > 140:
-			shake_amp += clampf(float(spd_val - 140) / 120.0, 0.0, 1.0) * 0.8
-		shake_amp *= juice_intensity
-		_shake_offset = Vector2(
-			sin(_pulse_time * 3.3) * shake_amp,
-			cos(_pulse_time * 3.9) * shake_amp
-		)
-
-	var arc_ratio := clampf(_smooth_rpm / dial_max, 0.0, 1.0)
-	var peak_ratio := clampf(_peak_rpm / dial_max, 0.0, 1.0)
-	var pulse := 0.0 if Engine.is_editor_hint() else (0.5 + 0.5 * sin(_pulse_time))
-
-	if _arc_node and _arc_mat:
-		var arc_h := size.y * 0.90
-		var arc_aspect := _arc_rect.size.x / maxf(_arc_rect.size.y, 1.0)
-		_arc_node.size = Vector2(arc_h * arc_aspect, arc_h)
-		_arc_node.pivot_offset = _arc_node.size * 0.5
-		var punch_sc := Vector2.ONE * (1.0 + 0.035 * _widget_punch)
-		var total_offset := _shake_offset + Vector2(0.0, 3.0 * _widget_punch)
-		_arc_node.scale = punch_sc
-		_arc_node.position = Vector2(2.0, 4.0) + total_offset
-
-		_arc_mat.set_shader_parameter(\"rpm_ratio\", arc_ratio)
-		_arc_mat.set_shader_parameter(\"peak_ratio\", peak_ratio)
-		_arc_mat.set_shader_parameter(\"redline_start\", clampf(max_rpm * 0.86 / dial_max, 0.75, 0.95))
-		_arc_mat.set_shader_parameter(\"pulse\", pulse)
-		_arc_mat.set_shader_parameter(\"shift_flash\", _shift_flash)
-
-	queue_redraw()
-
-func _parse_speed_info() -> Dictionary:
-	var raw := _speed_label.text if _speed_label else \"0\"
-	var digits := \"\"
-	for i in range(raw.length()):
-		var ch := raw[i]
-		if ch >= \"0\" and ch <= \"9\":
-			digits += ch
-	if digits == \"\":
-		digits = \"0\"
-	var val := int(digits)
-	var text := \"%03d\" % val if val < 1000 else str(val)
-	return {\"value\": val, \"text\": text}
-
-func _parse_gear() -> Dictionary:
-	var raw := (_gear_label.text if _gear_label else \"1\").to_upper()
-	var mode := \"\"
-	if raw.ends_with(\" A\") or raw.contains(\"AUTO\") or raw.contains(\"АВТО\"):
-		mode = \"A\"
-	elif raw.ends_with(\" M\") or raw.contains(\"MAN\") or raw.contains(\"РУЧ\"):
-		mode = \"M\"
-
-	var cleaned := raw.replace(\"КПП\", \"\").replace(\"GEAR\", \"\").strip_edges()
-	var gear := \"1\"
-	for i in range(cleaned.length()):
-		var ch := cleaned[i]
-		if (ch >= \"0\" and ch <= \"9\") or ch == \"R\" or ch == \"З\" or ch == \"N\" or ch == \"Н\":
-			gear = ch
-			break
-	return {\"gear\": gear, \"mode\": mode}
-
-func _draw() -> void:
-	if not _ready_atlas or _tex == null:
-		return
-
-	var w := size.x
-	var h := size.y
-	var max_rpm := maxf(_rpm_bar.max_value if _rpm_bar else 8000.0, 1000.0)
-	var rpm_norm := clampf(_smooth_rpm / max_rpm, 0.0, 1.0)
-	var pulse := 0.0 if Engine.is_editor_hint() else (0.5 + 0.5 * sin(_pulse_time))
-
-	var center := size * 0.5
-	var punch_sc := Vector2.ONE * (1.0 + 0.035 * _widget_punch)
-	var total_offset := _shake_offset + Vector2(0.0, 3.0 * _widget_punch)
-	draw_set_transform(center + total_offset - center * punch_sc, 0.0, punch_sc)
-
-	# 0. Мягкое живое свечение под спидометром от оборотов
-	var glow_col := Color(0.15, 0.35, 0.65, 0.04).lerp(Color(1.0, 0.45, 0.08, 0.13), clampf(rpm_norm * 1.1, 0.0, 1.0))
-	if rpm_norm >= 0.85:
-		glow_col = glow_col.lerp(Color(1.0, 0.12, 0.06, 0.22 + 0.08 * pulse), (rpm_norm - 0.85) / 0.15)
-	if _shift_flash > 0.01:
-		glow_col = glow_col.lerp(Color(1.0, 0.85, 0.35, 0.24), _shift_flash * 0.6)
-	draw_circle(Vector2(w * 0.56, h * 0.54), h * 0.44, glow_col)
-	draw_circle(Vector2(w * 0.56, h * 0.54), h * 0.26, Color(glow_col.r, glow_col.g, glow_col.b, glow_col.a * 0.8))
-
-	# 1. Скорость + единицы
-	var spd_info := _parse_speed_info()
-	var spd_str: String = spd_info[\"text\"]
-	var first_nz := spd_str.length() - 1
-	for i in range(spd_str.length()):
-		if spd_str[i] != \"0\":
-			first_nz = i
-			break
-
-	var spd_scale := 1.0 + 0.035 * _speed_pop
-	var digit_h := h * 0.27 * spd_scale
-	var slot_w := (h * 0.27) * 0.66
-	var gap := 2.0
-	var start_x := w * 0.31
-	var digit_y := h * 0.41 - (digit_h - h * 0.27) * 0.5
-	var total_digits := spd_str.length()
-
-	for i in range(total_digits):
-		var d := int(spd_str[i])
-		var src := _big_digits[d]
-		var dw := digit_h * (src.size.x / maxf(src.size.y, 1.0))
-		var slot_x := start_x + float(i) * (slot_w + gap)
-		var dx := slot_x + (slot_w - dw) * 0.5
-		var col := Color(1.0, 1.0, 1.0, 1.0) if i >= first_nz else Color(1.0, 1.0, 1.0, 0.16)
-		if i >= first_nz and _speed_pop > 0.05:
-			col = col.lerp(Color(1.0, 0.92, 0.72, 1.0), _speed_pop * 0.5)
-		draw_texture_rect_region(_tex, Rect2(dx, digit_y, dw, digit_h), src, col)
-
-	var speed_end_x := start_x + float(total_digits) * slot_w + float(total_digits - 1) * gap
-	var unit_txt := (_speed_unit.text if _speed_unit else \"КМ/Ч\").to_lower()
-	var unit_src := _unit_mph if (unit_txt.contains(\"миль\") or unit_txt.contains(\"mph\")) else _unit_kmh
-	var unit_h := h * 0.135
-	var unit_w := unit_h * (unit_src.size.x / maxf(unit_src.size.y, 1.0))
-	var unit_x := speed_end_x + 6.0
-	var max_unit_w := maxf(w - unit_x - 4.0, 20.0)
-	if unit_w > max_unit_w:
-		var scale_u := max_unit_w / unit_w
-		unit_w *= scale_u
-		unit_h *= scale_u
-	draw_texture_rect_region(_tex, Rect2(unit_x, h * 0.41 + h * 0.27 - unit_h, unit_w, unit_h), unit_src, Color(1.0, 0.94, 0.82, 0.98))
-
-	# 2. Тонкая живая линия-индикатор под скоростью
-	var bar_w := maxf((w - 14.0) - start_x, 60.0)
-	var bar_y := h * 0.695
-	draw_rect(Rect2(start_x, bar_y, bar_w, 2.0), Color(1.0, 1.0, 1.0, 0.10))
-	var fill_w := bar_w * rpm_norm
-	if fill_w > 1.0:
-		var line_col := Color(1.0, 0.62, 0.12, 0.95).lerp(Color(1.0, 0.18, 0.08, 1.0), smoothstep(0.65, 0.95, rpm_norm))
-		if _shift_flash > 0.01:
-			line_col = line_col.lerp(Color(1.0, 0.96, 0.7, 1.0), _shift_flash * 0.7)
-		draw_rect(Rect2(start_x, bar_y, fill_w, 2.5), line_col)
-		draw_circle(Vector2(start_x + fill_w, bar_y + 1.25), 2.5, Color(1.0, 0.95, 0.75, 0.95))
-
-	# 3. Передача с упругим поп-эффектом и подсветкой переключения
-	var g_info := _parse_gear()
-	var gear_str: String = g_info[\"gear\"]
-	var gear_mode: String = g_info[\"mode\"]
-	var gear_y := h * 0.735
-	var gear_h := h * 0.15
-
-	var gear_col := Color(1.0, 1.0, 1.0, 1.0)
-	if rpm_norm >= 0.86:
-		gear_col = Color(1.0, 0.45 + 0.45 * pulse, 0.25, 1.0)
-	if _gear_pop > 0.01:
-		gear_col = gear_col.lerp(Color(1.35, 1.2, 0.65, 1.0), _gear_pop)
-
-	var gp_scale := 1.0 + 0.24 * sin(_gear_pop * PI)
-	var gp_lift := -3.0 * _gear_pop
-
-	if gear_str >= \"1\" and gear_str <= \"5\":
-		var g_idx := int(gear_str) - 1
-		var g_src := _gear_items[g_idx]
-		var g_w := gear_h * (g_src.size.x / maxf(g_src.size.y, 1.0))
-		var g_center := Vector2(start_x + g_w * 0.5, gear_y + gear_h * 0.5 + gp_lift)
-		var dst := Rect2(g_center.x - g_w * gp_scale * 0.5, g_center.y - gear_h * gp_scale * 0.5, g_w * gp_scale, gear_h * gp_scale)
-		draw_texture_rect_region(_tex, dst, g_src, gear_col)
-	else:
-		var wg_h := gear_h * 0.92 * gp_scale
-		var wg_w := wg_h * (_word_gear.size.x / maxf(_word_gear.size.y, 1.0))
-		draw_texture_rect_region(_tex, Rect2(start_x, gear_y + gp_lift, wg_w, wg_h), _word_gear, gear_col)
-		var gx := start_x + wg_w + 6.0
-		if gear_str >= \"0\" and gear_str <= \"9\":
-			var sd_src := _small_digits[int(gear_str)]
-			var sd_w := wg_h * (sd_src.size.x / maxf(sd_src.size.y, 1.0))
-			draw_texture_rect_region(_tex, Rect2(gx, gear_y + gp_lift, sd_w, wg_h), sd_src, gear_col)
-		else:
-			var font := ThemeDB.fallback_font
-			draw_string(font, Vector2(gx, gear_y + gp_lift + wg_h * 0.85), gear_str, HORIZONTAL_ALIGNMENT_LEFT, -1, int(wg_h * 0.9), Color(1.0, 0.35, 0.25, 1.0))
-
-	# 4. Доп. инфо (режим КПП / привод / RPM)
-	if show_extra_info:
-		var font := ThemeDB.fallback_font
-		var info_parts: Array[String] = []
-		if gear_mode != \"\":
-			info_parts.append(\"АВТО\" if gear_mode == \"A\" else \"РУЧН\")
-		if _drivetrain_label and _drivetrain_label.visible and _drivetrain_label.text != \"\":
-			info_parts.append(_drivetrain_label.text)
-		elif _rpm_caption and _rpm_caption.text != \"\":
-			info_parts.append(\"%d RPM\" % int(round(_smooth_rpm)))
-		if info_parts.size() > 0:
-			var info_str := \" • \".join(info_parts)
-			var info_col := Color(0.82, 0.88, 0.95, 0.85)
-			if rpm_norm >= 0.86:
-				info_col = Color(1.0, 0.35, 0.25, 0.95)
-			elif rpm_norm >= 0.65:
-				info_col = Color(1.0, 0.78, 0.35, 0.9)
-			draw_string(font, Vector2(w - 170.0, h - 4.0), info_str, HORIZONTAL_ALIGNMENT_RIGHT, 166.0, 11, info_col)
-"
 
 [sub_resource type="StyleBoxFlat" id="SB_rpm_bg"]
 bg_color = Color(0.12, 0.15, 0.2, 0.85)
@@ -803,6 +194,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+script = ExtResource("6_rally_hud")
+hud_style = ExtResource("7_hud_style")
 
 [node name="StagePanel" type="PanelContainer" parent="." unique_id=1484604147]
 layout_mode = 1
@@ -843,6 +236,7 @@ mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_panel")
 script = ExtResource("5_radio")
 show_controls = false
+hud_style = ExtResource("7_hud_style")
 
 [node name="TimerPanel" type="PanelContainer" parent="." unique_id=766970301]
 layout_mode = 1
@@ -871,6 +265,14 @@ theme_override_font_sizes/font_size = 40
 text = "00:00.000"
 horizontal_alignment = 1
 
+[node name="TimerSprite" type="Control" parent="TimerPanel/TimerBox" unique_id=1513995718]
+visible = false
+custom_minimum_size = Vector2(260, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("10_counter")
+hud_style = ExtResource("7_hud_style")
+
 [node name="SplitLabel" type="Label" parent="TimerPanel/TimerBox" unique_id=730141170]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.3, 0.98, 0.58, 1)
@@ -892,6 +294,7 @@ offset_bottom = 230.0
 grow_horizontal = 0
 mouse_filter = 2
 script = ExtResource("1_mini")
+hud_style = ExtResource("7_hud_style")
 
 [node name="FPSLabel" type="Label" parent="." unique_id=1510741606]
 layout_mode = 1
@@ -909,7 +312,8 @@ theme_override_styles/normal = SubResource("SB_hint")
 text = "60 FPS"
 horizontal_alignment = 1
 vertical_alignment = 1
-script = SubResource("GDScript_fps")
+script = ExtResource("9_fps")
+hud_style = ExtResource("7_hud_style")
 
 [node name="SpeedPanel" type="PanelContainer" parent="." unique_id=789375468]
 layout_mode = 1
@@ -930,7 +334,8 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_ni5t3")
 [node name="SpriteSpeedometer" type="Control" parent="SpeedPanel" unique_id=2045382990]
 layout_mode = 2
 mouse_filter = 2
-script = SubResource("GDScript_speedometer")
+script = ExtResource("8_speedometer")
+hud_style = ExtResource("7_hud_style")
 sprite_sheet = ExtResource("3_0vuck")
 show_extra_info = false
 juice_intensity = 0.7
@@ -1039,6 +444,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(0.25, 0.95, 0.5, 1)
 centered = false
 
@@ -1053,6 +459,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(0.98, 0.25, 0.25, 1)
 centered = false
 
@@ -1067,6 +474,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(1, 0.8, 0.2, 1)
 
 [node name="SlipTitle" type="Label" parent="TelemetryPanel/TeleBox" unique_id=411337341]
@@ -1080,6 +488,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(1, 0.52, 0.12, 1)
 centered = false
 
@@ -1094,6 +503,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(0.3, 0.72, 1, 1)
 centered = false
 
@@ -1108,6 +518,7 @@ custom_minimum_size = Vector2(160, 6)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("2_gauge")
+hud_style = ExtResource("7_hud_style")
 bar_color = Color(0.8, 0.45, 1, 1)
 centered = false
 
