@@ -175,6 +175,15 @@ var _surface_roughness_value: float = 0.0
 ## Поток частиц на обочине: живёт в машине, пока включён в конфиге.
 var speed_motes: GPUParticles3D = null
 
+var _evo_model: Node3D = null
+var _evo_body: MeshInstance3D = null
+var _taillight_l: SpotLight3D = null
+var _taillight_r: SpotLight3D = null
+var _taillight_glow: OmniLight3D = null
+var _center_brake_light: MeshInstance3D = null
+var _center_brake_mat: StandardMaterial3D = null
+var _brake_light_level: float = 0.0
+
 # Переменные для сохранения точного ракурса CamChase со сцены
 var _scene_chase_local_pos: Vector3 = Vector3(0.0, 1.55, -5.8)
 var _scene_chase_look_dir_local: Vector3 = Vector3(0.0, -0.12, 1.0).normalized()
@@ -247,6 +256,7 @@ func _ready() -> void:
 	requested_gear = current_gear
 	_setup_gravel_particles()
 	_apply_visual_setup()
+	_setup_brake_lights()
 	surface_effects = SurfaceEffectsType.new()
 	surface_effects.fx = fx_config()
 	surface_effects.name = "SurfaceEffects"
@@ -702,6 +712,81 @@ func _apply_visual_setup() -> void:
 	if active_setup != null:
 		CarVisuals.apply_body(model, active_setup)
 		CarVisuals.apply_headlights(self, active_setup)
+	else:
+		CarVisuals.ensure_body_material(model)
+	_apply_brake_light_energy()
+
+
+func _setup_brake_lights() -> void:
+	_evo_model = get_node_or_null("low poly lance evo") as Node3D
+	_evo_body = null
+	_taillight_l = null
+	_taillight_r = null
+	_taillight_glow = null
+	_center_brake_light = null
+	_center_brake_mat = null
+	if _evo_model == null:
+		return
+	_evo_body = _evo_model.get_node_or_null("Mitsubishi_Body") as MeshInstance3D
+	CarVisuals.ensure_body_material(_evo_model)
+	_taillight_l = _evo_model.get_node_or_null("TaillightL") as SpotLight3D
+	_taillight_r = _evo_model.get_node_or_null("TaillightR") as SpotLight3D
+	_taillight_glow = _evo_model.get_node_or_null("TaillightGlow") as OmniLight3D
+	_center_brake_light = _evo_model.get_node_or_null("CenterBrakeLight") as MeshInstance3D
+	if _center_brake_light != null:
+		var source_mat: Material = _center_brake_light.material_override
+		if source_mat == null and _center_brake_light.mesh != null and _center_brake_light.mesh.get_surface_count() > 0:
+			source_mat = _center_brake_light.mesh.surface_get_material(0)
+		if source_mat is StandardMaterial3D:
+			_center_brake_mat = (source_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			_center_brake_light.material_override = _center_brake_mat
+	_apply_brake_light_energy()
+
+
+func _update_brake_lights(delta: float) -> void:
+	if _evo_model == null or not _evo_model.visible:
+		return
+	var brake_press: float = maxf(clampf(brake_input, 0.0, 1.0), clampf(handbrake_input, 0.0, 1.0))
+	var target_level: float = 1.0 if is_braking else brake_press
+	if delta <= 0.0:
+		_brake_light_level = target_level
+	else:
+		_brake_light_level = lerpf(
+			_brake_light_level,
+			target_level,
+			_response_weight(f().brake_light_response, delta)
+		)
+	_apply_brake_light_energy()
+
+
+func _apply_brake_light_energy() -> void:
+	var feel_cfg: FeelConfigType = f()
+	var t: float = clampf(_brake_light_level, 0.0, 1.0)
+	var spot_energy: float = lerpf(feel_cfg.taillight_idle_energy, feel_cfg.taillight_brake_energy, t)
+	if _taillight_l != null:
+		_taillight_l.light_energy = spot_energy
+	if _taillight_r != null:
+		_taillight_r.light_energy = spot_energy
+	if _taillight_glow != null:
+		_taillight_glow.light_energy = lerpf(
+			feel_cfg.taillight_glow_idle_energy,
+			feel_cfg.taillight_glow_brake_energy,
+			t
+		)
+	if _center_brake_mat != null:
+		_center_brake_mat.emission_energy_multiplier = lerpf(
+			feel_cfg.center_brake_idle_energy,
+			feel_cfg.center_brake_brake_energy,
+			t
+		)
+	if _evo_body != null:
+		var body_mat := _evo_body.material_override as StandardMaterial3D
+		if body_mat != null and body_mat.emission_enabled:
+			body_mat.emission_energy_multiplier = lerpf(
+				feel_cfg.body_emission_idle,
+				feel_cfg.body_emission_brake,
+				t
+			)
 
 
 func _physics_process(delta: float) -> void:
@@ -766,6 +851,7 @@ func _physics_process(delta: float) -> void:
 		_apply_gamepad_look(delta)
 	super._physics_process(delta)
 	_update_handbrake_grip(delta)
+	_update_brake_lights(delta)
 
 	var raw_speed_mps: float = Vector2(linear_velocity.x, linear_velocity.z).length()
 	speed_mps = lerpf(speed_mps, raw_speed_mps, _response_weight(f().speed_response, delta))
@@ -973,10 +1059,14 @@ func _setup_gravel_particles() -> void:
 	process_material.damping_max = maxf(cfg.dust_damping_min, cfg.dust_damping_max)
 	gravel_particles.process_material = process_material
 
-	var dust_material := DustFx.puff_material(DustFx.puff_texture(), true)
-	dust_material.emission_enabled = cfg.fx_sparkle_enabled
-	dust_material.emission = cfg.fx_sparkle_color
-	dust_material.emission_energy_multiplier = cfg.fx_sparkle_strength * 0.7
+	var dust_material := DustFx.puff_material(DustFx.puff_texture(), not cfg.dust_lit)
+	var dust_glow: float = cfg.dust_emission + (
+		cfg.fx_sparkle_strength * 0.7 if cfg.fx_sparkle_enabled else 0.0
+	)
+	dust_material.emission_enabled = dust_glow > 0.001
+	if dust_material.emission_enabled:
+		dust_material.emission = cfg.fx_sparkle_color
+		dust_material.emission_energy_multiplier = dust_glow
 	var dust_mesh := QuadMesh.new()
 	var dust_size := maxf(0.01, cfg.dust_radius)
 	dust_mesh.size = Vector2(dust_size, dust_size) * 2.0
@@ -1014,7 +1104,7 @@ func _update_gravel_particles() -> void:
 		rear_slip = maxf(rear_slip, absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y))
 		if is_instance_valid(surface_effects):
 			var kind: String = surface_effects.kind_for_wheel(wheel, road_name, snow)
-			if kind == "gravel" or kind == "mud":
+			if kind == "gravel" or kind == "mud" or kind == "snow":
 				gravel_contact = true
 				dust_kind = kind
 				gravel_level = maxi(
@@ -1028,15 +1118,14 @@ func _update_gravel_particles() -> void:
 				gravel_level,
 				surface_effects.effect_level_for(dust_kind, speed_kmh, rear_slip, wetness)
 			)
-	# Дополнительный плотный шлейф для сухого рыхлого покрытия. Мелкую пыль и
-	# брызги у самих колёс обслуживает SurfaceEffects; здесь — общее облако
-	# за кормой, заметное в зеркалах и на повторах.
+	# Дополнительный плотный шлейф за кормой: освещается фарами и стоп-сигналами.
 	var process := gravel_particles.process_material as ParticleProcessMaterial
 	var strength := 0.0
-	if rear_contact and gravel_contact and wetness < 0.75:
+	if rear_contact and gravel_contact:
 		var speed_gate: float = smoothstep(cfg.dust_min_speed_kmh * 0.6, cfg.dust_min_speed_kmh, speed_kmh)
 		var slip_gate: float = smoothstep(cfg.dust_slip_threshold * 0.5, cfg.dust_slip_threshold, rear_slip)
-		strength = clampf(maxf(speed_gate, slip_gate) * (0.4 + 0.6 * float(gravel_level) / 3.0), 0.0, 1.0)
+		var wet_dampen: float = 1.0 if dust_kind != "gravel" else lerpf(1.0, 0.5, clampf(wetness, 0.0, 1.0))
+		strength = clampf(maxf(speed_gate, slip_gate) * (0.4 + 0.6 * float(gravel_level) / 3.0) * wet_dampen, 0.0, 1.0)
 		if slip_gate <= 0.0 and speed_gate <= 0.0:
 			strength = 0.0
 	gravel_particles.amount_ratio = strength
@@ -1761,6 +1850,8 @@ func reset_to_spawn() -> void:
 		wheel.force_raycast_update()
 
 	g_force_offset = Vector3.ZERO
+	_brake_light_level = 0.0
+	_apply_brake_light_energy()
 	if gravel_particles != null:
 		gravel_particles.emitting = false
 	_reset_action_camera()

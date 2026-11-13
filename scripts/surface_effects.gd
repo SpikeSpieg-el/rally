@@ -269,13 +269,17 @@ func _all_meshes(root: Node) -> Array[MeshInstance3D]:
 
 
 func _make_foam_material() -> StandardMaterial3D:
-	var material := DustFx.puff_material(DustFx.puff_texture(), not _pb("foam_lit", false))
-	material.emission_enabled = _pb("fx_sparkle_enabled", true)
-	material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
-	material.emission_energy_multiplier = (
-		_p("fx_sparkle_strength", 0.16) * _p("fx_sparkle_emission", 0.85)
-		+ _p("foam_emission", 0.18)
+	var material := DustFx.puff_material(DustFx.puff_texture(), not _pb("foam_lit", true))
+	var sparkle := _pb("fx_sparkle_enabled", true) and _p("fx_sparkle_strength", 0.0) > 0.001
+	var self_glow := _p("foam_emission", 0.0)
+	var total_glow := (
+		(_p("fx_sparkle_strength", 0.0) * _p("fx_sparkle_emission", 0.85) if sparkle else 0.0)
+		+ self_glow
 	)
+	material.emission_enabled = total_glow > 0.001
+	if material.emission_enabled:
+		material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
+		material.emission_energy_multiplier = total_glow
 	material.vertex_color_is_srgb = false
 	return material
 
@@ -283,6 +287,11 @@ func _make_foam_material() -> StandardMaterial3D:
 func _make_grit_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = (
+		BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		if _pb("grit_lit", true)
+		else BaseMaterial3D.SHADING_MODE_UNSHADED
+	)
 	material.albedo_color = Color.WHITE
 	material.vertex_color_use_as_albedo = true
 	# В Godot 4 свойство называется metallic_specular: `specular` — это
@@ -293,9 +302,11 @@ func _make_grit_material() -> StandardMaterial3D:
 	material.metallic_specular = clampf(gloss * 1.6, 0.0, 1.0)
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	material.emission_enabled = _pb("fx_sparkle_enabled", true)
-	material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
-	material.emission_energy_multiplier = _p("grit_light_boost", 0.22) * 0.35
+	var grit_glow: float = _p("grit_light_boost", 0.05) * 0.35
+	material.emission_enabled = _pb("fx_sparkle_enabled", true) and grit_glow > 0.001
+	if material.emission_enabled:
+		material.emission = _pc("fx_sparkle_color", Color(1.0, 0.86, 0.58))
+		material.emission_energy_multiplier = grit_glow
 	return material
 
 
@@ -319,7 +330,7 @@ func _make_pool(pool_name: String) -> GPUParticles3D:
 
 func _make_foam_mesh() -> QuadMesh:
 	var mesh := QuadMesh.new()
-	var size := maxf(0.01, _p("foam_size", 0.2))
+	var size := maxf(0.01, _p("foam_size", 0.18))
 	mesh.size = Vector2(size, size) * 2.0
 	mesh.material = _foam_material
 	return mesh
@@ -327,11 +338,11 @@ func _make_foam_mesh() -> QuadMesh:
 
 func _make_grit_mesh() -> SphereMesh:
 	var mesh := SphereMesh.new()
-	var grain := maxf(0.001, _p("spray_grain_radius", 0.018))
+	var grain := maxf(0.001, _p("spray_grain_radius", 0.026))
 	mesh.radius = grain
-	mesh.height = maxf(grain * 1.2, _p("spray_grain_height", 0.036))
-	mesh.radial_segments = maxi(3, _pi("spray_grain_segments", 4))
-	mesh.rings = maxi(1, _pi("spray_grain_rings", 2))
+	mesh.height = maxf(grain * 1.2, _p("spray_grain_height", 0.062))
+	mesh.radial_segments = maxi(3, _pi("spray_grain_segments", 3))
+	mesh.rings = maxi(1, _pi("spray_grain_rings", 1))
 	mesh.material = _grit_material
 	return mesh
 
@@ -339,31 +350,31 @@ func _make_grit_mesh() -> SphereMesh:
 func _make_foam_process() -> ParticleProcessMaterial:
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.2)) * _p(
+	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.18)) * _p(
 		"foam_emission_radius", 0.55
 	)
-	process.direction = _pv("foam_direction", Vector3(0.0, 0.42, 0.6))
+	process.direction = _pv("foam_direction", Vector3(0.0, 0.42, -0.65))
 	process.spread = clampf(_p("foam_spread", 42.0), 0.0, 180.0)
-	process.flatness = clampf(_p("foam_flatness", 0.35), 0.0, 1.0)
-	process.gravity = _pv("foam_gravity", Vector3(0.0, -2.8, 0.0))
-	process.initial_velocity_min = _p("foam_speed_min", 0.4)
-	process.initial_velocity_max = _p("foam_speed_max", 2.4)
+	process.flatness = clampf(_p("foam_flatness", 0.25), 0.0, 1.0)
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.75, 0.0))
+	process.initial_velocity_min = _p("foam_speed_min", 0.75)
+	process.initial_velocity_max = _p("foam_speed_max", 3.1)
 	process.scale_min = _p("foam_scale_min", 0.55)
-	process.scale_max = _p("foam_scale_max", 1.5)
-	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
+	process.scale_max = _p("foam_scale_max", 1.35)
+	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 2.3))
 	process.angle_min = 0.0
 	process.angle_max = 360.0
 	process.color_ramp = DustFx.fade_ramp()
-	process.turbulence_enabled = _p("foam_turbulence", 1.2) > 0.0
-	process.turbulence_noise_strength = _p("foam_turbulence", 1.2)
-	process.turbulence_noise_scale = _p("foam_turbulence_scale", 4.5)
-	process.turbulence_influence_min = 0.05
-	process.turbulence_influence_max = 0.16
-	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35)
-	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.35)
-	process.damping_min = _p("foam_damping_min", 0.2)
-	process.damping_max = maxf(_p("foam_damping_min", 0.2), _p("foam_damping_max", 0.7))
-	var spin := _p("foam_spin", 35.0)
+	process.turbulence_enabled = _p("foam_turbulence", 2.0) > 0.0
+	process.turbulence_noise_strength = _p("foam_turbulence", 2.0)
+	process.turbulence_noise_scale = _p("foam_turbulence_scale", 3.0)
+	process.turbulence_influence_min = 0.06
+	process.turbulence_influence_max = 0.22
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.22)
+	process.lifetime_randomness = _p("foam_lifetime_randomness", 0.42)
+	process.damping_min = _p("foam_damping_min", 0.55)
+	process.damping_max = maxf(_p("foam_damping_min", 0.55), _p("foam_damping_max", 1.25))
+	var spin := _p("foam_spin", 48.0)
 	process.angular_velocity_min = -spin
 	process.angular_velocity_max = spin
 	return process
@@ -372,27 +383,29 @@ func _make_foam_process() -> ParticleProcessMaterial:
 func _make_grit_process() -> ParticleProcessMaterial:
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	process.emission_sphere_radius = 0.09
+	process.emission_sphere_radius = 0.14
 	process.direction = _pv("spray_direction", Vector3(0.0, 0.7, -1.0))
 	process.spread = clampf(_p("grit_spread", 42.0), 0.0, 180.0)
-	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0))
-	process.initial_velocity_min = _p("grit_speed_min", 0.7)
-	process.initial_velocity_max = _p("grit_speed_max", 3.6)
+	process.gravity = _pv("grit_gravity", Vector3(0.0, -13.5, 0.0))
+	process.initial_velocity_min = _p("grit_speed_min", 1.5)
+	process.initial_velocity_max = _p("grit_speed_max", 5.2)
 	process.scale_min = _p("grit_scale_min", 0.55)
-	process.scale_max = _p("grit_scale_max", 2.2)
-	process.scale_curve = DustFx.growth_curve(0.6)
+	process.scale_max = _p("grit_scale_max", 2.3)
+	process.scale_curve = DustFx.debris_scale_curve()
 	process.color_ramp = DustFx.debris_fade()
+	if _pb("grit_use_variation", true):
+		process.color_initial_ramp = DustFx.debris_color_variation()
 	# Крупинки почти не наследуют скорость машины: иначе на трассе они
 	# вылетают вперёд ровным лучом и читаются как выстрел, а не как грунт
 	# из-под колеса.
-	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.35) * 0.8
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.22) * 0.8
 	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
 	# Торможение о воздух: комья теряют скорость и падают, а не летят по прямой.
-	process.damping_min = _p("grit_damping_min", 0.5)
-	process.damping_max = maxf(_p("grit_damping_min", 0.5), _p("grit_damping_max", 1.4))
+	process.damping_min = _p("grit_damping_min", 0.35)
+	process.damping_max = maxf(_p("grit_damping_min", 0.35), _p("grit_damping_max", 1.05))
 	process.angle_min = 0.0
 	process.angle_max = 360.0
-	var spin := _p("grit_spin", 0.0)
+	var spin := _p("grit_spin", 260.0)
 	process.angular_velocity_min = -spin
 	process.angular_velocity_max = spin
 	return process
@@ -777,7 +790,7 @@ func _emit_foam(
 		_p("foam_speed_max", 2.4) * profile.velocity_scale * level
 	)
 	var color: Color = profile.color_for_wetness(wetness)
-	color.a *= clampf(_p("foam_alpha", 0.42), 0.0, 1.0) * clampf(profile.particle_tint, 0.05, 3.0)
+	color.a *= clampf(_p("foam_alpha", 0.56), 0.0, 1.0) * clampf(profile.particle_tint, 0.05, 3.0)
 	process.color = color
 	pool.global_transform = Transform3D(basis, point)
 	pool.emitting = ratio > 0.0
@@ -798,12 +811,19 @@ func _emit_grit(
 	pool.amount_ratio = clampf(density, 0.0, 1.0)
 	process.direction = direction
 	var burst: float = maxf(0.05, profile.burst_scale)
-	var speed_min: float = _p("grit_speed_min", 0.7) * profile.velocity_scale * level * burst
-	var speed_max: float = _p("grit_speed_max", 3.6) * profile.velocity_scale * level * burst
+	var speed_min: float = _p("grit_speed_min", 1.5) * profile.velocity_scale * level * burst
+	var speed_max: float = _p("grit_speed_max", 5.2) * profile.velocity_scale * level * burst
 	process.initial_velocity_min = maxf(0.0, speed_min)
 	process.initial_velocity_max = maxf(speed_min, speed_max)
 	var color: Color = profile.color_for_wetness(wetness)
-	color.a *= clampf(profile.particle_tint, 0.05, 3.0)
+	var kind: String = profile.kind_name()
+	if kind == "gravel" or kind == "mud" or kind == "grass":
+		color = color.darkened(0.16)
+		color.a = clampf(_p("grit_alpha", 0.96), 0.0, 1.0) * clampf(
+			profile.particle_tint, 0.05, 3.0
+		)
+	else:
+		color.a *= clampf(profile.particle_tint, 0.05, 3.0)
 	process.color = color
 	pool.global_transform = Transform3D(basis, point)
 	pool.emitting = pool.amount_ratio > 0.0
@@ -836,51 +856,62 @@ func _configure_for_profile(index: int, profile: RallySurfaceFxProfile) -> void:
 func _configure_foam(index: int, profile: RallySurfaceFxProfile, amount_scale: float) -> void:
 	var foam := _foams[index]
 	foam.name = "WheelFoam_%s_%d" % [profile.kind_name().capitalize(), index]
-	foam.amount = maxi(1, roundi(_p("foam_amount", 60) * amount_scale * profile.amount_scale))
-	foam.lifetime = maxf(0.1, _p("foam_lifetime", 1.35) * profile.lifetime_scale)
+	foam.amount = maxi(1, roundi(_p("foam_amount", 72) * amount_scale * profile.amount_scale))
+	foam.lifetime = maxf(0.1, _p("foam_lifetime", 1.55) * profile.lifetime_scale)
 	var quad := foam.draw_pass_1 as QuadMesh
 	if quad != null:
-		var size := maxf(0.01, _p("foam_size", 0.2)) * profile.particle_scale
+		var size := maxf(0.01, _p("foam_size", 0.18)) * profile.particle_scale
 		quad.size = Vector2(size, size) * 2.0
 	var process := foam.process_material as ParticleProcessMaterial
 	if process == null:
 		return
 	process.spread = clampf(_p("foam_spread", 42.0) * profile.spread_scale, 0.0, 180.0)
-	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.2)) * _p(
+	process.emission_sphere_radius = maxf(0.01, _p("foam_size", 0.18)) * _p(
 		"foam_emission_radius", 0.55
 	)
 	process.scale_min = _p("foam_scale_min", 0.55) * profile.particle_scale
-	process.scale_max = _p("foam_scale_max", 1.5) * profile.particle_scale
-	process.gravity = _pv("foam_gravity", Vector3(0.0, -2.8, 0.0)) * profile.gravity_scale
-	process.damping_min = _p("foam_damping_min", 0.2)
-	process.damping_max = maxf(_p("foam_damping_min", 0.2), _p("foam_damping_max", 0.7))
-	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 3.1))
+	process.scale_max = _p("foam_scale_max", 1.35) * profile.particle_scale
+	process.gravity = _pv("foam_gravity", Vector3(0.0, -0.75, 0.0)) * profile.gravity_scale
+	process.damping_min = _p("foam_damping_min", 0.55)
+	process.damping_max = maxf(_p("foam_damping_min", 0.55), _p("foam_damping_max", 1.25))
+	process.scale_curve = DustFx.growth_curve(_p("foam_growth", 2.3))
+	process.turbulence_enabled = _p("foam_turbulence", 2.0) > 0.0
+	process.turbulence_noise_strength = _p("foam_turbulence", 2.0)
+	process.turbulence_noise_scale = _p("foam_turbulence_scale", 3.0)
+	process.inherit_velocity_ratio = _p("inherit_velocity_ratio", 0.22)
+	var spin := _p("foam_spin", 48.0)
+	process.angular_velocity_min = -spin
+	process.angular_velocity_max = spin
 
 
 ## Комья: количество, жизнь, размер зерна и разлёт под покрытие.
 func _configure_grit(index: int, profile: RallySurfaceFxProfile, amount_scale: float) -> void:
 	var grit := _sprays[index]
 	grit.name = "WheelGrit_%s_%d" % [profile.kind_name().capitalize(), index]
-	grit.amount = maxi(1, roundi(_p("grit_amount", 80) * amount_scale * profile.amount_scale))
+	grit.amount = maxi(1, roundi(_p("grit_amount", 88) * amount_scale * profile.amount_scale))
 	grit.lifetime = maxf(0.05, _p("grit_lifetime", 0.95) * profile.lifetime_scale)
 	var grain := grit.draw_pass_1 as SphereMesh
 	if grain != null:
-		var radius := maxf(0.002, _p("spray_grain_radius", 0.018) * profile.grain_scale)
+		var radius := maxf(0.002, _p("spray_grain_radius", 0.026) * profile.grain_scale)
 		grain.radius = radius
-		grain.height = maxf(radius * 1.2, _p("spray_grain_height", 0.036) * profile.grain_scale)
-		grain.radial_segments = maxi(3, _pi("spray_grain_segments", 4))
-		grain.rings = maxi(1, _pi("spray_grain_rings", 2))
+		grain.height = maxf(radius * 1.2, _p("spray_grain_height", 0.062) * profile.grain_scale)
+		grain.radial_segments = maxi(3, _pi("spray_grain_segments", 3))
+		grain.rings = maxi(1, _pi("spray_grain_rings", 1))
 	var process := grit.process_material as ParticleProcessMaterial
 	if process == null:
 		return
 	process.spread = clampf(_p("grit_spread", 42.0) * profile.spread_scale, 0.0, 180.0)
 	process.scale_min = _p("grit_scale_min", 0.55) * profile.particle_scale
-	process.scale_max = _p("grit_scale_max", 2.2) * profile.particle_scale
-	process.gravity = _pv("grit_gravity", Vector3(0.0, -11.0, 0.0)) * profile.gravity_scale
+	process.scale_max = _p("grit_scale_max", 2.3) * profile.particle_scale
+	process.scale_curve = DustFx.debris_scale_curve()
+	process.color_initial_ramp = (
+		DustFx.debris_color_variation() if _pb("grit_use_variation", true) else null
+	)
+	process.gravity = _pv("grit_gravity", Vector3(0.0, -13.5, 0.0)) * profile.gravity_scale
 	process.lifetime_randomness = _p("grit_lifetime_randomness", 0.5)
-	process.damping_min = _p("grit_damping_min", 0.5)
-	process.damping_max = maxf(_p("grit_damping_min", 0.5), _p("grit_damping_max", 1.4))
-	var spin := _p("grit_spin", 0.0)
+	process.damping_min = _p("grit_damping_min", 0.35)
+	process.damping_max = maxf(_p("grit_damping_min", 0.35), _p("grit_damping_max", 1.05))
+	var spin := _p("grit_spin", 260.0)
 	process.angular_velocity_min = -spin
 	process.angular_velocity_max = spin
 

@@ -676,6 +676,19 @@ def check_puff_size():
                 "(бюджет %.2f м) — крупнее машины, будет виден сквозь кузов"
                 % (line_number, peak, budget)
             )
+    dust_radius = _tres_value("data/stage/default_fx_profile.tres", "dust_radius",
+                              _gd_value(defaults, "dust_radius", 0.21))
+    dust_growth = _tres_value("data/stage/default_fx_profile.tres", "dust_growth",
+                              _gd_value(defaults, "dust_growth", 2.55))
+    dust_scale_max = _tres_value("data/stage/default_fx_profile.tres", "dust_scale_max",
+                                 _gd_value(defaults, "dust_scale_max", 1.45))
+    dust_peak = dust_radius * 2.0 * dust_scale_max * dust_growth
+    if dust_peak > budget:
+        errors.append(
+            "data/stage/default_fx_profile.tres: шлейф за кормой %.2f м на пике "
+            "(бюджет %.2f м) — крупнее машины, будет протыкать кузов"
+            % (dust_peak, budget)
+        )
     return errors
 
 

@@ -14,6 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
 [ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
 [ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="15_cockpit"]
+[ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="16_emiss"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.15
@@ -450,6 +451,11 @@ shadow_mesh = SubResource("ArrayMesh_1n0cv")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y2iot"]
 albedo_texture = ExtResource("8_yojui")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 1.55
+emission_operator = 1
+emission_texture = ExtResource("16_emiss")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_es165"]
 resource_name = "low poly lance evo_Cube_001"
@@ -891,6 +897,17 @@ roughness = 0.6
 material = SubResource("Mat_HarnessRed")
 size = Vector3(0.065, 0.68, 0.018)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_brake"]
+albedo_color = Color(0.45, 0.03, 0.03, 1)
+roughness = 0.25
+emission_enabled = true
+emission = Color(1, 0.1, 0.06, 1)
+emission_energy_multiplier = 0.25
+
+[sub_resource type="BoxMesh" id="BoxMesh_center_brake"]
+material = SubResource("StandardMaterial3D_center_brake")
+size = Vector3(0.46, 0.018, 0.012)
+
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 collision_mask = 3
 mass = 1230.0
@@ -976,10 +993,10 @@ material_override = SubResource("StandardMaterial3D_g12nq")
 mesh = SubResource("ArrayMesh_268vy")
 
 [node name="GravelParticles" type="GPUParticles3D" parent="." unique_id=1966451970]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, -1.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.24, -2.42)
 emitting = false
-amount = 128
-lifetime = 1.1
+amount = 160
+lifetime = 1.55
 
 [node name="EngineAudio" type="Node3D" parent="." unique_id=16527884]
 script = ExtResource("2_audio")
@@ -1035,6 +1052,39 @@ mesh = SubResource("ArrayMesh_qyg1a")
 [node name="Circle_005" type="MeshInstance3D" parent="low poly lance evo/Mitsubishi_Body" unique_id=1291720364]
 transform = Transform3D(0.9999989, -0.0012240614, -0.00081107917, 0.0014683922, 0.83363885, 0.552308, 8.81555e-08, -0.5523086, 0.83363974, -0.46008286, 0.8256886, -1.1070246)
 mesh = SubResource("ArrayMesh_4awaq")
+
+[node name="TaillightL" type="SpotLight3D" parent="low poly lance evo" unique_id=1910428301]
+transform = Transform3D(0.9948861, 0, 0.1010037, 0.01414175, 0.9901498, -0.1392962, -0.1000088, 0.1400123, 0.9850862, 0.88, 2.034242, -1.791603)
+light_color = Color(1, 0.14, 0.08, 1)
+light_energy = 1.1
+light_volumetric_fog_energy = 0.65
+spot_range = 14.0
+spot_attenuation = 1.1
+spot_angle = 56.0
+spot_angle_attenuation = 0.85
+
+[node name="TaillightR" type="SpotLight3D" parent="low poly lance evo" unique_id=1910428302]
+transform = Transform3D(0.9948861, 0, -0.1010037, -0.01414175, 0.9901498, -0.1392962, 0.1000088, 0.1400123, 0.9850862, -0.89, 2.034242, -1.791603)
+light_color = Color(1, 0.14, 0.08, 1)
+light_energy = 1.1
+light_volumetric_fog_energy = 0.65
+spot_range = 14.0
+spot_attenuation = 1.1
+spot_angle = 56.0
+spot_angle_attenuation = 0.85
+
+[node name="TaillightGlow" type="OmniLight3D" parent="low poly lance evo" unique_id=1910428303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 2.044242, -1.911603)
+light_color = Color(1, 0.12, 0.06, 1)
+light_energy = 0.55
+light_volumetric_fog_energy = 0.4
+omni_range = 4.2
+omni_attenuation = 1.4
+
+[node name="CenterBrakeLight" type="MeshInstance3D" parent="low poly lance evo" unique_id=1910428304]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 2.701242, -1.692603)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_center_brake")
 
 [node name="RallyCockpit" type="Node3D" parent="." unique_id=1410955852]
 transform = Transform3D(1.071969, 0, 0, 0, 1, 0, 0, 0, 1, -0.027093112, 0.9640378, 0.11260709)
