@@ -96,7 +96,7 @@ shader_parameter/rock_color = Color(0.42, 0.43, 0.45, 1)
 shader_parameter/surface_roughness = 0.99
 shader_parameter/grain_scale = 1.4
 shader_parameter/flat_shading = 1.0
-shader_parameter/vertex_snap = 0.15
+shader_parameter/vertex_snap = 0.0
 shader_parameter/resolution_y = 270.0
 shader_parameter/wetness = 0.0
 shader_parameter/snow_cover = 0.0
@@ -128,7 +128,7 @@ shader = ExtResource("13_ewyku")
 shader_parameter/gravel_texture = ExtResource("14_45pyf")
 shader_parameter/gravel_texture_smooth = ExtResource("14_45pyf")
 shader_parameter/ps1_textures = true
-shader_parameter/vertex_snap = 0.15
+shader_parameter/vertex_snap = 0.0
 shader_parameter/resolution_y = 270.0
 shader_parameter/section_surfaces = false
 shader_parameter/loose_relief = 0.08
@@ -169,8 +169,9 @@ shader_parameter/texture_base = 0.65
 shader_parameter/puddle_roughness = 0.18
 shader_parameter/puddle_mix = 0.35
 
-[sub_resource type="Resource" id="Resource_b2v7p"]
+[sub_resource type="Resource" id="Resource_bw6gc"]
 script = ExtResource("15_p5noe")
+ps1_enabled = false
 retro_color_bits_override = 5
 ground_surface_roughness = 0.99
 ground_grain_scale = 1.4
@@ -182,27 +183,28 @@ road_decal_profiles = Array[Resource]([ExtResource("8_n0brd"), ExtResource("9_fs
 ground_material = SubResource("ShaderMaterial_c4s61")
 road_material = SubResource("ShaderMaterial_sadah")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_nqdsk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1a1dp"]
 resource_local_to_scene = true
 shader = ExtResource("0_screen_shader")
-shader_parameter/retro_strength = 1.0
+shader_parameter/retro_strength = 0.0
 shader_parameter/resolution_y = 270.0
-shader_parameter/color_levels = 31.0
-shader_parameter/dither_strength = 1.0
+shader_parameter/color_levels = 0.0
+shader_parameter/dither_strength = 0.0
 shader_parameter/speed_intensity = 0.0
-shader_parameter/blur_strength = 0.02
-shader_parameter/vignette_strength = 0.26
+shader_parameter/blur_strength = 0.012
+shader_parameter/vignette_strength = 0.12
 shader_parameter/camera_mode = 0
-shader_parameter/blur_gain = 2.8
-shader_parameter/cockpit_scale = 0.7
-shader_parameter/speed_stretch = 0.031
+shader_parameter/blur_gain = 2.0
+shader_parameter/cockpit_scale = 0.8
+shader_parameter/speed_stretch = 0.02
 shader_parameter/speed_stretch_gain = 1.0
 
 [node name="RallyStage" type="Node3D" unique_id=1985714500]
 script = ExtResource("1_stage")
 game_config = ExtResource("2_config")
 track_override = ExtResource("3_track")
-settings = SubResource("Resource_b2v7p")
+settings = SubResource("Resource_bw6gc")
+legacy_effects_imported = true
 spawn_layout = ExtResource("16_o6uxo")
 fx_profile = ExtResource("17_ihe82")
 scenery = ExtResource("18_uvmww")
@@ -397,6 +399,118 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="SpeedShaderRect" parent="HUD" unique_id=1549415691 instance=ExtResource("7_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_nqdsk")
+material = SubResource("ShaderMaterial_1a1dp")
+look = 0
+enabled = false
 
 [node name="RallyHUD" parent="HUD" unique_id=1254568689 instance=ExtResource("6_hud")]
+
+[node name="StudioProps" type="Node3D" parent="." unique_id=2057358048]
+
+[node name="FirTree" type="Node3D" parent="StudioProps" unique_id=114964074 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.38382995, 0, -1.1568102, 0, 1.1220913, 0, 1.1568102, 0, -0.38382995, 184.32674, 2.531431e-05, 64.04881)
+
+[node name="@Node3D@25910" type="Node3D" parent="StudioProps" unique_id=898382513 instance=ExtResource("prop_17")]
+transform = Transform3D(1.2233669, 0, -0.656939, 0, 1.3175801, 0, 0.656939, 0, 1.2233669, 185.70764, 0.0015523139, 98.79867)
+
+[node name="@Node3D@25911" type="Node3D" parent="StudioProps" unique_id=1647313599 instance=ExtResource("prop_17")]
+transform = Transform3D(0.32948437, 0, 0.8746732, 0, 1.0167861, 0, -0.8746732, 0, 0.32948437, 189.67178, -2.846648e-06, 76.811676)
+
+[node name="@Node3D@25912" type="Node3D" parent="StudioProps" unique_id=1362177228 instance=ExtResource("prop_17")]
+transform = Transform3D(0.7355577, 0, -0.37454155, 0, 0.9449709, 0, 0.37454155, 0, 0.7355577, 173.23892, -0.004875668, 71.625755)
+
+[node name="@Node3D@25913" type="Node3D" parent="StudioProps" unique_id=1991063106 instance=ExtResource("prop_17")]
+transform = Transform3D(1.1895709, 0, -0.8560411, 0, 1.5190841, 0, 0.8560411, 0, 1.1895709, 223.2719, 4.3483564e-05, 61.809147)
+
+[node name="@Node3D@25914" type="Node3D" parent="StudioProps" unique_id=578932515 instance=ExtResource("prop_17")]
+transform = Transform3D(0.46931776, 0, 0.87989384, 0, 0.91007847, 0, -0.87989384, 0, 0.46931776, 229.34361, 0.003559031, 61.26543)
+
+[node name="@Node3D@25915" type="Node3D" parent="StudioProps" unique_id=1348442306 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.7954165, 0, -0.35238513, 0, 1.6799972, 0, 0.35238513, 0, -1.7954165, 219.85709, -0.006230561, 46.746826)
+
+[node name="@Node3D@25916" type="Node3D" parent="StudioProps" unique_id=204033960 instance=ExtResource("prop_17")]
+transform = Transform3D(1.1714323, 0, -1.0906426, 0, 1.5808572, 0, 1.0906426, 0, 1.1714323, 234.65952, -0.0096586775, 56.703407)
+
+[node name="@Node3D@25917" type="Node3D" parent="StudioProps" unique_id=1483516465 instance=ExtResource("prop_17")]
+transform = Transform3D(0.8453757, 0, 0.38133544, 0, 0.8597556, 0, -0.38133544, 0, 0.8453757, 231.37367, 0.0042282515, 87.20558)
+
+[node name="@Node3D@25918" type="Node3D" parent="StudioProps" unique_id=1138076465 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.1905854, 0, 0.67693096, 0, 1.4352518, 0, -0.67693096, 0, -1.1905854, 210.21036, -0.00092461053, 66.4476)
+
+[node name="@Node3D@25919" type="Node3D" parent="StudioProps" unique_id=215590138 instance=ExtResource("prop_17")]
+transform = Transform3D(0.2320319, 0, 0.83892465, 0, 0.833535, 0, -0.83892465, 0, 0.2320319, 210.33066, -0.005195844, 75.384926)
+
+[node name="@Node3D@25920" type="Node3D" parent="StudioProps" unique_id=432813924 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.345439, 0, 0.16807887, 0, 1.3134449, 0, -0.16807887, 0, -1.345439, 225.31198, 0.0013492445, 73.95189)
+
+[node name="@Node3D@25921" type="Node3D" parent="StudioProps" unique_id=1229175102 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.09788701, 0, 1.1975085, 0, 1.1297144, 0, -1.1975085, 0, -0.09788701, 241.79129, -0.0030308892, 128.55685)
+
+[node name="@Node3D@25922" type="Node3D" parent="StudioProps" unique_id=460551597 instance=ExtResource("prop_17")]
+transform = Transform3D(1.3664318, 0, -0.35954115, 0, 1.4665915, 0, 0.35954115, 0, 1.3664318, 216.24747, -0.005142732, 101.7874)
+
+[node name="@Node3D@25923" type="Node3D" parent="StudioProps" unique_id=1650293098 instance=ExtResource("prop_17")]
+transform = Transform3D(0.7707467, 0, -0.04373574, 0, 0.7434913, 0, 0.04373574, 0, 0.7707467, 243.17719, 0.0011135791, 120.20638)
+
+[node name="@Node3D@25924" type="Node3D" parent="StudioProps" unique_id=601440005 instance=ExtResource("prop_17")]
+transform = Transform3D(0.037036914, 0, -0.76662594, 0, 0.78087676, 0, 0.76662594, 0, 0.037036914, 232.116, -0.00045040704, 106.69267)
+
+[node name="@Node3D@25925" type="Node3D" parent="StudioProps" unique_id=253231159 instance=ExtResource("prop_17")]
+transform = Transform3D(0.35473004, 0, -0.80135894, 0, 0.8427154, 0, 0.80135894, 0, 0.35473004, 228.01228, 0.00055442605, 120.11816)
+
+[node name="@Node3D@25926" type="Node3D" parent="StudioProps" unique_id=1229529462 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.0683614, 0, -0.62474, 0, 1.3757637, 0, 0.62474, 0, -1.0683614, 235.55351, 0.000897113, 146.61812)
+
+[node name="@Node3D@25927" type="Node3D" parent="StudioProps" unique_id=1789867983 instance=ExtResource("prop_17")]
+transform = Transform3D(0.9371624, 0, 0.40647385, 0, 0.94552135, 0, -0.40647385, 0, 0.9371624, 223.84811, 3.1787964e-05, 137.48402)
+
+[node name="@Node3D@25928" type="Node3D" parent="StudioProps" unique_id=1672351895 instance=ExtResource("prop_17")]
+transform = Transform3D(1.0149391, 0, -0.6657639, 0, 1.4265664, 0, 0.6657639, 0, 1.0149391, 216.9433, 0, 149.62195)
+
+[node name="@Node3D@25929" type="Node3D" parent="StudioProps" unique_id=1031593447 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.83468306, 0, 0.42329124, 0, 0.84368396, 0, -0.42329124, 0, -0.83468306, 218.63342, -0.0037769082, 50.173904)
+
+[node name="@Node3D@25930" type="Node3D" parent="StudioProps" unique_id=1882153636 instance=ExtResource("prop_17")]
+transform = Transform3D(0.7891387, 0, -0.1714407, 0, 0.8644218, 0, 0.1714407, 0, 0.7891387, 215.86943, 0.0019331841, 41.472244)
+
+[node name="@Node3D@25931" type="Node3D" parent="StudioProps" unique_id=1015355560 instance=ExtResource("prop_17")]
+transform = Transform3D(1.5173773, 0, 0.17697743, 0, 1.4898481, 0, -0.17697743, 0, 1.5173773, 225.8676, -0.0022088755, 66.78301)
+
+[node name="@Node3D@25932" type="Node3D" parent="StudioProps" unique_id=313383386 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.83262366, 0, 0.752318, 0, 1.1470294, 0, -0.752318, 0, -0.83262366, 219.60632, 0.00046851896, 56.912663)
+
+[node name="@Node3D@25933" type="Node3D" parent="StudioProps" unique_id=750139426 instance=ExtResource("prop_17")]
+transform = Transform3D(0.9188833, 0, 0.7776237, 0, 1.1905887, 0, -0.7776237, 0, 0.9188833, 206.2491, 0, 51.4498)
+
+[node name="@Node3D@25934" type="Node3D" parent="StudioProps" unique_id=745263643 instance=ExtResource("prop_17")]
+transform = Transform3D(0.16097696, 0, -1.2502737, 0, 1.3209758, 0, 1.2502737, 0, 0.16097696, 172.60199, 0.00071927125, 64.24665)
+
+[node name="@Node3D@25935" type="Node3D" parent="StudioProps" unique_id=1650038827 instance=ExtResource("prop_17")]
+transform = Transform3D(0.6803049, 0, 1.2964164, 0, 1.4088131, 0, -1.2964164, 0, 0.6803049, 194.13924, 0, 80.51965)
+
+[node name="@Node3D@25936" type="Node3D" parent="StudioProps" unique_id=653134897 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.1774436, 0, 1.1516961, 0, 1.5218979, 0, -1.1516961, 0, -1.1774436, 190.60487, 0, 73.19422)
+
+[node name="@Node3D@25937" type="Node3D" parent="StudioProps" unique_id=1030810021 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.2590452, 0, -0.38141912, 0, 1.3202062, 0, 0.38141912, 0, -1.2590452, 191.59357, -0.00049080997, 97.650826)
+
+[node name="@Node3D@25938" type="Node3D" parent="StudioProps" unique_id=740939419 instance=ExtResource("prop_17")]
+transform = Transform3D(0.9985089, 0, -0.13791412, 0, 1.0043988, 0, 0.13791412, 0, 0.9985089, 224.6142, 5.928534e-05, 115.462975)
+
+[node name="@Node3D@25939" type="Node3D" parent="StudioProps" unique_id=1840509756 instance=ExtResource("prop_17")]
+transform = Transform3D(1.4914608, 0, -0.8481119, 0, 1.7184144, 0, 0.8481119, 0, 1.4914608, 195.51117, 0, 103.461716)
+
+[node name="@Node3D@25940" type="Node3D" parent="StudioProps" unique_id=1558658284 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.578384, 0, 0.44356173, 0, 0.74866396, 0, -0.44356173, 0, -0.578384, 199.32686, 0, 103.77066)
+
+[node name="@Node3D@25941" type="Node3D" parent="StudioProps" unique_id=2059824284 instance=ExtResource("prop_17")]
+transform = Transform3D(0.2059225, 0, -1.4671264, 0, 1.514153, 0, 1.4671264, 0, 0.2059225, 203.17284, -0.025359845, 141.80981)
+
+[node name="@Node3D@25942" type="Node3D" parent="StudioProps" unique_id=268452122 instance=ExtResource("prop_17")]
+transform = Transform3D(-0.65851045, 0, 0.5351731, 0, 0.91637594, 0, -0.5351731, 0, -0.65851045, 200.28853, 0, 170.8868)
+
+[node name="@Node3D@25943" type="Node3D" parent="StudioProps" unique_id=504459800 instance=ExtResource("prop_17")]
+transform = Transform3D(-1.2644117, 0, 0.52777267, 0, 1.3891374, 0, -0.52777267, 0, -1.2644117, 196.88963, 1.3214911e-07, 181.34036)
+
+[node name="@Node3D@25944" type="Node3D" parent="StudioProps" unique_id=1425085534 instance=ExtResource("prop_17")]
+transform = Transform3D(1.261371, 0, 0.92015904, 0, 1.4273225, 0, -0.92015904, 0, 1.261371, 200.30464, 0, 177.08197)
