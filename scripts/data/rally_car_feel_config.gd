@@ -143,3 +143,21 @@ extends Resource
 @export_range(0.0, 300.0, 1.0) var camera_velocity_follow_full_kmh: float = 75.0
 ## Запасной порог падения, если сцена не передала провайдер, м.
 @export_range(-500.0, 100.0, 1.0) var fall_limit_y: float = -20.0
+
+@export_group("Свет и стоп-сигналы")
+## Яркость проекции задних фонарей на дорогу и пыль в режиме габаритов.
+@export_range(0.0, 12.0, 0.05) var taillight_idle_energy: float = 1.1
+## Яркость проекции задних фонарей при торможении / ручнике.
+@export_range(0.0, 16.0, 0.1) var taillight_brake_energy: float = 4.5
+## Ближнее красное свечение за кормой в режиме габаритов (подсвечивает дым у кормы).
+@export_range(0.0, 8.0, 0.05) var taillight_glow_idle_energy: float = 0.55
+## Ближнее красное свечение за кормой при торможении / ручнике.
+@export_range(0.0, 12.0, 0.05) var taillight_glow_brake_energy: float = 2.1
+## Яркость 3-го стоп-сигнала на спойлере в покое и при торможении.
+@export_range(0.0, 8.0, 0.05) var center_brake_idle_energy: float = 0.25
+@export_range(0.0, 16.0, 0.1) var center_brake_brake_energy: float = 4.2
+## Свечение маски фар и задних фонарей на кузове в покое и при торможении.
+@export_range(0.0, 8.0, 0.05) var body_emission_idle: float = 1.55
+@export_range(0.0, 12.0, 0.05) var body_emission_brake: float = 2.85
+## Отклик сглаживания вспышки стоп-сигналов, 1/с.
+@export_range(1.0, 60.0, 0.5) var brake_light_response: float = 24.0

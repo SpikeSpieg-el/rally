@@ -35,6 +35,17 @@ static func _material_for(mesh: MeshInstance3D) -> StandardMaterial3D:
 	return custom
 
 
+static func ensure_body_material(model: Node3D) -> StandardMaterial3D:
+	if model == null:
+		return null
+	var body := model.get_node_or_null("Mitsubishi_Body") as MeshInstance3D
+	if body == null:
+		return null
+	if body.material_override is StandardMaterial3D and (body.has_meta(ORIGINAL_META) or body.has_meta(CUSTOM_META)):
+		return body.material_override as StandardMaterial3D
+	return _material_for(body)
+
+
 static func apply_body(model: Node3D, setup: RallyCarSetup) -> void:
 	if model == null or setup == null:
 		return

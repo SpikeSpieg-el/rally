@@ -4,3 +4,12 @@
 
 [resource]
 script = ExtResource("1_feel")
+taillight_idle_energy = 1.1
+taillight_brake_energy = 4.5
+taillight_glow_idle_energy = 0.55
+taillight_glow_brake_energy = 2.1
+center_brake_idle_energy = 0.25
+center_brake_brake_energy = 4.2
+body_emission_idle = 1.55
+body_emission_brake = 2.85
+brake_light_response = 24.0

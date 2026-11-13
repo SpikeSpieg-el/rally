@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="3_c4xtp"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="3_nipno"]
 [ext_resource type="Texture2D" uid="uid://ba4nyqwkvfk2e" path="res://low poly lance evo_wheelbump.png" id="3_psh58"]
+[ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="4_emiss"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wckue"]
 resource_name = "exhaust pipe.002"
@@ -170,6 +171,11 @@ shadow_mesh = SubResource("ArrayMesh_1n0cv")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_psh58"]
 albedo_texture = ExtResource("1_c4xtp")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 1.55
+emission_operator = 1
+emission_texture = ExtResource("4_emiss")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_e8r34"]
 resource_name = "mitsubishi"
