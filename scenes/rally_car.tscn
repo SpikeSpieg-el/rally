@@ -1520,4 +1520,4 @@ spot_attenuation = 0.75
 spot_angle = 32.0
 
 [node name="WindshieldWipers" parent="." unique_id=453340048 instance=ExtResource("13_4mbpt")]
-transform = Transform3D(1, 0, 0, 0, 0.73183566, 0.6814811, 0, -0.6814811, 0.73183566, -0.2802538, 1.2087768, 1.3741604)
+transform = Transform3D(1, 0, 0, 0, 0.5669699, 0.82373846, 0, -0.82373846, 0.5669699, -0.2802538, 1.2087768, 1.3741604)
