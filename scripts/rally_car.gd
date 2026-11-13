@@ -128,7 +128,7 @@ const FEEL_GRAVITY: float = 9.81
 @onready var cam_chase: Marker3D = $Cameras/CamChase
 @onready var cam_hood: Marker3D = $Cameras/CamHood
 @onready var cam_cockpit: Marker3D = $Cameras/CamCockpit
-@onready var wipers: Node3D = get_node_or_null("Wipers")
+@onready var wipers: Node3D = _resolve_wipers()
 
 var spawn_transform: Transform3D = Transform3D.IDENTITY
 var camera_mode: int = CameraMode.CHASE_3RD:
@@ -1164,9 +1164,18 @@ func _apply_initial_camera_fov() -> void:
 			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * inside_fov_factor()
 
 
+func _resolve_wipers() -> Node3D:
+	var node := get_node_or_null("WindshieldWipers") as Node3D
+	if node != null:
+		return node
+	return get_node_or_null("Wipers") as Node3D
+
+
 ## Дворники работают только в виде из кабины: остальным режимам сказать,
 ## что «смотрят» (и можно стирать кровь), либо снять щётки на место.
 func _sync_wiper_view() -> void:
+	if wipers == null:
+		wipers = _resolve_wipers()
 	if wipers != null and wipers.has_method("set_viewing"):
 		wipers.set_viewing(camera_mode == CameraMode.COCKPIT_1ST)
 

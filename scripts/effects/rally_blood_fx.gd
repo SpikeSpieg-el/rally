@@ -23,14 +23,19 @@ const GLASS_WIPER_SHADER_CODE := """
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
 
-uniform vec4 blood_color : source_color = vec4(0.40, 0.025, 0.04, 0.9);
+uniform vec4 blood_color : source_color = vec4(0.40, 0.025, 0.04, 0.92);
 uniform float dirt_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float wipe_clean : hint_range(0.0, 1.0) = 0.0;
 uniform float wiper_pos : hint_range(0.0, 1.0) = 0.0;
 uniform float swept_max : hint_range(0.0, 1.0) = 0.0;
 uniform float wiper_active : hint_range(0.0, 1.0) = 0.0;
-uniform float angle_park = -1.43;
-uniform float angle_top = 0.17;
+uniform float angle_park = -1.43117;
+uniform float angle_top = 0.174533;
+uniform vec2 quad_size = vec2(1.46, 0.84);
+uniform vec2 quad_center_local = vec2(0.28, 0.365);
+uniform vec2 pivot_left = vec2(-0.25, 0.0);
+uniform vec2 pivot_right = vec2(0.25, 0.0);
+uniform vec2 blade_range = vec2(0.17, 0.75);
 uniform float hit_side : hint_range(-1.0, 1.0) = 0.0;
 uniform float splat_seed = 1.0;
 
@@ -62,9 +67,11 @@ float fbm(vec2 p) {
 	return v;
 }
 
-// Расчёт одного дворника в координатах стекла p (x: -1..1, y: 0..1 снизу вверх)
+// Расчёт одного дворника в метрах в локальной СК узла WindshieldWipers.
+// В Godot 3D rotation.z = angle поворачивает локальный +Y (0, r) в (-r*sin(angle), r*cos(angle)),
+// поэтому угол направления d = p_rig - pivot задаётся формулой atan(-d.x, d.y).
 void eval_wiper(
-	vec2 p,
+	vec2 p_rig,
 	vec2 pivot,
 	float a_park,
 	float a_top,
@@ -76,112 +83,123 @@ void eval_wiper(
 	out float rim_mask,
 	out float blade_line
 ) {
-	vec2 d = p - pivot;
+	vec2 d = p_rig - pivot;
 	float r = length(d);
-	float ang = atan(d.x, d.y);
+	float ang = atan(-d.x, d.y);
 
-	float r_min = 0.14;
-	float r_max = 0.88;
-	float radial = smoothstep(r_min - 0.03, r_min + 0.02, r) * (1.0 - smoothstep(r_max - 0.03, r_max + 0.02, r));
+	float r_min = blade_range.x;
+	float r_max = blade_range.y;
+	float radial = smoothstep(r_min - 0.016, r_min + 0.012, r) * (1.0 - smoothstep(r_max - 0.012, r_max + 0.016, r));
 
 	float span = a_top - a_park;
-	float dir = sign(span);
+	float dir = span >= 0.0 ? 1.0 : -1.0;
 	float span_abs = max(abs(span), 0.05);
-	float t_px = ((ang - a_park) * dir) / span_abs;
+	float diff = atan(sin(ang - a_park), cos(ang - a_park));
+	float t_px = (diff * dir) / span_abs;
 
-	float angular = smoothstep(-0.03, 0.02, t_px) * (1.0 - smoothstep(0.98, 1.04, t_px));
+	float angular = smoothstep(-0.025, 0.015, t_px) * (1.0 - smoothstep(0.985, 1.025, t_px));
 	in_sector = radial * angular;
 
 	// Где щётка уже успела пройти с момента удара
 	float passed = 1.0 - smoothstep(s_max - 0.02, s_max + 0.02, t_px);
 	is_swept = in_sector * passed * step(0.005, s_max);
 
-	// Концентрические дуговые следы-полосы вдоль радиуса щётки
-	float ring_n1 = noise2(vec2(r * 52.0 + splat_seed * 1.7, t_px * 3.5));
-	float ring_n2 = noise2(vec2(r * 135.0 - splat_seed * 2.3, t_px * 6.0));
-	float grooves = pow(clamp(ring_n1 * 0.65 + ring_n2 * 0.55, 0.0, 1.0), 2.2);
-	arc_streak = is_swept * grooves;
+	// Концентрические дуговые следы-полосы вдоль радиуса щётки (читаемые даже в 360p/PS1)
+	float ring_n1 = noise2(vec2(r * 30.0 + splat_seed * 1.7, t_px * 2.2));
+	float ring_n2 = noise2(vec2(r * 72.0 - splat_seed * 2.3, t_px * 4.0));
+	float groove_signal = ring_n1 * 0.58 + ring_n2 * 0.42;
+	float grooves = smoothstep(0.50, 0.84, groove_signal);
+	float arc_fade = 0.65 + 0.35 * noise2(vec2(r * 14.0, t_px * 3.0 + splat_seed));
+	arc_streak = is_swept * grooves * arc_fade;
 
-	// Кровавая кромка (валик) по внешнему/внутреннему радиусу и на краях разворота щётки
-	float outer_rim = exp(-pow((r - r_max) / 0.028, 2.0)) * angular * step(0.02, s_max);
-	float inner_rim = exp(-pow((r - r_min) / 0.022, 2.0)) * angular * step(0.02, s_max);
-	float stop_rim = exp(-pow((t_px - s_max) / 0.026, 2.0)) * radial * step(0.02, s_max);
-	float park_rim = exp(-pow(t_px / 0.026, 2.0)) * radial * step(0.02, s_max);
-	rim_mask = clamp(outer_rim + inner_rim * 0.7 + stop_rim * 0.9 + park_rim * 0.5, 0.0, 1.0);
+	// Кровавый валик по краям дуги и в точке разворота щётки (в метрах по дуге)
+	float rim_noise = 0.65 + 0.48 * noise2(vec2(r * 18.0 + splat_seed, t_px * 12.0));
+	float arc_dist = abs(t_px - s_max) * span_abs * max(r, 0.15);
+	float park_dist = abs(t_px) * span_abs * max(r, 0.15);
+	float s_gate = step(0.02, s_max);
+	float outer_rim = exp(-pow((r - r_max) / 0.019, 2.0)) * angular * s_gate;
+	float inner_rim = exp(-pow((r - r_min) / 0.014, 2.0)) * angular * s_gate;
+	float stop_rim = exp(-pow(arc_dist / 0.019, 2.0)) * radial * s_gate;
+	float park_rim = exp(-pow(park_dist / 0.014, 2.0)) * radial * s_gate;
+	rim_mask = clamp((outer_rim * 0.88 + inner_rim * 0.38 + stop_rim * 1.0 + park_rim * 0.32) * rim_noise, 0.0, 1.0);
 
-	// Мокрый след прямо на лезвии движущейся щётки
-	blade_line = in_sector * exp(-pow((t_px - w_pos) / 0.022, 2.0)) * wiper_active;
+	// Мокрый валик прямо перед движущейся щёткой
+	float blade_arc = abs(t_px - w_pos) * span_abs * max(r, 0.15);
+	blade_line = in_sector * exp(-pow(blade_arc / 0.016, 2.0)) * wiper_active;
 }
 
 void fragment() {
 	if (dirt_amount <= 0.001) {
 		ALPHA = 0.0;
 	} else {
-		// p.x: -1.1 .. +1.1, p.y: 0.0 (низ стекла) .. 1.0 (верх стекла)
-		vec2 p = vec2((UV.x - 0.5) * 2.2, 1.0 - UV.y);
+		// Точка в локальных метрах WindshieldWipers (для точного совпадения с 3D-щётками)
+		vec2 p_rig = quad_center_local + vec2((UV.x - 0.5) * quad_size.x, (0.5 - UV.y) * quad_size.y);
+		// Нормализованные координаты стекла (x: -1..1 по ширине стекла, y: 0..1 от капота до крыши)
+		vec2 p_norm = vec2((UV.x - 0.5) * 2.0, 1.0 - UV.y);
 
-		// Органическая форма брызг крови на стекле
+		// Органическая форма брызг крови на стекле (центр и верхняя зона перед глазами)
 		vec2 seed_ofs = vec2(splat_seed * 3.17, splat_seed * 5.71);
-		float n_big = fbm(p * 3.2 + seed_ofs);
-		float n_fine = fbm(p * 9.5 - seed_ofs * 1.4);
+		float n_big = fbm(p_norm * 3.0 + seed_ofs);
+		float n_fine = fbm(p_norm * 8.5 - seed_ofs * 1.4);
 
-		// Основное пятно со стороны удара + разлёт брызг на обе половины стекла
-		vec2 c1 = vec2(hit_side * 0.42, 0.42);
-		vec2 c2 = vec2(-hit_side * 0.25, 0.36);
-		vec2 c3 = vec2(hit_side * 0.15, 0.62);
+		vec2 c1 = vec2(hit_side * 0.28, 0.48);
+		vec2 c2 = vec2(-hit_side * 0.20, 0.42);
+		vec2 c3 = vec2(hit_side * 0.06, 0.68);
 
-		float d1 = length((p - c1) * vec2(0.85, 1.15)) - n_big * 0.38 - n_fine * 0.14;
-		float d2 = length((p - c2) * vec2(0.95, 1.25)) - n_big * 0.34 - n_fine * 0.14;
-		float d3 = length((p - c3) * vec2(0.80, 1.10)) - n_big * 0.30;
+		float d1 = length((p_norm - c1) * vec2(0.95, 1.25)) - n_big * 0.34 - n_fine * 0.16;
+		float d2 = length((p_norm - c2) * vec2(1.05, 1.35)) - n_big * 0.30 - n_fine * 0.14;
+		float d3 = length((p_norm - c3) * vec2(0.90, 1.20)) - n_big * 0.28 - n_fine * 0.10;
 
-		float splat1 = 1.0 - smoothstep(0.18, 0.52, d1);
-		float splat2 = (1.0 - smoothstep(0.14, 0.46, d2)) * 0.85;
-		float splat3 = (1.0 - smoothstep(0.12, 0.42, d3)) * 0.75;
-		// Мелкие капли по всему стеклу (особенно видны по углам)
-		float droplets = smoothstep(0.64, 0.78, n_fine + n_big * 0.35) * smoothstep(1.15, 0.2, length(p - vec2(0.0, 0.45)));
+		float splat1 = 1.0 - smoothstep(0.12, 0.44, d1);
+		float splat2 = (1.0 - smoothstep(0.10, 0.40, d2)) * 0.85;
+		float splat3 = (1.0 - smoothstep(0.08, 0.36, d3)) * 0.78;
+		float droplets = smoothstep(0.60, 0.77, n_fine + n_big * 0.35) * smoothstep(0.98, 0.15, length((p_norm - vec2(0.0, 0.46)) * vec2(0.85, 1.05)));
 
-		float raw_blood = clamp(max(max(splat1, splat2), splat3) + droplets * 0.65, 0.0, 1.0);
+		float raw_blood = clamp(max(max(splat1, splat2), splat3) + droplets * 0.68, 0.0, 1.0);
 		raw_blood *= dirt_amount;
 
-		// Два дворника: левый и правый пивоты у нижней кромки стекла
+		// Два синхронных дворника в их реальных метрических пивотах
 		float in_l, swept_l, streak_l, rim_l, blade_l;
 		float in_r, swept_r, streak_r, rim_r, blade_r;
 
-		eval_wiper(p, vec2(-0.38, -0.06), angle_park, angle_top, wiper_pos, swept_max, in_l, swept_l, streak_l, rim_l, blade_l);
-		eval_wiper(p, vec2(0.26, -0.06), angle_park, angle_top, wiper_pos, swept_max, in_r, swept_r, streak_r, rim_r, blade_r);
+		eval_wiper(p_rig, pivot_left, angle_park, angle_top, wiper_pos, swept_max, in_l, swept_l, streak_l, rim_l, blade_l);
+		eval_wiper(p_rig, pivot_right, angle_park, angle_top, wiper_pos, swept_max, in_r, swept_r, streak_r, rim_r, blade_r);
 
 		float swept = clamp(swept_l + swept_r, 0.0, 1.0);
 		float streaks = max(streak_l, streak_r);
-		float rims = clamp(rim_l + rim_r, 0.0, 1.0);
+		// Кромка от одного дворника стирается в зоне прохода второго, образуя единый чистый веер
+		float rims = clamp(rim_l * (1.0 - swept_r * 0.88) + rim_r * (1.0 - swept_l * 0.88), 0.0, 1.0);
 		float blade = clamp(blade_l + blade_r, 0.0, 1.0);
 
-		// Насколько в точке было много крови, чтобы размазывать её по дуге
-		float blood_presence = smoothstep(0.05, 0.35, raw_blood + 0.25 * dirt_amount);
+		float base_presence = smoothstep(0.02, 0.40, raw_blood + 0.14 * dirt_amount);
+		float edge_presence = max(base_presence, 0.55 * dirt_amount);
 
-		// 1. Непротёртая кровь (в углах стекла и там, куда щётка ещё не дошла)
-		// Внутри протёртого сектора густая кровь срезается щёткой:
-		float unwiped_blood = raw_blood * (1.0 - swept * (0.72 + 0.28 * wipe_clean));
+		// 1. Непротёртая кровь в углах и за зоной щёток; центр очищается для обзора
+		float unwiped_blood = raw_blood * (1.0 - swept * mix(0.68, 0.94, wipe_clean));
 
-		// 2. Дуговые полосы-разводы от щётки внутри сектора (остаются видимыми следами!)
-		float streak_intensity = streaks * blood_presence * mix(0.85, 0.32, wipe_clean);
+		// 2. Дуговые полосы-разводы от щётки внутри протёртого сектора
+		float streak_intensity = streaks * base_presence * mix(0.95, 0.62, wipe_clean);
 
-		// 3. Сдвинутый щёткой контур крови по краям дуги
-		float rim_intensity = rims * blood_presence * mix(0.95, 0.62, wipe_clean * 0.7);
+		// 3. Сдвинутый щёткой валик крови по внешней границе взмаха
+		float rim_intensity = rims * edge_presence * mix(1.0, 0.78, wipe_clean * 0.45);
 
 		// 4. Мокрый валик прямо перед движущейся щёткой
-		float blade_intensity = blade * blood_presence * 0.85;
+		float blade_intensity = blade * max(base_presence, 0.50 * dirt_amount) * 0.95;
+
+		// Трапециевидная маска проёма лобового стекла, чтобы углы квада не вылезали за стойки
+		float half_w = mix(0.96, 0.82, clamp(p_norm.y, 0.0, 1.0));
+		float glass_mask = (1.0 - smoothstep(half_w - 0.10, half_w + 0.01, abs(p_norm.x)))
+			* smoothstep(0.0, 0.06, p_norm.y)
+			* (1.0 - smoothstep(0.88, 0.99, p_norm.y));
 
 		float final_alpha = clamp(unwiped_blood + streak_intensity + rim_intensity + blade_intensity, 0.0, 1.0);
-		// Плавное затухание у самых краёв квада
-		float edge_fade = smoothstep(0.0, 0.06, UV.x) * smoothstep(1.0, 0.94, UV.x)
-			* smoothstep(0.0, 0.06, UV.y) * smoothstep(1.0, 0.94, UV.y);
 
-		// Чуть темнее и гуще на кромках дуги, чуть светлее в тонких разводах
-		vec3 col = blood_color.rgb;
-		col = mix(col * 1.15, col * 0.65, clamp(rim_intensity + unwiped_blood * 0.5, 0.0, 1.0));
-
-		ALBEDO = col;
-		ALPHA = final_alpha * blood_color.a * edge_fade;
+		// Тонкие дуговые следы чуть сочнее для читаемости ночью и в PS1, густая кровь темнее
+		vec3 thin_col = blood_color.rgb * 1.55 + vec3(0.035, 0.002, 0.003);
+		vec3 thick_col = blood_color.rgb * 0.75;
+		float thickness = clamp(unwiped_blood * 0.85 + rim_intensity * 0.65, 0.0, 1.0);
+		ALBEDO = mix(thin_col, thick_col, thickness);
+		ALPHA = final_alpha * blood_color.a * glass_mask;
 	}
 }
 """
@@ -211,11 +229,11 @@ void fragment() {
 
 @export_group("Куда класть на кузове")
 @export var splat_min: Vector3 = Vector3(-1.05, 0.08, -2.20)
-@export var splat_max: Vector3 = Vector3(1.05, 1.38, 2.35)
+@export var splat_max: Vector3 = Vector3(1.05, 1.68, 2.35)
 @export var bumper_point: Vector3 = Vector3(0.0, 0.34, 2.08)
-@export var hood_point: Vector3 = Vector3(0.0, 0.62, 1.48)
-@export var glass_point: Vector3 = Vector3(0.0, 1.14, 0.96)
-@export var glass_extent: Vector2 = Vector2(1.32, 0.58)
+@export var hood_point: Vector3 = Vector3(0.0, 0.72, 1.56)
+@export var glass_point: Vector3 = Vector3(0.0, 1.46, 1.12)
+@export var glass_extent: Vector2 = Vector2(1.46, 0.84)
 
 var _material: ShaderMaterial
 var _glass_shader: Shader
@@ -231,7 +249,7 @@ var _car: Node3D = null
 var _smear: MeshInstance3D = null
 var _decal_glass: Array[bool] = []
 
-## Состояние стекла для дуговых следов дворников:
+## Состояние стекла и геометрия дворников для дуговых следов:
 var _glass_dirt: float = 0.0
 var _glass_wetness: float = 0.0
 var _wipe_clean: float = 0.0
@@ -239,6 +257,14 @@ var _swept_max: float = 0.0
 var _wiper_pos: float = 0.0
 var _splat_seed: float = 1.0
 var _hit_side: float = 0.0
+var _glass_zone_center: Vector3 = Vector3(0.0, 1.46, 1.12)
+var _quad_size: Vector2 = Vector2(1.46, 0.84)
+var _quad_center_local: Vector2 = Vector2(0.28, 0.365)
+var _pivot_left: Vector2 = Vector2(-0.25, 0.0)
+var _pivot_right: Vector2 = Vector2(0.25, 0.0)
+var _blade_range: Vector2 = Vector2(0.17, 0.75)
+var _angle_park: float = deg_to_rad(-82.0)
+var _angle_top: float = deg_to_rad(10.0)
 
 
 func install(car: Node3D) -> void:
@@ -283,22 +309,22 @@ func add_splat(car: Node3D, world_point: Vector3, world_velocity: Vector3) -> vo
 	var radius: float = clampf(radius_from_speed.x + speed * radius_from_speed.y, radius_limits.x, radius_limits.y)
 	var stretch: float = clampf(stretch_from_speed.x + speed * stretch_from_speed.y, stretch_limits.x, stretch_limits.y)
 	var side: float = clampf(local_hit.x, -0.45, 0.45)
-	var edge_side: float = -0.52 if side < 0.0 else 0.52
+	var edge_side: float = -0.56 if side < 0.0 else 0.56
+	_ensure_glass_smear(car, side)
 
 	# Следы на кузове, бампере, капоте и по стойкам/краям стекла
 	_store_splat(local_hit, local_dir, amount, radius, stretch)
 	_store_splat(Vector3(side * 0.55, bumper_point.y, bumper_point.z), Vector3(0.0, 0.12, 1.0), amount, radius * 1.15, stretch * 0.85)
 	_store_splat(Vector3(side * 0.4, hood_point.y, hood_point.z), Vector3(0.0, 0.35, 0.8), amount * 0.9, radius * 1.05, stretch)
 	# На самом стекле краевые брызги ближе к стойкам, а центр рисует шейдер дворников:
-	_store_splat(Vector3(edge_side, glass_point.y + 0.12, glass_point.z), Vector3(0.0, 0.45, 0.7), amount * 0.75, radius * 0.75, stretch * 0.7)
+	_store_splat(Vector3(edge_side, _glass_zone_center.y, _glass_zone_center.z), Vector3(0.0, 0.45, 0.7), amount * 0.75, radius * 0.75, stretch * 0.7)
 	_write_look()
 	_write_splats()
 	_attach_to_body(car)
 	_add_decal(car, local_hit, Vector3(-local_hit.x, 0.1, -local_hit.z), radius * 1.6)
 	_add_decal(car, Vector3(side * 0.45, bumper_point.y, bumper_point.z), Vector3(0.0, 0.08, -1.0), radius * 1.8)
 	_add_decal(car, Vector3(side * 0.3, hood_point.y, hood_point.z), Vector3(0.0, -1.0, -0.15), radius * 1.5)
-	_add_decal(car, Vector3(edge_side, glass_point.y + 0.10, glass_point.z), Vector3(0.0, -0.2, -1.0), radius * 0.9)
-	_ensure_glass_smear(car, side)
+	_add_decal(car, Vector3(edge_side, _glass_zone_center.y, _glass_zone_center.z), Vector3(0.0, -0.2, -1.0), radius * 0.9)
 
 
 func update(car: Node3D) -> void:
@@ -539,13 +565,74 @@ func _get_glass_shader() -> Shader:
 	return _glass_shader
 
 
+func _find_wiper_node(car: Node3D) -> Node3D:
+	if car == null:
+		return null
+	var node := car.get_node_or_null("WindshieldWipers") as Node3D
+	if node != null:
+		return node
+	return car.get_node_or_null("Wipers") as Node3D
+
+
+func _node_transform_in_car(node: Node3D, car: Node3D) -> Transform3D:
+	var result := Transform3D.IDENTITY
+	var cursor: Node = node
+	while cursor != null and cursor != car:
+		if cursor is Node3D:
+			result = (cursor as Node3D).transform * result
+		cursor = cursor.get_parent()
+	return result
+
+
+func _resolve_wiper_rig(car: Node3D) -> Transform3D:
+	var quad_w: float = maxf(glass_extent.x, 1.46)
+	var quad_h: float = maxf(glass_extent.y, 0.84)
+	_quad_size = Vector2(quad_w, quad_h)
+	var wipers := _find_wiper_node(car)
+	if wipers != null:
+		var rig_in_car := _node_transform_in_car(wipers, car)
+		var left_node := wipers.get_node_or_null("WiperLeft") as Node3D
+		var right_node := wipers.get_node_or_null("WiperRight") as Node3D
+		_pivot_left = Vector2(left_node.position.x, left_node.position.y) if left_node != null else Vector2(-0.25, 0.0)
+		_pivot_right = Vector2(right_node.position.x, right_node.position.y) if right_node != null else Vector2(0.25, 0.0)
+		var blade_node: MeshInstance3D = left_node.get_node_or_null("Blade") as MeshInstance3D if left_node != null else null
+		if blade_node != null and blade_node.mesh is BoxMesh:
+			var box := blade_node.mesh as BoxMesh
+			var half_len: float = box.size.y * 0.5
+			_blade_range = Vector2(maxf(0.04, blade_node.position.y - half_len), blade_node.position.y + half_len)
+		else:
+			_blade_range = Vector2(0.17, 0.75)
+		var park_val: Variant = wipers.get("park_degrees")
+		var top_val: Variant = wipers.get("top_degrees")
+		if park_val != null:
+			_angle_park = deg_to_rad(float(park_val))
+		if top_val != null:
+			_angle_top = deg_to_rad(float(top_val))
+		var center_x: float = clampf(-rig_in_car.origin.x, -0.45, 0.45)
+		var center_y: float = 0.365
+		_quad_center_local = Vector2(center_x, center_y)
+		var smear_xform := rig_in_car * Transform3D(Basis.IDENTITY, Vector3(center_x, center_y, -0.015))
+		_glass_zone_center = smear_xform.origin
+		return smear_xform
+
+	_pivot_left = Vector2(-0.25, 0.0)
+	_pivot_right = Vector2(0.25, 0.0)
+	_blade_range = Vector2(0.17, 0.75)
+	_quad_center_local = Vector2(0.28, 0.365)
+	var fallback_basis := Basis.from_euler(Vector3(deg_to_rad(-43.0), 0.0, 0.0))
+	var fallback_xform := Transform3D(fallback_basis, glass_point)
+	_glass_zone_center = fallback_xform.origin
+	return fallback_xform
+
+
 func _ensure_glass_smear(car: Node3D, local_x: float) -> void:
+	var rig_transform := _resolve_wiper_rig(car)
 	var smear := car.get_node_or_null(GLASS_NAME) as MeshInstance3D
 	if smear == null:
 		smear = MeshInstance3D.new()
 		smear.name = GLASS_NAME
 		var quad := QuadMesh.new()
-		quad.size = Vector2(maxf(glass_extent.x, 1.32), maxf(glass_extent.y, 0.58))
+		quad.size = _quad_size
 		var paint := ShaderMaterial.new()
 		paint.shader = _get_glass_shader()
 		quad.material = paint
@@ -553,6 +640,8 @@ func _ensure_glass_smear(car: Node3D, local_x: float) -> void:
 		smear.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		smear.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		car.add_child(smear)
+	elif smear.mesh is QuadMesh:
+		(smear.mesh as QuadMesh).size = _quad_size
 	_smear = smear
 	_hit_side = clampf(local_x / 0.45, -1.0, 1.0)
 	_splat_seed = _rng.randf_range(1.0, 25.0)
@@ -560,8 +649,8 @@ func _ensure_glass_smear(car: Node3D, local_x: float) -> void:
 	_glass_wetness = 1.0
 	_wipe_clean = 0.0
 	_swept_max = 0.0
-	smear.position = Vector3(0.0, glass_point.y, glass_point.z)
-	smear.rotation_degrees = Vector3(-16.0, 0.0, 0.0)
+	_wiper_pos = 0.0
+	smear.transform = rig_transform
 	smear.visible = true
 	_sync_glass_shader(0.0)
 
@@ -578,6 +667,13 @@ func _sync_glass_shader(active_val: float) -> void:
 	paint.set_shader_parameter("wiper_pos", _wiper_pos)
 	paint.set_shader_parameter("swept_max", _swept_max)
 	paint.set_shader_parameter("wiper_active", active_val)
+	paint.set_shader_parameter("angle_park", _angle_park)
+	paint.set_shader_parameter("angle_top", _angle_top)
+	paint.set_shader_parameter("quad_size", _quad_size)
+	paint.set_shader_parameter("quad_center_local", _quad_center_local)
+	paint.set_shader_parameter("pivot_left", _pivot_left)
+	paint.set_shader_parameter("pivot_right", _pivot_right)
+	paint.set_shader_parameter("blade_range", _blade_range)
 	paint.set_shader_parameter("hit_side", _hit_side)
 	paint.set_shader_parameter("splat_seed", _splat_seed)
 
@@ -590,18 +686,16 @@ func set_wiper_state(k: float, park_rad: float, top_rad: float, active: bool, de
 	_wiper_pos = clampf(k, 0.0, 1.0)
 	if active:
 		_swept_max = maxf(_swept_max, _wiper_pos)
-		_wipe_clean = clampf(_wipe_clean + delta * 0.42, 0.0, 1.0)
-	var paint := (_smear.mesh as QuadMesh).material as ShaderMaterial
-	if paint != null:
-		paint.set_shader_parameter("angle_park", park_rad)
-		paint.set_shader_parameter("angle_top", top_rad)
+		_wipe_clean = clampf(_wipe_clean + delta * 0.08, 0.0, 1.0)
+	_angle_park = park_rad
+	_angle_top = top_rad
 	_sync_glass_shader(1.0 if active else 0.0)
 
 
 func _is_glass_zone(point: Vector3) -> bool:
-	return point.y >= glass_point.y - 0.30 \
-		and point.z >= glass_point.z - 0.60 \
-		and point.z <= glass_point.z + 0.90
+	return point.y >= _glass_zone_center.y - 0.36 \
+		and point.z >= _glass_zone_center.z - 0.55 \
+		and point.z <= _glass_zone_center.z + 0.55
 
 
 ## Есть ли на лобовом стекле ещё свежая неразмазанная кровь, требующая работы щёток.
@@ -623,7 +717,7 @@ func wipe_glass(strength: float = 0.5) -> void:
 	_glass_wetness *= (1.0 - k)
 	if _glass_wetness < 0.06:
 		_glass_wetness = 0.0
-	_wipe_clean = clampf(_wipe_clean + k * 0.55, 0.0, 1.0)
+	_wipe_clean = clampf(_wipe_clean + k * 0.28, 0.0, 1.0)
 	_sync_glass_shader(0.0)
 
 	# На кузове и декалях в зоне стекла немного приглушаем центральную часть,
