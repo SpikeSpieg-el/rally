@@ -4,6 +4,8 @@
 class_name RallyCar
 extends "res://scripts/gevp/vehicle.gd"
 
+signal camera_mode_changed(new_mode: int)
+
 enum CameraMode { CHASE_3RD, HOOD, COCKPIT_1ST }
 enum DrivetrainMode { AWD, RWD, FWD }
 
@@ -129,7 +131,13 @@ const FEEL_GRAVITY: float = 9.81
 @onready var wipers: Node3D = get_node_or_null("Wipers")
 
 var spawn_transform: Transform3D = Transform3D.IDENTITY
-var camera_mode: int = CameraMode.CHASE_3RD
+var camera_mode: int = CameraMode.CHASE_3RD:
+	set(value):
+		var clamped := clampi(value, CameraMode.CHASE_3RD, CameraMode.COCKPIT_1ST)
+		if camera_mode == clamped:
+			return
+		camera_mode = clamped
+		camera_mode_changed.emit(camera_mode)
 var current_rpm: float = 900.0
 var speed_mps: float = 0.0
 var speed_kmh: float = 0.0
@@ -212,6 +220,7 @@ var fall_limit_provider: Callable = Callable()
 
 
 func _ready() -> void:
+	add_to_group("rally_car")
 	# Кузов берётся из ресурса выбранной машины; физика и камеры сценные.
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if not cinematic_mode and game != null and game.has_method("get_race_vehicle_id"):

@@ -174,6 +174,53 @@ enum GaugeStyleMode {
 		digit_slot_aspect = value
 		emit_changed()
 
+@export_group("Вид из кабины (1-е лицо)")
+## Автоматически скрывать дублирующие 2D-элементы HUD, когда активна камера кабины (COCKPIT_1ST).
+@export var cockpit_hide_redundant_hud: bool = true:
+	set(value):
+		cockpit_hide_redundant_hud = value
+		emit_changed()
+## В 1-м лице скрывает панель 2D-спидометра/тахометра (данные дублируются на MoTeC-экране в кабине).
+@export var cockpit_hide_speed_panel: bool = true:
+	set(value):
+		cockpit_hide_speed_panel = value
+		emit_changed()
+## В 1-м лице скрывает 2D-карточку радио (радио отображается на 3D-магнитоле центральной консоли).
+@export var cockpit_hide_radio_card: bool = true:
+	set(value):
+		cockpit_hide_radio_card = value
+		emit_changed()
+## В 1-м лице скрывает панель телеметрии педалей/руля/скольжения.
+@export var cockpit_hide_telemetry_panel: bool = false:
+	set(value):
+		cockpit_hide_telemetry_panel = value
+		emit_changed()
+## В 1-м лице скрывает панель информации о спецучастке.
+@export var cockpit_hide_stage_panel: bool = false:
+	set(value):
+		cockpit_hide_stage_panel = value
+		emit_changed()
+## В 1-м лице скрывает верхнюю панель таймера этапа.
+@export var cockpit_hide_timer_panel: bool = false:
+	set(value):
+		cockpit_hide_timer_panel = value
+		emit_changed()
+## В 1-м лице скрывает мини-карту.
+@export var cockpit_hide_mini_map: bool = false:
+	set(value):
+		cockpit_hide_mini_map = value
+		emit_changed()
+## В 1-м лице скрывает счётчик FPS.
+@export var cockpit_hide_fps: bool = false:
+	set(value):
+		cockpit_hide_fps = value
+		emit_changed()
+## В 1-м лице скрывает нижнюю подсказку клавиш.
+@export var cockpit_hide_hint: bool = false:
+	set(value):
+		cockpit_hide_hint = value
+		emit_changed()
+
 
 static func load_default() -> Resource:
 	if ResourceLoader.exists(DEFAULT_STYLE_PATH):

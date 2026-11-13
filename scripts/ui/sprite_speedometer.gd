@@ -64,6 +64,7 @@ uniform float pulse = 0.0;
 uniform float shift_flash = 0.0;
 uniform float geometry_mode = 0.0;
 uniform vec2 quarter_pivot = vec2(0.97, 0.96);
+uniform vec2 quarter_angle_range = vec2(0.03, 0.955);
 uniform vec4 tint_active : source_color = vec4(1.0, 0.70, 0.14, 1.0);
 uniform vec4 tint_mid : source_color = vec4(1.0, 0.26, 0.04, 1.0);
 uniform vec4 tint_hot : source_color = vec4(1.0, 0.08, 0.05, 1.0);
@@ -84,8 +85,8 @@ void fragment() {
 	float ang = 0.0;
 	if (geometry_mode < 0.5) {
 		vec2 p = quarter_pivot - UV;
-		ang = atan(max(0.0, p.y), max(0.0001, p.x)) / 1.5707963;
-		ang = clamp(ang, 0.0, 1.0);
+		float raw_ang = atan(max(0.0, p.y), max(0.0001, p.x)) / 1.5707963;
+		ang = clamp((raw_ang - quarter_angle_range.x) / max(quarter_angle_range.y - quarter_angle_range.x, 0.01), 0.0, 1.0);
 	} else {
 		vec2 rp = UV - radial_center;
 		float deg = degrees(atan(-rp.y, rp.x));
@@ -495,6 +496,11 @@ var _applying_preset := false
 		arc_quarter_pivot = v
 		_sync_arc_node()
 
+@export var arc_quarter_angle_range: Vector2 = Vector2(0.03, 0.955):
+	set(v):
+		arc_quarter_angle_range = v
+		_sync_arc_node()
+
 @export var arc_radial_center: Vector2 = Vector2(0.505, 0.535):
 	set(v):
 		arc_radial_center = v
@@ -545,19 +551,19 @@ var _applying_preset := false
 		_sync_arc_node()
 		queue_redraw()
 
-@export_range(0.05, 0.60, 0.01) var digit_start_x_ratio: float = 0.31:
+@export_range(0.05, 0.60, 0.01) var digit_start_x_ratio: float = 0.285:
 	set(v):
 		digit_start_x_ratio = v
 		_mark_custom_if_editing()
 		queue_redraw()
 
-@export_range(0.10, 0.75, 0.01) var digit_y_ratio: float = 0.41:
+@export_range(0.10, 0.75, 0.01) var digit_y_ratio: float = 0.415:
 	set(v):
 		digit_y_ratio = v
 		_mark_custom_if_editing()
 		queue_redraw()
 
-@export_range(0.14, 0.55, 0.01) var digit_height_ratio: float = 0.27:
+@export_range(0.14, 0.55, 0.01) var digit_height_ratio: float = 0.255:
 	set(v):
 		digit_height_ratio = v
 		_mark_custom_if_editing()
@@ -580,7 +586,7 @@ var _applying_preset := false
 		speed_offset = v
 		queue_redraw()
 
-@export_range(0.05, 0.24, 0.005) var unit_height_ratio: float = 0.135:
+@export_range(0.05, 0.24, 0.005) var unit_height_ratio: float = 0.125:
 	set(v):
 		unit_height_ratio = v
 		_mark_custom_if_editing()
@@ -804,12 +810,12 @@ func apply_preset(preset_id: Preset) -> void:
 			gear_render_mode = GearRenderMode.ACTIVE_BADGE_AUTO
 			arc_height_ratio = 0.90
 			arc_offset = Vector2(2.0, 4.0)
-			digit_start_x_ratio = 0.31
-			digit_y_ratio = 0.41
-			digit_height_ratio = 0.27
+			digit_start_x_ratio = 0.285
+			digit_y_ratio = 0.415
+			digit_height_ratio = 0.255
 			digit_slot_aspect = 0.66
 			digit_gap_px = 2.0
-			unit_height_ratio = 0.135
+			unit_height_ratio = 0.125
 			gear_y_ratio = 0.735
 			gear_strip_height_ratio = 0.15
 			content_scale = 1.0
@@ -1251,6 +1257,7 @@ func _sync_arc_node() -> void:
 		_arc_mat.set_shader_parameter("shift_flash", _shift_flash)
 		_arc_mat.set_shader_parameter("geometry_mode", 0.0 if arc_geometry == ArcShaderGeometry.QUARTER_CIRCLE else 1.0)
 		_arc_mat.set_shader_parameter("quarter_pivot", arc_quarter_pivot)
+		_arc_mat.set_shader_parameter("quarter_angle_range", arc_quarter_angle_range)
 		_arc_mat.set_shader_parameter("radial_center", arc_radial_center)
 		_arc_mat.set_shader_parameter("angle_start_deg", arc_start_deg)
 		_arc_mat.set_shader_parameter("angle_sweep_deg", arc_sweep_deg)
@@ -1348,7 +1355,7 @@ func _draw() -> void:
 			var unit_w := unit_h * (unit_src.size.x / unit_src.size.y)
 			var unit_x := speed_end_x + unit_offset.x
 			var unit_y := digit_y + base_digit_h - unit_h + unit_offset.y
-			var max_unit_w := maxf(w - unit_x - 4.0, 20.0)
+			var max_unit_w := maxf(w - unit_x - 10.0, 20.0)
 			if unit_w > max_unit_w:
 				var sc_u := max_unit_w / unit_w
 				unit_w *= sc_u
