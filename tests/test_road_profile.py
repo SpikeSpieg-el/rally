@@ -13,7 +13,9 @@ from procedural_route import Gen
 
 class RoadProfileTest(unittest.TestCase):
     def test_all_tracks_have_flat_intervals_and_bounded_grade(self):
-        for name in ('forest', 'pereval', 'north_arc', 'dynamic', 'mountain_100'):
+        # stage_pereval больше не существует (трасса удалена из репозитория),
+        # список — только играбельные трассы с файлом конфига.
+        for name in ('forest', 'north_arc', 'dynamic', 'mountain_100'):
             cfg = stage_model.read_track(str(ROOT / f'data/tracks/stage_{name}.tres'))
             cfg['route_length'] = 10000
             values = [stage_model.bumps(i * .25, cfg) for i in range(40001)]

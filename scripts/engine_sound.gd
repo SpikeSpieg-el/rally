@@ -68,6 +68,17 @@ const BOV_COOLDOWN := 1.0
 ## Где стоит выхлоп относительно центра машины.
 const EXHAUST_OFFSET := Vector3(0.0, 0.45, -1.85)
 
+## Тон шума дороги под покрытием: гравий — база, остальное смещает
+## громкость/питч базового слоя, а «spray» — на сколько дБ тише россыпь
+## (на асфальте камням не разлетаться, в грязи летит тяжелее и ниже).
+const SURFACE_TIMBRE := {
+	"gravel": {"gain_db": 0.0, "pitch": 1.0, "spray": 0.0},
+	"mud": {"gain_db": 1.0, "pitch": 0.84, "spray": -2.0},
+	"snow": {"gain_db": -2.0, "pitch": 1.08, "spray": -6.0},
+	"asphalt": {"gain_db": -7.0, "pitch": 1.3, "spray": -9.0},
+	"grass": {"gain_db": -4.0, "pitch": 0.9, "spray": -6.0},
+}
+
 
 ## Состояние одного банка лупов: два игрока, между которыми идёт кроссфейд.
 class EngineBank:
@@ -120,6 +131,17 @@ class EngineBank:
 ## Компенсация шума дороги для вида сзади.
 @export var chase_road_boost_db: float = 1.5
 
+@export_group("Предел сцепления")
+## Сколько дБ добавляется к шуму дороги при полном скольжении: поверх
+## базового лупа включается слой «россыпи» — камни из-под скользящих колёс.
+@export_range(0.0, 24.0, 0.5) var slip_boost_db: float = 12.0
+## Питч слоя россыпи относительно базового тона дороги: выше — разлетающиеся
+## камни, а не накат.
+@export_range(1.0, 3.0, 0.05) var slip_spray_pitch: float = 1.45
+## Доля скольжения (0..1, тот же канал, что HUD-бар заноса), с которой
+## россыпь начинает слышаться.
+@export_range(0.0, 0.5, 0.01) var slip_onset: float = 0.12
+
 @export_group("Расстояние")
 ## Радиус источника звука, м. Меньше — тише на расстоянии.
 @export var unit_size: float = 4.0
@@ -146,6 +168,7 @@ var _load_engine_key: String = ""
 var _road_stream: AudioStream = null
 var _wind_stream: AudioStream = null
 var _road_player: AudioStreamPlayer3D = null
+var _spray_player: AudioStreamPlayer3D = null
 var _wind_player: AudioStreamPlayer3D = null
 var _event_players: Array = []
 var _bov_streams: Array = []
@@ -161,6 +184,13 @@ var _pop_cooldown: float = 0.0
 var _bov_cooldown: float = 0.0
 var _duck: float = 0.0
 var _music_duck: float = 0.0
+## Сглаженное скольжение (0..1), текущее покрытие и его темпра — состояние
+## слоя россыпи и базового шума дороги.
+var _slip_amount: float = 0.0
+var _surface_kind: String = "gravel"
+var _timbre_gain_db: float = 0.0
+var _timbre_pitch: float = 1.0
+var _spray_surface_db: float = 0.0
 var _muted: bool = false
 var _radio_node: Node = null
 
@@ -195,6 +225,8 @@ func _exit_tree() -> void:
 				bank_audio.stop()
 	if _road_player != null:
 		_road_player.stop()
+	if _spray_player != null:
+		_spray_player.stop()
 	if _wind_player != null:
 		_wind_player.stop()
 
@@ -384,6 +416,12 @@ func _build_players() -> void:
 		_road_player.stream = _road_stream
 		_road_player.position = Vector3(0.0, 0.1, -1.4)
 		_road_player.play()
+		# Слой предела: тот же луп, но выше по тону и включается только от
+		# скольжения — базовый шум наката при этом не «дышит».
+		_spray_player = _make_player("SlipSpray")
+		_spray_player.stream = _road_stream
+		_spray_player.position = _road_player.position
+		_spray_player.play()
 	if _wind_stream != null:
 		_wind_player = _make_player("WindLoop")
 		_wind_player.stream = _wind_stream
@@ -439,6 +477,19 @@ func _process(delta: float) -> void:
 	var throttle: float = clampf(car.throttle_input, 0.0, 1.0)
 	var speed: float = maxf(car.speed_kmh, 0.0)
 
+	# Предел сцепления: скольжение и покрытие под колёсами. Скользящее
+	# колесо бросает камни — отдельный слой поверх шума наката; темпра
+	# базового слоя меняется с покрытием (грязь глухая, асфальт тихий).
+	var slip: float = clampf(car.get_average_tire_slip(), 0.0, 1.0)
+	_slip_amount = lerpf(_slip_amount, slip, clampf(delta * 12.0, 0.0, 1.0))
+	var kind := car.dominant_surface_kind()
+	if not kind.is_empty():
+		_surface_kind = kind
+	var timbre := surface_timbre(_surface_kind)
+	_timbre_gain_db = lerpf(_timbre_gain_db, float(timbre["gain_db"]), clampf(delta * 6.0, 0.0, 1.0))
+	_timbre_pitch = lerpf(_timbre_pitch, float(timbre["pitch"]), clampf(delta * 6.0, 0.0, 1.0))
+	_spray_surface_db = lerpf(_spray_surface_db, float(timbre["spray"]), clampf(delta * 6.0, 0.0, 1.0))
+
 	# Нагрузка: газ плюс доля от оборота. Чем больше нагрузка, тем звонче звук.
 	var target_load: float = _engine_load_target(rpm, throttle)
 	_load = lerpf(_load, target_load, clampf(delta * 9.0, 0.0, 1.0))
@@ -472,6 +523,8 @@ func _mute(muted: bool) -> void:
 				player.volume_db = -60.0
 	if _road_player != null:
 		_road_player.volume_db = -60.0
+	if _spray_player != null:
+		_spray_player.volume_db = -60.0
 	if _wind_player != null:
 		_wind_player.volume_db = -60.0
 
@@ -657,8 +710,42 @@ func _update_road(speed: float) -> void:
 		amount = 0.0
 	var gain: float = amount * amount * (0.45 + 0.55 * clampf(speed / maxf(1.0, road_full_kmh), 0.0, 1.0))
 	_road_player.volume_db = (_to_db(gain) + master_volume_db + road_volume_db
-		+ _camera_road_gain() + _music_duck * 0.55)
-	_road_player.pitch_scale = clampf(0.75 + speed / 110.0, 0.6, 2.2)
+		+ _camera_road_gain() + _music_duck * 0.55 + _timbre_gain_db)
+	_road_player.pitch_scale = clampf((0.75 + speed / 110.0) * _timbre_pitch, 0.6, 2.6)
+	_update_slip_spray(speed)
+
+
+## Слой предела: россыпь из-под скользящих колёс. Растёт от порога
+## скольжения до полного заноса; на асфальте почти не слышна — там нечему
+## разлетаться. Стоит отдельным игроком на том же лупе с повышенным питчем,
+## чтобы не «дышать» громкостью базового слоя.
+func _update_slip_spray(speed: float) -> void:
+	if _spray_player == null:
+		return
+	var spray: float = slip_spray_level(_slip_amount, slip_onset)
+	if spray <= 0.001:
+		_spray_player.volume_db = -60.0
+		return
+	_spray_player.volume_db = (_to_db(spray) + master_volume_db + road_volume_db
+		+ slip_boost_db + _spray_surface_db + _camera_road_gain() + _music_duck * 0.55)
+	_spray_player.pitch_scale = clampf(
+		(0.75 + speed / 110.0) * _timbre_pitch * slip_spray_pitch, 0.8, 3.0)
+
+
+## Темпра покрытия для шума дороги. Статически — чтобы тесты могли проверить
+## таблицу без звукового устройства; неизвестное покрытие звучит как гравий
+## (дороги проекта физически гравийные, крайняя группа колеса — "Dirt").
+static func surface_timbre(kind: String) -> Dictionary:
+	var key := kind.strip_edges().to_lower()
+	if SURFACE_TIMBRE.has(key):
+		return SURFACE_TIMBRE[key]
+	return SURFACE_TIMBRE["gravel"]
+
+
+## Уровень слоя россыпи: 0 до порога, 1 при сильном скольжении. Гладкий
+## барьер — без щелчка на пороге.
+static func slip_spray_level(slip: float, onset: float) -> float:
+	return smoothstep(onset, 0.55, clampf(slip, 0.0, 1.0))
 
 
 ## Ветер — самый честный признак скорости: он растёт монотонно, но не

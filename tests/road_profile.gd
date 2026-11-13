@@ -13,7 +13,7 @@ func _initialize() -> void:
 		[750.0, 0.54105001829043], [1250.0, 0.0], [1710.0, -0.2682183224792603]]
 	for pair in fixtures:
 		assert(absf(Profile.sample(pair[0], 8123, 0.9, 320.0, 0.05, 0.015, 9.0) - pair[1]) < 0.000001)
-	for name in ["forest", "pereval", "north_arc", "dynamic", "mountain_100"]:
+	for name in ["forest", "north_arc", "dynamic", "mountain_100"]:
 		var track = load("res://data/tracks/stage_%s.tres" % name) as Track
 		assert(track != null)
 		var flat: int = 0

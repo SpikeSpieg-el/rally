@@ -761,7 +761,7 @@ func _trigger_binding_present(action: String, axis: int) -> bool:
 
 
 func update_driving_feedback(speed: float, rpm_ratio: float, slip: float, grounded: bool, roughness: float, throttle: float, brake: float, rumble_allowed: bool = true) -> void:
-	if _devices.is_empty() or String(_devices[0].family) != "dualsense":
+	if _devices.is_empty():
 		return
 	var now := Time.get_ticks_msec()
 	_feedback_last_msec = now
@@ -771,8 +771,15 @@ func update_driving_feedback(speed: float, rpm_ratio: float, slip: float, ground
 	_feedback_sent_msec = now
 	var feedback := DrivingFeedback.calculate(speed, rpm_ratio, slip, grounded, roughness, throttle, brake)
 	if vibration_enabled and driving_vibration_enabled and rumble_allowed and now >= _rumble_until_msec:
-		Input.start_joy_vibration(int(_devices[0].device_id), float(feedback.weak) * vibration_strength, float(feedback.strong) * vibration_strength, 0.2)
-	if adaptive_triggers_enabled and _bridge_pipe != null and _bridge_status == "доступны (USB)":
+		# Дорожная вибрация — про любой геймпад с поддержкой вибрации, а не
+		# только DualSense: железо без вибрации просто пропускается.
+		var device_id := int(_devices[0].device_id)
+		if not Input.has_method("has_joy_vibration") or bool(Input.call("has_joy_vibration", device_id)):
+			Input.start_joy_vibration(device_id,
+				clampf(float(feedback.weak) * vibration_strength, 0.0, 1.0),
+				clampf(float(feedback.strong) * vibration_strength, 0.0, 1.0), 0.2)
+	# Адаптивные триггеры — эксклюзив моста DualSense (см. DUALSENSE_RU.md).
+	if String(_devices[0].family) == "dualsense" and adaptive_triggers_enabled and _bridge_pipe != null and _bridge_status == "доступны (USB)":
 		var left := roundi(float(feedback.left) * adaptive_trigger_strength * 8.0) if _trigger_binding_present("brake", JOY_AXIS_TRIGGER_LEFT) else 0
 		var right := roundi(float(feedback.right) * adaptive_trigger_strength * 8.0) if _trigger_binding_present("throttle", JOY_AXIS_TRIGGER_RIGHT) else 0
 		_bridge_pipe.store_line("%d %d" % [left, right])

@@ -298,6 +298,34 @@ func _run() -> void:
 		_check(audio_node.get_script() == EngineSoundScript,
 			"узел EngineAudio должен использовать скрипт звука")
 	car.free()
+
+	# 11. Предел сцепления: слой россыпи от скольжения и темпра покрытий.
+	var gravel_t: Dictionary = EngineSoundScript.surface_timbre("gravel")
+	var asphalt_t: Dictionary = EngineSoundScript.surface_timbre("asphalt")
+	var mud_t: Dictionary = EngineSoundScript.surface_timbre("mud")
+	_check(absf(float(gravel_t["gain_db"])) < 0.001,
+		"гравий — базовая темпра шума дороги")
+	_check(float(asphalt_t["gain_db"]) < float(gravel_t["gain_db"]),
+		"на асфальте гравийный шум должен быть тише")
+	_check(float(asphalt_t["pitch"]) > 1.0,
+		"на асфальте шум выше по тону")
+	_check(float(mud_t["pitch"]) < 1.0,
+		"в грязи шум ниже и глухой")
+	var unknown_t: Dictionary = EngineSoundScript.surface_timbre("basalt")
+	_check(float(unknown_t["gain_db"]) == float(gravel_t["gain_db"]),
+		"неизвестное покрытие должно звучать как гравий")
+	var none_slip: float = EngineSoundScript.slip_spray_level(0.0, 0.12)
+	var mid_slip: float = EngineSoundScript.slip_spray_level(0.3, 0.12)
+	var full_slip: float = EngineSoundScript.slip_spray_level(1.0, 0.12)
+	_check(none_slip <= 0.001, "без скольжения россыпь не слышна")
+	_check(mid_slip > none_slip and full_slip > mid_slip,
+		"россыпь должна расти со скольжением")
+	_check(full_slip >= 0.99,
+		"при полном скольжении россыпь должна быть полной")
+	_check(float(sound.slip_boost_db) > 0.0,
+		"слой россыпи должен добавлять громкость")
+	_check(float(sound.slip_onset) > 0.0,
+		"порог скольжения должен быть больше нуля")
 	sound.free()
 
 	if failures.is_empty():
