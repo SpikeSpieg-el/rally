@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b1a5xe7u5x73u"]
 
-[ext_resource type="Script" uid="uid://b1a5xfgljlfos" path="res://scripts/editor/spectator_lab.gd" id="1_lab"]
+[ext_resource type="Script" uid="uid://cspeclab01rally" path="res://scripts/editor/spectator_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" uid="uid://b02trgqm0njp" path="res://scenes/props/spectator_person.tscn" id="2_person"]
 [ext_resource type="PackedScene" uid="uid://cbleedburst01" path="res://scenes/effects/blood_burst.tscn" id="3_burst"]
 

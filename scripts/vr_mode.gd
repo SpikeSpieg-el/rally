@@ -42,8 +42,10 @@ func stop() -> void:
 	interface = null
 	mode_changed.emit(false)
 
-func _on_scene_changed(scene: Node) -> void:
+## scene_changed не передаёт аргументов: текущую сцену берём из дерева.
+func _on_scene_changed() -> void:
 	_detach()
+	var scene: Node = get_tree().current_scene
 	if requested and scene is RallyStage:
 		attach.call_deferred(scene)
 	elif enabled:

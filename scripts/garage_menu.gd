@@ -39,8 +39,10 @@ var _sliders: Dictionary = {}
 var _values: Dictionary = {}
 var _rows: Dictionary = {}
 var _fields: Dictionary = {}
-var _wheel_visuals: Array[MeshInstance3D] = []
-var _wheel_bases: Array[Basis] = []
+## Исходный basis каждого колеса на витрине (колёса всех моделей машин).
+var _wheel_rest: Dictionary = {}
+## Колёса стандартной сцены витрины (кузов Lancer): имена только для неё.
+const SCENE_WHEEL_NAMES := ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]
 var _model_default_y: float = 0.0
 ## Кузова машин, у которых есть своя модель: id → узел на витрине.
 ## Кузов сцены (%PreviewModel) показывается у машины без model_scene.
@@ -106,10 +108,7 @@ func _ready() -> void:
 	_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview_container.gui_input.connect(_on_preview_input)
 	_model_default_y = _model.position.y
-	for wheel_name in ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]:
-		var wheel := _model.get_node(wheel_name) as MeshInstance3D
-		_wheel_visuals.append(wheel)
-		_wheel_bases.append(wheel.basis)
+	_track_wheels(_model, SCENE_WHEEL_NAMES)
 
 
 func _build_settings() -> void:
@@ -327,7 +326,16 @@ func _vehicle_model(id: String) -> Node3D:
 	model.position = Vector3.ZERO
 	model.visible = false
 	_vehicle_models[id] = model
+	_track_wheels(model, data.wheel_names)
 	return model
+
+
+## Запоминает колёса модели по именам из ресурса машины; отсутствующие пропускает.
+func _track_wheels(model: Node3D, names: Array) -> void:
+	for wheel_name in names:
+		var wheel := model.find_child(String(wheel_name), true, false) as Node3D
+		if wheel != null and not _wheel_rest.has(wheel):
+			_wheel_rest[wheel] = wheel.basis
 
 
 func _vehicle_title(id: String) -> String:
@@ -520,9 +528,14 @@ func _update_preview() -> void:
 	_model.position.y = _model_default_y + setup.tire_radius - layout().garage_reference_tire_radius
 	CarVisuals.apply_body(_model, setup)
 	var wheel_scale: Vector3 = CarVisuals.wheel_scale(setup.tire_radius, setup.tire_width)
-	for i in range(_wheel_visuals.size()):
-		_wheel_visuals[i].basis = _wheel_bases[i].scaled(wheel_scale)
-		CarVisuals.apply_wheel(_wheel_visuals[i], setup)
+	for wheel: Node3D in _wheel_rest.keys():
+		if not is_instance_valid(wheel):
+			continue
+		wheel.basis = (_wheel_rest[wheel] as Basis).scaled(wheel_scale)
+		if wheel is MeshInstance3D:
+			CarVisuals.apply_wheel(wheel as MeshInstance3D, setup)
+		for mesh in wheel.find_children("*", "MeshInstance3D", true, false):
+			CarVisuals.apply_wheel(mesh as MeshInstance3D, setup)
 
 
 func _mark_changed() -> void:

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dmg673mvw0nmj"]
 
-[ext_resource type="Script" uid="uid://ef62w0q5jbh6" path="res://scripts/effects/rally_screen_look.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://h38w81uaaw10p" path="res://scripts/effects/rally_screen_look.gd" id="1_script"]
 [ext_resource type="Shader" uid="uid://cjk0afgvjqwx0" path="res://shaders/speed_fx.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_screen"]

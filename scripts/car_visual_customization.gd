@@ -9,6 +9,10 @@ const LIVERIES := [
 ]
 const ORIGINAL_META := &"rally_original_material"
 const CUSTOM_META := &"rally_custom_material"
+## Имя узла кузова задаёт модель машины (метаданные car_body_mesh).
+## Старые машины без метаданных используют кузов Lancer.
+const BODY_MESH_META := &"car_body_mesh"
+const DEFAULT_BODY_MESH := "Mitsubishi_Body"
 
 
 static func _material_for(mesh: MeshInstance3D) -> StandardMaterial3D:
@@ -35,10 +39,21 @@ static func _material_for(mesh: MeshInstance3D) -> StandardMaterial3D:
 	return custom
 
 
+## Кузовной меш машины: имя из метаданных модели, иначе кузов Lancer.
+static func body_mesh(model: Node3D) -> MeshInstance3D:
+	if model == null:
+		return null
+	var body_name := String(model.get_meta(BODY_MESH_META, DEFAULT_BODY_MESH))
+	var body := model.get_node_or_null(body_name) as MeshInstance3D
+	if body == null:
+		body = model.find_child(body_name, true, false) as MeshInstance3D
+	return body
+
+
 static func ensure_body_material(model: Node3D) -> StandardMaterial3D:
 	if model == null:
 		return null
-	var body := model.get_node_or_null("Mitsubishi_Body") as MeshInstance3D
+	var body := body_mesh(model)
 	if body == null:
 		return null
 	if body.material_override is StandardMaterial3D and (body.has_meta(ORIGINAL_META) or body.has_meta(CUSTOM_META)):
@@ -51,7 +66,7 @@ static func apply_body(model: Node3D, setup: RallyCarSetup) -> void:
 		return
 	# Только корпус с общей текстурой. Body_002 и Body_003 — зеркала с
 	# несколькими поверхностями, заменять их материал нельзя.
-	var body := model.get_node_or_null("Mitsubishi_Body") as MeshInstance3D
+	var body := body_mesh(model)
 	if body == null:
 		return
 	var material := _material_for(body)

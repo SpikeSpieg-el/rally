@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://t5wdak3obxvs"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_snow"
+display_name = "SUBARU · СНЕГ"
+description = "Снежная настройка: мягкий атмосферный отклик без турбо-рывка, короткое передаточное число и чувствительный контроль тяги для льда."
+engine_name = "EJ25 · 2.5 АТМО"
+max_torque = 300.0
+max_rpm = 6900.0
+idle_rpm = 900.0
+torque_shape = 2
+turbo = false
+final_drive = 4.4
+vehicle_mass = 1260.0
+awd_front_torque = 0.45
+traction_control_max_slip = 0.5
+tire_width = 195.0
+grip_scale = 0.85
+front_spring_length = 0.38
+rear_spring_length = 0.4

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://c8b7i5ermx2n6"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_tarmac"
+display_name = "SUBARU · АСФАЛЬТ"
+description = "Асфальтовая настройка: жёсткая подвеска, широкие шины и выше сцепление. Для быстрых шоссейных участков и точных торможений."
+engine_name = "EJ25 · 2.5 TURBO"
+max_torque = 440.0
+max_rpm = 7100.0
+idle_rpm = 850.0
+torque_shape = 1
+turbo = true
+final_drive = 3.9
+vehicle_mass = 1270.0
+awd_front_torque = 0.33
+front_arb_ratio = 0.2
+rear_arb_ratio = 0.15
+front_damping_ratio = 0.6
+rear_damping_ratio = 0.66
+tire_width = 265.0
+grip_scale = 1.1
+brake_force_multiplier = 1.05

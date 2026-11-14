@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://c34scf7wnqtu2"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_sti_stock"
+display_name = "SUBARU STI · СТОК"
+description = "Стоковый EJ25 Subaru Impreza WRX STI: 435 Нм, полный привод и турбо-полка. Ровная тяга и предсказуемая задняя ось на любом покрытии."
+engine_name = "EJ25 · 2.5 TURBO"
+max_torque = 435.0
+max_rpm = 7000.0
+idle_rpm = 850.0
+torque_shape = 1
+turbo = true
+final_drive = 4.1
+vehicle_mass = 1270.0
+awd_front_torque = 0.38
+tire_width = 245.0
+grip_scale = 1.0

@@ -95,6 +95,10 @@ static func install(car: Node3D, vehicle_id: String) -> bool:
 		mounts.append(mount)
 
 	car.add_child(model)
+	# Имя кузова модели переносим на машину: эффекты грязи и крови находят кузов по нему.
+	var body_name := String(model.get_meta("car_body_mesh", ""))
+	if not body_name.is_empty():
+		car.set_meta("car_body_mesh", body_name)
 	if data.hide_scene_body:
 		var old_model: Node3D = car.get_node_or_null(SCENE_BODY) as Node3D
 		if old_model != null:

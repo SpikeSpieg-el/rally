@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://cj1rcbsi30w5w"]
 
-[ext_resource type="PackedScene" uid="uid://d2e13cemy2hs6" path="res://scenes/props/camper.tscn" id="camper"]
-[ext_resource type="PackedScene" uid="uid://my2kgau0w4k0" path="res://scenes/props/campfire.tscn" id="campfire"]
+[ext_resource type="PackedScene" uid="uid://lr7saf744g8cp" path="res://scenes/props/camper.tscn" id="camper"]
+[ext_resource type="PackedScene" uid="uid://p3mjwnxvaqml2" path="res://scenes/props/campfire.tscn" id="campfire"]
 [ext_resource type="PackedScene" uid="uid://bbreyhlr7ikfh" path="res://scenes/props/camera_flash.tscn" id="flash"]
 [ext_resource type="PackedScene" uid="uid://b02trgqm0njp" path="res://scenes/props/spectator_person.tscn" id="person"]
-[ext_resource type="Script" uid="uid://b7dec8q7ferqs" path="res://scripts/track/spectator_crowd.gd" id="script"]
+[ext_resource type="Script" uid="uid://zeslvk9psl1be" path="res://scripts/track/spectator_crowd.gd" id="script"]
 [ext_resource type="PackedScene" uid="uid://dihocl82pl0x5" path="res://scenes/props/camper_tent.tscn" id="tent"]
 
 [node name="SpectatorCrowd" type="Node3D" unique_id=979789457]

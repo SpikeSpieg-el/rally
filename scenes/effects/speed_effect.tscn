@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dmk814np3lce2"]
 
-[ext_resource type="Script" uid="uid://csltb0po8hd2s" path="res://scripts/effects/rally_speed_feel.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://v4m6abbx2hqum" path="res://scripts/effects/rally_speed_feel.gd" id="1_script"]
 
 [node name="Speed" type="Node" unique_id=1530787186]
 editor_description = "Единственный пульт эффекта скорости для всех заездов: готовые характеры выключено / комфорт / выразительно / аркада, точные числа — в режиме «Свой характер». Сзади и в кабине: усиленное периферийное размытие; капот — прежний спокойный эффект."
