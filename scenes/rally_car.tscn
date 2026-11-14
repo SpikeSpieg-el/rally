@@ -937,7 +937,7 @@ wheel_node = NodePath("WheelVisual")
 [node name="Mitsubishi_Wheel_Ft_L" type="MeshInstance3D" parent="Wheel_FL/WheelVisual" unique_id=2095702640]
 mesh = SubResource("ArrayMesh_sjde7")
 
-[node name="Plane_001" type="MeshInstance3D" parent="Wheel_FL/WheelVisual" unique_id=1164566766]
+[node name="Plane_001" type="MeshInstance3D" parent="Wheel_FL" unique_id=1164566766]
 transform = Transform3D(-1.4517414e-06, 0.21454948, -0.00059725414, 0.20585954, -0.00016687294, -0.060445543, -0.06044577, -0.00057347014, -0.20585874, 0.0695833, 0, 0)
 material_override = SubResource("StandardMaterial3D_cavtd")
 mesh = SubResource("ArrayMesh_cy6et")
@@ -954,7 +954,7 @@ wheel_node = NodePath("WheelVisual")
 material_override = SubResource("StandardMaterial3D_ppamr")
 mesh = SubResource("ArrayMesh_f2jas")
 
-[node name="Plane_002" type="MeshInstance3D" parent="Wheel_FR/WheelVisual" unique_id=628088670]
+[node name="Plane_002" type="MeshInstance3D" parent="Wheel_FR" unique_id=628088670]
 transform = Transform3D(-8.233555e-06, -0.21454948, -0.00059777976, -0.20681366, 0.00016701726, -0.057095706, 0.05709595, 0.0005740328, -0.20681287, -0.0739609, 0, 0)
 material_override = SubResource("StandardMaterial3D_6rw0i")
 mesh = SubResource("ArrayMesh_vwgei")
@@ -970,7 +970,7 @@ wheel_node = NodePath("WheelVisual")
 [node name="Mitsubishi_Wheel_Bk_L" type="MeshInstance3D" parent="Wheel_RL/WheelVisual" unique_id=2115445160]
 mesh = SubResource("ArrayMesh_ngg65")
 
-[node name="Plane" type="MeshInstance3D" parent="Wheel_RL/WheelVisual" unique_id=1071512913]
+[node name="Plane" type="MeshInstance3D" parent="Wheel_RL" unique_id=1071512913]
 transform = Transform3D(1.6454482e-06, 0.23662932, 6.1111655e-07, -0.22902979, 1.4389323e-06, 0.059487768, 0.059487768, -1.0051397e-06, 0.22902979, 0.0695833, 0, 0)
 material_override = SubResource("StandardMaterial3D_nipno")
 mesh = SubResource("ArrayMesh_ykpwh")
@@ -987,7 +987,7 @@ wheel_node = NodePath("WheelVisual")
 material_override = SubResource("StandardMaterial3D_53hjw")
 mesh = SubResource("ArrayMesh_iviy6")
 
-[node name="Plane_004" type="MeshInstance3D" parent="Wheel_RR/WheelVisual" unique_id=2074492987]
+[node name="Plane_004" type="MeshInstance3D" parent="Wheel_RR" unique_id=2074492987]
 transform = Transform3D(-1.5894495e-06, -0.23662932, 4.4737038e-07, 0.2270442, -1.3990494e-06, 0.06666616, -0.06666616, 8.7705473e-07, 0.22704418, -0.0739609, 0, 0)
 material_override = SubResource("StandardMaterial3D_g12nq")
 mesh = SubResource("ArrayMesh_268vy")
@@ -1054,7 +1054,7 @@ transform = Transform3D(0.9999989, -0.0012240614, -0.00081107917, 0.0014683922, 
 mesh = SubResource("ArrayMesh_4awaq")
 
 [node name="TaillightL" type="SpotLight3D" parent="low poly lance evo" unique_id=1910428301]
-transform = Transform3D(0.9948861, 0, 0.1010037, 0.01414175, 0.9901498, -0.1392962, -0.1000088, 0.1400123, 0.9850862, 0.88, 2.034242, -1.791603)
+transform = Transform3D(0.9948861, 1.1118718e-08, 0.10100371, 0.01414175, 0.9901498, -0.13929628, -0.1000088, 0.1400123, 0.9850862, 0.88, 2.034242, -1.7279215)
 light_color = Color(1, 0.14, 0.08, 1)
 light_energy = 1.1
 light_volumetric_fog_energy = 0.65
@@ -1064,7 +1064,7 @@ spot_angle = 56.0
 spot_angle_attenuation = 0.85
 
 [node name="TaillightR" type="SpotLight3D" parent="low poly lance evo" unique_id=1910428302]
-transform = Transform3D(0.9948861, 0, -0.1010037, -0.01414175, 0.9901498, -0.1392962, 0.1000088, 0.1400123, 0.9850862, -0.89, 2.034242, -1.791603)
+transform = Transform3D(0.9948861, -1.1118718e-08, -0.10100371, -0.01414175, 0.9901498, -0.13929628, 0.1000088, 0.1400123, 0.9850862, -0.89, 2.034242, -1.7279215)
 light_color = Color(1, 0.14, 0.08, 1)
 light_energy = 1.1
 light_volumetric_fog_energy = 0.65
@@ -1072,15 +1072,6 @@ spot_range = 14.0
 spot_attenuation = 1.1
 spot_angle = 56.0
 spot_angle_attenuation = 0.85
-
-[node name="TaillightGlow" type="OmniLight3D" parent="low poly lance evo" unique_id=1910428303]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 2.044242, -1.911603)
-visible = false
-light_color = Color(1, 0.12, 0.06, 1)
-light_energy = 0.55
-light_volumetric_fog_energy = 0.4
-omni_range = 4.2
-omni_attenuation = 1.4
 
 [node name="CenterBrakeLight" type="MeshInstance3D" parent="low poly lance evo" unique_id=1910428304]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 2.701242, -1.692603)
