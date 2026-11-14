@@ -415,7 +415,7 @@ static func _prewarm_burst(burst: Node3D) -> void:
 		return
 	var timer := tree.create_timer(PREWARM_SECONDS)
 	# Лямбда не держит сам узел: вспышка может быть освобождена раньше таймера.
-	var burst_ref := weakref(burst)
+	var burst_ref: WeakRef = weakref(burst)
 	timer.timeout.connect(func() -> void: _finish_prewarm(burst_ref.get_ref() as Node3D))
 
 

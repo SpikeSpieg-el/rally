@@ -177,7 +177,7 @@ func sync_dashboard(delta: float) -> void:
 	var snap: Dictionary = compute_telemetry_snapshot()
 
 	# 1. Руль
-	var target_steer: float = float(snap["steer"])
+	var target_steer: float = float(snap.get("steer", 0.0))
 	if delta > 0.0:
 		_current_steer = lerpf(_current_steer, target_steer, clampf(delta * steer_smooth_speed, 0.0, 1.0))
 	else:

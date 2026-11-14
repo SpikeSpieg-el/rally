@@ -31,6 +31,10 @@ const RIM_RADIUS := 0.29
 const RPM_HEADROOM := 200.0
 const DEFAULT_RPM_TOP := 6800.0
 const WAIT := "__wait__"
+const DONE := "__done__"
+const STATUS_CREATED := "created"
+const STATUS_REBUILT := "rebuilt"
+const STATUS_ERROR := "error"
 
 ## Общие значения пресетов. Пресет переопределяет только свои поля.
 const BASE_SETUP := {
@@ -97,15 +101,17 @@ const PRESETS := [
 ]
 
 
-## Точка входа: вызывается плагином при открытии проекта и после импорта.
-static func run() -> void:
+## Точка входа: плагин вызывает её при открытии проекта, после импорта и из панели.
+## Возвращает отчёт только о действиях: создано, пересобрано, ошибка.
+static func run() -> Array[Dictionary]:
+	var report: Array[Dictionary] = []
 	if not Engine.is_editor_hint():
-		return
+		return report
 	if not DirAccess.dir_exists_absolute(CARS_DIR):
-		return
+		return report
 	var dir := DirAccess.open(CARS_DIR)
 	if dir == null:
-		return
+		return report
 	var files := Array(dir.get_files())
 	files.sort()
 	for file: String in files:
@@ -117,17 +123,83 @@ static func run() -> void:
 			continue
 		var id := car_id_for(file)
 		if not _valid_id(id):
-			push_error("[Машины] %s: имя файла должно быть латиницей, цифрами и _" % file)
+			_report(report, id, STATUS_ERROR, "имя файла должно быть латиницей, цифрами и _")
 			continue
 		var vehicle_path := VEHICLES_DIR + id + ".tres"
-		var message := ""
 		if ResourceLoader.exists(vehicle_path):
-			message = _rebuild_if_requested(id, vehicle_path, glb_path)
+			var rebuild_message := _rebuild_if_requested(id, vehicle_path, glb_path)
+			if rebuild_message == DONE:
+				_report(report, id, STATUS_REBUILT, "модель пересобрана")
+			elif not rebuild_message.is_empty() and rebuild_message != WAIT:
+				_report(report, id, STATUS_ERROR, rebuild_message)
 		else:
-			message = _create_car(id, glb_path)
-		if message == WAIT or message.is_empty():
+			var message := _create_car(id, glb_path)
+			if message.is_empty():
+				_report(report, id, STATUS_CREATED, "машина создана")
+			elif message != WAIT:
+				_report(report, id, STATUS_ERROR, message)
+	return report
+
+
+## Состояние кузовов для панели: что уже собрано и что ждёт.
+static func scan() -> Array[Dictionary]:
+	var cars: Array[Dictionary] = []
+	if not DirAccess.dir_exists_absolute(CARS_DIR):
+		return cars
+	var dir := DirAccess.open(CARS_DIR)
+	if dir == null:
+		return cars
+	var files := Array(dir.get_files())
+	files.sort()
+	for file: String in files:
+		if not file.to_lower().ends_with(".glb"):
 			continue
-		push_error("[Машины] %s: %s" % [id, message])
+		var id := car_id_for(file)
+		var state := ""
+		var vehicle_path := VEHICLES_DIR + id + ".tres"
+		if not FileAccess.file_exists(CARS_DIR + file + ".import"):
+			state = "ждёт импорта в Godot"
+		elif not _valid_id(id):
+			state = "недопустимое имя файла"
+		elif not ResourceLoader.exists(vehicle_path):
+			state = "будет собрана"
+		else:
+			var vehicle := ResourceLoader.load(vehicle_path) as RallyVehicle
+			if vehicle != null and vehicle.rebuild_model:
+				state = "ждёт пересборки"
+			else:
+				state = "собрана"
+		cars.append({"file": file, "id": id, "state": state})
+	return cars
+
+
+## Ручная пересборка из панели: ставит rebuild_model у машины и собирает заново.
+static func rebuild(id: String) -> Array[Dictionary]:
+	var report: Array[Dictionary] = []
+	var vehicle_path := VEHICLES_DIR + id + ".tres"
+	var vehicle := ResourceLoader.load(vehicle_path) as RallyVehicle
+	if vehicle == null:
+		_report(report, id, STATUS_ERROR, "машина ещё не собрана: сначала соберите новые")
+		return report
+	vehicle.rebuild_model = true
+	if ResourceSaver.save(vehicle, vehicle_path) != OK:
+		_report(report, id, STATUS_ERROR, "не записалась машина %s" % vehicle_path)
+		return report
+	var result := run()
+	for entry: Dictionary in result:
+		if String(entry["id"]) == id:
+			return result
+	# run() молчит о кузове, если его glb нет в cars/ или ещё не импортирован.
+	_report(result, id, STATUS_ERROR, "нет кузова в cars/ или он ещё не импортирован")
+	return result
+
+
+static func _report(report: Array[Dictionary], id: String, status: String, text: String) -> void:
+	report.append({"id": id, "status": status, "text": text})
+	if status == STATUS_ERROR:
+		push_error("[Машины] %s: %s" % [id, text])
+	else:
+		print("[Машины] %s: %s" % [id, text])
 
 
 ## Идентификатор машины из имени файла: строчные буквы, пробелы — в _.
@@ -160,7 +232,6 @@ static func _create_car(id: String, glb_path: String) -> String:
 	var setup_dir_created := not DirAccess.dir_exists_absolute(setup_dir)
 	var message := _write_car(id, glb, glb_path, vehicle, created)
 	if message.is_empty():
-		print("[Машины] создана «%s» из %s" % [vehicle.display_name, glb_path])
 		return ""
 	_remove_files(created)
 	if setup_dir_created:
@@ -262,8 +333,7 @@ static func _rebuild_if_requested(id: String, vehicle_path: String, glb_path: St
 	vehicle.rebuild_model = false
 	if ResourceSaver.save(vehicle, vehicle_path) != OK:
 		return "не записалась машина %s" % vehicle_path
-	print("[Машины] модель «%s» пересобрана" % vehicle.display_name)
-	return ""
+	return DONE
 
 
 static func _fill_vehicle(vehicle: RallyVehicle, id: String, template: RallyVehicle) -> void:
