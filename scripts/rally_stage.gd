@@ -1263,9 +1263,9 @@ func _spawn_river_banks() -> void:
 			next_rock += maxf(1.0, cfg.bank_rock_spacing) * rng.randf_range(0.6, 1.4)
 			if rock == null or rng.randf() > cfg.bank_rock_chance:
 				continue
-			var sign := -1.0 if rng.randf() < 0.5 else 1.0
+			var side_sign := -1.0 if rng.randf() < 0.5 else 1.0
 			var lateral: float = water_edge + cfg.bank_rock_lateral * rng.randf_range(0.4, 1.6)
-			var spot := point + side * (lateral * sign)
+			var spot := point + side * (lateral * side_sign)
 			if _water_blocked_at(spot.x, spot.z):
 				continue
 			var ground: float = ground_height(spot.x, spot.z)
@@ -1281,9 +1281,9 @@ func _spawn_river_banks() -> void:
 				continue
 			if total < cfg.bank_wall_margin or total > river_network.total_length - cfg.bank_wall_margin:
 				continue
-			var sign := -1.0 if rng.randf() < 0.5 else 1.0
+			var side_sign := -1.0 if rng.randf() < 0.5 else 1.0
 			var lateral: float = water_edge + cfg.bank_wall_lateral
-			var spot := point + side * (lateral * sign)
+			var spot := point + side * (lateral * side_sign)
 			if _water_blocked_at(spot.x, spot.z):
 				continue
 			var ground: float = ground_height(spot.x, spot.z)

@@ -235,9 +235,11 @@ func _body_meshes(car: Node) -> Array[MeshInstance3D]:
 	if fx != null:
 		prefixes = fx.get("dirt_body_prefixes")
 		blocked = fx.get("dirt_body_skip")
+	# Кузов новой машины задан метаданными car_body_mesh (см. car_models.gd).
+	var body_name := String(car.get_meta("car_body_mesh", ""))
 	for child in _all_meshes(car):
 		var mesh_name := String(child.name)
-		var matches := prefixes.is_empty()
+		var matches := prefixes.is_empty() or (not body_name.is_empty() and mesh_name == body_name)
 		for prefix in prefixes:
 			if mesh_name.begins_with(String(prefix)):
 				matches = true

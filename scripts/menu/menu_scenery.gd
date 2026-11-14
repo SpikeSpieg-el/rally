@@ -91,13 +91,13 @@ func rebuild() -> void:
 		var ahead := route.curve.sample_baked(fposmod(along + 1.0, length), true)
 		var direction := (ahead - center).normalized()
 		var side := Vector3(direction.z, 0.0, -direction.x).normalized()
-		var sign := SIGN.instantiate() as Node3D
-		sign.name = "RoadSign_%02d" % i
-		sign.set_meta("menu_scattered", true)
-		add_child(sign)
-		sign.position = center + side * (road_clearance - 1.5)
-		sign.position.y = terrain.ground_height(sign.position.x, sign.position.z) - 0.08
-		sign.rotation.y = atan2(-direction.x, -direction.z)
+		var road_sign := SIGN.instantiate() as Node3D
+		road_sign.name = "RoadSign_%02d" % i
+		road_sign.set_meta("menu_scattered", true)
+		add_child(road_sign)
+		road_sign.position = center + side * (road_clearance - 1.5)
+		road_sign.position.y = terrain.ground_height(road_sign.position.x, road_sign.position.z) - 0.08
+		road_sign.rotation.y = atan2(-direction.x, -direction.z)
 
 ## Привязать сохранённые или вручную расставленные объекты к мешу рельефа.
 @export_tool_button("Посадить объекты на землю") var snap_button = snap_to_ground

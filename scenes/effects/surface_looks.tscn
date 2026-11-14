@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://brsmnlecw6ler"]
 
-[ext_resource type="Script" uid="uid://c05ccjqft02jv" path="res://scripts/effects/rally_surface_looks.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://07ljuu8w78b3h" path="res://scripts/effects/rally_surface_looks.gd" id="1_script"]
 [ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="2_ground"]
 [ext_resource type="Shader" uid="uid://cg0r2rrjileeb" path="res://shaders/gravel_road.gdshader" id="3_road"]
 [ext_resource type="Texture2D" uid="uid://bci7my2yjh4da" path="res://textures/environment/forest_floor.png" id="4_ground_tex"]

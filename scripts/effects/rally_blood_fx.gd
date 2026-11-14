@@ -214,7 +214,7 @@ void fragment() {
 @export var burst_scene: PackedScene
 
 @export_group("Какие меши пачкать")
-@export var body_prefixes: PackedStringArray = PackedStringArray(["Mitsubishi_Body"])
+@export var body_prefixes: PackedStringArray = PackedStringArray(["Mitsubishi_Body", "Impreza_GC8_Body"])
 @export var body_skip: PackedStringArray = PackedStringArray(
 	["wheel", "light", "disc", "tire", "cabin", "seat", "interior", "cockpit", "charm", "robe"]
 )
@@ -414,7 +414,9 @@ static func _prewarm_burst(burst: Node3D) -> void:
 		_finish_prewarm(burst)
 		return
 	var timer := tree.create_timer(PREWARM_SECONDS)
-	timer.timeout.connect(func() -> void: _finish_prewarm(burst))
+	# Лямбда не держит сам узел: вспышка может быть освобождена раньше таймера.
+	var burst_ref := weakref(burst)
+	timer.timeout.connect(func() -> void: _finish_prewarm(burst_ref.get_ref() as Node3D))
 
 
 static func _finish_prewarm(burst: Node3D) -> void:
@@ -802,7 +804,9 @@ func _collect_meshes(node: Node, car: Node, result: Array[MeshInstance3D]) -> vo
 		if String(mesh_node.name) != LAYER_NAME and String(mesh_node.name) != GLASS_NAME:
 			if not _is_skipped(mesh_node, car):
 				var mesh_id := String(mesh_node.name)
-				var matches := body_prefixes.is_empty()
+				# Кузов новой машины задан метаданными car_body_mesh (см. car_models.gd).
+				var body_name := String(car.get_meta("car_body_mesh", ""))
+				var matches := body_prefixes.is_empty() or (not body_name.is_empty() and mesh_id == body_name)
 				for prefix in body_prefixes:
 					if mesh_id.begins_with(String(prefix)):
 						matches = true

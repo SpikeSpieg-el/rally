@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cbleedburst01"]
 
-[ext_resource type="Script" uid="uid://cmkmig20csvns" path="res://scripts/effects/rally_blood_burst.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://b1loodburst01a" path="res://scripts/effects/rally_blood_burst.gd" id="1_script"]
 
 [sub_resource type="Gradient" id="Gradient_drop"]
 offsets = PackedFloat32Array(0, 0.55, 1)

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://lgfgdoxixac0"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_gravel"
+display_name = "SUBARU · ГРАВИЙ"
+description = "Гравийная настройка: мягче подвеска, больше длина хода, чуть больше поперечного сцепления переднего моста для выходов из поворотов."
+engine_name = "EJ25 · 2.5 TURBO"
+max_torque = 430.0
+max_rpm = 7000.0
+idle_rpm = 850.0
+torque_shape = 1
+turbo = true
+final_drive = 4.1
+vehicle_mass = 1280.0
+awd_front_torque = 0.42
+front_spring_length = 0.36
+rear_spring_length = 0.38
+front_damping_ratio = 0.4
+rear_damping_ratio = 0.46
+tire_width = 215.0
+grip_scale = 0.95

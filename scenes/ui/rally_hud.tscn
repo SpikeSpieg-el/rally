@@ -6,11 +6,11 @@
 [ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 [ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
 [ext_resource type="Script" uid="uid://ct3hs3w6eqtf0" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
-[ext_resource type="Script" uid="uid://p0tltx0tkyca" path="res://scripts/ui/rally_hud.gd" id="6_rally_hud"]
-[ext_resource type="Resource" uid="uid://dj753ov15yhdp" path="res://data/ui/default_hud_style.tres" id="7_hud_style"]
-[ext_resource type="Script" uid="uid://dm1fierojr4ho" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
+[ext_resource type="Script" uid="uid://p0tltxztkyb9" path="res://scripts/ui/rally_hud.gd" id="6_rally_hud"]
+[ext_resource type="Resource" uid="uid://1qoem1fkj6pwb" path="res://data/ui/default_hud_style.tres" id="7_hud_style"]
+[ext_resource type="Script" uid="uid://1thm1p96wzd09" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
 [ext_resource type="Script" uid="uid://n5mwwvnvq8uq" path="res://scripts/ui/fps_label.gd" id="9_fps"]
-[ext_resource type="Script" uid="uid://c5iyuytyv1q0e" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
+[ext_resource type="Script" uid="uid://1cx7fcdia80jy" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 18.0

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://10a20jhn4xcx"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "subaru_gravel_spec"
+display_name = "SUBARU · ГРАВИЙ SPEC"
+description = "Спец-гравий: максимум мощности и переднее распределение момента. Тяжелее на поворотах, но сильнее на длинных грунтовых прямых."
+engine_name = "EJ25 · 2.5 TURBO SPEC"
+max_torque = 450.0
+max_rpm = 7200.0
+idle_rpm = 850.0
+torque_shape = 1
+turbo = true
+final_drive = 3.9
+vehicle_mass = 1290.0
+awd_front_torque = 0.45
+bump_damp_multiplier = 0.9
+tire_width = 215.0
+grip_scale = 0.95
