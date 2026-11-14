@@ -415,7 +415,7 @@ static func _build_model(id: String, glb: PackedScene, glb_path: String, vehicle
 		body.free()
 		errors.append("кузов %s пустой или плоский" % glb_path)
 		return null
-	var scale_factor := vehicle.body_scale if vehicle.body_scale > 0.0 else vehicle.body_length_m / length
+	var scale_factor: float = vehicle.body_scale if vehicle.body_scale > 0.0 else vehicle.body_length_m / length
 	var mid := (lo + hi) * 0.5
 	var center_z: float = (float(mounts["Wheel_FL"].z) + float(mounts["Wheel_RL"].z)) * 0.5
 	var origin := Vector3(-mid.x * scale_factor, vehicle.ground_clearance - lo.y * scale_factor, center_z - mid.z * scale_factor)

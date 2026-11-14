@@ -502,7 +502,7 @@ func _write_splats() -> void:
 	_material.set_shader_parameter("splat_data", data)
 
 
-func _attach_to_body(car: Node) -> void:
+func _attach_to_body(_car: Node) -> void:
 	# Кровь на кузове наносится декалями (_add_decal), а не через дублирующий
 	# слой меша с material_override: два прозрачных шейдера (кровь и грязь)
 	# на одной геометрии без записи в глубину мерцали в Godot 4 (у MeshInstance3D
