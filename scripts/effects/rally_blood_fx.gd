@@ -415,7 +415,7 @@ static func _prewarm_burst(burst: Node3D) -> void:
 		return
 	var timer := tree.create_timer(PREWARM_SECONDS)
 	# Лямбда не держит сам узел: вспышка может быть освобождена раньше таймера.
-	var burst_ref := weakref(burst)
+	var burst_ref: WeakRef = weakref(burst)
 	timer.timeout.connect(func() -> void: _finish_prewarm(burst_ref.get_ref() as Node3D))
 
 
@@ -502,7 +502,7 @@ func _write_splats() -> void:
 	_material.set_shader_parameter("splat_data", data)
 
 
-func _attach_to_body(car: Node) -> void:
+func _attach_to_body(_car: Node) -> void:
 	# Кровь на кузове наносится декалями (_add_decal), а не через дублирующий
 	# слой меша с material_override: два прозрачных шейдера (кровь и грязь)
 	# на одной геометрии без записи в глубину мерцали в Godot 4 (у MeshInstance3D
