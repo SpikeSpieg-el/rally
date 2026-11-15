@@ -168,6 +168,91 @@ class SpeedMotesTest(unittest.TestCase):
         self.assertIn("func _update_speed_motes(amount: float) -> void:", car)
         self.assertIn("amount if camera_mode == CameraMode.CHASE_3RD else 0.0", car)
 
+    def test_zero_amount_really_stops_the_particles(self):
+        # Баг из ревью: `amount` приходил в функцию, но не использовался —
+        # поток продолжал спавниться у капота и в кабине. Ноль обязан гасить
+        # и эмиссию, и плотность, а не только пересчитывать интенсивность.
+        car = read("scripts/rally_car.gd")
+        block = car.split("func _update_speed_motes(amount: float) -> void:", 1)[1]
+        block = block.split("\nfunc ", 1)[0]
+        self.assertIn("if not motes.speed_motes_enabled or amount <= 0.0:", block)
+        early_exit = block.split("if not motes.speed_motes_enabled or amount <= 0.0:", 1)[1]
+        early_exit = early_exit.split("return", 1)[0]
+        self.assertIn("speed_motes.emitting = false", early_exit)
+        self.assertIn("speed_motes.amount_ratio = 0.0", early_exit)
+
+
+class SurfaceKindNamingTest(unittest.TestCase):
+    """Звук и эффекты ждут "gravel"/"asphalt"/…, а не ключи таблиц GEVP."""
+
+    def test_fallback_translates_gev_p_keys(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn(
+            'const SURFACE_KIND_BY_TYPE := {"Road": "asphalt", "Dirt": "gravel", "Grass": "grass"}',
+            car,
+        )
+        helper = car.split("static func surface_kind_of(", 1)[1].split("\n\n", 1)[0]
+        # Пустое покрытие этапа переводится в имя для звука, а не отдаётся как есть.
+        self.assertIn("SURFACE_KIND_BY_TYPE", helper)
+        dominant = car.split("func dominant_surface_kind", 1)[1]
+        self.assertIn("surface_kind_of(", dominant)
+        # Старого фоллбэка «сырой surface_type» больше нет.
+        self.assertNotIn("kind = String(wheel.surface_type)", dominant)
+
+    def test_roughness_uses_the_same_names(self):
+        car = read("scripts/rally_car.gd")
+        roughness = car.split("func _surface_roughness", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("surface_kind_of(", roughness)
+        self.assertIn('"asphalt"', roughness)
+        self.assertIn('"grass"', roughness)
+
+
+class SingleKnobTest(unittest.TestCase):
+    """Одна настройка — один пульт (docs/AGENTS_DATA_DRIVEN_RU.md)."""
+
+    def test_mouse_return_speed_has_one_owner(self):
+        car = read("scripts/rally_car.gd")
+        feel = read("scripts/data/rally_car_feel_config.gd")
+        # Экспорт-дубликат на узле молча перекрывался значением из feel —
+        # правка в инспекторе сцены не работала. Источник один: ресурс.
+        self.assertNotIn("@export var mouse_return_speed", car)
+        self.assertIn("var mouse_return_speed:", feel)
+        self.assertIn("_response_weight(f().mouse_return_speed, delta)", car)
+
+    def test_inspector_ranges_contain_their_defaults(self):
+        # Значение вне @export_range молча обрезается инспектором, и то, что
+        # видно в редакторе, перестаёт совпадать с кодом.
+        import re
+        pattern = re.compile(
+            r"@export_range\(([^)]*)\)\s*var\s+(\w+)\s*:\s*(?:float|int)\s*=\s*(-?[\d.]+)"
+        )
+        for rel in (
+            "scripts/data/rally_car_feel_config.gd",
+            "scripts/data/rally_fx_profile.gd",
+            "scripts/data/rally_ui_theme.gd",
+            "scripts/garage_menu.gd",
+            "scripts/rally_car.gd",
+        ):
+            source = read(rel)
+            for match in pattern.finditer(source):
+                args = match.group(1).split(',"suffix')[0].split(",")
+                numbers = [float(n) for n in re.findall(r"-?\d*\.?\d+", ",".join(args))]
+                if len(numbers) < 2:
+                    continue
+                low, high = numbers[0], numbers[1]
+                default = float(match.group(3))
+                self.assertTrue(
+                    low - 1e-9 <= default <= high + 1e-9,
+                    f"{rel}: {match.group(2)} = {default} вне диапазона [{low}, {high}]",
+                )
+
+    def test_dead_model_constants_are_gone(self):
+        car = read("scripts/rally_car.gd")
+        # Геометрия модели живёт только в RallyCarFeelConfig.
+        self.assertNotIn("MODEL_WHEEL_CENTER_Y", car)
+        self.assertNotIn("MODEL_BODY_GROUND_CLEARANCE", car)
+        self.assertIn("var model_wheel_center_y:", read("scripts/data/rally_car_feel_config.gd"))
+
 
 class SpeedFeelShaderTest(unittest.TestCase):
     def test_no_procedural_speed_lines(self):

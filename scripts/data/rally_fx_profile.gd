@@ -354,6 +354,6 @@ extends Resource
 @export_range(0.0, 1.0, 0.001) var imprint_slip_base: float = 0.12
 @export_range(0.0, 2.0, 0.001) var imprint_slip_scale: float = 0.9
 @export_range(0.0, 10.0, 0.01) var imprint_speed_scale: float = 5.0
-@export_range(0.0, 2.0, 0.01) var imprint_load_limit: float = 2.5
+@export_range(0.0, 5.0, 0.01) var imprint_load_limit: float = 2.5
 @export_range(0.0, 2.0, 0.01) var imprint_speed_limit: float = 2.0
 @export_range(0.0, 0.2, 0.001) var imprint_delta_limit: float = 0.05
