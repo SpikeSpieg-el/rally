@@ -296,7 +296,6 @@ func _ready() -> void:
 		_apply_initial_camera_fov()
 		if camera_mode != CameraMode.CHASE_3RD:
 			_update_cameras(0.0)
-	_sync_wiper_view()
 
 	if mouse_look_enabled and not cinematic_mode:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -838,7 +837,6 @@ func _physics_process(delta: float) -> void:
 		return
 	if not cinematic_mode and Input.is_action_just_pressed("camera_switch"):
 		camera_mode = (camera_mode + 1) % 3
-		_sync_wiper_view()
 		mouse_yaw = 0.0
 		mouse_pitch = 0.0
 		smoothed_mouse_yaw = 0.0
@@ -1212,15 +1210,6 @@ func _resolve_wipers() -> Node3D:
 	if node != null:
 		return node
 	return get_node_or_null("Wipers") as Node3D
-
-
-## Дворники работают только в виде из кабины: остальным режимам сказать,
-## что «смотрят» (и можно стирать кровь), либо снять щётки на место.
-func _sync_wiper_view() -> void:
-	if wipers == null:
-		wipers = _resolve_wipers()
-	if wipers != null and wipers.has_method("set_viewing"):
-		wipers.set_viewing(camera_mode == CameraMode.COCKPIT_1ST)
 
 
 func _update_cameras(delta: float) -> void:

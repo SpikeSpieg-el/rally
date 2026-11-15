@@ -19,7 +19,6 @@ extends Node3D
 var _car: Node3D = null
 var _wiper_left: Node3D = null
 var _wiper_right: Node3D = null
-var _viewing: bool = true
 var _sweeping: bool = false
 var _cleaning: bool = false
 var _pass_index: int = 0
@@ -40,18 +39,8 @@ func setup(car: Node3D) -> void:
 	_car = car
 
 
-func set_viewing(on: bool) -> void:
-	_viewing = on
-	if not on:
-		_idle_clock = 0.0
-		if _sweeping:
-			_park_now()
-
-
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
-		return
-	if not _viewing:
 		return
 	if not _sweeping:
 		if _blood_dirty():

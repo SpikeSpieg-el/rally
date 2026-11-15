@@ -18,6 +18,8 @@ const DECAL_CAP := 48
 const BLOCKER_NAME := "BloodParticleBlocker"
 const GLASS_NAME := "BloodGlassSmear"
 const LAYER_NAME := "BloodLayer"
+## Допуск по нормали: кровь считаем попавшей на стекло только рядом с его плоскостью.
+const GLASS_CONTACT_DEPTH := 0.18
 
 const GLASS_WIPER_SHADER_CODE := """
 shader_type spatial;
@@ -208,7 +210,7 @@ void fragment() {
 @export var enabled: bool = true
 @export var blood_color: Color = Color(0.40, 0.025, 0.04, 1.0)
 @export_range(0.0, 1.0, 0.01) var blood_gloss: float = 0.42
-@export_multiline var description: String = "Пятна на бампере, кузове и стекле. Всплеск — сцена Blood Burst."
+@export_multiline var description: String = "Пятна остаются в точке удара; лобовое пачкается только при прямом попадании по стеклу. Всплеск — сцена Blood Burst."
 
 @export_group("Всплеск")
 @export var burst_scene: PackedScene
@@ -257,7 +259,8 @@ var _swept_max: float = 0.0
 var _wiper_pos: float = 0.0
 var _splat_seed: float = 1.0
 var _hit_side: float = 0.0
-var _glass_zone_center: Vector3 = Vector3(0.0, 1.46, 1.12)
+## Плоскость BloodGlassSmear в координатах машины; нужна для проверки точки контакта.
+var _glass_quad_transform: Transform3D = Transform3D.IDENTITY
 var _quad_size: Vector2 = Vector2(1.46, 0.84)
 var _quad_center_local: Vector2 = Vector2(0.28, 0.365)
 var _pivot_left: Vector2 = Vector2(-0.25, 0.0)
@@ -296,7 +299,11 @@ func add_splat(car: Node3D, world_point: Vector3, world_velocity: Vector3) -> vo
 		return
 	if _material == null:
 		install(car)
-	var local_hit: Vector3 = car.to_local(world_point)
+	var raw_local_hit: Vector3 = car.to_local(world_point)
+	# Определяем стекло по настоящей точке контакта ДО ограничения диапазона кузова:
+	# удар сзади или сбоку не должен переноситься на лобовое.
+	var glass_hit: bool = _is_glass_zone(raw_local_hit)
+	var local_hit: Vector3 = raw_local_hit
 	local_hit.x = clampf(local_hit.x, splat_min.x, splat_max.x)
 	local_hit.y = clampf(local_hit.y, splat_min.y, splat_max.y)
 	local_hit.z = clampf(local_hit.z, splat_min.z, splat_max.z)
@@ -308,23 +315,16 @@ func add_splat(car: Node3D, world_point: Vector3, world_velocity: Vector3) -> vo
 	var amount: float = clampf(amount_from_speed.x + speed * amount_from_speed.y, amount_limits.x, amount_limits.y)
 	var radius: float = clampf(radius_from_speed.x + speed * radius_from_speed.y, radius_limits.x, radius_limits.y)
 	var stretch: float = clampf(stretch_from_speed.x + speed * stretch_from_speed.y, stretch_limits.x, stretch_limits.y)
-	var side: float = clampf(local_hit.x, -0.45, 0.45)
-	var edge_side: float = -0.56 if side < 0.0 else 0.56
-	_ensure_glass_smear(car, side)
+	if glass_hit:
+		_ensure_glass_smear(car, raw_local_hit)
 
-	# Следы на кузове, бампере, капоте и по стойкам/краям стекла
+	# Кровь остаётся в месте контакта; дополнительные пятна на капоте/стекле
+	# для каждого удара раньше ошибочно пачкали переднюю часть даже при ударе сзади.
 	_store_splat(local_hit, local_dir, amount, radius, stretch)
-	_store_splat(Vector3(side * 0.55, bumper_point.y, bumper_point.z), Vector3(0.0, 0.12, 1.0), amount, radius * 1.15, stretch * 0.85)
-	_store_splat(Vector3(side * 0.4, hood_point.y, hood_point.z), Vector3(0.0, 0.35, 0.8), amount * 0.9, radius * 1.05, stretch)
-	# На самом стекле краевые брызги ближе к стойкам, а центр рисует шейдер дворников:
-	_store_splat(Vector3(edge_side, _glass_zone_center.y, _glass_zone_center.z), Vector3(0.0, 0.45, 0.7), amount * 0.75, radius * 0.75, stretch * 0.7)
 	_write_look()
 	_write_splats()
 	_attach_to_body(car)
 	_add_decal(car, local_hit, Vector3(-local_hit.x, 0.1, -local_hit.z), radius * 1.6)
-	_add_decal(car, Vector3(side * 0.45, bumper_point.y, bumper_point.z), Vector3(0.0, 0.08, -1.0), radius * 1.8)
-	_add_decal(car, Vector3(side * 0.3, hood_point.y, hood_point.z), Vector3(0.0, -1.0, -0.15), radius * 1.5)
-	_add_decal(car, Vector3(edge_side, _glass_zone_center.y, _glass_zone_center.z), Vector3(0.0, -0.2, -1.0), radius * 0.9)
 
 
 func update(car: Node3D) -> void:
@@ -606,7 +606,7 @@ func _resolve_wiper_rig(car: Node3D) -> Transform3D:
 		var center_y: float = 0.365
 		_quad_center_local = Vector2(center_x, center_y)
 		var smear_xform := rig_in_car * Transform3D(Basis.IDENTITY, Vector3(center_x, center_y, -0.015))
-		_glass_zone_center = smear_xform.origin
+		_glass_quad_transform = smear_xform
 		return smear_xform
 
 	_pivot_left = Vector2(-0.25, 0.0)
@@ -615,11 +615,11 @@ func _resolve_wiper_rig(car: Node3D) -> Transform3D:
 	_quad_center_local = Vector2(0.28, 0.365)
 	var fallback_basis := Basis.from_euler(Vector3(deg_to_rad(-43.0), 0.0, 0.0))
 	var fallback_xform := Transform3D(fallback_basis, glass_point)
-	_glass_zone_center = fallback_xform.origin
+	_glass_quad_transform = fallback_xform
 	return fallback_xform
 
 
-func _ensure_glass_smear(car: Node3D, local_x: float) -> void:
+func _ensure_glass_smear(car: Node3D, local_hit: Vector3) -> void:
 	var rig_transform := _resolve_wiper_rig(car)
 	var smear := car.get_node_or_null(GLASS_NAME) as MeshInstance3D
 	if smear == null:
@@ -637,7 +637,8 @@ func _ensure_glass_smear(car: Node3D, local_x: float) -> void:
 	elif smear.mesh is QuadMesh:
 		(smear.mesh as QuadMesh).size = _quad_size
 	_smear = smear
-	_hit_side = clampf(local_x / 0.45, -1.0, 1.0)
+	var hit_on_quad: Vector3 = rig_transform.affine_inverse() * local_hit
+	_hit_side = clampf(hit_on_quad.x / maxf(_quad_size.x * 0.5, 0.001), -1.0, 1.0)
 	_splat_seed = _rng.randf_range(1.0, 25.0)
 	_glass_dirt = 1.0
 	_glass_wetness = 1.0
@@ -687,9 +688,13 @@ func set_wiper_state(k: float, park_rad: float, top_rad: float, active: bool, de
 
 
 func _is_glass_zone(point: Vector3) -> bool:
-	return point.y >= _glass_zone_center.y - 0.36 \
-		and point.z >= _glass_zone_center.z - 0.55 \
-		and point.z <= _glass_zone_center.z + 0.55
+	# Проверяем координаты в плоскости настоящего лобового, а не прямоугольник
+	# вокруг его центра в осях машины: это исключает заднюю часть и боковины.
+	var glass_local: Vector3 = _glass_quad_transform.affine_inverse() * point
+	var half_size: Vector2 = _quad_size * 0.5
+	return absf(glass_local.x) <= half_size.x \
+		and absf(glass_local.y) <= half_size.y \
+		and absf(glass_local.z) <= GLASS_CONTACT_DEPTH
 
 
 ## Есть ли на лобовом стекле ещё свежая неразмазанная кровь, требующая работы щёток.
@@ -738,7 +743,8 @@ func wipe_glass(strength: float = 0.5) -> void:
 
 
 func _prime_glass_smear(car: Node3D) -> void:
-	_ensure_glass_smear(car, 0.0)
+	# Создаём и прогреваем прозрачный материал заранее, но не отмечаем стекло грязным.
+	_ensure_glass_smear(car, Vector3.ZERO)
 	_glass_dirt = 0.0
 	_glass_wetness = 0.0
 	_sync_glass_shader(0.0)
