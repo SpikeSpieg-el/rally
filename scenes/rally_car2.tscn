@@ -811,6 +811,8 @@ feel = ExtResource("2_nx6sy")
 fx = ExtResource("3_4ms5t")
 blood_stains_scene = ExtResource("4_nx6sy")
 body_model_path = NodePath("Subaru Impreza Coupe WRX Type R STi2")
+livery_textures = Array[Texture2D]([ExtResource("9_helpe")])
+livery_names = Array[String](["Заводская"])
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
@@ -1352,6 +1354,6 @@ transform = Transform3D(1, 0, 0, 0, 0.6512328, 0.75887805, 0, -0.75887805, 0.651
 [node name="Subaru Impreza Coupe WRX Type R STi2" type="Node3D" parent="." unique_id=1778702515]
 transform = Transform3D(1.295, 0, 0, 0, 1.51, 0, 0, 0, 1.41, 0.012193322, -0.0076807737, 0.12617433)
 
-[node name="Impreza_GC8_Body" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1848362146]
+[node name="Impreza_GC8_Body" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1848362146 groups=["rally_body_fx", "rally_body_paint"]]
 material_override = SubResource("StandardMaterial3D_ggxr1")
 mesh = SubResource("ArrayMesh_qsl67")

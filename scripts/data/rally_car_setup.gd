@@ -22,7 +22,8 @@ enum TorqueShape { CUSTOM, TURBO_PUNCH, ATMO_LINEAR, HIGH_REV }
 @export var accent_color: Color = Color(1, 0.55, 0.05, 1)
 
 @export_group("Внешность")
-@export_enum("Ралли", "Itasha неон", "Itasha зелёная") var livery: int = 0
+## Индекс в списке ливрей сцены конкретной машины; порядок не меняйте после публикации.
+@export_range(0, 4095, 1) var livery: int = 0
 @export_enum("Заводское", "Глянец", "Матовый", "Металлик") var paint_finish: int = 0
 ## Тонируется общая текстура всего колеса, а не только диска.
 @export var wheel_color: Color = Color.WHITE

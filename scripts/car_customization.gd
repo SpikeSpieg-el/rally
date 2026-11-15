@@ -12,7 +12,7 @@ const GROUPS := [
 
 # kind: color, choice, toggle, number. Границы используются и UI, и загрузкой.
 const FIELDS := [
-	{"group":"appearance", "key":"livery", "label":"Ливрея", "kind":"choice", "options":["Ралли · красная", "Itasha · неон", "Itasha · зелёная"], "tip":"Три штатные раскраски модели. Тон кузова накладывается поверх выбранной ливреи."},
+	{"group":"appearance", "key":"livery", "label":"Ливрея", "kind":"choice", "options":[], "tip":"Ливреи выбранной машины. Тон кузова накладывается поверх текстуры."},
 	{"group":"appearance", "key":"body_color", "label":"Тон кузова и ливреи", "kind":"color", "tip":"Цвет умножается на общую текстуру кузова, включая детали ливреи."},
 	{"group":"appearance", "key":"paint_finish", "label":"Покрытие", "kind":"choice", "options":["Заводское", "Глянец", "Матовый", "Металлик"], "tip":"Меняет свойства материала кузова; эффект зависит от освещения и рендерера."},
 	{"group":"appearance", "key":"wheel_color", "label":"Тон колёс", "kind":"color", "tip":"Окрашивается вся общая текстура колеса, не только диск."},
@@ -71,6 +71,9 @@ static func sanitize_value(field: Dictionary, value: Variant, fallback: Variant)
 		"choice":
 			if not value is int:
 				return fallback
+			# Список ливрей зависит от машины и может иметь любую длину.
+			if field.get("key") == "livery":
+				return clampi(int(value), 0, 4095)
 			return clampi(int(value), 0, field["options"].size() - 1)
 		"toggle":
 			return value if value is bool else fallback

@@ -23,8 +23,7 @@ extends Resource
 @export_file("*.tscn") var race_scene: String = ""
 
 @export_group("Внешность")
-## Красить кузов по пресету (цвет, ливрея, цвет дисков). У машины без
-## Mitsubishi-разметки материалов выключите, иначе красить нечего.
+## Устаревшее поле совместимости ресурсов: ливреи задаются в сцене машины.
 @export var uses_livery_presets: bool = true
 
 @export_group("Звук мотора")

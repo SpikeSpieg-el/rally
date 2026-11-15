@@ -449,17 +449,40 @@ func _on_name_changed(_value: String) -> void:
 		_mark_changed()
 
 
+## Ливреи берутся из игровой сцены выбранной машины, а не из общего списка.
+func _livery_textures() -> Array:
+	var model: Node3D = _vehicle_models.get(_vehicle_id) as Node3D
+	return model.get_meta("livery_textures", []) if model != null else []
+
+
+func _livery_labels() -> Array[String]:
+	var labels: Array[String] = []
+	var textures := _livery_textures()
+	var model: Node3D = _vehicle_models.get(_vehicle_id) as Node3D
+	var names: Array = model.get_meta("livery_names", []) if model != null else []
+	for i in range(textures.size()):
+		var label := String(names[i]).strip_edges() if i < names.size() else ""
+		var texture := textures[i] as Texture2D
+		if label.is_empty() and texture != null:
+			label = texture.resource_path.get_file().get_basename()
+		labels.append(label if not label.is_empty() else "Ливрея %d" % (i + 1))
+	if labels.is_empty():
+		labels.append("Заводская")
+	return labels
+
+
 func _refresh() -> void:
 	if setup == null:
 		return
 	_updating = true
 	_selector.select(selected_index)
 	_description.text = ("СВОЙ ПРЕСЕТ: " if _editing else "ГОТОВЫЙ ПРЕСЕТ: ") + setup.description
-	var vehicle_data: RallyVehicle = config.vehicle(_vehicle_id) if config != null else null
-	if vehicle_data != null and not vehicle_data.uses_livery_presets:
-		_description.text += ("\nПресеты этой машины: свой мотор, свой ряд передач и своя"
-			+ " подвеска. Окраска, ливреи и цвет дисков остаются у машины с"
-			+ " поддержкой окраски.")
+	var livery_labels := _livery_labels()
+	var livery_choice := _controls["livery"] as OptionButton
+	livery_choice.clear()
+	for label in livery_labels:
+		livery_choice.add_item(label)
+	livery_choice.disabled = _livery_textures().is_empty()
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing
@@ -475,8 +498,9 @@ func _refresh() -> void:
 			var readonly: Label = _readonly_values[key]
 			readonly.visible = not _editing
 			if kind == "choice":
-				var options: Array = field["options"]
-				readonly.text = String(options[clampi(int(setup.get(key)), 0, options.size() - 1)])
+				var options: Array = livery_labels if key == "livery" else field["options"]
+				var selected: int = int(setup.get(key))
+				readonly.text = String(options[selected if selected >= 0 and selected < options.size() else 0])
 			elif kind == "toggle":
 				readonly.text = "Вкл." if bool(setup.get(key)) else "Выкл."
 			elif kind == "color":
@@ -498,7 +522,9 @@ func _refresh() -> void:
 			(control as HSlider).editable = key != "awd_front_torque" or setup.drivetrain == SetupType.Drivetrain.AWD
 			_values[key].text = _format_number(value, field)
 		elif kind == "choice":
-			(control as OptionButton).select(int(setup.get(key)))
+			var choice := control as OptionButton
+			var selected: int = int(setup.get(key))
+			choice.select(selected if selected >= 0 and selected < choice.item_count else 0)
 		elif kind == "toggle":
 			(control as CheckButton).button_pressed = bool(setup.get(key))
 		elif kind == "color":
@@ -528,7 +554,7 @@ func _update_preview() -> void:
 		return
 	_model.position.y = _model_default_y + setup.tire_radius - layout().garage_reference_tire_radius
 	# Краска идёт на видимую модель: витрину выбранной машины или кузов сцены.
-	CarVisuals.apply_body(_vehicle_models.get(_vehicle_id, _model) as Node3D, setup)
+	CarVisuals.apply_body(_vehicle_models.get(_vehicle_id, _model) as Node3D, setup, _livery_textures())
 	var wheel_scale: Vector3 = CarVisuals.wheel_scale(setup.tire_radius, setup.tire_width)
 	for wheel: Node3D in _wheel_rest.keys():
 		if not is_instance_valid(wheel):
@@ -569,6 +595,8 @@ func _on_slider_changed(value: float, key: String) -> void:
 
 func _on_choice_changed(value: int, key: String) -> void:
 	if _updating or not _editing or setup == null:
+		return
+	if key == "livery" and (value < 0 or value >= _livery_textures().size()):
 		return
 	setup.set(key, Customization.sanitize_value(_fields[key], value, setup.get(key)))
 	if key == "torque_shape":

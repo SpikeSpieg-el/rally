@@ -16,6 +16,10 @@
 [ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="15_cockpit"]
 [ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="16_emiss"]
 
+[ext_resource type="Texture2D" path="res://textures/иташа2.jpg" id="livery_0"]
+[ext_resource type="Texture2D" path="res://textures/иташа.jpg" id="livery_1"]
+[ext_resource type="Texture2D" path="res://textures/иташа3.jpg" id="livery_2"]
+
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.15
 
@@ -917,6 +921,8 @@ continuous_cd = true
 linear_damp_mode = 1
 script = ExtResource("1_car")
 body_model_path = NodePath("low poly lance evo")
+livery_textures = Array[Texture2D]([ExtResource("livery_0"), ExtResource("livery_1"), ExtResource("livery_2")])
+livery_names = Array[String](["Ралли · красная", "Itasha · неон", "Itasha · зелёная"])
 align_model_to_wheels = true
 use_livery_presets = true
 front_left_wheel = NodePath("Wheel_FL")
