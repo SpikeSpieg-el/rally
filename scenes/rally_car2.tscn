@@ -802,6 +802,20 @@ roughness = 0.6
 material = SubResource("Mat_HarnessRed")
 size = Vector3(0.065, 0.68, 0.018)
 
+[sub_resource type="StandardMaterial3D" id="Mat_SubaruTaillight"]
+resource_name = "Subaru Tail Lamp Lens"
+transparency = 1
+blend_mode = 1
+albedo_color = Color(0.33477402, 0.012294697, 0.00737463, 1)
+roughness = 0.28
+emission_enabled = true
+emission = Color(0.5525958, 0.0018196914, 2.4065375e-07, 1)
+emission_energy_multiplier = 0.55
+
+[sub_resource type="BoxMesh" id="Mesh_SubaruTaillightLens"]
+material = SubResource("Mat_SubaruTaillight")
+size = Vector3(0.22628418, 0.109992675, 0.018)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_brake"]
 albedo_color = Color(0.45, 0.03, 0.03, 1)
 roughness = 0.25
@@ -813,17 +827,28 @@ emission_energy_multiplier = 0.25
 material = SubResource("StandardMaterial3D_center_brake")
 size = Vector3(0.46, 0.018, 0.012)
 
-[sub_resource type="StandardMaterial3D" id="Mat_SubaruTaillight"]
-resource_name = "Subaru Tail Lamp Lens"
-albedo_color = Color(0.42, 0.018, 0.012, 1)
-roughness = 0.28
-emission_enabled = true
-emission = Color(1, 0.035, 0.015, 1)
-emission_energy_multiplier = 0.55
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_81lan"]
+resource_name = "exhaust pipe"
+cull_mode = 2
+albedo_color = Color(0.096204616, 0.096204855, 0.09620457, 1)
+roughness = 0.5
 
-[sub_resource type="BoxMesh" id="Mesh_SubaruTaillightLens"]
-material = SubResource("Mat_SubaruTaillight")
-size = Vector3(0.31, 0.13, 0.018)
+[sub_resource type="ArrayMesh" id="ArrayMesh_vsvcn"]
+resource_name = "low poly lance evo_Circle"
+_surfaces = [{
+"aabb": AABB(-0.09687786, -0.028794121, -0.10099785, 0.19375572, 0.6856561, 0.19656624),
+"attribute_data": PackedByteArray("4o1nP4g8Sz9D5LA+AHnIPAAAAD8AAAAA0A1TPhCRwz3TjSc/gHjIPAyRwz3QDVM+gzxLP9iQwz3weMg8ROSwPtiNZz+wDVM+AAAAAAAAAD82vHk/MuSwPgB5yDzfjSc/AACAP/D//z4MkcM9jDxLPzq8eT/YjSc/0g1TPt+NZz/ijWc/iDxLP0bksD45vHk/kDxLP9yNZz8DAAA/AACAP+KNJz83vHk/Orx5P9iNJz/QDVM+EJHDPQyRwz3QDVM+Q+SwPgB5yDzweMg8ROSwPgAAAD8AAAAAAAAAAAAAAD/TjSc/gHjIPAB5yDzfjSc/gzxLP9iQwz0MkcM9jDxLP9iNZz+wDVM+0g1TPt+NZz82vHk/MuSwPkbksD45vHk/AACAP/D//z4DAAA/AACAPzq8eT/YjSc/4o0nPze8eT/ijWc/iDxLP5A8Sz/cjWc/0g1TPt+NZz8Aecg8340nP5A8Sz/cjWc/DJHDPYw8Sz8AAAA/AAAAAIM8Sz/YkMM9DJHDPdANUz6DPEs/2JDDPdANUz4QkcM90A1TPhCRwz0AAAA/AAAAANANUz4QkcM9AAAAPwAAAADQDVM+EJHDPdONJz+AeMg8Nrx5PzLksD7weMg8ROSwPja8eT8y5LA+DJHDPYw8Sz/weMg8ROSwPkbksD45vHk/AAAAAAAAAD8DAAA/AACAPwAAAAAAAAA/8HjIPETksD7ijWc/iDxLP+KNJz83vHk/RuSwPjm8eT/ijSc/N7x5PwMAAD8AAIA/Nrx5PzLksD46vHk/2I0nPwMAAD8AAIA/AACAP/D//z7YjWc/sA1TPtINUz7fjWc/gzxLP9iQwz0MkcM9jDxLPwB5yDzfjSc/AAAAAAAAAD8MkcM9jDxLPwyRwz3QDVM+8HjIPETksD5D5LA+AHnIPAyRwz3QDVM+Q+SwPgB5yDzTjSc/gHjIPEPksD4Aecg8040nP4B4yDzTjSc/gHjIPDa8eT8y5LA+2I1nP7ANUz7YjWc/sA1TPjq8eT/YjSc/AACAP/D//z4AAIA/8P//PpA8Sz/cjWc/4o1nP4g8Sz/ijSc/N7x5P+KNZz+IPEs/4o0nPze8eT+QPEs/3I1nP0bksD45vHk/RuSwPjm8eT8DAAA/AACAP9INUz7fjWc/RuSwPjm8eT8Aecg8340nP9INUz7fjWc/DJHDPYw8Sz8Aecg8340nPwAAAAAAAAA/8HjIPETksD4Aecg8340nPwAAAAAAAAA/DJHDPdANUz7SDVM+341nPwyRwz3QDVM+AwAAPwAAgD/ijSc/N7x5P5A8Sz/cjWc/kDxLP9yNZz/ijWc/iDxLPzq8eT/YjSc/Orx5P9iNJz8AAIA/8P//PgAAgD/w//8+Nrx5PzLksD7YjWc/sA1TPtiNZz+wDVM+gzxLP9iQwz2DPEs/2JDDPdONJz+AeMg8AAAAPwAAAAAAAAA/AAAAAEPksD4Aecg8Q+SwPgB5yDzQDVM+EJHDPQ=="),
+"format": 34359742487,
+"index_count": 720,
+"index_data": PackedByteArray("UABRAEEAUQAJAAcAKwAJAFEAUAArAFEAKwALAAkAUQAHAEIAQQBRAEIAQgAHAAUAUgALACsAUgANAAsATwArAFAATwBSACsAQgAFAFMAUwAFAAMAVABCAFMAQQBCAFQAUwADADMAMwADAAEAVABTADAAMABTADMAVAA/AEEAMAA9AFQAVAA9AD8AMwABAFUAVQABAAIAMAAzADIAMgAzAFUAMABWAD0AMgBWADAAVQACAC4ALgACAAQAMgBVAFcAVwBVAC4AMgA1AFYAVwA1ADIALgAEAFgAWAAEAAYAVwAuADQANAAuAFgAVwBZADUANABZAFcAWAAGAE4ATgAGAAgANABYAFoAWgBYAE4ANAA2AFkAWgA2ADQATgAIAEwATAAIAAoAWgBOAC8ALwBOAEwAWgBbADYALwBbAFoATAAKAFwAXAAKAAwALwBMAF0AXQBMAFwALwAxAFsAXQAxAC8AXAAMAEsASwAMAA4AXQBcADkAOQBcAEsAXQBeADEAOQBeAF0ASwAOAF8AXwAOABAAOQBLAGAAYABLAF8AOQBIAF4AYABIADkAXwAQAAAAAAAQABIAYABfAEkASQBfAAAAYABhAEgASQBhAGAAAAASAGIAYgASABQASQAAAGMAYwAAAGIASQAVAGEAYwAVAEkAYgAUAGQAZAAUABMAYwBiACwALABiAGQAYwBlABUALABlAGMAZAATAEoASgATABEALABkAGYAZgBkAEoALABnAGUAZgBnACwASgARAGgAaAARAA8AZgBKAEcARwBKAGgAZgBGAGcARwBGAGYAaAAPAE0ATQAPAA0ATQANAFIAaQBoAE0ARwBoAGkAKgBNAFIAaQBNACoAKgBSAE8AaQBqAEcARwBqAEYAKgBFAGkAaQBFAGoATwBrACoAKgBrAEUATwAtAGsAUAAtAE8AawBsAEUAUABtAC0AQQBtAFAAQQA/AG0ALQBuAGsAawBuAGwAbQBvAC0ALQBvAG4APwBwAG0AbQBwAG8APwBxAHAAPQBxAD8AcAA8AG8APQByAHEAVgByAD0AcQBzAHAAcABzADwAcgB0AHEAcQB0AHMAVgB1AHIANQB1AFYAcwAfADwAcwAdAB8AdAAdAHMAPAAfACEAdAAbAB0APAAhAHYAbwA8AHYAdgAhACMAbwB2AG4AOgAbAHQAcgA6AHQAdQA6AHIAOgAZABsAbgB2AD4AdgAjAD4AbgA+AGwAPgAjACUAdwAZADoAdQB3ADoAdwAXABkAPgAlAEAAbAA+AEAAQAAlACcAbABAAHgARQBsAHgARQB4AGoAQAAnAHkAeABAAHkAeQAnACkAagB4AEQAeAB5AEQAagBEAEYAeQApAHoARAB5AHoAegApACgARgBEAHsARAB6AHsARgB7AGcAegAoAEMAewB6AEMAQwAoACYAZwB7AHwAewBDAHwAZwB8AGUAQwAmAH0AfABDAH0AfQAmACQAZQB8AH4AfAB9AH4AZQB+ABUAfQAkAH8AfgB9AH8AfwAkACIAFQB+AIAAfgB/AIAAFQCAAGEAfwAiADsAgAB/ADsAOwAiACAAYQCAAIEAgAA7AIEAYQCBAEgAOwAgAIIAgQA7AIIAggAgAB4ASACBAIMAgQCCAIMASACDAF4AggAeAIQAgwCCAIQAhAAeABwAXgCDAIUAgwCEAIUAXgCFADEAhAAcADgAhQCEADgAOAAcABoAMQCFAIYAhQA4AIYAMQCGAFsAOAAaAIcAhgA4AIcAhwAaABgAWwCGAIgAhgCHAIgAWwCIADYAhwAYAIkAiACHAIkAiQAYABYANgCIAIoAiACJAIoANgCKAFkAiQAWADcAigCJADcANwAWABcANwAXAHcAigA3AIsAWQCKAIsAiwA3AHcAWQCLADUAiwB3AHUANQCLAHUA"),
+"lods": [0.018694011, PackedByteArray("MgAzADQAMAAzADIANAA1ADIAMgA1ADAANAAzAC4ANAAuAC8ANAA2ADUALwA2ADQANgA3ADUALwAxADYANgA4ADcAMQA4ADYAOQAxAC8AOAAYADcANwAYABYAOAAaABgANwAWABcAOAAcABoAOAAeABwANwAXADoANQA3ADoAOgAXABkAOgAZABsAOgAbAB0AOwAeADgAMQA7ADgAOwAgAB4AOwAiACAAOwAkACIAOgAdADwAPAAdAB8APAAfACEAPQA6ADwANQA6AD0APAAhAD4APgAhACMAMAA1AD0APgAjACUAPQA8AD8APwA8AD4AMAA9AD8APgAlAEAAQAAlACcAQAAnACkAPwA+AC0ALQA+AEAAMAA/AEEAQQA/AC0AQQBCADAAQAApAEMAQwApACgAQwAoACYAQwAmACQAQwAkADsARABAAEMALQBAAEQAFQBDADsARABDABUARQAtAEQARQBEAEYARgBEABUAKgAtAEUARwBFAEYAKgBFAEcALABGABUARwBGACwAFQA7AEgASAA7ADEAOQBIADEASQAVAEgASQBIADkALAAVAEkALABKAEcARwBKACoASQAAACwALAAAAEoAOQBLAEkASQBLAAAAOQBMAEsALwBMADkASwAQAAAAAAAQABIASwAOABAAAAASABQASwAMAA4ATAAMAEsAAAAUAEoATAAKAAwATAAIAAoASgAUABMASgATABEASgARAA8ASgAPAE0ATQAPAA0AKgBKAE0ATQANAAsATgAIAEwALwBOAEwATgAGAAgALwAuAE4ALgAGAE4ALgAEAAYALgACAAQAMwACAC4AMwABAAIAMwADAAEAQgADADMAMABCADMAQgAFAAMAQgAHAAUAKwAHAEIAKwAJAAcAKwALAAkAQQArAEIATQALACsATwArAEEATwBNACsAQQAtAE8AKgBNAE8ATwAtACoA"), 0.25926152, PackedByteArray("KgAAACsALAAAACoAKgAtACwAKwAtACoALAAVAAAALAAtABUAAAAPACsAKwAPAA0AAAARAA8AKwANAAsAAAATABEAKwALAAkAAAAUABMAKwAJAAcAAAASABQAKwAHAAUAAAAQABIAKwAFAAMAAAAOABAAAAAMAA4AKwADAC4ALgAMAAAALgADAAEALgAKAAwALgABAAIALgAIAAoALgACAAQALgAGAAgALgAEAAYALwAuAAAAAAAVAC8AMAArAC4AMAAtACsALgAtADAALwAxAC4ALgAxAC0ALwAVADEAFQAoACYAFQApACgAFQAmACQALQApABUAFQAkADEALQAnACkAMQAkACIALQAlACcAMQAiACAALQAjACUAMQAgAB4AMQAeABwAMQAcABoAMQAaABgAMQAYAC0ALQAhACMALQAYABYALQAfACEALQAWABcALQAdAB8ALQAXABkALQAbAB0ALQAZABsA"), 0.6718232, PackedByteArray("AAABAAIAAAADAAEAAAACAAQAAAAFAAMAAAAEAAYAAAAHAAUAAAAGAAgAAAAJAAcAAAAIAAoAAAALAAkAAAAKAAwAAAANAAsAAAAMAA4AAAAPAA0AAAAOABAAAAARAA8AAAAQABIAAAATABEAAAASABQAAAAUABMAFQAWABcAFQAYABYAFQAXABkAFQAaABgAFQAZABsAFQAcABoAFQAbAB0AFQAeABwAFQAdAB8AFQAgAB4AFQAfACEAFQAiACAAFQAhACMAFQAkACIAFQAjACUAFQAmACQAFQAlACcAFQAoACYAFQAnACkAFQApACgA")],
+"material": SubResource("StandardMaterial3D_81lan"),
+"name": "exhaust pipe",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 140,
+"vertex_data": PackedByteArray("zcqIPa9QbLyxyT096//QvENOID6sipm9hpLqMZFWID57caG9QcVGvSk2ID5AnIK9s//QPENOID6wipm9xsqIvaIQID62yT29LcVGPSk2ID5JnIK9C8+gvVfhHz4Ijse8wMqIPaIQID7LyT29lhWpvemsHz70xxoyCM+gPVfhHz41jse8Cs+gvX14Hz4Rjsc8mBWpPemsHz6cg5ezxsqIvTFJHz65yT09D8+gPX14Hz7ujcc8QMVGvakjHz5CnII9zcqIPTFJHz6vyT094v/QvI8LHz6uipk9T8VGPakjHz4+nII9C90QM0IDHz58caE9BADRPI8LHz6ripk9CSW6PRzlvD5y7fE8xYhRvZaTAT884Zu9GDOQvWxLBj+1d5C9PlHcvDYY/T78NKO9TYSpvWQ9DD9fFoK9bwW5MckB+z5Pu6W9kj2yvYDUEj8kS2S9AlHcPDUY/T75NKO9TISpvZ1rGT+UaUS9rohRPZWTAT9A4Zu9GDOQvZNdHz/ipie9ETOQPWxLBj+6d5C9w4hRvWsVJD/c0xC9SoSpPWI9DD9hFoK9NFHcvOUcJz9fLAK9kz2yPX7UEj8wS2S9Je0QMxsoKD9tP/q8UYSpPZtrGT+TaUS9VlHcPOUcJz9hLAK9HzOQPZNdHz/mpie904hRPWkVJD/Y0xC9dD1pvQzVvryWQpk9C8+gvUJ6+LsWjsc8gj1pPQXVvryRQpk9FVievRzlvD5dFmY9gJLqMUwFyTx6caG9Wj1pPdPUvjySQpm9g4OgvZWlijwZs169RBZmPRzlvD4lWJ69dj1pvcbUvjyIQpm9Q8VGvQuhojxAnIK96GdGJ2Lh6zyNcL29YBZmvRzlvD4bWJ69WaMrMBzlvD5hucO9x4hRvVRt1j6NGK69BFHcPPay1D6Oc8a99LG8PSrIETwtKeq8ToSpvYaC3D76uDC9S4SpPYWC3D4TuTC9GTOQvYRr5z5H0wI9BiW6vRzlvD6u7fG8NVHcvOLW6z6vZ389W7nDvRzlvD7JiXWyzfYNM1Fv7D5FGIg95mfGvWKTirPRYVkzC8+gvVh5+DsGjse8IDOQPYRr5z4+0wI9WVHcPBrlvD5NhKk9le3xvBzlvD4IJbo9tu3xPBzlvD4FJbo9FpQHM6bh67ybcL09ASW6PRzlvD7k7fG8/LG8PXnIEbwDKeo8Ct0QM4cFybx+caE9mRWpPXXRAbNv4IizwcqIPWVQbDzLyT29QcVGvUahorxEnII9LsVGPRWhojxInIK9g4Ogvdilirwxs149+LG8vZLIEbwsKeo8lhWpvUQxbLOt8Icyx8qIvb1QbLy8yT09x8qIvUpQbDy2yT29+bG8vQjIETz3KOq87P/QvJguvzyripm9FVievRzlvD5qFma9Pz71vOhV4Dz2KrS9tf/QPJ4uvzywipm9oO3xvBzlvD4NJbq99j31PO5V4Dz7KrS9We3xPBzlvD4SJbq9Cc+gPZB5+Dszjse8eoOgPaWlijwxs169DFiePRzlvD6EFma9EM+gPRd6+Lvyjcc852fGPZdUGLPRmTezW7nDPRzlvD6u1e2zUcVGPUChorxAnII9iYOgPdGlirwls149BQDRPNAuv7ytipk9G1iePRzlvD5SFmY9VD71PClW4LwCK7Q9bRZmPRzlvD4RWJ494//QvNQuv7ywipk9ND71vC5W4LwFK7Q9fm0IMxzlvD5cucM9XxZmvRzlvD4XWJ49N1HcvBrlvD5QhKk9BSW6vRzlvD6b7fE8x4hRvRrlvD4bM5A9GjOQvRrlvD7FiFE9ToSpvRrlvD47Udw8lD2yvRrlvD7YsbayT4SpvRrlvD5UUdy8TYSpvVMH5D5s5gw8kz2yvexE4D5ef428GjOQvRrlvD7UiFG9xYhRvYUc6j65sU49GTOQvVQe2T5WKYi9zPYNMxrlvD6UPbI9V1HcPOLW6z6qZ3891YhRPYQc6j6usU491ohRPRrlvD4WM5A9ITOQPRrlvD67iFE9UoSpPVIH5D4i5gw8UoSpPRrlvD4UUdw8lD2yPexE4D6Lf428lT2yPRrlvD4IUOqzS4SpPRrlvD6GUdy8EjOQPVQe2T5hKYi9EzOQPRrlvD7tiFG9r4hRPVRt1j6WGK69sYhRPRrlvD4rM5C9BVHcPBrlvD5bhKm9s1KhMYka1D721869oFKhMRrlvD6bPbK9QFHcvPey1D6Jc8a9QlHcvBrlvD5XhKm9yIhRvRrlvD4iM5C9DTFkI////79Wnv9/////P/9//3////8/drT/f////z+oYf9/////P7fI/3////8/iEv/f////z9+3/9/////P0c3/3////8/4f//f////z+AIP9/////P///X6D///+/HQD/f////z///zC3////vwAAX6D///+///95y////78AADC3////v///nuH///+/AAB5y////7//////////vwAAnuH///+/wLeutf///z/VBbfX////v/kDkkH///+/wRFu7v///78aBfBe////vyrn//////+/kRGmhP///z897nDu////v88zl47///8/Kfq31////79PSVCW////PwX8kkH///+/v1r6nP///z/k+vBe////v9xrWaP///8/be6mhP///z//f0yq////Py/Ml47///8/IpRZo////z+vtlCW////Pz+l+pz///8/81vvRv///z/7zH4s////vwuk70b///8/h1N2sv///z//f8wy////P5jULx7///+/hSuZKf///7+Mzc/f////v2YrLx7///+/dKMSQf///z9nzAAA////v3Iyz9////+/Q8P//////79HBtQr////v1z7YRj///+/n9GqM////7+NBpZX////v3H5llf///+/8UA2kP///z+yNTjI////v/Bn8Zr///8/Kj0gvf///z//f0mh////P7E0uzz///+/Ar7aO////78NvzaQ////P92O1sL///8/Dm6atf///z/wkZq1////P/9/1zj///8/TMo4yP///7/Fv3tE////P3fGAAD///+/Izi5NP///7/xTstA////P3rOSRn///+/ilwSQf///z/rTalH////PzlAe0T///8/28e5NP///7/xzmQj////vw2xy0D///8/Xy6qM////7/Vk9U8////P3Yyh9P///+/5y3CEP///78pbNU8////P5U1FO7///+/F9LCEP///79pyhTu////v/xB2jv///+/edSZKf///7+IzYfT////vwMzfiz///+/Tcu7PP///7/UwiC9////P4QxSRn///+/E7KpR////z87NMMN////v3esdrL///8/JJRsQv///z80oHWy////P8PLww3///+/2mtsQv///z//f8W8////P8pfdbL///8/IXHWwv///z8+SK61////P7tkn77///8/qVkUvf///z8XTze+////P0dE1cL///8/Jzr7yf///7+TKLGJ////P3gAtYD///+/ETTR0v///790VKGV////P7QHMT////+//39kyv///z8OmPGa////P4qroZX///8/Q5ufvv///z9VphS9////P2vXsYn///8/57A3vv///z+G/7WA////v7e71cL///8/18X7yf///79K+DE/////v+3L0dL///+/t/nUK////79vzuzd////vwLNWez///+/jvsAAP///78jxv//////v6IEYRj///+//DJZ7P///7+PMezd////vw==")
+}]
 
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 collision_mask = 3
@@ -962,8 +987,28 @@ spot_range = 85.0
 spot_attenuation = 0.75
 spot_angle = 32.0
 
+[node name="TaillightL" type="SpotLight3D" parent="." unique_id=188760641]
+transform = Transform3D(0.9948861, 9.265598e-09, 0.10100371, 0.0141417505, 0.9901498, -0.13929628, -0.10000879, 0.1400123, 0.9850862, 0.76586425, 1.0064882, -2.901791)
+light_color = Color(1, 0.14, 0.08, 1)
+light_energy = 1.1
+light_volumetric_fog_energy = 0.65
+spot_range = 14.0
+spot_attenuation = 1.1
+spot_angle = 56.0
+spot_angle_attenuation = 0.85
+
+[node name="TaillightR" type="SpotLight3D" parent="." unique_id=1756652533]
+transform = Transform3D(0.9948861, -9.265598e-09, -0.10100371, -0.0141417505, 0.9901498, -0.13929628, 0.10000879, 0.1400123, 0.9850862, -0.6996723, 1.0064882, -2.901791)
+light_color = Color(1, 0.14, 0.08, 1)
+light_energy = 1.1
+light_volumetric_fog_energy = 0.65
+spot_range = 14.0
+spot_attenuation = 1.1
+spot_angle = 56.0
+spot_angle_attenuation = 0.85
+
 [node name="Subaru Impreza Coupe WRX Type R STi2" type="Node3D" parent="." unique_id=1778702515]
-transform = Transform3D(1.295, 0, 0, 0, 1.51, 0, 0, 0, 1.41, 0.012193322, -0.0076807737, 0.12617433)
+transform = Transform3D(1.3777156, 0, 0, 0, 1.51, 0, 0, 0, 1.41, 0.012193322, -0.0076807737, 0.12617433)
 
 [node name="Impreza_GC8_Body" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1848362146 groups=["rally_body_fx", "rally_body_paint"]]
 material_override = SubResource("StandardMaterial3D_ggxr1")
@@ -1385,43 +1430,20 @@ mesh = SubResource("BoxMesh_4buis")
 transform = Transform3D(0.77220076, 0, 0, 0, 0.43128, 0.50256824, 0, -0.5382114, 0.46186724, -0.22582789, 0.8101778, 0.78513575)
 
 [node name="TaillightLensL" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834644]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.58, 0.68, -2.205)
+transform = Transform3D(0.9999999, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0.5669668, 0.6670623, -2.140648)
 cast_shadow = 0
 mesh = SubResource("Mesh_SubaruTaillightLens")
 
 [node name="TaillightLensR" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834645]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.58, 0.68, -2.205)
+transform = Transform3D(0.9999999, 0, 0, 0, 1, 0, 0, 0, 1.0000001, -0.55789286, 0.6724129, -2.137255)
 cast_shadow = 0
 mesh = SubResource("Mesh_SubaruTaillightLens")
 
-[node name="TaillightL" type="SpotLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=188760641]
-transform = Transform3D(0.768251815, 8.58588263e-09, 0.077995146, 0.00936539735, 0.655728344, -0.0922491921, -0.070928227, 0.0992995036, 0.698642695, 0.581985273, 0.671635082, -2.14749314)
-light_color = Color(1, 0.14, 0.08, 1)
-light_energy = 1.1
-light_volumetric_fog_energy = 0.65
-spot_range = 14.0
-spot_attenuation = 1.1
-spot_angle = 56.0
-spot_angle_attenuation = 0.85
-
-[node name="TaillightR" type="SpotLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1756652533]
-transform = Transform3D(0.768251815, -8.58588263e-09, -0.077995146, -0.00936539735, 0.655728344, -0.0922491921, 0.070928227, 0.0992995036, 0.698642695, -0.549703183, 0.671635082, -2.14749314)
-light_color = Color(1, 0.14, 0.08, 1)
-light_energy = 1.1
-light_volumetric_fog_energy = 0.65
-spot_range = 14.0
-spot_attenuation = 1.1
-spot_angle = 56.0
-spot_angle_attenuation = 0.85
-
-[node name="TaillightGlow" type="OmniLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834648]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, -2.20)
-light_color = Color(1, 0.12, 0.07, 1)
-light_energy = 0.55
-omni_range = 3.0
-omni_attenuation = 1.2
-
 [node name="CenterBrakeLight" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1704946373]
-transform = Transform3D(0.772200772, 0, 0, 0, 0.662251656, 0, 0, 0, 0.709219858, -0.0155932988, 0.964155214, -2.12756889)
+transform = Transform3D(0.77220076, 0, 0, 0, 0.66225165, 0, 0, 0, 0.7092199, -0.015593299, 0.9641552, -2.127569)
 cast_shadow = 0
 mesh = SubResource("BoxMesh_mgh2m")
+
+[node name="Circle" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=874895603]
+transform = Transform3D(0.72583765, 0.0010658562, 0.0010655425, 0.0009724814, -0.00019428745, -0.66225094, -0.0010411453, 0.7092192, -0.00020958857, 0.43137613, 0.1815979, -2.1740496)
+mesh = SubResource("ArrayMesh_vsvcn")
