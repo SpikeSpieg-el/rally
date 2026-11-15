@@ -203,13 +203,15 @@ func crush(car: Node3D) -> void:
 	var pre_throw_pos: Vector3 = global_position
 	var velocity: Vector3 = _car_velocity(car)
 	var hit_world: Vector3 = _impact_point_on_car(car, pre_throw_pos)
-	var burst_world: Vector3 = _burst_origin(car, pre_throw_pos)
+	var direct_front_hit: bool = BloodFx.is_direct_front_impact(car, hit_world, velocity)
+	var burst_world: Vector3 = _burst_origin(car, hit_world, direct_front_hit)
+	var splash_direction: Vector3 = _splash_direction(car, hit_world, direct_front_hit)
 
 	_throw_onto_road(velocity)
 	_flatten(velocity)
 
 	var spray_host: Node = car if car != null and is_instance_valid(car) else self
-	BloodFx.spray(spray_host, burst_world, velocity, blood_burst)
+	BloodFx.spray(spray_host, burst_world, velocity, blood_burst, splash_direction)
 	_apply_car_blood(car, hit_world, velocity)
 	_nudge_car.call_deferred(car, velocity, pre_throw_pos)
 
@@ -273,13 +275,38 @@ func _impact_point_on_car(car: Node3D, world_pos: Vector3) -> Vector3:
 	return car.to_global(local_hit)
 
 
-## Точка спавна облака GPU-частиц (чуть сбоку от кузова, чтобы частицы не гасли внутри коллизии).
-func _burst_origin(car: Node3D, world_pos: Vector3 = global_position) -> Vector3:
+## Источник короткого кровавого всплеска — рядом с настоящей точкой удара,
+## а не сбоку от машины.
+func _burst_origin(car: Node3D, hit_world: Vector3, direct_front_hit: bool) -> Vector3:
 	if car == null or not is_instance_valid(car):
-		return world_pos + Vector3(0.0, impact_height, 0.0)
-	var local_hit: Vector3 = car.to_local(world_pos + Vector3(0.0, 0.7, 0.0))
-	var side: float = 1.35 if local_hit.x >= 0.0 else -1.35
-	return car.to_global(Vector3(side, clampf(impact_height, 0.45, 1.2), clampf(local_hit.z, -1.6, 1.8)))
+		return hit_world + Vector3.UP * 0.08
+	var local_hit: Vector3 = car.to_local(hit_world)
+	var outward := Vector3(local_hit.x, 0.18, local_hit.z)
+	if outward.length_squared() < 0.04:
+		outward = Vector3.UP
+	else:
+		outward = outward.normalized()
+	var local_origin: Vector3 = local_hit + outward * 0.38
+	if direct_front_hit:
+		# Ставим источник за передней плоскостью блокиратора частиц,
+		# чтобы капли не исчезали внутри бампера в первый же кадр.
+		local_origin.z = maxf(local_origin.z, 2.45)
+	return car.to_global(local_origin)
+
+
+func _splash_direction(car: Node3D, hit_world: Vector3, direct_front_hit: bool) -> Vector3:
+	if car == null or not is_instance_valid(car):
+		return Vector3.UP
+	var local_direction: Vector3
+	if direct_front_hit:
+		# От бампера вверх и назад по капоту, в сторону лобового стекла.
+		local_direction = Vector3(0.0, 0.9, -1.0)
+	else:
+		local_direction = car.to_local(hit_world)
+		local_direction.y = maxf(local_direction.y, 0.35)
+	if local_direction.length_squared() < 0.04:
+		local_direction = Vector3.UP
+	return (car.global_transform.basis * local_direction.normalized()).normalized()
 
 
 func _flatten(velocity: Vector3 = Vector3.ZERO) -> void:

@@ -114,11 +114,11 @@ class WiperSceneTest(unittest.TestCase):
         glass_y = float(m.group(1).split(",")[1])
         self.assertGreaterEqual(glass_y, 1.35, "glass_point.y должен находиться в зоне лобового стекла, а не капота")
 
-    def test_only_a_real_windshield_impact_creates_glass_blood(self):
+    def test_real_glass_or_direct_front_impact_creates_glass_blood(self):
         blood = read("scripts/effects/rally_blood_fx.gd")
         add_splat = blood.split("func add_splat(", 1)[1].split("\n\nfunc update(", 1)[0]
         self.assertIn("var raw_local_hit: Vector3 = car.to_local(world_point)", add_splat)
-        self.assertIn("var glass_hit: bool = _is_glass_zone(raw_local_hit)", add_splat)
+        self.assertIn("var glass_hit: bool = _is_glass_zone(raw_local_hit) or direct_front_hit", add_splat)
         self.assertRegex(add_splat, r"if glass_hit:\s+_ensure_glass_smear\(car, raw_local_hit\)")
         # Один физический удар — одно пятно в точке контакта, без принудительных
         # следов на бампере, капоте или краях лобового.

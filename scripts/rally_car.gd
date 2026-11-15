@@ -187,11 +187,12 @@ var _surface_roughness_value: float = 0.0
 ## Поток частиц на обочине: живёт в машине, пока включён в конфиге.
 var speed_motes: GPUParticles3D = null
 
-var _evo_model: Node3D = null
-var _evo_body: MeshInstance3D = null
+var _body_model: Node3D = null
+var _body_mesh: MeshInstance3D = null
 var _taillight_l: SpotLight3D = null
 var _taillight_r: SpotLight3D = null
 var _taillight_glow: OmniLight3D = null
+var _taillight_lens_materials: Array[StandardMaterial3D] = []
 var _center_brake_light: MeshInstance3D = null
 var _center_brake_mat: StandardMaterial3D = null
 var _brake_light_level: float = 0.0
@@ -759,22 +760,28 @@ func _apply_visual_setup() -> void:
 
 
 func _setup_brake_lights() -> void:
-	_evo_model = _find_body_model()
-	_evo_body = null
+	_body_model = _find_body_model()
+	_body_mesh = null
 	_taillight_l = null
 	_taillight_r = null
 	_taillight_glow = null
+	_taillight_lens_materials.clear()
 	_center_brake_light = null
 	_center_brake_mat = null
-	if _evo_model == null:
+	if _body_model == null:
 		return
-	_evo_body = CarVisuals.body_mesh(_evo_model) if not livery_textures.is_empty() else null
+	_body_mesh = CarVisuals.body_mesh(_body_model) if not livery_textures.is_empty() else null
 	if not livery_textures.is_empty():
-		CarVisuals.ensure_body_material(_evo_model)
-	_taillight_l = _evo_model.get_node_or_null("TaillightL") as SpotLight3D
-	_taillight_r = _evo_model.get_node_or_null("TaillightR") as SpotLight3D
-	_taillight_glow = _evo_model.get_node_or_null("TaillightGlow") as OmniLight3D
-	_center_brake_light = _evo_model.get_node_or_null("CenterBrakeLight") as MeshInstance3D
+		CarVisuals.ensure_body_material(_body_model)
+	_taillight_l = _body_model.get_node_or_null("TaillightL") as SpotLight3D
+	_taillight_r = _body_model.get_node_or_null("TaillightR") as SpotLight3D
+	_taillight_glow = _body_model.get_node_or_null("TaillightGlow") as OmniLight3D
+	for lens_name in ["TaillightLensL", "TaillightLensR"]:
+		var lens := _body_model.get_node_or_null(lens_name) as MeshInstance3D
+		var lens_mat := _prepare_taillight_lens(lens)
+		if lens_mat != null:
+			_taillight_lens_materials.append(lens_mat)
+	_center_brake_light = _body_model.get_node_or_null("CenterBrakeLight") as MeshInstance3D
 	if _center_brake_light != null:
 		var source_mat: Material = _center_brake_light.material_override
 		if source_mat == null and _center_brake_light.mesh != null and _center_brake_light.mesh.get_surface_count() > 0:
@@ -785,8 +792,24 @@ func _setup_brake_lights() -> void:
 	_apply_brake_light_energy()
 
 
+func _prepare_taillight_lens(lens: MeshInstance3D) -> StandardMaterial3D:
+	if lens == null:
+		return null
+	var source_mat: Material = lens.material_override
+	if source_mat == null and lens.mesh != null and lens.mesh.get_surface_count() > 0:
+		source_mat = lens.mesh.surface_get_material(0)
+	if not source_mat is StandardMaterial3D:
+		return null
+	var lens_mat := (source_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+	if lens_mat == null:
+		return null
+	lens_mat.emission_enabled = true
+	lens.material_override = lens_mat
+	return lens_mat
+
+
 func _update_brake_lights(delta: float) -> void:
-	if _evo_model == null or not _evo_model.visible:
+	if _body_model == null or not _body_model.visible:
 		return
 	var brake_press: float = maxf(clampf(brake_input, 0.0, 1.0), clampf(handbrake_input, 0.0, 1.0))
 	var target_level: float = 1.0 if is_braking else brake_press
@@ -809,20 +832,23 @@ func _apply_brake_light_energy() -> void:
 		_taillight_l.light_energy = spot_energy
 	if _taillight_r != null:
 		_taillight_r.light_energy = spot_energy
+	var glow_energy: float = lerpf(
+		feel_cfg.taillight_glow_idle_energy,
+		feel_cfg.taillight_glow_brake_energy,
+		t
+	)
 	if _taillight_glow != null:
-		_taillight_glow.light_energy = lerpf(
-			feel_cfg.taillight_glow_idle_energy,
-			feel_cfg.taillight_glow_brake_energy,
-			t
-		)
+		_taillight_glow.light_energy = glow_energy
+	for lens_mat in _taillight_lens_materials:
+		lens_mat.emission_energy_multiplier = glow_energy
 	if _center_brake_mat != null:
 		_center_brake_mat.emission_energy_multiplier = lerpf(
 			feel_cfg.center_brake_idle_energy,
 			feel_cfg.center_brake_brake_energy,
 			t
 		)
-	if _evo_body != null:
-		var body_mat := _evo_body.material_override as StandardMaterial3D
+	if _body_mesh != null:
+		var body_mat := _body_mesh.material_override as StandardMaterial3D
 		if body_mat != null and body_mat.emission_enabled:
 			body_mat.emission_energy_multiplier = lerpf(
 				feel_cfg.body_emission_idle,
