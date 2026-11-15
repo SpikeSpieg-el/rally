@@ -51,8 +51,8 @@ func _run() -> void:
 	# Каждая машина — свой ресурс: кузов, колёса и банк звука её собственные.
 	var lancer: RallyVehicle = config.vehicle("mitsubishi")
 	_check(
-		subaru != null and subaru.model_scene != lancer.model_scene,
-		"у Subaru своя модель кузова"
+		subaru != null and subaru.race_scene != lancer.race_scene,
+		"у Subaru своя игровая сцена"
 	)
 	_check(
 		subaru != null and subaru.loops_dir("") != lancer.loops_dir(""),

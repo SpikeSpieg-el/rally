@@ -37,7 +37,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/rally_track_studio/plugin.cfg", "res://addons/rally_vehicle_sync/plugin.cfg")
+enabled=PackedStringArray("res://addons/rally_track_studio/plugin.cfg")
 
 [file_customization]
 

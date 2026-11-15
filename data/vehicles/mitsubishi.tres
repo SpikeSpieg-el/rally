@@ -5,7 +5,6 @@
 [resource]
 script = ExtResource("1_vehicle")
 setup_ids = Array[String](["engine_stock", "engine_group_a", "engine_atmo", "engine_rallycross", "engine_classic", "engine_sprint", "engine_endurance", "engine_hillclimb", "engine_snow", "engine_club"])
-model_root = ""
-hide_scene_body = false
+race_scene = "res://scenes/rally_car.tscn"
 engine_dir = "res://audio/engine/"
 engine_events_dir = "res://audio/vehicle/"

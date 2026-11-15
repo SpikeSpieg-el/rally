@@ -45,7 +45,7 @@ var _wheel_rest: Dictionary = {}
 const SCENE_WHEEL_NAMES := ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]
 var _model_default_y: float = 0.0
 ## Кузова машин, у которых есть своя модель: id → узел на витрине.
-## Кузов сцены (%PreviewModel) показывается у машины без model_scene.
+## Кузов сцены (%PreviewModel) показывается, пока витрина машины не загружена.
 var _vehicle_models: Dictionary = {}
 var _vehicle_id: String = "mitsubishi"
 
@@ -298,7 +298,7 @@ func _show_vehicle(id: String) -> bool:
 	var data: RallyVehicle = config.vehicle(id) if config != null else null
 	if not _vehicle_models.has(id) and _vehicle_model(id) == null:
 		# Модель не загрузилась — остаёмся на прежней машине, но не молчим.
-		if data != null and not data.model_scene.is_empty():
+		if data != null and not data.race_scene.is_empty():
 			return false
 	_vehicle_id = id
 	_vehicle_selector.select(_vehicle_index(id))
@@ -315,7 +315,7 @@ func _vehicle_model(id: String) -> Node3D:
 	if _vehicle_models.has(id):
 		return _vehicle_models[id] as Node3D
 	var data: RallyVehicle = config.vehicle(id) if config != null else null
-	if data == null or data.model_scene.is_empty():
+	if data == null or data.race_scene.is_empty():
 		return null
 	var model := CarModels.make_model(id)
 	if model == null:
@@ -326,7 +326,8 @@ func _vehicle_model(id: String) -> Node3D:
 	model.position = Vector3.ZERO
 	model.visible = false
 	_vehicle_models[id] = model
-	_track_wheels(model, data.wheel_names)
+	# Колёса обеих игровых сцен называются одинаково (Mitsubishi_Wheel_*).
+	_track_wheels(model, SCENE_WHEEL_NAMES)
 	return model
 
 
@@ -526,7 +527,8 @@ func _update_preview() -> void:
 	if _model == null or setup == null:
 		return
 	_model.position.y = _model_default_y + setup.tire_radius - layout().garage_reference_tire_radius
-	CarVisuals.apply_body(_model, setup)
+	# Краска идёт на видимую модель: витрину выбранной машины или кузов сцены.
+	CarVisuals.apply_body(_vehicle_models.get(_vehicle_id, _model) as Node3D, setup)
 	var wheel_scale: Vector3 = CarVisuals.wheel_scale(setup.tire_radius, setup.tire_width)
 	for wheel: Node3D in _wheel_rest.keys():
 		if not is_instance_valid(wheel):

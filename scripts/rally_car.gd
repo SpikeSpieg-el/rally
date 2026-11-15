@@ -18,7 +18,6 @@ const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
-const CarModels = preload("res://scripts/car_models.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
 const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
 const Sway = preload("res://scripts/effects/rally_speed_sway.gd")
@@ -230,11 +229,10 @@ var fall_limit_provider: Callable = Callable()
 
 func _ready() -> void:
 	add_to_group("rally_car")
-	# Кузов берётся из ресурса выбранной машины; физика и камеры сценные.
+	# Машина — игровая сцена: кузов, колёса и физика уже в ней.
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if not cinematic_mode and game != null and game.has_method("get_race_vehicle_id"):
 		vehicle_id = String(game.call("get_race_vehicle_id"))
-		CarModels.install(self, vehicle_id)
 	if spawn_transform == Transform3D.IDENTITY:
 		spawn_transform = global_transform
 
