@@ -593,7 +593,13 @@ func _find_wiper_node(car: Node3D) -> Node3D:
 	var node := car.get_node_or_null("WindshieldWipers") as Node3D
 	if node != null:
 		return node
-	return car.get_node_or_null("Wipers") as Node3D
+	node = car.get_node_or_null("Wipers") as Node3D
+	if node != null:
+		return node
+	node = car.find_child("WindshieldWipers", true, false) as Node3D
+	if node != null:
+		return node
+	return car.find_child("Wipers", true, false) as Node3D
 
 
 func _node_transform_in_car(node: Node3D, car: Node3D) -> Transform3D:

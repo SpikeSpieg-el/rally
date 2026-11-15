@@ -9,8 +9,9 @@
 сохраните копию с именем вида `rally_carN.tscn`, например `rally_car3.tscn`.
 
 Копируйте существующую машину, а не создавайте сцену с нуля: игровой код ждёт
-узлы `Wheel_FL`, `Wheel_FR`, `Wheel_RL`, `Wheel_RR`, `RallyCockpit`, `Cameras`,
-`EngineAudio` и скрипт `rally_car.gd` на корне.
+узлы `Wheel_FL`, `Wheel_FR`, `Wheel_RL`, `Wheel_RR`, `Cameras`, `EngineAudio` и
+скрипт `rally_car.gd` на корне. `RallyCockpit` может быть вложен в корень внешней
+модели, как в текущих сценах.
 
 ## 2. Подогнать в редакторе
 

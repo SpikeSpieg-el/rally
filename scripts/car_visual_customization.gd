@@ -105,6 +105,8 @@ static func apply_headlights(car: Node, setup: RallyCarSetup) -> void:
 		return
 	for node_name in ["HeadlightL", "HeadlightR"]:
 		var light := car.get_node_or_null(node_name) as SpotLight3D
+		if light == null:
+			light = car.find_child(node_name, true, false) as SpotLight3D
 		if light != null:
 			light.light_color = setup.headlight_color
 			light.light_energy = setup.headlight_energy

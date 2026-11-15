@@ -106,6 +106,11 @@ class EmissionAndTaillightsTest(unittest.TestCase):
         )
         for scene_path, model_root in car_scenes:
             scene = _read(scene_path)
+            model_block = _extract_block(scene, f'[node name="{model_root}"')
+            model_match = re.search(r"Transform3D\(([^)]+)\)", model_block)
+            self.assertIsNotNone(model_match, f"{model_root} must have an explicit model transform")
+            model_nums = [float(x.strip()) for x in model_match.group(1).split(",")]
+            model_basis = model_nums[:9]
             for node_name, node_type in [
                 ("TaillightL", "SpotLight3D"),
                 ("TaillightR", "SpotLight3D"),
@@ -125,7 +130,13 @@ class EmissionAndTaillightsTest(unittest.TestCase):
                 self.assertIsNotNone(m, f"Missing Transform3D on {spot_name} in {scene_path}")
                 nums = [float(x.strip()) for x in m.group(1).split(",")]
                 self.assertEqual(len(nums), 12)
-                self.assertGreater(nums[8], 0.9, f"{spot_name} beam must point toward -Z")
+                local_basis = nums[:9]
+                world_basis = [
+                    sum(model_basis[row * 3 + k] * local_basis[k * 3 + col] for k in range(3))
+                    for row in range(3)
+                    for col in range(3)
+                ]
+                self.assertGreater(world_basis[8], 0.9, f"{spot_name} beam must point toward -Z")
 
         lancer = _read("scenes/rally_car.tscn")
         subaru = _read("scenes/rally_car2.tscn")
@@ -142,8 +153,11 @@ class EmissionAndTaillightsTest(unittest.TestCase):
         self.assertIsNotNone(m)
         nums = [float(x.strip()) for x in m.group(1).split(",")]
         self.assertLessEqual(nums[11], -2.0)
-        self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="."', lancer)
-        self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="."', lancer)
+        self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="low poly lance evo"', lancer)
+        self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="low poly lance evo"', lancer)
+
+        visuals = _read("scripts/car_visual_customization.gd")
+        self.assertIn('car.find_child(node_name, true, false)', visuals)
 
     def test_brake_light_feel_config_and_rally_car_wiring(self):
         feel_gd = _read("scripts/data/rally_car_feel_config.gd")

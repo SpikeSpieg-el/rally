@@ -1235,7 +1235,13 @@ func _resolve_wipers() -> Node3D:
 	var node := get_node_or_null("WindshieldWipers") as Node3D
 	if node != null:
 		return node
-	return get_node_or_null("Wipers") as Node3D
+	node = get_node_or_null("Wipers") as Node3D
+	if node != null:
+		return node
+	node = find_child("WindshieldWipers", true, false) as Node3D
+	if node != null:
+		return node
+	return find_child("Wipers", true, false) as Node3D
 
 
 func _update_cameras(delta: float) -> void:

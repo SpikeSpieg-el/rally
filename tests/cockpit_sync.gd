@@ -63,7 +63,7 @@ func _test_cockpit_sync_with_car_and_hud() -> void:
 	sp.rpm_smooth_speed = 0.0
 	sp.set_telemetry(car.speed_kmh, car.current_rpm, car.max_rpm, car.get_gear_label(), car.motor_is_redline)
 
-	var cockpit := car.get_node("RallyCockpit") as CockpitScript
+	var cockpit := car.find_child("RallyCockpit", true, false) as CockpitScript
 	_check(cockpit != null, "RallyCockpit в сцене RallyCar должен использовать RallyCockpit")
 	cockpit._cache_nodes()
 	cockpit._ensure_motec_corner_labels()

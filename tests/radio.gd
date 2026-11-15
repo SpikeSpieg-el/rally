@@ -140,7 +140,7 @@ func _run() -> void:
 	_check(car_text.contains("res://scripts/ui/rally_cockpit_radio.gd"),
 		"в машине нет скрипта 3D-магнитолы")
 	_check(car_text.contains("node name=\"RadioHeadUnit\"")
-		and car_text.contains("parent=\"RallyCockpit/Dashboard/CenterConsole\""),
+		and car_text.contains("parent=\"low poly lance evo/RallyCockpit/Dashboard/CenterConsole\""),
 		"магнитола должна стоять на центральной консоли кабины")
 	var cockpit_text := _read_text("res://scenes/rally_cockpit.tscn.tscn")
 	_check(cockpit_text.contains("node name=\"RadioHeadUnit\""),

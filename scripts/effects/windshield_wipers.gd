@@ -138,7 +138,7 @@ func _blood_fx() -> Node:
 func _auto_find_car() -> void:
 	var p := get_parent()
 	while p != null:
-		if p is Node3D and (p.has_node("BloodFx") or p.has_node("Cameras") or p.has_node("RallyCockpit")):
+		if p is Node3D and (p.is_in_group("rally_car") or p.has_node("BloodFx") or p.has_node("Cameras")):
 			_car = p as Node3D
 			return
 		p = p.get_parent()

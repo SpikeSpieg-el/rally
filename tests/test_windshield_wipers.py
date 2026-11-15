@@ -42,6 +42,32 @@ def _inverse_transform_point(basis: list[float], origin: tuple[float, float, flo
     return tuple(sum(delta[row] * basis[row * 3 + col] for row in range(3)) for col in range(3))
 
 
+def _compose_transform(
+    parent_basis: list[float],
+    parent_origin: tuple[float, float, float],
+    local_basis: list[float],
+    local_origin: tuple[float, float, float],
+) -> tuple[list[float], tuple[float, float, float]]:
+    basis = [
+        sum(parent_basis[row * 3 + k] * local_basis[k * 3 + col] for k in range(3))
+        for row in range(3)
+        for col in range(3)
+    ]
+    origin = _transform_point(parent_basis, parent_origin, local_origin)
+    return basis, origin
+
+
+def _wipers_in_car(tscn: str) -> tuple[list[float], tuple[float, float, float]]:
+    for model_name in ("low poly lance evo", "Subaru Impreza Coupe WRX Type R STi2"):
+        try:
+            model_basis, model_origin = _extract_node_transform(tscn, model_name, ".")
+        except AssertionError:
+            continue
+        wipers_basis, wipers_origin = _extract_node_transform(tscn, "WindshieldWipers", model_name)
+        return _compose_transform(model_basis, model_origin, wipers_basis, wipers_origin)
+    raise AssertionError("Не удалось найти корень модели и вложенный узел WindshieldWipers")
+
+
 class WiperSceneTest(unittest.TestCase):
     def test_wipers_are_a_separate_editable_scene(self):
         scene = ROOT / "scenes" / "effects" / "windshield_wipers.tscn"
@@ -79,18 +105,28 @@ class WiperSceneTest(unittest.TestCase):
         self.assertNotIn("set_viewing", car)
 
     def test_car_installs_wipers_independent_of_camera(self):
-        for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
+        model_roots = {
+            "scenes/rally_car.tscn": "low poly lance evo",
+            "scenes/rally_car2.tscn": "Subaru Impreza Coupe WRX Type R STi2",
+        }
+        for scene, model_root in model_roots.items():
             text = read(scene)
             self.assertIn("windshield_wipers.tscn", text, scene)
-            self.assertIn('name="WindshieldWipers"', text, scene)
+            self.assertIn(f'name="WindshieldWipers" parent="{model_root}"', text, scene)
             self.assertNotIn('name="Wipers"', text, f"{scene} не должен содержать старый дубликат Wipers")
         car = read("scripts/rally_car.gd")
         for token in (
             "_resolve_wipers",
             'get_node_or_null("WindshieldWipers")',
+            'find_child("WindshieldWipers", true, false)',
             "wipers.setup(self)",
         ):
             self.assertIn(token, car, token)
+        blood = read("scripts/effects/rally_blood_fx.gd")
+        self.assertIn('car.find_child("WindshieldWipers", true, false)', blood)
+        wipers = read("scripts/effects/windshield_wipers.gd")
+        self.assertIn('p.is_in_group("rally_car")', wipers)
+        self.assertNotIn('p.has_node("RallyCockpit")', wipers)
 
     def test_blood_fx_exposes_wipe_api_and_rig_aligned_shader(self):
         blood = read("scripts/effects/rally_blood_fx.gd")
@@ -141,7 +177,7 @@ class WiperSceneTest(unittest.TestCase):
 
         for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
             tscn = read(scene)
-            basis, origin = _extract_node_transform(tscn, "WindshieldWipers", ".")
+            basis, origin = _wipers_in_car(tscn)
             center_x = max(-0.45, min(0.45, -origin[0]))
             # Quad center is shifted from the rig's origin; its actual surface
             # is 1.5 cm in front of BloodGlassSmear's prewarmed plane.
@@ -186,7 +222,7 @@ class WiperSceneTest(unittest.TestCase):
         for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
             tscn = read(scene)
             _, cam_pos = _extract_node_transform(tscn, "CamCockpit", "Cameras")
-            w_basis, w_pos = _extract_node_transform(tscn, "WindshieldWipers", ".")
+            w_basis, w_pos = _wipers_in_car(tscn)
             # Столбцы basis в Godot Transform3D:
             bx = (w_basis[0], w_basis[3], w_basis[6])
             by = (w_basis[1], w_basis[4], w_basis[7])
