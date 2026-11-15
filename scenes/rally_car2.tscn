@@ -8,9 +8,12 @@
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_4ms5t"]
 [ext_resource type="PackedScene" uid="uid://cbleedstain01" path="res://scenes/effects/blood_stains.tscn" id="4_nx6sy"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="5_lkhb3"]
+[ext_resource type="Texture2D" uid="uid://ddq2arnkby5yn" path="res://suba (1).png" id="6_ak4go"]
 [ext_resource type="Script" uid="uid://cpjpw2srbbum2" path="res://scripts/engine_sound.gd" id="6_vsvcn"]
 [ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="7_ggxr1"]
+[ext_resource type="Texture2D" uid="uid://ctkb21fxbvjum" path="res://suba (2).png" id="7_hko8q"]
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="8_endy0"]
+[ext_resource type="Texture2D" uid="uid://bdatljlqp3m4b" path="res://suba (3).png" id="8_otq8r"]
 [ext_resource type="Texture2D" uid="uid://dfrouk24gvdj1" path="res://Subaru Impreza Coupe WRX Type R STi_suba1.png" id="9_helpe"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="9_nx6sy"]
 [ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="10_4ms5t"]
@@ -811,8 +814,8 @@ feel = ExtResource("2_nx6sy")
 fx = ExtResource("3_4ms5t")
 blood_stains_scene = ExtResource("4_nx6sy")
 body_model_path = NodePath("Subaru Impreza Coupe WRX Type R STi2")
-livery_textures = Array[Texture2D]([ExtResource("9_helpe")])
-livery_names = Array[String](["Заводская"])
+livery_textures = Array[Texture2D]([ExtResource("9_helpe"), ExtResource("6_ak4go"), ExtResource("7_hko8q"), ExtResource("8_otq8r")])
+livery_names = Array[String](["Заводская", "Тёмный", "Синий иташа", "Тёмный иташа"])
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
