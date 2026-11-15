@@ -22,7 +22,7 @@ material = SubResource("Mesh_arm_mat")
 size = Vector3(0.036, 0.58, 0.014)
 
 [node name="WindshieldWipers" type="Node3D" unique_id=453340048]
-editor_description = "Дворники для вида из кабины. Корень ставится узлом Wipers в сцене машины на низ лобового стекла."
+editor_description = "Автоматические дворники работают при попадании крови на лобовое независимо от ракурса камеры. Корень ставится в сцене машины на нижнюю часть стекла."
 script = ExtResource("1_script")
 editor_preview = 0.0
 tilt_x_degrees = 0.0

@@ -1,7 +1,7 @@
-"""Дворники лобового стекла: отдельная сцена, авто-стирание крови, привязка к стеклу.
+"""Дворники лобового стекла: отдельная сцена, авто-стирание и независимость от камеры.
 
-Godot не нужен: проверки фиксируют интеграционные точки и точную 3D-геометрию
-между WindshieldWipers, CamCockpit и шейдером BloodGlassSmear.
+Godot не нужен: проверки фиксируют интеграцию, фильтр фактического попадания
+по стеклу и точную 3D-геометрию WindshieldWipers / BloodGlassSmear.
 """
 import math
 import re
@@ -30,6 +30,18 @@ def _extract_node_transform(tscn: str, node_name: str, parent: str | None = None
     return nums[:9], (nums[9], nums[10], nums[11])
 
 
+def _transform_point(basis: list[float], origin: tuple[float, float, float], point: tuple[float, float, float]) -> tuple[float, float, float]:
+    return tuple(
+        origin[row] + sum(basis[row * 3 + col] * point[col] for col in range(3))
+        for row in range(3)
+    )
+
+
+def _inverse_transform_point(basis: list[float], origin: tuple[float, float, float], point: tuple[float, float, float]) -> tuple[float, float, float]:
+    delta = tuple(point[i] - origin[i] for i in range(3))
+    return tuple(sum(delta[row] * basis[row * 3 + col] for row in range(3)) for col in range(3))
+
+
 class WiperSceneTest(unittest.TestCase):
     def test_wipers_are_a_separate_editable_scene(self):
         scene = ROOT / "scenes" / "effects" / "windshield_wipers.tscn"
@@ -48,14 +60,25 @@ class WiperSceneTest(unittest.TestCase):
         for token in (
             "class_name RallyWindshieldWipers",
             "func setup(",
-            "func set_viewing(",
             "wipe_glass",
             "glass_dirty",
             "park_degrees",
         ):
             self.assertIn(token, script, token)
 
-    def test_car_installs_wipers_and_tracks_cockpit_view(self):
+    def test_wipers_are_not_tied_to_camera_view(self):
+        script = read("scripts/effects/windshield_wipers.gd")
+        process = script.split("func _process(", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("if _blood_dirty():", process)
+        self.assertNotIn("_viewing", script)
+        self.assertNotIn("set_viewing", script)
+
+        car = read("scripts/rally_car.gd")
+        self.assertIn("wipers.setup(self)", car)
+        self.assertNotIn("_sync_wiper_view", car)
+        self.assertNotIn("set_viewing", car)
+
+    def test_car_installs_wipers_independent_of_camera(self):
         for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
             text = read(scene)
             self.assertIn("windshield_wipers.tscn", text, scene)
@@ -66,8 +89,6 @@ class WiperSceneTest(unittest.TestCase):
             "_resolve_wipers",
             'get_node_or_null("WindshieldWipers")',
             "wipers.setup(self)",
-            "_sync_wiper_view",
-            "CameraMode.COCKPIT_1ST",
         ):
             self.assertIn(token, car, token)
 
@@ -92,6 +113,49 @@ class WiperSceneTest(unittest.TestCase):
         self.assertIsNotNone(m)
         glass_y = float(m.group(1).split(",")[1])
         self.assertGreaterEqual(glass_y, 1.35, "glass_point.y должен находиться в зоне лобового стекла, а не капота")
+
+    def test_only_a_real_windshield_impact_creates_glass_blood(self):
+        blood = read("scripts/effects/rally_blood_fx.gd")
+        add_splat = blood.split("func add_splat(", 1)[1].split("\n\nfunc update(", 1)[0]
+        self.assertIn("var raw_local_hit: Vector3 = car.to_local(world_point)", add_splat)
+        self.assertIn("var glass_hit: bool = _is_glass_zone(raw_local_hit)", add_splat)
+        self.assertRegex(add_splat, r"if glass_hit:\s+_ensure_glass_smear\(car, raw_local_hit\)")
+        # Один физический удар — одно пятно в точке контакта, без принудительных
+        # следов на бампере, капоте или краях лобового.
+        self.assertEqual(add_splat.count("_store_splat("), 1)
+        self.assertEqual(add_splat.count("_add_decal("), 1)
+        self.assertNotIn("bumper_point", add_splat)
+        self.assertNotIn("hood_point", add_splat)
+
+        glass_test = blood.split("func _is_glass_zone(", 1)[1].split("\n\nfunc ", 1)[0]
+        self.assertIn("_glass_quad_transform.affine_inverse() * point", glass_test)
+        self.assertIn("absf(glass_local.z) <= GLASS_CONTACT_DEPTH", glass_test)
+        self.assertIn("var _glass_quad_transform: Transform3D", blood)
+
+    def test_windshield_contact_region_excludes_side_and_rear_hits(self):
+        blood = read("scripts/effects/rally_blood_fx.gd")
+        depth_match = re.search(r"GLASS_CONTACT_DEPTH\s*:=\s*([0-9.]+)", blood)
+        self.assertIsNotNone(depth_match)
+        depth = float(depth_match.group(1))
+        half_w, half_h = 1.46 / 2.0, 0.84 / 2.0
+
+        for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
+            tscn = read(scene)
+            basis, origin = _extract_node_transform(tscn, "WindshieldWipers", ".")
+            center_x = max(-0.45, min(0.45, -origin[0]))
+            # Quad center is shifted from the rig's origin; its actual surface
+            # is 1.5 cm in front of BloodGlassSmear's prewarmed plane.
+            smear_origin = _transform_point(basis, origin, (center_x, 0.365, -0.015))
+
+            def in_glass(point):
+                x, y, z = _inverse_transform_point(basis, smear_origin, point)
+                return abs(x) <= half_w and abs(y) <= half_h and abs(z) <= depth
+
+            glass_hit = _transform_point(basis, origin, (center_x, 0.365, 0.0))
+            self.assertTrue(in_glass(glass_hit), f"{scene}: реальная точка на стекле должна пройти фильтр")
+            self.assertFalse(in_glass((0.0, 0.7, -1.4)), f"{scene}: удар сзади не должен попасть на стекло")
+            self.assertFalse(in_glass((1.1, 1.1, 1.3)), f"{scene}: удар сбоку не должен попасть на стекло")
+            self.assertFalse(in_glass((0.0, 0.7, 2.1)), f"{scene}: удар по капоту не должен попасть на стекло")
 
     def test_windshield_blood_projection_and_wiper_angle_match(self):
         """Проверяем, что BloodGlassSmear на WindshieldWipers попадает прямо в обзор CamCockpit,
