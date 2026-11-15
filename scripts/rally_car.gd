@@ -291,9 +291,15 @@ func _ready() -> void:
 
 ## Запоминает, где стоит CamChase (и куда он смотрит) в редакторе Godot
 func _capture_scene_camera_setup() -> void:
-	var model: Node3D = get_node_or_null("low poly lance evo") as Node3D
+	var model: Node3D = _find_body_model()
 	if model != null:
-		_scene_pivot_height = model.position.y + f().model_wheel_center_y + f().camera_pivot_clearance
+		if String(model.name) == "low poly lance evo":
+			# Откалиброванная под Evo формула — поведение не меняем.
+			_scene_pivot_height = model.position.y + f().model_wheel_center_y + f().camera_pivot_clearance
+		else:
+			# Чужие модели (Subaru и т.д.) масштабируются и свёрстаны иначе:
+			# берём реальную середину кузова в координатах машины.
+			_scene_pivot_height = _model_aabb_center_y(model)
 	else:
 		_scene_pivot_height = chase_target_height
 
@@ -318,6 +324,56 @@ func _capture_scene_camera_setup() -> void:
 	else:
 		var target_ahead_local := Vector3(0.0, _scene_pivot_height + 0.15, chase_lookahead)
 		_scene_chase_look_dir_local = (target_ahead_local - _scene_chase_local_pos).normalized()
+
+
+## Ищет визуальную модель кузова. Сначала — классическое имя Evo, иначе берём
+## прямой дочерний Node3D с мешами и самым длинным силуэтом по Z: у кузова он
+## всегда больше, чем у интерьера, эффектов или мелких деталей (Subaru и т.д.).
+func _find_body_model() -> Node3D:
+	var named := get_node_or_null("low poly lance evo") as Node3D
+	if named != null:
+		return named
+	var best: Node3D = null
+	var best_len: float = 0.0
+	for child in get_children():
+		var node := child as Node3D
+		if node == null:
+			continue
+		var min_z: float = INF
+		var max_z: float = -INF
+		for mesh_holder in node.find_children("*", "MeshInstance3D", true, false):
+			var mesh_inst := mesh_holder as MeshInstance3D
+			if mesh_inst.mesh == null:
+				continue
+			var aabb: AABB = mesh_inst.mesh.get_aabb()
+			min_z = minf(min_z, aabb.position.z)
+			max_z = maxf(max_z, aabb.end.z)
+		if max_z <= min_z:
+			continue
+		var silhouette: float = max_z - min_z
+		if silhouette > best_len:
+			best_len = silhouette
+			best = node
+	return best
+
+
+## Середина визуального кузова по высоте в координатах машины: объединяет AABB
+## всех мешей модели с их трансформами. Используется как высота точки орбиты
+## chase-камеры для моделей, отличных от Evo.
+func _model_aabb_center_y(model: Node3D) -> float:
+	var car_inv: Transform3D = global_transform.affine_inverse()
+	var min_y: float = INF
+	var max_y: float = -INF
+	for mesh_holder in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh_inst := mesh_holder as MeshInstance3D
+		if mesh_inst.mesh == null:
+			continue
+		var local_aabb: AABB = car_inv * (mesh_inst.global_transform * mesh_inst.mesh.get_aabb())
+		min_y = minf(min_y, local_aabb.position.y)
+		max_y = maxf(max_y, local_aabb.position.y + local_aabb.size.y)
+	if max_y <= min_y:
+		return f().model_wheel_center_y + f().camera_pivot_clearance
+	return (min_y + max_y) * 0.5
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -17,10 +17,6 @@ boot_splash/stretch_mode=0
 boot_splash/image="uid://cqtf6s8s47yph"
 config/icon="uid://cqtf6s8s47yph"
 
-[audio]
-
-buses/default_bus_layout="res://default_bus_layout.tres"
-
 [autoload]
 
 RallyGame="*res://scripts/game_state.gd"

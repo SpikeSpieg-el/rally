@@ -76,8 +76,9 @@ var _blink_clock: float = 0.0
 func _ready() -> void:
 	_cache_nodes()
 	_resolve_links()
-	if not Engine.is_editor_hint():
-		_ensure_motec_corner_labels()
+	if Engine.is_editor_hint():
+		return
+	_ensure_motec_corner_labels()
 	sync_dashboard(0.0)
 
 
@@ -174,6 +175,8 @@ func _process(delta: float) -> void:
 
 
 func sync_dashboard(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	var snap: Dictionary = compute_telemetry_snapshot()
 
 	# 1. Руль
