@@ -7,6 +7,9 @@ const Garage = preload("res://scenes/garage_menu.tscn")
 const Car = preload("res://scenes/rally_car.tscn")
 const Config = preload("res://data/rally_game_config.tres")
 const Models = preload("res://scripts/car_models.gd")
+## Колёса обеих игровых сцен называются одинаково.
+const WHEEL_MESHES := ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]
+const WHEEL_MOUNTS := ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]
 const Setup = preload("res://data/setups/engine_stock.tres")
 
 var failures := 0
@@ -42,7 +45,7 @@ func _run() -> void:
 	garage.select_vehicle("subaru")
 	var preview: Node3D = garage._vehicle_models.get("subaru")
 	check(game.vehicle_id == "subaru" and preview != null and preview.visible and not garage._model.visible, "Subaru выбирается и показывается в гараже")
-	for name in subaru.wheel_names:
+	for name in WHEEL_MESHES:
 		var wheel = preview.find_child(name, true, false)
 		check(wheel != null and wheel.visible, "колесо Subaru видно в гараже: " + name)
 	game.load_conditions()
@@ -66,15 +69,16 @@ func _run() -> void:
 	collider.position.y = -0.5
 	ground.add_child(collider)
 	world.add_child(ground)
-	var car = Car.instantiate()
+	# Subaru едет на своей игровой сцене, а не на сцене Lancer с подменой кузова.
+	var car = load(subaru.race_scene).instantiate()
 	car.setup_override = Setup.duplicate(true)
 	car.mouse_look_enabled = false
 	car.position.y = 0.3
 	world.add_child(car)
-	check(car.get_node_or_null("Sketchfab_Scene") != null and not car.get_node("low poly lance evo").visible, "в заезде используется модель Subaru")
-	for i in range(Models.WHEEL_MOUNTS.size()):
-		var mount: Node = car.get_node(Models.WHEEL_MOUNTS[i] + "/WheelVisual")
-		var wheel = mount.get_node_or_null(subaru.wheel_names[i])
+	check(car.scene_file_path == subaru.race_scene, "в заезде используется сцена Subaru")
+	for i in range(WHEEL_MOUNTS.size()):
+		var mount: Node = car.get_node(WHEEL_MOUNTS[i])
+		var wheel = mount.find_child(WHEEL_MESHES[i], true, false)
 		check(wheel != null and wheel.visible, "колесо прикреплено к симуляции подвески")
 	await _steps(180)
 	var contacts: int = car.get_wheel_contact_count()
@@ -93,7 +97,7 @@ func _run() -> void:
 	var direct = Car.instantiate()
 	direct.mouse_look_enabled = false
 	root.add_child(direct)
-	check(direct.get_node("low poly lance evo").visible and direct.get_node_or_null("Sketchfab_Scene") == null, "прямой запуск не подменяет сценическую машину")
+	check(direct.get_node_or_null("low poly lance evo") != null, "прямой запуск Lancer показывает свою сцену")
 	direct.free()
 	game.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://subaru_drive_test.cfg"))

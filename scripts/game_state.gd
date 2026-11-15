@@ -12,6 +12,7 @@ extends Node
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
 ## Варианты времени суток в меню: как на трассе, день, ночь.
 const TIME_CHOICE_COUNT := 3
@@ -91,6 +92,8 @@ func load_config() -> void:
 				records_path = config.records_path
 	if config == null:
 		config = GameConfigType.new()
+	# Новые сцены rally_car*.tscn становятся машинами сами.
+	CarModels.sync_registry(config)
 
 
 func load_records() -> void:

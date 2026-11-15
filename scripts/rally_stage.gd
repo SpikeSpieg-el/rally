@@ -41,6 +41,7 @@ const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
@@ -433,6 +434,35 @@ func s_props() -> PropLibraryType:
 	return prop_library
 
 
+## Заезд едет на сцене выбранной машины. Трасса сама содержит RallyCar (Lancer):
+## если выбрана другая машина, её сцена занимает место этого узла — с тем же
+## именем и положением, до того как остальные узлы начнут работать.
+func _swap_race_car() -> void:
+	var game := get_node_or_null("/root/RallyGame")
+	if game == null or not game.has_method("get_race_vehicle_id"):
+		return
+	var scene_path := CarModels.race_scene_path(String(game.call("get_race_vehicle_id")))
+	var current := get_node_or_null("RallyCar") as Node3D
+	if current == null or scene_path.is_empty() or current.scene_file_path == scene_path:
+		return
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		push_warning("RallyStage: сцена машины %s не открывается" % scene_path)
+		return
+	var replacement := packed.instantiate() as Node3D
+	if replacement == null:
+		return
+	replacement.name = "RallyCar"
+	replacement.transform = current.transform
+	# Пресет, назначенный в _enter_tree, переносим на новую машину.
+	replacement.setup_override = current.setup_override
+	var index := current.get_index()
+	remove_child(current)
+	current.free()
+	add_child(replacement)
+	move_child(replacement, index)
+
+
 func _ready() -> void:
 	add_to_group("rally_stage")
 	_load_resources()
@@ -443,6 +473,7 @@ func _ready() -> void:
 		_watch_sources()
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_swap_race_car()
 	_resolve_track()
 	# На время генерации машина заморожена и _process молчит: физика и
 	# телеметрия не тикают по «пустому» миру.
