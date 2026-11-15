@@ -57,7 +57,9 @@ static func make_model(vehicle_id: String) -> Node3D:
 		var wheel: Node3D = model.find_child(wheel_name, true, false) as Node3D
 		if wheel != null:
 			_show_wheel_parts(wheel)
-	source.free()
+	# Без model_root сама модель и есть корень сцены: её освобождать нельзя.
+	if source != model:
+		source.free()
 	return model
 
 
