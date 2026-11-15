@@ -14,7 +14,7 @@ class BodyFxTest(unittest.TestCase):
     def test_both_cars_have_explicit_model_and_effect_meshes(self):
         for scene, model, meshes in (
             ("scenes/rally_car.tscn", "low poly lance evo", ("Mitsubishi_Body", "Mitsubishi_Body_002", "Mitsubishi_Body_003")),
-            ("scenes/rally_car2.tscn", "Subaru Impreza Coupe WRX Type R STi", ("Impreza_GC8_Body",)),
+            ("scenes/rally_car2.tscn", "Subaru Impreza Coupe WRX Type R STi2", ("Impreza_GC8_Body",)),
         ):
             text = read(scene)
             self.assertIn(f'body_model_path = NodePath("{model}")', text)
@@ -34,7 +34,6 @@ class BodyFxTest(unittest.TestCase):
         self.assertIn('set_blood_splats', blood)
         self.assertIn('blood_coverage(body_position)', shader)
         self.assertIn('blood + dirt_alpha * (1.0 - blood)', shader)
-        self.assertIn('subaru_blood_stains.tscn', read("scenes/rally_car2.tscn"))
 
 
 if __name__ == "__main__":

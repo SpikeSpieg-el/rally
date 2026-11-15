@@ -216,6 +216,10 @@ static func _build_preview(car: Node3D) -> Node3D:
 			box = box.merge(bounds)
 	var preview := Node3D.new()
 	preview.name = "CarPreview"
+	# Витрина получает те же ресурсы, что и игровая сцена, без копирования текстур.
+	if "livery_textures" in car:
+		preview.set_meta("livery_textures", car.get("livery_textures"))
+		preview.set_meta("livery_names", car.get("livery_names"))
 	# Смещение входит в трансформы мешей: гараж сбрасывает position корня витрины.
 	var center := box.get_center()
 	var offset := Vector3(-center.x, -box.position.y, -center.z)

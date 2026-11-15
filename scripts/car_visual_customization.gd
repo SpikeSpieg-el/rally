@@ -2,11 +2,6 @@
 ## Материалы копируются на экземпляр: исходная сцена и другие машины не меняются.
 extends RefCounted
 
-const LIVERIES := [
-	preload("res://textures/иташа2.jpg"),
-	preload("res://textures/иташа.jpg"),
-	preload("res://textures/иташа3.jpg"),
-]
 const ORIGINAL_META := &"rally_original_material"
 const CUSTOM_META := &"rally_custom_material"
 ## Имя узла кузова задаёт модель машины (метаданные car_body_mesh).
@@ -62,18 +57,20 @@ static func ensure_body_material(model: Node3D) -> StandardMaterial3D:
 	return _material_for(body)
 
 
-static func apply_body(model: Node3D, setup: RallyCarSetup) -> void:
-	if model == null or setup == null:
+static func apply_body(model: Node3D, setup: RallyCarSetup, textures: Array = []) -> void:
+	if model == null or setup == null or textures.is_empty():
 		return
-	# Только корпус с общей текстурой. Body_002 и Body_003 — зеркала с
-	# несколькими поверхностями, заменять их материал нельзя.
+	# Ливрея заменяет материал одного отмеченного меша целиком.
 	var body := body_mesh(model)
 	if body == null:
 		return
 	var material := _material_for(body)
 	var original := body.get_meta(ORIGINAL_META) as StandardMaterial3D
 	material.albedo_color = setup.body_color
-	material.albedo_texture = LIVERIES[clampi(setup.livery, 0, LIVERIES.size() - 1)]
+	var index := setup.livery if setup.livery >= 0 and setup.livery < textures.size() else 0
+	var texture := textures[index] as Texture2D
+	# Пустую ячейку не подменяем ливреей другой машины.
+	material.albedo_texture = texture if texture != null else original.albedo_texture
 	match setup.paint_finish:
 		1: # Глянец
 			material.metallic = 0.08

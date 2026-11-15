@@ -60,7 +60,12 @@ const FEEL_GRAVITY: float = 9.81
 @export var body_model_path: NodePath
 ## Для моделей, геометрия которых откалибрована под старую формулу высоты.
 @export var align_model_to_wheels: bool = false
-## Применять ливреи проекта только к совместимым моделям.
+## Текстуры ливрей именно этой машины, по порядку пунктов в гараже.
+## Пустой список сохраняет исходный материал модели.
+@export var livery_textures: Array[Texture2D] = []
+## Названия в том же порядке; если имени нет, используется имя файла.
+@export var livery_names: Array[String] = []
+## Устаревшее поле: теперь выбор определяется списком livery_textures.
 @export var use_livery_presets: bool = false
 
 @export_group("Конфигурация машины")
@@ -746,10 +751,10 @@ func _apply_visual_setup() -> void:
 	if model != null and align_model_to_wheels:
 		model.position.y = front_tire_radius - f().model_body_ground_clearance - f().model_wheel_center_y + f().model_height_offset
 	if active_setup != null:
-		if use_livery_presets:
-			CarVisuals.apply_body(model, active_setup)
+		if not livery_textures.is_empty():
+			CarVisuals.apply_body(model, active_setup, livery_textures)
 		CarVisuals.apply_headlights(self, active_setup)
-	elif use_livery_presets:
+	elif not livery_textures.is_empty():
 		CarVisuals.ensure_body_material(model)
 	_apply_brake_light_energy()
 
@@ -764,8 +769,8 @@ func _setup_brake_lights() -> void:
 	_center_brake_mat = null
 	if _evo_model == null:
 		return
-	_evo_body = CarVisuals.body_mesh(_evo_model) if use_livery_presets else null
-	if use_livery_presets:
+	_evo_body = CarVisuals.body_mesh(_evo_model) if not livery_textures.is_empty() else null
+	if not livery_textures.is_empty():
 		CarVisuals.ensure_body_material(_evo_model)
 	_taillight_l = _evo_model.get_node_or_null("TaillightL") as SpotLight3D
 	_taillight_r = _evo_model.get_node_or_null("TaillightR") as SpotLight3D
