@@ -702,7 +702,7 @@ mesh = SubResource("ArrayMesh_xhqiv")
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
 mesh = SubResource("ArrayMesh_7wfi5")
 
-[node name="Mitsubishi_Body" type="MeshInstance3D" parent="." unique_id=837516741]
+[node name="Mitsubishi_Body" type="MeshInstance3D" parent="." unique_id=837516741 groups=["rally_body_paint"]]
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
 material_override = SubResource("StandardMaterial3D_psh58")
 mesh = SubResource("ArrayMesh_es165")

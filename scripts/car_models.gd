@@ -220,7 +220,7 @@ static func _build_preview(car: Node3D) -> Node3D:
 	var center := box.get_center()
 	var offset := Vector3(-center.x, -box.position.y, -center.z)
 	for mesh in meshes:
-		var copy := mesh.duplicate(0) as MeshInstance3D
+		var copy := mesh.duplicate(Node.DUPLICATE_GROUPS) as MeshInstance3D
 		var local := _relative_transform(mesh, car)
 		copy.transform = Transform3D(local.basis, local.origin + offset)
 		preview.add_child(copy)

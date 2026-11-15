@@ -26,6 +26,12 @@ uniform vec4 dirt_looks[4];
 uniform vec4 dirt_amount = vec4(0.0);
 uniform vec4 damp_amount = vec4(0.0);
 uniform vec4 snow_amount = vec4(0.0);
+// Кровь в том же проходе, что и грязь: прозрачные слои не мерцают.
+uniform vec3 splat_pos[8];
+uniform vec3 splat_dir[8];
+uniform vec4 splat_data[8];
+uniform vec3 blood_color : source_color = vec3(0.4, 0.025, 0.04);
+uniform float blood_gloss : hint_range(0.0, 1.0) = 0.42;
 // Одноразовый сид на машину: у каждой машины своя форма пятен и потёков.
 uniform vec3 pattern_seed = vec3(0.0);
 uniform vec3 dirt_color : source_color = vec3(0.32, 0.235, 0.14);
@@ -58,6 +64,33 @@ float noise3(vec3 p) {
 
 void vertex() {
 	body_position = (world_to_car * MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+float blood_coverage(vec3 pos) {
+	float mask = 0.0;
+	for (int i = 0; i < 8; i++) {
+		float amount = splat_data[i].x;
+		if (amount < 0.02) { continue; }
+		float radius = max(splat_data[i].y, 0.06);
+		float stretch = max(splat_data[i].z, 0.8);
+		float seed = splat_data[i].w;
+		vec3 delta = pos - splat_pos[i];
+		vec3 direction = splat_dir[i];
+		direction = length(direction) > 0.001 ? normalize(direction) : vec3(0.0, 0.0, 1.0);
+		float along = dot(delta, direction);
+		float across = length(delta - direction * along);
+		vec3 noise_seed = splat_pos[i] + vec3(seed, seed * 1.7, seed * 0.31);
+		float blot = noise3(delta * vec3(18.0, 22.0, 16.0) + noise_seed);
+		float grit = noise3(delta * vec3(54.0, 40.0, 62.0) + noise_seed * 2.1);
+		float blob = exp(-pow(across / max(radius * mix(0.55, 1.05, grit), 0.02), 2.0))
+			* exp(-pow(along / max(radius * stretch * mix(0.85, 1.25, blot), 0.02), 2.0));
+		float drip_width = mix(0.045, 0.11, hash3(noise_seed));
+		float drip = exp(-pow(length(delta.xz) / drip_width, 2.0))
+			* (1.0 - smoothstep(-0.02, 0.12, delta.y))
+			* (1.0 - smoothstep(0.15, 1.15 * stretch, -delta.y));
+		mask = max(mask, max(blob * mix(0.55, 1.15, smoothstep(0.12, 0.72, blot * 0.65 + grit * 0.35)), drip * 0.65) * amount);
+	}
+	return clamp(mask * 1.85, 0.0, 0.95);
 }
 
 void fragment() {
@@ -172,7 +205,8 @@ void fragment() {
 		max(damp_amount.z, damp_amount.w) * rear_zone));
 
 	float coverage_mask = max(mud, snow);
-	if (coverage_mask < 0.012) { discard; }
+	float blood = blood_coverage(body_position);
+	if (coverage_mask < 0.012 && blood < 0.03) { discard; }
 	vec3 base_dirt = tint_weight > 0.0001 ? tint_sum / tint_weight : dirt_color;
 	vec3 dry = base_dirt * (0.85 + coarse * 0.3 + speckle * 0.18);
 	vec3 wet = mix(dry, dry * 0.42, clamp(damp, 0.0, 1.0));
@@ -185,5 +219,11 @@ void fragment() {
 	// Пыль от гравия полупрозрачная, налипшая грязь — плотная: предел
 	// непрозрачности тоже приходит из профиля покрытия.
 	float alpha_cap = alpha_weight > 0.0001 ? alpha_sum / alpha_weight : 1.0;
-	ALPHA = clamp(coverage_mask * 2.1, 0.0, body_alpha * clamp(alpha_cap, 0.0, 1.0));
+	float dirt_alpha = clamp(coverage_mask * 2.1, 0.0, body_alpha * clamp(alpha_cap, 0.0, 1.0));
+	float combined_alpha = blood + dirt_alpha * (1.0 - blood);
+	float blood_mix = blood / max(combined_alpha, 0.001);
+	ALBEDO = mix(ALBEDO, blood_color * (0.55 + speckle * 0.28), blood_mix);
+	ROUGHNESS = mix(ROUGHNESS, 0.3, blood_mix);
+	SPECULAR = mix(SPECULAR, mix(0.18, 0.55, blood_gloss), blood_mix);
+	ALPHA = combined_alpha;
 }

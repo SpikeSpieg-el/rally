@@ -55,7 +55,15 @@ const FEEL_GRAVITY: float = 9.81
 ## Пятна крови на кузове. Пусто — res://scenes/effects/blood_stains.tscn.
 @export var blood_stains_scene: PackedScene
 
-@export_group("Конфигурация Lancer Evo")
+@export_group("Визуальная модель")
+## Корень внешней модели; кузовные меши отмечаются группой rally_body_fx.
+@export var body_model_path: NodePath
+## Для моделей, геометрия которых откалибрована под старую формулу высоты.
+@export var align_model_to_wheels: bool = false
+## Применять ливреи проекта только к совместимым моделям.
+@export var use_livery_presets: bool = false
+
+@export_group("Конфигурация машины")
 ## Если назначено здесь — используется эта конфигурация (удобно при F6 на сцене машины).
 @export var setup_override: CarSetupType = null
 ## Радиус импортированной 3D-модели колеса. Визуал масштабируется под физический радиус.
@@ -293,7 +301,7 @@ func _ready() -> void:
 func _capture_scene_camera_setup() -> void:
 	var model: Node3D = _find_body_model()
 	if model != null:
-		if String(model.name) == "low poly lance evo":
+		if align_model_to_wheels:
 			# Откалиброванная под Evo формула — поведение не меняем.
 			_scene_pivot_height = model.position.y + f().model_wheel_center_y + f().camera_pivot_clearance
 		else:
@@ -326,35 +334,9 @@ func _capture_scene_camera_setup() -> void:
 		_scene_chase_look_dir_local = (target_ahead_local - _scene_chase_local_pos).normalized()
 
 
-## Ищет визуальную модель кузова. Сначала — классическое имя Evo, иначе берём
-## прямой дочерний Node3D с мешами и самым длинным силуэтом по Z: у кузова он
-## всегда больше, чем у интерьера, эффектов или мелких деталей (Subaru и т.д.).
+## Корень модели выбирается в сцене, а не по имени или размерам меша.
 func _find_body_model() -> Node3D:
-	var named := get_node_or_null("low poly lance evo") as Node3D
-	if named != null:
-		return named
-	var best: Node3D = null
-	var best_len: float = 0.0
-	for child in get_children():
-		var node := child as Node3D
-		if node == null:
-			continue
-		var min_z: float = INF
-		var max_z: float = -INF
-		for mesh_holder in node.find_children("*", "MeshInstance3D", true, false):
-			var mesh_inst := mesh_holder as MeshInstance3D
-			if mesh_inst.mesh == null:
-				continue
-			var aabb: AABB = mesh_inst.mesh.get_aabb()
-			min_z = minf(min_z, aabb.position.z)
-			max_z = maxf(max_z, aabb.end.z)
-		if max_z <= min_z:
-			continue
-		var silhouette: float = max_z - min_z
-		if silhouette > best_len:
-			best_len = silhouette
-			best = node
-	return best
+	return get_node_or_null(body_model_path) as Node3D if not body_model_path.is_empty() else null
 
 
 ## Середина визуального кузова по высоте в координатах машины: объединяет AABB
@@ -760,19 +742,20 @@ func _apply_visual_setup() -> void:
 				if child is MeshInstance3D:
 					CarVisuals.apply_wheel(child, active_setup)
 
-	var model := get_node_or_null("low poly lance evo") as Node3D
-	if model != null:
+	var model := _find_body_model()
+	if model != null and align_model_to_wheels:
 		model.position.y = front_tire_radius - f().model_body_ground_clearance - f().model_wheel_center_y + f().model_height_offset
 	if active_setup != null:
-		CarVisuals.apply_body(model, active_setup)
+		if use_livery_presets:
+			CarVisuals.apply_body(model, active_setup)
 		CarVisuals.apply_headlights(self, active_setup)
-	else:
+	elif use_livery_presets:
 		CarVisuals.ensure_body_material(model)
 	_apply_brake_light_energy()
 
 
 func _setup_brake_lights() -> void:
-	_evo_model = get_node_or_null("low poly lance evo") as Node3D
+	_evo_model = _find_body_model()
 	_evo_body = null
 	_taillight_l = null
 	_taillight_r = null
@@ -781,8 +764,9 @@ func _setup_brake_lights() -> void:
 	_center_brake_mat = null
 	if _evo_model == null:
 		return
-	_evo_body = _evo_model.get_node_or_null("Mitsubishi_Body") as MeshInstance3D
-	CarVisuals.ensure_body_material(_evo_model)
+	_evo_body = CarVisuals.body_mesh(_evo_model) if use_livery_presets else null
+	if use_livery_presets:
+		CarVisuals.ensure_body_material(_evo_model)
 	_taillight_l = _evo_model.get_node_or_null("TaillightL") as SpotLight3D
 	_taillight_r = _evo_model.get_node_or_null("TaillightR") as SpotLight3D
 	_taillight_glow = _evo_model.get_node_or_null("TaillightGlow") as OmniLight3D

@@ -222,51 +222,42 @@ func _install_body_dirt(car: Node3D) -> void:
 	_material.set_shader_parameter("dirt_amount", Vector4.ZERO)
 	_material.set_shader_parameter("damp_amount", Vector4.ZERO)
 	_material.set_shader_parameter("snow_amount", Vector4.ZERO)
+	var blood_positions := PackedVector3Array()
+	var blood_directions := PackedVector3Array()
+	var blood_data := PackedVector4Array()
+	blood_positions.resize(8)
+	blood_directions.resize(8)
+	blood_data.resize(8)
+	_material.set_shader_parameter("splat_pos", blood_positions)
+	_material.set_shader_parameter("splat_dir", blood_directions)
+	_material.set_shader_parameter("splat_data", blood_data)
 	_write_dirt_look()
 	for mesh in _body_meshes(car):
 		mesh.material_overlay = _material
 
 
-## Кузовные меши обеих машин. Префиксы и исключения — поля профиля.
+## Кровь использует тот же проход, не перекрывая прозрачный налёт грязи.
+func set_blood_look(color: Color, gloss: float) -> void:
+	if _material == null:
+		return
+	_material.set_shader_parameter("blood_color", Vector3(color.r, color.g, color.b))
+	_material.set_shader_parameter("blood_gloss", gloss)
+
+
+func set_blood_splats(positions: PackedVector3Array, directions: PackedVector3Array, data: PackedVector4Array) -> void:
+	if _material == null:
+		return
+	_material.set_shader_parameter("splat_pos", positions)
+	_material.set_shader_parameter("splat_dir", directions)
+	_material.set_shader_parameter("splat_data", data)
+
+
+## Только явно отмеченные меши внешнего кузова, без салона и колёс.
 func _body_meshes(car: Node) -> Array[MeshInstance3D]:
 	var result: Array[MeshInstance3D] = []
-	var prefixes: Array = []
-	var blocked: Array = []
-	if fx != null:
-		prefixes = fx.get("dirt_body_prefixes")
-		blocked = fx.get("dirt_body_skip")
-	# Кузов новой машины задан метаданными car_body_mesh (см. car_models.gd).
-	var body_name := String(car.get_meta("car_body_mesh", ""))
-	for child in _all_meshes(car):
-		var mesh_name := String(child.name)
-		var matches := prefixes.is_empty() or (not body_name.is_empty() and mesh_name == body_name)
-		for prefix in prefixes:
-			if mesh_name.begins_with(String(prefix)):
-				matches = true
-				break
-		if matches and not _is_blocked_mesh(child, blocked, car):
-			result.append(child)
-	return result
-
-
-## Диски, стёкла, фары и салон грязью не покрываем.
-func _is_blocked_mesh(mesh: Node, blocked: Array, car: Node) -> bool:
-	var node: Node = mesh
-	while node != null and node != car:
-		var part := String(node.name).to_lower()
-		for word in blocked:
-			if not String(word).is_empty() and part.contains(String(word)):
-				return true
-		node = node.get_parent()
-	return false
-
-
-func _all_meshes(root: Node) -> Array[MeshInstance3D]:
-	var result: Array[MeshInstance3D] = []
-	for child in root.get_children():
-		if child is MeshInstance3D:
-			result.append(child)
-		result.append_array(_all_meshes(child))
+	for child in car.find_children("*", "MeshInstance3D", true, false):
+		if child.is_in_group("rally_body_fx"):
+			result.append(child as MeshInstance3D)
 	return result
 
 

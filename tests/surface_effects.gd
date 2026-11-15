@@ -159,6 +159,7 @@ func _run() -> void:
 	car.add_child(model)
 	var body := MeshInstance3D.new()
 	body.name = "Mitsubishi_Body"
+	body.add_to_group("rally_body_fx")
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = Color.RED
 	body.material_override = paint
@@ -203,6 +204,7 @@ func _run() -> void:
 	var bare_car := Node3D.new()
 	var bare_body := MeshInstance3D.new()
 	bare_body.name = "Mitsubishi_Body_003"
+	bare_body.add_to_group("rally_body_fx")
 	bare_body.mesh = BoxMesh.new()
 	bare_car.add_child(bare_body)
 	bare.install(bare_car)

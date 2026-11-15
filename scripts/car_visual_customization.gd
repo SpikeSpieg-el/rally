@@ -10,9 +10,8 @@ const LIVERIES := [
 const ORIGINAL_META := &"rally_original_material"
 const CUSTOM_META := &"rally_custom_material"
 ## Имя узла кузова задаёт модель машины (метаданные car_body_mesh).
-## Старые машины без метаданных используют кузов Lancer.
+## Основной меш помечается группой rally_body_paint в сцене.
 const BODY_MESH_META := &"car_body_mesh"
-const DEFAULT_BODY_MESH := "Mitsubishi_Body"
 
 
 static func _material_for(mesh: MeshInstance3D) -> StandardMaterial3D:
@@ -39,15 +38,17 @@ static func _material_for(mesh: MeshInstance3D) -> StandardMaterial3D:
 	return custom
 
 
-## Кузовной меш машины: имя из метаданных модели, иначе кузов Lancer.
+## Основной меш покраски; метаданные поддерживаются для старых витрин.
 static func body_mesh(model: Node3D) -> MeshInstance3D:
 	if model == null:
 		return null
-	var body_name := String(model.get_meta(BODY_MESH_META, DEFAULT_BODY_MESH))
-	var body := model.get_node_or_null(body_name) as MeshInstance3D
-	if body == null:
-		body = model.find_child(body_name, true, false) as MeshInstance3D
-	return body
+	if model is MeshInstance3D and model.is_in_group("rally_body_paint"):
+		return model as MeshInstance3D
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		if node.is_in_group("rally_body_paint"):
+			return node as MeshInstance3D
+	var body_name := String(model.get_meta(BODY_MESH_META, ""))
+	return model.find_child(body_name, true, false) as MeshInstance3D if not body_name.is_empty() else null
 
 
 static func ensure_body_material(model: Node3D) -> StandardMaterial3D:
