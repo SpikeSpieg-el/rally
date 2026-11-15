@@ -108,8 +108,8 @@ func _run() -> void:
 	car._update_cameras(1.0 / 120.0)
 	_check(marker.transform.is_equal_approx(edited_marker), "изменённый маркер должен сохраняться")
 	_check(car.active_camera.global_transform.is_equal_approx(marker.global_transform), "камера должна следовать за изменением маркера")
-	var left_light: SpotLight3D = car.get_node("HeadlightL")
-	var right_light: SpotLight3D = car.get_node("HeadlightR")
+	var left_light := car.find_child("HeadlightL", true, false) as SpotLight3D
+	var right_light := car.find_child("HeadlightR", true, false) as SpotLight3D
 	var beam_direction: Vector3 = -left_light.transform.basis.z.normalized()
 	_check(beam_direction.z > 0.9 and beam_direction.y < 0.0, "фары должны светить вперёд и немного вниз")
 	_check((-right_light.transform.basis.z.normalized()).is_equal_approx(beam_direction), "обе фары должны светить в одном направлении")

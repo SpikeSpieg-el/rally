@@ -13,17 +13,17 @@ width = 128
 [sub_resource type="ParticleProcessMaterial" id="Process_drop"]
 resource_local_to_scene = true
 emission_shape = 1
-emission_sphere_radius = 0.45
-inherit_velocity_ratio = 0.92
+emission_sphere_radius = 0.22
+inherit_velocity_ratio = 0.62
 direction = Vector3(0, 0.8, 1)
-spread = 62.0
-initial_velocity_min = 3.2
-initial_velocity_max = 8.5
-gravity = Vector3(0, -14, 0)
-damping_min = 0.6
-damping_max = 1.8
-scale_min = 0.7
-scale_max = 2.2
+spread = 26.0
+initial_velocity_min = 2.2
+initial_velocity_max = 5.0
+gravity = Vector3(0, -9.5, 0)
+damping_min = 0.7
+damping_max = 1.6
+scale_min = 0.45
+scale_max = 1.25
 color = Color(0.46, 0.025, 0.04, 1)
 color_ramp = SubResource("GradientTexture1D_drop")
 collision_mode = 2
@@ -40,14 +40,14 @@ roughness = 0.22
 [sub_resource type="SphereMesh" id="Mesh_drop"]
 resource_local_to_scene = true
 material = SubResource("Mat_drop")
-radius = 0.08
-height = 0.13
+radius = 0.055
+height = 0.10
 radial_segments = 5
 rings = 2
 
 [sub_resource type="Gradient" id="Gradient_mist"]
 offsets = PackedFloat32Array(0, 0.2, 1)
-colors = PackedColorArray(0.38, 0.02, 0.04, 0, 0.32, 0.02, 0.035, 0.7, 0.18, 0.01, 0.02, 0)
+colors = PackedColorArray(0.38, 0.02, 0.04, 0, 0.32, 0.02, 0.035, 0.42, 0.18, 0.01, 0.02, 0)
 
 [sub_resource type="GradientTexture1D" id="GradientTexture1D_mist"]
 gradient = SubResource("Gradient_mist")
@@ -56,14 +56,14 @@ width = 128
 [sub_resource type="ParticleProcessMaterial" id="Process_mist"]
 resource_local_to_scene = true
 emission_shape = 1
-emission_sphere_radius = 0.4
-inherit_velocity_ratio = 1.0
+emission_sphere_radius = 0.17
+inherit_velocity_ratio = 0.62
 direction = Vector3(0, 0.55, 1)
-spread = 97.291
-initial_velocity_min = 0.8
-initial_velocity_max = 3.4
-gravity = Vector3(0, -1.2, 0)
-scale_max = 2.6
+spread = 36.0
+initial_velocity_min = 0.25
+initial_velocity_max = 1.2
+gravity = Vector3(0, -0.65, 0)
+scale_max = 1.25
 color = Color(0.32, 0.02, 0.035, 1)
 color_ramp = SubResource("GradientTexture1D_mist")
 collision_mode = 2
@@ -91,24 +91,26 @@ billboard_mode = 1
 [sub_resource type="QuadMesh" id="Mesh_mist"]
 resource_local_to_scene = true
 material = SubResource("Mat_mist")
-size = Vector2(0.55, 0.55)
+size = Vector2(0.38, 0.38)
 
 [node name="BloodBurst" type="Node3D" unique_id=734155214]
-editor_description = "Всплеск крови. F6 — превью. Править узлы Droplets и Mist: количество, жизнь, гравитация, цвет, размер."
+editor_description = "Короткий направленный всплеск крови, не облако-взрыв. F6 — превью; править Droplets и Mist: количество, скорость, гравитацию, цвет и размер."
 script = ExtResource("1_script")
-free_after = 3.75
-droplet_lift = 1.0
-mist_lift = 0.85
+free_after = 1.6
+extra_speed_from_car = 0.02
+inherit_velocity_ratio = 0.62
+droplet_lift = 0.35
+mist_lift = 0.2
 
 [node name="Droplets" type="GPUParticles3D" parent="." unique_id=1862447408]
 cast_shadow = 0
 emitting = false
-amount = 125
-lifetime = 1.23
+amount = 48
+lifetime = 0.92
 one_shot = true
-speed_scale = 1.6600000000000001
-explosiveness = 1.0
-randomness = 1.0
+speed_scale = 1.0
+explosiveness = 0.68
+randomness = 0.35
 visibility_aabb = AABB(-10, -6, -10, 20, 16, 20)
 process_material = SubResource("Process_drop")
 draw_pass_1 = SubResource("Mesh_drop")
@@ -116,14 +118,14 @@ draw_pass_1 = SubResource("Mesh_drop")
 [node name="Mist" type="GPUParticles3D" parent="." unique_id=1009807168]
 cast_shadow = 0
 emitting = false
-amount = 69
-lifetime = 0.77
+amount = 14
+lifetime = 0.34
 one_shot = true
-speed_scale = 3.63
-explosiveness = 0.44
-randomness = 1.0
+speed_scale = 1.0
+explosiveness = 0.72
+randomness = 0.35
 visibility_aabb = AABB(-10, -5, -10, 20, 14, 20)
 draw_order = 1
-trail_lifetime = 1.76
+trail_lifetime = 0.0
 process_material = SubResource("Process_mist")
 draw_pass_1 = SubResource("Mesh_mist")

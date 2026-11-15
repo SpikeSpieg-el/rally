@@ -42,13 +42,13 @@
   исполнителем, временем и кнопками `NEXT` / `MUTE`.
 * HUD: компактная карточка слева под панелью этапа, без кнопок, чтобы не
   перекрывать обзор. Обе карточки — один и тот же контрол.
-* Кабина: `RallyCockpit/Dashboard/CenterConsole/RadioHeadUnit` — отдельный
-  светящийся 3D-блок с рамкой, двумя регуляторами, обложкой, именем трека и
+* Кабина Lancer: `low poly lance evo/RallyCockpit/Dashboard/CenterConsole/RadioHeadUnit`
+  — отдельный светящийся 3D-блок с рамкой, двумя регуляторами, обложкой, именем трека и
   полосой прогресса. Виден только при `camera_mode == 2` (кабина), чтобы с
   капота и сзади не мешать. Дублируется в standalone-сцене
   `scenes/rally_cockpit.tscn.tscn`.
 * Магнитола живёт в салоне Lancer
-  (`RallyCockpit/Dashboard/CenterConsole/RadioHeadUnit`). Салон другой машины
+  (`low poly lance evo/RallyCockpit/Dashboard/CenterConsole/RadioHeadUnit`). Салон другой машины
   делает автор её модели: скрипт магнитолы общий
   (`scripts/ui/rally_cockpit_radio.gd`), достаточно повесить его на свой узел.
 * Обложка и подписи при смене трека появляются мягко; акцентный цвет

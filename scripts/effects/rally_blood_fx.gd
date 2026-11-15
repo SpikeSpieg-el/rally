@@ -20,6 +20,11 @@ const GLASS_NAME := "BloodGlassSmear"
 const LAYER_NAME := "BloodLayer"
 ## Допуск по нормали: кровь считаем попавшей на стекло только рядом с его плоскостью.
 const GLASS_CONTACT_DEPTH := 0.18
+## Прямой центральный удар в переднюю часть даёт кровь по инерции на лобовое.
+const FRONT_GLASS_SPLASH_Z := 1.35
+const FRONT_GLASS_SPLASH_HALF_WIDTH := 0.78
+const FRONT_GLASS_SPLASH_MIN_SPEED := 2.5
+const FRONT_GLASS_SPLASH_FORWARD_RATIO := 0.6
 
 const GLASS_WIPER_SHADER_CODE := """
 shader_type spatial;
@@ -210,7 +215,7 @@ void fragment() {
 @export var enabled: bool = true
 @export var blood_color: Color = Color(0.40, 0.025, 0.04, 1.0)
 @export_range(0.0, 1.0, 0.01) var blood_gloss: float = 0.42
-@export_multiline var description: String = "Пятна остаются в точке удара; лобовое пачкается только при прямом попадании по стеклу. Всплеск — сцена Blood Burst."
+@export_multiline var description: String = "Пятно остаётся в точке удара; прямой центральный удар спереди также даёт всплеск на лобовом. Всплеск частиц — сцена Blood Burst."
 
 @export_group("Всплеск")
 @export var burst_scene: PackedScene
@@ -294,15 +299,32 @@ func install(car: Node3D) -> void:
 	_install_burst_pool(car)
 
 
+## Прямое попадание в нос машины: центральная точка, машина движется вперёд.
+## Кровь с бампера в таком случае долетает до стекла; удар сбоку/сзади — нет.
+static func is_direct_front_impact(car: Node3D, world_point: Vector3, world_velocity: Vector3) -> bool:
+	if car == null or not is_instance_valid(car):
+		return false
+	var local_hit: Vector3 = car.to_local(world_point)
+	var local_velocity: Vector3 = car.global_transform.basis.inverse() * world_velocity
+	var required_forward_speed: float = maxf(
+		FRONT_GLASS_SPLASH_MIN_SPEED,
+		absf(local_velocity.x) * FRONT_GLASS_SPLASH_FORWARD_RATIO
+	)
+	var hit_front: bool = local_hit.z >= FRONT_GLASS_SPLASH_Z
+	var hit_centered: bool = absf(local_hit.x) <= FRONT_GLASS_SPLASH_HALF_WIDTH
+	return hit_front and hit_centered and local_velocity.z >= required_forward_speed
+
+
 func add_splat(car: Node3D, world_point: Vector3, world_velocity: Vector3) -> void:
 	if not enabled:
 		return
 	if _material == null:
 		install(car)
 	var raw_local_hit: Vector3 = car.to_local(world_point)
-	# Определяем стекло по настоящей точке контакта ДО ограничения диапазона кузова:
-	# удар сзади или сбоку не должен переноситься на лобовое.
-	var glass_hit: bool = _is_glass_zone(raw_local_hit)
+	# Проверяем настоящий контакт со стеклом или прямой центральный удар в нос.
+	# Боковой и задний удары не переносятся на лобовое.
+	var direct_front_hit: bool = is_direct_front_impact(car, world_point, world_velocity)
+	var glass_hit: bool = _is_glass_zone(raw_local_hit) or direct_front_hit
 	var local_hit: Vector3 = raw_local_hit
 	local_hit.x = clampf(local_hit.x, splat_min.x, splat_max.x)
 	local_hit.y = clampf(local_hit.y, splat_min.y, splat_max.y)
@@ -333,7 +355,13 @@ func update(car: Node3D) -> void:
 	_material.set_shader_parameter("world_to_car", car.global_transform.affine_inverse())
 
 
-static func spray(host: Node, world_point: Vector3, world_velocity: Vector3, scene: PackedScene = null) -> void:
+static func spray(
+	host: Node,
+	world_point: Vector3,
+	world_velocity: Vector3,
+	scene: PackedScene = null,
+	splash_direction: Vector3 = Vector3.ZERO
+) -> void:
 	if host == null or not is_instance_valid(host):
 		return
 	var burst := _burst_for(host, scene)
@@ -347,8 +375,8 @@ static func spray(host: Node, world_point: Vector3, world_velocity: Vector3, sce
 	burst.global_position = world_point
 	if host is Node3D:
 		ensure_particle_blocker(host as Node3D)
-	var away := Vector3.ZERO
-	if host is Node3D:
+	var away: Vector3 = splash_direction
+	if away.length() < 0.2 and host is Node3D:
 		away = world_point - (host as Node3D).global_position
 	if burst.has_method("play"):
 		burst.call("play", world_velocity, away)
@@ -565,7 +593,13 @@ func _find_wiper_node(car: Node3D) -> Node3D:
 	var node := car.get_node_or_null("WindshieldWipers") as Node3D
 	if node != null:
 		return node
-	return car.get_node_or_null("Wipers") as Node3D
+	node = car.get_node_or_null("Wipers") as Node3D
+	if node != null:
+		return node
+	node = car.find_child("WindshieldWipers", true, false) as Node3D
+	if node != null:
+		return node
+	return car.find_child("Wipers", true, false) as Node3D
 
 
 func _node_transform_in_car(node: Node3D, car: Node3D) -> Transform3D:

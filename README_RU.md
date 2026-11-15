@@ -616,8 +616,9 @@ Bluetooth может не поддерживать подсветку, по USB 
 `sun_energy`, `sun_pitch/yaw`, `ambient_color/energy`, `exposure`, `fog_color`,
 `fog_density` и `star_intensity`. При плохой производительности отключите там
 `volumetric_fog` и/или `screen_space_ao`; объёмный туман и SSAO требуют Forward+.
-Фары находятся в `BodyCollider/HeadlightL` и `HeadlightR` сцены машины: их
-яркость, дальность, угол и тени редактируются как свойства `SpotLight3D`.
+Фары задаются узлами `HeadlightL` и `HeadlightR`: у Lancer они вложены в
+`low poly lance evo`, у Subaru расположены на корне сцены. Яркость, дальность,
+угол и тени редактируются как свойства `SpotLight3D`.
 
 `data/tracks/night_environment.tres` задаёт ночной фон предпросмотра в редакторе.
 В **игре** параметры окружения заново берутся из ресурса трассы, поэтому

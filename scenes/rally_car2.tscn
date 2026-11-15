@@ -813,6 +813,18 @@ emission_energy_multiplier = 0.25
 material = SubResource("StandardMaterial3D_center_brake")
 size = Vector3(0.46, 0.018, 0.012)
 
+[sub_resource type="StandardMaterial3D" id="Mat_SubaruTaillight"]
+resource_name = "Subaru Tail Lamp Lens"
+albedo_color = Color(0.42, 0.018, 0.012, 1)
+roughness = 0.28
+emission_enabled = true
+emission = Color(1, 0.035, 0.015, 1)
+emission_energy_multiplier = 0.55
+
+[sub_resource type="BoxMesh" id="Mesh_SubaruTaillightLens"]
+material = SubResource("Mat_SubaruTaillight")
+size = Vector3(0.31, 0.13, 0.018)
+
 [node name="RallyCar" type="RigidBody3D" unique_id=502670295 node_paths=PackedStringArray("front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel")]
 collision_mask = 3
 mass = 1230.0
@@ -1372,8 +1384,18 @@ mesh = SubResource("BoxMesh_4buis")
 [node name="WindshieldWipers" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=453340048 instance=ExtResource("wipers")]
 transform = Transform3D(0.77220076, 0, 0, 0, 0.43128, 0.50256824, 0, -0.5382114, 0.46186724, -0.22582789, 0.8101778, 0.78513575)
 
-[node name="TaillightL" type="SpotLight3D" parent="." unique_id=188760641]
-transform = Transform3D(0.9948861, 1.1118718e-08, 0.101003714, 0.01414175, 0.9901498, -0.13929628, -0.1000088, 0.1400123, 0.9850862, 0.76586425, 1.0064882, -2.901791)
+[node name="TaillightLensL" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.58, 0.68, -2.205)
+cast_shadow = 0
+mesh = SubResource("Mesh_SubaruTaillightLens")
+
+[node name="TaillightLensR" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834645]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.58, 0.68, -2.205)
+cast_shadow = 0
+mesh = SubResource("Mesh_SubaruTaillightLens")
+
+[node name="TaillightL" type="SpotLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=188760641]
+transform = Transform3D(0.768251815, 8.58588263e-09, 0.077995146, 0.00936539735, 0.655728344, -0.0922491921, -0.070928227, 0.0992995036, 0.698642695, 0.581985273, 0.671635082, -2.14749314)
 light_color = Color(1, 0.14, 0.08, 1)
 light_energy = 1.1
 light_volumetric_fog_energy = 0.65
@@ -1382,8 +1404,8 @@ spot_attenuation = 1.1
 spot_angle = 56.0
 spot_angle_attenuation = 0.85
 
-[node name="TaillightR" type="SpotLight3D" parent="." unique_id=1756652533]
-transform = Transform3D(0.9948861, -1.1118718e-08, -0.101003714, -0.01414175, 0.9901498, -0.13929628, 0.1000088, 0.1400123, 0.9850862, -0.6996723, 1.0064882, -2.901791)
+[node name="TaillightR" type="SpotLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1756652533]
+transform = Transform3D(0.768251815, -8.58588263e-09, -0.077995146, -0.00936539735, 0.655728344, -0.0922491921, 0.070928227, 0.0992995036, 0.698642695, -0.549703183, 0.671635082, -2.14749314)
 light_color = Color(1, 0.14, 0.08, 1)
 light_energy = 1.1
 light_volumetric_fog_energy = 0.65
@@ -1392,7 +1414,14 @@ spot_attenuation = 1.1
 spot_angle = 56.0
 spot_angle_attenuation = 0.85
 
-[node name="CenterBrakeLight" type="MeshInstance3D" parent="." unique_id=1704946373]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.008, 1.4481936, -2.8736978)
+[node name="TaillightGlow" type="OmniLight3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=2123834648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, -2.20)
+light_color = Color(1, 0.12, 0.07, 1)
+light_energy = 0.55
+omni_range = 3.0
+omni_attenuation = 1.2
+
+[node name="CenterBrakeLight" type="MeshInstance3D" parent="Subaru Impreza Coupe WRX Type R STi2" unique_id=1704946373]
+transform = Transform3D(0.772200772, 0, 0, 0, 0.662251656, 0, 0, 0, 0.709219858, -0.0155932988, 0.964155214, -2.12756889)
 cast_shadow = 0
 mesh = SubResource("BoxMesh_mgh2m")

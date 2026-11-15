@@ -1,4 +1,4 @@
-"""Regression checks for layered Bayer-ready dust/debris FX and Lancer Evo lights."""
+"""Regression checks for layered Bayer-ready dust/debris FX and model-configured brake lights."""
 import re
 import unittest
 from pathlib import Path
@@ -99,44 +99,65 @@ class EmissionAndTaillightsTest(unittest.TestCase):
         self.assertIn("emission_operator = 1", showroom_mat)
         self.assertIn("emission_texture = ExtResource(", showroom_mat)
 
-    def test_taillights_and_center_brake_live_under_lancer_evo_only(self):
-        tscn = _read("scenes/rally_car.tscn")
-        for node_name, node_type in [
-            ("TaillightL", "SpotLight3D"),
-            ("TaillightR", "SpotLight3D"),
-            ("TaillightGlow", "OmniLight3D"),
-            ("CenterBrakeLight", "MeshInstance3D"),
-        ]:
-            header = f'[node name="{node_name}" type="{node_type}" parent="low poly lance evo"'
-            block = _extract_block(tscn, header)
-            self.assertTrue(block, f"{header} missing in scenes/rally_car.tscn")
-            self.assertNotIn("shadow_enabled = true", block)
+    def test_brake_lights_are_configured_for_both_car_models(self):
+        car_scenes = (
+            ("scenes/rally_car.tscn", "low poly lance evo"),
+            ("scenes/rally_car2.tscn", "Subaru Impreza Coupe WRX Type R STi2"),
+        )
+        for scene_path, model_root in car_scenes:
+            scene = _read(scene_path)
+            model_block = _extract_block(scene, f'[node name="{model_root}"')
+            model_match = re.search(r"Transform3D\(([^)]+)\)", model_block)
+            self.assertIsNotNone(model_match, f"{model_root} must have an explicit model transform")
+            model_nums = [float(x.strip()) for x in model_match.group(1).split(",")]
+            model_basis = model_nums[:9]
+            for node_name, node_type in [
+                ("TaillightL", "SpotLight3D"),
+                ("TaillightR", "SpotLight3D"),
+                ("CenterBrakeLight", "MeshInstance3D"),
+            ]:
+                header = f'[node name="{node_name}" type="{node_type}" parent="{model_root}"'
+                block = _extract_block(scene, header)
+                self.assertTrue(block, f"{header} missing in {scene_path}")
+                self.assertNotIn("shadow_enabled = true", block)
 
-        # Spotlights point rearward (-Z in Godot = +Z basis.z)
-        for spot_name in ("TaillightL", "TaillightR"):
-            block = _extract_block(
-                tscn, f'[node name="{spot_name}" type="SpotLight3D" parent="low poly lance evo"'
-            )
-            m = re.search(r"Transform3D\(([^)]+)\)", block)
-            self.assertIsNotNone(m, f"Missing Transform3D on {spot_name}")
-            nums = [float(x.strip()) for x in m.group(1).split(",")]
-            self.assertEqual(len(nums), 12)
-            # Basis Z vector is cols (6, 7, 8); beam direction is -Z, so z_axis.z > 0.9 => beam.z < -0.9
-            self.assertGreater(nums[8], 0.9, f"{spot_name} beam must point toward -Z")
+            # Godot spotlights emit along -Z; these scene nodes face the rear (-Z).
+            for spot_name in ("TaillightL", "TaillightR"):
+                block = _extract_block(
+                    scene, f'[node name="{spot_name}" type="SpotLight3D" parent="{model_root}"'
+                )
+                m = re.search(r"Transform3D\(([^)]+)\)", block)
+                self.assertIsNotNone(m, f"Missing Transform3D on {spot_name} in {scene_path}")
+                nums = [float(x.strip()) for x in m.group(1).split(",")]
+                self.assertEqual(len(nums), 12)
+                local_basis = nums[:9]
+                world_basis = [
+                    sum(model_basis[row * 3 + k] * local_basis[k * 3 + col] for k in range(3))
+                    for row in range(3)
+                    for col in range(3)
+                ]
+                self.assertGreater(world_basis[8], 0.9, f"{spot_name} beam must point toward -Z")
 
-        # Rear GravelParticles spawned behind rear bumper
-        gravel_block = _extract_block(tscn, '[node name="GravelParticles" type="GPUParticles3D"')
+        lancer = _read("scenes/rally_car.tscn")
+        subaru = _read("scenes/rally_car2.tscn")
+        model_root = "Subaru Impreza Coupe WRX Type R STi2"
+        for lens_name in ("TaillightLensL", "TaillightLensR"):
+            header = f'[node name="{lens_name}" type="MeshInstance3D" parent="{model_root}"'
+            self.assertTrue(_extract_block(subaru, header), f"{header} missing in scenes/rally_car2.tscn")
+        glow_header = f'[node name="TaillightGlow" type="OmniLight3D" parent="{model_root}"'
+        self.assertTrue(_extract_block(subaru, glow_header), f"{glow_header} missing in scenes/rally_car2.tscn")
+
+        # Rear GravelParticles spawned behind Lancer's rear bumper; headlights stay intact.
+        gravel_block = _extract_block(lancer, '[node name="GravelParticles" type="GPUParticles3D"')
         m = re.search(r"Transform3D\(([^)]+)\)", gravel_block)
         self.assertIsNotNone(m)
         nums = [float(x.strip()) for x in m.group(1).split(",")]
         self.assertLessEqual(nums[11], -2.0)
+        self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="low poly lance evo"', lancer)
+        self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="low poly lance evo"', lancer)
 
-        # Headlights remain untouched and forward-pointing, subaru scene untouched
-        self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="."', tscn)
-        self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="."', tscn)
-        subaru_tscn = _read("scenes/rally_car2.tscn")
-        self.assertNotIn("TaillightL", subaru_tscn)
-        self.assertNotIn("CenterBrakeLight", subaru_tscn)
+        visuals = _read("scripts/car_visual_customization.gd")
+        self.assertIn('car.find_child(node_name, true, false)', visuals)
 
     def test_brake_light_feel_config_and_rally_car_wiring(self):
         feel_gd = _read("scripts/data/rally_car_feel_config.gd")
@@ -161,7 +182,10 @@ class EmissionAndTaillightsTest(unittest.TestCase):
 
         self.assertIn("_setup_brake_lights()", car_gd)
         self.assertIn("_update_brake_lights(delta)", car_gd)
-        self.assertIn("not _evo_model.visible", car_gd)
+        self.assertIn("not _body_model.visible", car_gd)
+        self.assertIn('"TaillightLensL", "TaillightLensR"', car_gd)
+        self.assertIn("_prepare_taillight_lens(lens)", car_gd)
+        self.assertIn("lens_mat.emission_energy_multiplier = glow_energy", car_gd)
         self.assertIn("CarVisuals.ensure_body_material", car_gd)
 
 

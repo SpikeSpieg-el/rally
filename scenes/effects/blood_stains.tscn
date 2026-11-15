@@ -6,4 +6,4 @@
 [node name="BloodStains" type="Node"]
 script = ExtResource("1_script")
 burst_scene = ExtResource("2_burst")
-editor_description = "Пятно остаётся в точке удара; стекло пачкается только при прямом попадании по лобовому. Цвет, блеск и размер — в инспекторе. Всплеск частиц — Blood Burst."
+editor_description = "Пятно остаётся в точке удара; прямой центральный удар спереди также даёт всплеск на лобовом. Цвет, блеск и размер — в инспекторе. Всплеск частиц — Blood Burst."
