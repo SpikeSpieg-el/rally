@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/effects/blood_stains.tscn" id="1"]
+
+[node name="SubaruBloodStains" instance=ExtResource("1")]
+splat_min = Vector3(-1.25, 0.08, -3.1)
+splat_max = Vector3(1.25, 1.8, 3.1)
+bumper_point = Vector3(0, 0.45, 2.75)
+hood_point = Vector3(0, 0.9, 2.1)

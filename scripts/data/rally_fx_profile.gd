@@ -82,8 +82,8 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var soil_wet_darken: float = 0.6
 
 @export_group("Грязь и пыль на кузове")
-## Какие меши кузова пачкаются: префиксы имён. Пусто — старый список из кода.
-@export var dirt_body_prefixes: PackedStringArray = PackedStringArray(["Mitsubishi_Body", "Impreza_GC8_Body"])
+## Устаревшие поля для совместимости ресурсов; кузов выбирается группой rally_body_fx.
+@export var dirt_body_prefixes: PackedStringArray = PackedStringArray()
 ## Меши, которые грязь не трогает (стёкла, фары, салон, диски).
 @export var dirt_body_skip: PackedStringArray = PackedStringArray(
 	["glass", "light", "window", "interior", "wheel", "tire", "hub"]

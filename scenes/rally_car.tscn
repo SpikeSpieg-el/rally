@@ -916,6 +916,9 @@ center_of_mass_mode = 1
 continuous_cd = true
 linear_damp_mode = 1
 script = ExtResource("1_car")
+body_model_path = NodePath("low poly lance evo")
+align_model_to_wheels = true
+use_livery_presets = true
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
@@ -1022,17 +1025,17 @@ far = 850.0
 [node name="low poly lance evo" type="Node3D" parent="." unique_id=274611076]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0842417, -0.82839704)
 
-[node name="Mitsubishi_Body_003" type="MeshInstance3D" parent="low poly lance evo" unique_id=1821021235]
+[node name="Mitsubishi_Body_003" type="MeshInstance3D" parent="low poly lance evo" unique_id=1821021235 groups=["rally_body_fx"]]
 transform = Transform3D(0.9999989, -0.001461585, -1.9809818e-06, -0.001461585, -0.99999523, -0.0027107242, 1.9809818e-06, 0.0027107242, -0.9999963, -1.0149342, 2.4177818, 1.7646542)
 material_override = SubResource("StandardMaterial3D_yojui")
 mesh = SubResource("ArrayMesh_xhqiv")
 
-[node name="Mitsubishi_Body_002" type="MeshInstance3D" parent="low poly lance evo" unique_id=1721385432]
+[node name="Mitsubishi_Body_002" type="MeshInstance3D" parent="low poly lance evo" unique_id=1721385432 groups=["rally_body_fx"]]
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
 material_override = SubResource("StandardMaterial3D_37cw1")
 mesh = SubResource("ArrayMesh_7wfi5")
 
-[node name="Mitsubishi_Body" type="MeshInstance3D" parent="low poly lance evo" unique_id=837516741]
+[node name="Mitsubishi_Body" type="MeshInstance3D" parent="low poly lance evo" unique_id=837516741 groups=["rally_body_fx", "rally_body_paint"]]
 transform = Transform3D(0.9999989, 0.0014615831, 1.9811182e-06, -0.0014615831, 0.99999523, 0.0027109145, 1.9811182e-06, -0.0027109145, 0.9999963, -0.007143427, 2.109862, 1.0152658)
 material_override = SubResource("StandardMaterial3D_y2iot")
 mesh = SubResource("ArrayMesh_es165")

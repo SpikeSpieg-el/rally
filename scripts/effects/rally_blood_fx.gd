@@ -213,8 +213,8 @@ void fragment() {
 @export_group("Всплеск")
 @export var burst_scene: PackedScene
 
-@export_group("Какие меши пачкать")
-@export var body_prefixes: PackedStringArray = PackedStringArray(["Mitsubishi_Body", "Impreza_GC8_Body"])
+@export_group("Устаревшие фильтры (кузов: группа rally_body_fx)")
+@export var body_prefixes: PackedStringArray = PackedStringArray()
 @export var body_skip: PackedStringArray = PackedStringArray(
 	["wheel", "light", "disc", "tire", "cabin", "seat", "interior", "cockpit", "charm", "robe"]
 )
@@ -482,6 +482,9 @@ func _write_look() -> void:
 		return
 	_material.set_shader_parameter("blood_color", Vector3(blood_color.r, blood_color.g, blood_color.b))
 	_material.set_shader_parameter("blood_gloss", blood_gloss)
+	var surface: Node = _car.get_node_or_null("SurfaceEffects") if _car != null else null
+	if surface != null and surface.has_method("set_blood_look"):
+		surface.call("set_blood_look", blood_color, blood_gloss)
 
 
 func _write_splats() -> void:
@@ -500,17 +503,15 @@ func _write_splats() -> void:
 	_material.set_shader_parameter("splat_pos", positions)
 	_material.set_shader_parameter("splat_dir", directions)
 	_material.set_shader_parameter("splat_data", data)
+	var surface: Node = _car.get_node_or_null("SurfaceEffects") if _car != null else null
+	if surface != null and surface.has_method("set_blood_splats"):
+		surface.call("set_blood_splats", positions, directions, data)
 
 
 func _attach_to_body(_car: Node) -> void:
-	# Кровь на кузове наносится декалями (_add_decal), а не через дублирующий
-	# слой меша с material_override: два прозрачных шейдера (кровь и грязь)
-	# на одной геометрии без записи в глубину мерцали в Godot 4 (у MeshInstance3D
-	# нет draw_order, порядок прозрачных проходов не гарантирован). Декали
-	# рисуются отдельным проходом после геометрии — конфликта со шейдером грязи
-	# на кузове нет, мерцания больше не будет.
+	# Кровь и грязь смешиваются в единственном material_overlay кузова.
+	# Декали оставлены для стекла и дополнительных брызг.
 	pass
-
 
 func _add_decal(car: Node3D, local_point: Vector3, into: Vector3, span: float) -> void:
 	if car == null:
@@ -790,39 +791,3 @@ func _stain_texture() -> Texture2D:
 	tex.height = 256
 	_stain_tex = tex
 	return _stain_tex
-
-
-func _body_meshes(car: Node) -> Array[MeshInstance3D]:
-	var result: Array[MeshInstance3D] = []
-	_collect_meshes(car, car, result)
-	return result
-
-
-func _collect_meshes(node: Node, car: Node, result: Array[MeshInstance3D]) -> void:
-	if node is MeshInstance3D:
-		var mesh_node := node as MeshInstance3D
-		if String(mesh_node.name) != LAYER_NAME and String(mesh_node.name) != GLASS_NAME:
-			if not _is_skipped(mesh_node, car):
-				var mesh_id := String(mesh_node.name)
-				# Кузов новой машины задан метаданными car_body_mesh (см. car_models.gd).
-				var body_name := String(car.get_meta("car_body_mesh", ""))
-				var matches := body_prefixes.is_empty() or (not body_name.is_empty() and mesh_id == body_name)
-				for prefix in body_prefixes:
-					if mesh_id.begins_with(String(prefix)):
-						matches = true
-						break
-				if matches or mesh_node.material_overlay != null:
-					result.append(mesh_node)
-	for child in node.get_children():
-		_collect_meshes(child, car, result)
-
-
-func _is_skipped(mesh_node: Node, car: Node) -> bool:
-	var cursor: Node = mesh_node
-	while cursor != null and cursor != car:
-		var part := String(cursor.name).to_lower()
-		for token in body_skip:
-			if part.find(String(token)) >= 0:
-				return true
-		cursor = cursor.get_parent()
-	return false
