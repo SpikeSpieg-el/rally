@@ -901,13 +901,13 @@ script = ExtResource("6_vsvcn")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.4188418, 1.5885668, 0.043697685)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.4188418, 1.5751749, 0.043697685)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
-transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.3795283, 1.7174213)
+transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.2834859, 1.7174213)
 
 [node name="CamChase" type="Marker3D" parent="Cameras" unique_id=1159103674]
-transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 3.3938675, -6.0426235)
+transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 3.1315637, -7.107724)
 gizmo_extents = 1.94
 
 [node name="ActiveCamera" type="Camera3D" parent="Cameras" unique_id=1190338893]
@@ -917,7 +917,7 @@ fov = 99.2
 far = 850.0
 
 [node name="HeadlightL" type="SpotLight3D" parent="." unique_id=1144666079]
-transform = Transform3D(-0.97420615, 0.015741242, -0.22511019, 9.844174e-16, 0.9975641, 0.06975649, 0.22565988, 0.06795721, -0.97183305, 0.8031842, 0.9547056, 2.9127183)
+transform = Transform3D(-0.97420615, 0.015741242, -0.22511019, 9.844174e-16, 0.9975641, 0.06975649, 0.22565988, 0.06795721, -0.97183305, 0.8031842, 0.7726928, 3.0779266)
 light_color = Color(1, 0.91, 0.76, 1)
 light_energy = 8.0
 light_volumetric_fog_energy = 0.45
@@ -927,7 +927,7 @@ spot_attenuation = 0.75
 spot_angle = 32.0
 
 [node name="HeadlightR" type="SpotLight3D" parent="." unique_id=1698940101]
-transform = Transform3D(-0.9972683, -0.005152519, 0.073684424, 1.0954397e-15, 0.9975641, 0.06975649, -0.073864356, 0.069565944, -0.994839, -0.7841496, 0.9688642, 3.0079124)
+transform = Transform3D(-0.9972683, -0.005152519, 0.073684424, 1.0954397e-15, 0.9975641, 0.06975649, -0.073864356, 0.069565944, -0.994839, -0.7841496, 0.7868514, 3.1731207)
 light_color = Color(1, 0.91, 0.76, 1)
 light_energy = 8.0
 light_volumetric_fog_energy = 0.45
