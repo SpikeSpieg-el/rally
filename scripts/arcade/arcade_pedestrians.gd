@@ -55,6 +55,7 @@ func setup(p_seed: int, p_network, stage_ref: Node, p_cfg: ArcadeSettingsType = 
 	cfg = p_cfg
 	last_events.clear()
 	for child in get_children():
+		remove_child(child)
 		child.queue_free()
 	_zones.clear()
 	if cfg != null and cfg.pedestrian_scene != null:
@@ -65,6 +66,15 @@ func setup(p_seed: int, p_network, stage_ref: Node, p_cfg: ArcadeSettingsType = 
 
 func prime(player_along: float) -> void:
 	_sync_zones(player_along)
+
+
+func reset(player_along: float) -> void:
+	last_events.clear()
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	_zones.clear()
+	prime(player_along)
 
 
 func step(

@@ -524,6 +524,8 @@ func begin_session(
 func end_session() -> void:
 	_session_active = false
 	if _rig != null and is_instance_valid(_rig):
+		if _rig.get_parent() == self:
+			remove_child(_rig)
 		_rig.queue_free()
 		_rig = null
 	_loaded_ghost = null
@@ -544,6 +546,8 @@ func delete_current_ghost() -> bool:
 
 func _rebuild_runtime_rig() -> void:
 	if _rig != null and is_instance_valid(_rig):
+		if _rig.get_parent() == self:
+			remove_child(_rig)
 		_rig.queue_free()
 		_rig = null
 	if Engine.is_editor_hint():

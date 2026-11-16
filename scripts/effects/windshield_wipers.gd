@@ -91,6 +91,12 @@ func _park_now() -> void:
 	_notify_wiper_state(0.0, false, 0.0)
 
 
+func reset_wipers() -> void:
+	_idle_clock = 0.0
+	_pass_index = 0
+	_park_now()
+
+
 func _apply(angle: float) -> void:
 	if _wiper_left != null:
 		_wiper_left.rotation = Vector3(0.0, 0.0, angle)

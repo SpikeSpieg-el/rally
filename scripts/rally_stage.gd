@@ -199,6 +199,7 @@ var _edge_cap_mesh: Mesh = null
 ## умножать сцепление и кочки второй раз.
 var _track_prepared := false
 var _marathon_transitioning := false
+var _restarting := false
 var _hud_ready := false
 ## Мир этапа готов, физика/HUD можно тикать (await в _ready разбил старт на кадры).
 var _stage_live := false
@@ -4973,8 +4974,8 @@ func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		_process_editor(delta)
 		return
-	if not _stage_live:
-		# Идёт генерация мира (экран загрузки): машину и HUD не трогаем.
+	if not _stage_live or _restarting:
+		# Идёт генерация мира или переключение чанков при рестарте: машину и HUD не трогаем.
 		return
 	# Меняем только место рождения новых капель. Уже выпавшие частицы
 	# остаются в мировых координатах и не перемещаются вместе с машиной.
@@ -5217,8 +5218,145 @@ func _on_resume_pressed() -> void:
 	_set_paused(false)
 
 
+func can_restart_in_place() -> bool:
+	if not _stage_live or _restarting or car == null or not is_instance_valid(car) or network == null or track == null:
+		return false
+	var game: Node = get_node_or_null("/root/RallyGame")
+	var marathon_running: bool = game != null and game.has_method("marathon_active") and bool(game.call("marathon_active"))
+	# В режиме «каждый заезд — новая трасса» рестарт перегенерирует сид маршрута.
+	if track.procedural and track.reroll_seed_each_visit and not marathon_running:
+		return false
+	return true
+
+
+func restart_in_place() -> void:
+	if not can_restart_in_place():
+		return
+	var spawn_xform: Transform3D = _make_spawn_transform()
+	var spawn_local: Vector3 = spawn_xform.origin
+	if world_streamer != null and not world_streamer.is_area_ready(spawn_local):
+		_restart_streamed_async(spawn_xform, spawn_local)
+		return
+	_apply_instant_restart(spawn_xform)
+
+
+func _restart_streamed_async(spawn_xform: Transform3D, spawn_local: Vector3) -> void:
+	_restarting = true
+	is_paused = false
+	if get_tree() != null:
+		get_tree().paused = false
+	if pause_panel != null:
+		pause_panel.visible = false
+	if results_panel != null:
+		results_panel.visible = false
+	car.freeze = true
+	car.spawn_transform = spawn_xform
+	if car.has_method("restart_at_spawn"):
+		car.restart_at_spawn()
+	else:
+		car.reset_to_spawn()
+	await world_streamer.prepare_for_restart(spawn_local)
+	if not is_inside_tree() or not is_instance_valid(car):
+		_restarting = false
+		return
+	_apply_instant_restart(spawn_xform)
+
+
+func _apply_instant_restart(spawn_xform: Transform3D) -> void:
+	_restarting = false
+	_marathon_transitioning = false
+	is_paused = false
+	if get_tree() != null:
+		get_tree().paused = false
+	if input_settings != null and input_settings.visible:
+		input_settings.close()
+	if pause_panel != null:
+		pause_panel.visible = false
+	if results_panel != null:
+		results_panel.visible = false
+	if again_button != null:
+		again_button.text = "ЗАЕЗД ЗАНОВО"
+
+	_route_weather_clock = 0.0
+	_route_weather_complete = null
+	_route_particles_intensity = -1.0
+	if track != null and not track.route_sections.is_empty():
+		var first_section = track.section_at(0.0)
+		weather = first_section.weather.duplicate() if first_section != null and first_section.weather != null else WeatherType.new()
+		_configure_world()
+		_setup_precipitation()
+		if _road_material != null:
+			_road_material.set_shader_parameter("wetness", _weather_wetness())
+			_road_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+		if _ground_material != null:
+			_ground_material.set_shader_parameter("wetness", _weather_wetness())
+			_ground_material.set_shader_parameter("snow_cover", _weather_snow_cover())
+		if road_decals != null:
+			road_decals.set_snow_cover(_weather_snow_cover())
+		if car != null and car.tire_marks != null:
+			car.tire_marks.snow_cover = _weather_snow_cover()
+			car.tire_marks.wetness = _weather_wetness()
+
+	stage_time = 0.0
+	timer_running = false
+	stage_finished = false
+	is_new_record = false
+	last_cp_index = -1
+	for i in range(cp_triggered.size()):
+		cp_triggered[i] = false
+	for i in range(cp_times.size()):
+		cp_times[i] = 0.0
+	_prev_lin_vel = Vector3.ZERO
+	_last_ghost_state.clear()
+	_speed_fx_reported = false
+	surface_state.clear()
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null and game.has_method("get_best_time"):
+		best_time = float(game.call("get_best_time", _record_key()))
+
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("stop_driving_feedback"):
+		controller.call("stop_driving_feedback")
+
+	if car != null:
+		var precipitation := _precipitation_levels()
+		car.set_precipitation(precipitation.x, precipitation.y)
+		car.spawn_transform = spawn_xform
+		car.freeze = false
+		if car.has_method("restart_at_spawn"):
+			car.restart_at_spawn()
+		else:
+			car.reset_to_spawn()
+
+	if _weather_particles != null and is_instance_valid(_weather_particles) and car != null:
+		_weather_particles.global_position = _anchor_for(car.global_position, Vector3.ZERO)
+		_weather_particles.restart()
+		_weather_particles.emitting = true
+
+	var cam_mode: int = car.camera_mode if car != null else 0
+	if _screen_look != null:
+		_screen_look.set_preview_speed(0.0, cam_mode)
+	elif speed_fx_material != null and _speed_feel != null:
+		speed_fx_material.set_shader_parameter("speed_intensity", 0.0)
+		speed_fx_material.set_shader_parameter("camera_mode", cam_mode)
+
+	if is_inside_tree() and get_tree() != null:
+		for crowd in get_tree().get_nodes_in_group("rally_spectator_crowds"):
+			if is_instance_valid(crowd) and crowd.has_method("reset_crowd"):
+				crowd.call("reset_crowd")
+		for person in get_tree().get_nodes_in_group("rally_spectators"):
+			if is_instance_valid(person) and person.has_method("reset_person"):
+				person.call("reset_person")
+
+	_setup_ghost_session()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if car != null and car.mouse_look_enabled else Input.MOUSE_MODE_VISIBLE
+	if is_inside_tree():
+		get_viewport().gui_release_focus()
+	_update_hud()
+
+
 func _on_restart_pressed() -> void:
-	if _marathon_transitioning:
+	if _marathon_transitioning or _restarting:
 		return
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null:
@@ -5230,6 +5368,8 @@ func _on_restart_pressed() -> void:
 				game.call("goto_menu")
 		else:
 			game.call("restart_race")
+	elif can_restart_in_place():
+		restart_in_place()
 	else:
 		_reload_scene()
 

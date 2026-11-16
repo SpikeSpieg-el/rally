@@ -29,6 +29,7 @@ var chunk_style: Dictionary = {}
 var _chunks: Dictionary = {}
 ## Незаконченные сборки: (поверхность готова, декор по стадиям).
 var _builds: Dictionary = {}
+var _chunk_stage: Dictionary = {}
 ## Очередь заданий (ключ чанка, стадия): 0 — поверхность, 1..6 — декор.
 var _queue: Array[Vector2i] = []
 var _last_center: int = -9999
@@ -54,6 +55,7 @@ func setup(
 		child.queue_free()
 	_chunks.clear()
 	_builds.clear()
+	_chunk_stage.clear()
 	_queue.clear()
 	_last_center = -9999
 
@@ -76,6 +78,7 @@ func _refresh_wanted(center: int) -> void:
 			var node: Variant = _chunks[key]
 			_chunks.erase(key)
 			_builds.erase(key)
+			_chunk_stage.erase(key)
 			if is_instance_valid(node):
 				(node as Node).queue_free()
 	_queue.clear()
@@ -90,15 +93,29 @@ func _refresh_wanted(center: int) -> void:
 func prime(behind: float, ahead_chunks: int) -> void:
 	var center: int = int(floor(maxf(behind, 0.0) / CHUNK_LENGTH))
 	_last_center = center
+	_refresh_wanted(center)
+	_queue.clear()
+	var materials: Dictionary = _build_materials()
 	for offset in range(-KEEP_BEHIND, ahead_chunks + 1):
 		var key: int = center + offset
-		if key < 0 or is_ready(float(key) * CHUNK_LENGTH):
+		if key < 0:
 			continue
-		# Синхронно: поверхность + все стадии декора.
-		_build(key)
-		var materials: Dictionary = _build_materials()
-		for stage in range(1, SceneryType.STAGE_COUNT + 1):
-			_run_stage(key, stage, materials)
+		if not is_ready(float(key) * CHUNK_LENGTH):
+			# Синхронно: поверхность + все стадии декора.
+			_build(key)
+		if _builds.has(key):
+			var done: int = int(_chunk_stage.get(key, 0))
+			for stage in range(done + 1, SceneryType.STAGE_COUNT + 1):
+				_run_stage(key, stage, materials)
+	for offset in range(0, LOOKAHEAD + 1):
+		var key: int = center + offset
+		if not is_ready(float(key) * CHUNK_LENGTH):
+			_queue.append(Vector2i(key, 0))
+		elif _builds.has(key):
+			var done: int = int(_chunk_stage.get(key, 0))
+			for stage in range(done + 1, SceneryType.STAGE_COUNT + 1):
+				_queue.append(Vector2i(key, stage))
+	_queue.sort()
 
 
 func ready_chunks() -> int:
@@ -122,7 +139,7 @@ func _process(_delta: float) -> void:
 		var job: Vector2i = _queue.pop_front()
 		var key: int = job.x
 		var stage: int = job.y
-		if not _chunks.has(key) and not _builds.has(key):
+		if stage > 0 and not _chunks.has(key) and not _builds.has(key):
 			continue
 		if stage == 0:
 			if _chunks.has(key):
@@ -193,6 +210,10 @@ func _run_stage(key: int, stage: int, materials: Dictionary) -> void:
 	var built: Variant = _builds.get(key, null)
 	if built == null or not is_instance_valid(_chunks.get(key)):
 		return
+	if stage <= int(_chunk_stage.get(key, 0)):
+		return
 	ChunkType.decorate_stage(built as ChunkType.Build, stage, materials)
+	_chunk_stage[key] = stage
 	if stage >= SceneryType.STAGE_COUNT:
 		_builds.erase(key)
+		_chunk_stage.erase(key)

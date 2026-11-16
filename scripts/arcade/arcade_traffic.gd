@@ -106,6 +106,13 @@ func prime(player_along: float) -> void:
 		_place_unit_at(unit, dist, lane_dir, i)
 
 
+func reset(player_along: float) -> void:
+	overtakes = 0
+	last_events.clear()
+	_spawn_counter = 0
+	prime(player_along)
+
+
 func step(delta: float, player_along: float, player_pos: Vector3, player_vel: Vector3) -> void:
 	last_events.clear()
 	if network == null or _units.is_empty():

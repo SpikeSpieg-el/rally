@@ -1970,6 +1970,50 @@ func reset_to_spawn() -> void:
 	_rumble(0.35, gamepad_rumble_on_reset, 0.25)
 
 
+## Полный рестарт заезда на линии старта (без вызова reset_provider и без
+## перезагрузки сцены: сбрасывает физику, грязь, кровь, следы шин и звук).
+func restart_at_spawn() -> void:
+	var saved_provider := reset_provider
+	reset_provider = Callable()
+	reset_to_spawn()
+	reset_provider = saved_provider
+	driving_feedback_active = true
+	shift_notice = ""
+	shift_notice_time = 0.0
+	steering_exponent_amount = 0.0
+	is_up_shifting = false
+	tcs_active = false
+	stability_active = false
+	stability_yaw_torque = 0.0
+	stability_torque_vector = Vector3.ZERO
+	_surface_roughness_value = 0.0
+	_feel_time = 0.0
+	_feel_local_accel = Vector3.ZERO
+	_feel_yaw_rate_deg = 0.0
+	_feel_lean = 0.0
+	_feel_roll = 0.0
+	_feel_pull = 0.0
+	_feel_previous_basis = global_transform.basis
+	_smoothed_slope_y = 0.0
+	if gravel_particles != null:
+		gravel_particles.emitting = false
+		gravel_particles.restart()
+	if is_instance_valid(surface_effects) and surface_effects.has_method("clear_body_dirt"):
+		surface_effects.call("clear_body_dirt")
+	if is_instance_valid(blood_fx) and blood_fx.has_method("clear_all"):
+		blood_fx.call("clear_all")
+	if wipers != null and wipers.has_method("reset_wipers"):
+		wipers.call("reset_wipers")
+	if is_instance_valid(tire_marks) and tire_marks.has_method("clear_marks"):
+		tire_marks.call("clear_marks")
+	if is_instance_valid(speed_motes):
+		speed_motes.emitting = false
+		speed_motes.restart()
+	var audio := get_node_or_null("EngineAudio")
+	if audio != null and audio.has_method("reset_state"):
+		audio.call("reset_state")
+
+
 func get_average_tire_slip() -> float:
 	var total_slip: float = 0.0
 	for wheel: WheelType in wheel_array:
