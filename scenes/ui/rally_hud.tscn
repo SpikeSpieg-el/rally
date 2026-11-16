@@ -6,11 +6,11 @@
 [ext_resource type="Script" uid="uid://dt3uxxduc1gyg" path="res://scripts/ui/camera_settings.gd" id="3_camera_settings"]
 [ext_resource type="Script" uid="uid://dwm0heffkixwa" path="res://scripts/ui/controller_settings.gd" id="4_controller_settings"]
 [ext_resource type="Script" uid="uid://ct3hs3w6eqtf0" path="res://scripts/ui/rally_radio_card.gd" id="5_radio"]
-[ext_resource type="Script" uid="uid://p0tltxztkyb9" path="res://scripts/ui/rally_hud.gd" id="6_rally_hud"]
-[ext_resource type="Resource" uid="uid://1qoem1fkj6pwb" path="res://data/ui/default_hud_style.tres" id="7_hud_style"]
-[ext_resource type="Script" uid="uid://1thm1p96wzd09" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
+[ext_resource type="Script" uid="uid://p0tltx0tkyca" path="res://scripts/ui/rally_hud.gd" id="6_rally_hud"]
+[ext_resource type="Resource" uid="uid://dj753ov15yhdp" path="res://data/ui/default_hud_style.tres" id="7_hud_style"]
+[ext_resource type="Script" uid="uid://dm1fierojr4ho" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
 [ext_resource type="Script" uid="uid://n5mwwvnvq8uq" path="res://scripts/ui/fps_label.gd" id="9_fps"]
-[ext_resource type="Script" uid="uid://1cx7fcdia80jy" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
+[ext_resource type="Script" uid="uid://c5iyuytyv1q0e" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 18.0
@@ -213,6 +213,7 @@ mouse_filter = 2
 script = ExtResource("6_rally_hud")
 hud_style = ExtResource("7_hud_style")
 theme_mode = 1
+hint_label_path = NodePath("")
 
 [node name="StagePanel" type="PanelContainer" parent="." unique_id=1484604147]
 layout_mode = 1
@@ -260,9 +261,9 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -165.0
-offset_right = 165.0
-offset_bottom = 88.0
+offset_left = -150.0
+offset_right = 180.0
+offset_bottom = 91.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_panel_top")
@@ -293,6 +294,7 @@ hud_style = ExtResource("7_hud_style")
 leading_zero_alpha = 0.16
 tint_color = Color(1, 1, 1, 1)
 separator_color = Color(1, 0.45, 0.05, 1)
+digit_height_px = 34.0
 digit_slot_aspect = 0.66
 
 [node name="SplitLabel" type="Label" parent="TimerPanel/TimerBox" unique_id=730141170]
@@ -307,14 +309,14 @@ horizontal_alignment = 1
 [node name="MiniMap" type="Control" parent="." unique_id=541321273]
 texture_filter = 2
 layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -234.0
-offset_top = 20.0
-offset_right = -24.0
-offset_bottom = 230.0
-grow_horizontal = 0
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 42.0
+offset_top = -246.0
+offset_right = 252.0
+offset_bottom = -36.0
+grow_vertical = 0
 mouse_filter = 2
 script = ExtResource("1_mini")
 hud_style = ExtResource("7_hud_style")
@@ -328,9 +330,9 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -124.0
-offset_top = 238.0
+offset_top = 20.0
 offset_right = -24.0
-offset_bottom = 266.0
+offset_bottom = 49.0
 grow_horizontal = 0
 theme_override_colors/font_color = Color(0.35, 0.95, 0.62, 0.95)
 theme_override_font_sizes/font_size = 12
@@ -443,14 +445,15 @@ theme_override_font_sizes/font_size = 11
 text = "AWD 38:62"
 
 [node name="TelemetryPanel" type="PanelContainer" parent="." unique_id=1199588559]
+visible = false
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -224.0
-offset_right = 224.0
-offset_bottom = -22.0
+offset_left = 47.0
+offset_top = -631.0
+offset_right = 247.0
+offset_bottom = -429.0
 grow_vertical = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("SB_panel_glass")
@@ -578,26 +581,6 @@ theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("SB_hint")
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="Hint" type="Label" parent="." unique_id=116412231]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 250.0
-offset_top = -54.0
-offset_right = -375.0
-offset_bottom = -16.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_colors/font_color = Color(0.78, 0.85, 0.92, 0.88)
-theme_override_font_sizes/font_size = 12
-theme_override_styles/normal = SubResource("SB_hint")
-text = "[W/S] ГАЗ/ТОРМОЗ • [A/D] РУЛЬ • [SPACE] РУЧНИК • [C] КАМЕРА • [V] ПРИВОД • [R] СБРОС • [N] ТРЕК • [M] РАДИО • [ESC] ПАУЗА"
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
 
 [node name="PausePanel" type="PanelContainer" parent="." unique_id=1350163794]
 visible = false
