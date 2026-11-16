@@ -88,6 +88,33 @@ class ArcadeSceneTest(unittest.TestCase):
         ):
             self.assertIn(signature, text, f'аркадный этап не реализует {signature}')
 
+    def test_stage_and_hud_keep_running_while_paused(self):
+        # Баг из игры: Esc открывал паузу, но кнопки не нажимались и закрыть
+        # меню было нечем. Причина — в обычном этапе process_mode = ALWAYS,
+        # а в аркаде его не было: замерший _process не видит нажатий, а HUD
+        # в PAUSABLE не принимает кликов. Проверяем оба места.
+        text = _text(STAGE)
+        code = '\n'.join(line.split('#', 1)[0] for line in text.splitlines())
+        self.assertIn('process_mode = Node.PROCESS_MODE_ALWAYS', code,
+                      'этап должен тикать во время паузы, иначе Esc не закрывает меню')
+        self.assertIn('hud.process_mode = Node.PROCESS_MODE_ALWAYS', code,
+                      'HUD должен принимать ввод во время паузы, иначе кнопки мертвы')
+        # Машина, наоборот, обязана стоять на паузе.
+        self.assertIn('car.process_mode = Node.PROCESS_MODE_PAUSABLE', code,
+                      'машина должна замирать на паузе')
+
+    def test_stage_builds_the_car_from_the_garage(self):
+        # Баг из игры: выбор из гаража не применялся. В аркаде машина лежит в
+        # самой сцене, поэтому подменять её обязан этап — как RallyStage.
+        text = _text(STAGE)
+        self.assertIn('func _enter_tree(', text,
+                      'машину надо менять до _ready: иначе _configure_car '
+                      'настроит ту, что лежит в сцене')
+        for needed in ('get_race_vehicle_id', 'get_race_setup_override',
+                       'CarModels.race_scene_path', 'setup_override'):
+            self.assertIn(needed, text,
+                          f'аркадный этап не применяет {needed} — гараж не работает')
+
     def test_stage_has_no_finish_or_route(self):
         # Только код, без комментариев: в шапке эти слова как раз объясняют,
         # почему аркада их не использует.
