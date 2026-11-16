@@ -1,22 +1,16 @@
 ## Меш одного чанка аркадной дороги: полотно с обочинами и кюветом,
-## земляная лента вокруг (по ней можно съехать и ехать), деревня с домами и
-## разметка пешеходных переходов.
+## переходная земляная кромка к мировым тайлам рельефа, зебры переходов и
+## передача в генератор обстановки.
 ##
 ## Чанк строится ТОЛЬКО по километражу и сиду, без состояния: тот же кусок
 ## дороги после выгрузки соберётся в точности таким же. Это требование
 ## стримера — иначе при возврате назад появлялись бы швы и «переезжающие»
-## дома.
-##
-## Поперечный профиль повторяет раллийное полотно (rally_stage):
-##   внешняя кромка → обочина → полотно с креном → обочина → кромка, а дальше
-##   кювет и земляная лента, плавно уходящая в рельеф. Материал полотна — тот
-##   же `gravel_road.gdshader`, поэтому дорога выглядит как остальная игра.
+## объекты.
 ##
 ## НОРМАЛИ НА СТЫКЕ ЧАНКОВ. Сетка строится с одним «полем» вершин за границей
 ## чанка с каждой стороны, нормали считаются по полной сетке, а в меш идут
 ## только внутренние ряды. Без этого на каждом стыке (каждые 130 м) был бы
-## скачок освещения: нормаль у граничной вершины считалась бы по односторонним
-## соседям, и солнце «переламывалось» бы поперёк дороги.
+## скачок освещения.
 class_name RallyArcadeChunk
 extends RefCounted
 
@@ -34,28 +28,26 @@ const ROAD_LIFT: float = 0.04
 const CAMBER: float = 0.07
 ## Глубина кювета у кромки полотна, м.
 const DITCH_DEPTH: float = 0.5
-## Ширина земляной ленты от кромки полотна, м.
-const VERGE_WIDTH: float = 30.0
-## Насколько земля уходит ниже полотна на краю ленты, м.
-const VERGE_DROP: float = 2.4
-## Сколько домов максимум на чанк (защита от разбухания узла).
+## Ширина придорожной юбки до перехода в мировые тайлы рельефа, м.
+## Узкая полоса (< половины зазора шпилек), поэтому на серпантине не
+## перекрывает соседний виток.
+const VERGE_WIDTH: float = 8.0
+## Насколько земля уходит ниже полотна на краю ленты без тайлов, м.
+const VERGE_DROP: float = 1.4
+## Сколько домов максимум на чанк в автономном fallback-режиме.
 const MAX_HOUSES: int = 24
 ## Пунктир осевой линии: штрих и период, м.
 const DASH_ON: float = 4.5
 const DASH_PERIOD: float = 9.0
 ## Полосы поперёк полотна: край, обочина, кромка, у разметки, центр,
-## у разметки, кромка, обочина, край. Разметка идёт ОТДЕЛЬНЫМИ рядами: при
-## одной широкой полосе на центр цвет размазывался по всей её ширине, и
-## «пунктира» не было видно — только мутное пятно.
+## у разметки, кромка, обочина, край.
 const ROAD_LANES := 9
-## Полуширина дорожной разметки, м. Уже — не читается на скорости.
+## Полуширина дорожной разметки, м.
 const LINE_HALF: float = 0.09
-## Пунктир правой (встречной) полосы: штрих и период, м. Сдвинут относительно
-## осевого, чтобы полосы не пульсировали синхронно.
+## Пунктир правой (встречной) полосы: штрих и период, м.
 const LANE_DASH_ON: float = 3.0
 const LANE_DASH_PERIOD: float = 7.0
-## Насколько краска приподнята над асфальтом, м: иначе совпадёт с ним по
-## глубине и будет мерцать (z-fighting).
+## Насколько краска приподнята над асфальтом, м.
 const PAINT_LIFT: float = 0.012
 ## Полосы земляной ленты: три слева (кромка → вниз → край) и три справа.
 const VERGE_LANES := 6
@@ -79,9 +71,16 @@ static func build(
 	var out := Build.new()
 	out.root = Node3D.new()
 	out.root.name = "ArcadeChunk"
-	_road_surface(out, start_along, end_along, seed_value, materials.road)
-	_verge_strip(out, start_along, end_along, seed_value, materials.ground)
-	_village(out, start_along, end_along, seed_value)
+	var terrain = materials.get("terrain", null)
+	var scenery = materials.get("scenery", null)
+	_road_surface(out, start_along, end_along, seed_value, materials)
+	_verge_strip(out, start_along, end_along, seed_value, materials.get("ground", null), terrain)
+	_crossings(out, start_along, end_along, seed_value)
+	if scenery != null:
+		var post_col: Color = materials.get("edge_post_color", Color(0.88, 0.14, 0.10))
+		scenery.decorate_chunk(out.root, start_along, end_along, seed_value, terrain, post_col)
+	else:
+		_village(out, start_along, end_along, seed_value)
 	return out
 
 
@@ -92,8 +91,6 @@ static func half_width_at(distance: float, seed_value: int) -> float:
 	return RoadType.half_width_at(distance, seed_value)
 
 
-## Точка осевой линии. Берётся из собранного участка генератора: он уже
-## нарезан по 2 м, и второй раз ту же геометрию не считаем.
 static func center_at(distance: float, seed_value: int) -> Vector3:
 	var leg_index: int = RoadType.leg_index_at(distance)
 	var built: RoadType.Leg = RoadType.leg(leg_index, seed_value)
@@ -116,13 +113,11 @@ static func side_at(direction: Vector3) -> Vector3:
 
 
 ## Высота ПОВЕРХНОСТИ полотна на километраже с поперечным сдвигом.
-## Один источник правды: по этой функции строится меш и садится машина.
 static func surface_height(distance: float, lateral: float, seed_value: int) -> float:
 	var center: Vector3 = center_at(distance, seed_value)
 	return surface_height_from(center.y, half_width_at(distance, seed_value), lateral)
 
 
-## То же, но по уже известным высоте и ширине (меш считает их раз на ряд).
 static func surface_height_from(center_y: float, half: float, lateral: float) -> float:
 	var shoulder: float = half + SHOULDER
 	var across: float = clampf(absf(lateral) / maxf(shoulder, 0.01), 0.0, 1.0)
@@ -132,9 +127,7 @@ static func surface_height_from(center_y: float, half: float, lateral: float) ->
 	return y + ROAD_LIFT
 
 
-## Высота земли в полосе вокруг дороги: у кромки — дно кювета (щели нет),
-## дальше плавный спуск с мягкими холмами. По ней ставятся дома, чтобы не
-## висеть над кюветом.
+## Высота земли в полосе вокруг дороги (fallback без тайлов рельефа).
 static func verge_height(distance: float, lateral: float, seed_value: int) -> float:
 	var center: Vector3 = center_at(distance, seed_value)
 	var half: float = half_width_at(distance, seed_value)
@@ -144,7 +137,7 @@ static func verge_height(distance: float, lateral: float, seed_value: int) -> fl
 	if across <= inner:
 		return edge_y
 	var t: float = clampf((across - inner) / VERGE_WIDTH, 0.0, 1.0)
-	var hills: float = sin(distance * 0.031 + across * 0.045) * 0.9 * t
+	var hills: float = sin(distance * 0.031 + across * 0.045) * 0.45 * t
 	return edge_y - VERGE_DROP * smoothstep(0.0, 1.0, t) + hills
 
 
@@ -152,8 +145,15 @@ static func verge_height(distance: float, lateral: float, seed_value: int) -> fl
 
 
 static func _road_surface(
-	chunk: Build, start_along: float, end_along: float, seed_value: int, material: Material
+	chunk: Build, start_along: float, end_along: float, seed_value: int, materials: Dictionary
 ) -> void:
+	var material: Material = materials.get("road", null)
+	var terrain = materials.get("terrain", null)
+	var road_col: Color = materials.get("road_color", Color(0.22, 0.22, 0.24))
+	var road_col2: Color = materials.get("road_color_2", Color(0.29, 0.29, 0.31))
+	var shoulder_col: Color = materials.get("shoulder_color", Color(0.31, 0.26, 0.18))
+	var loose_surface: bool = bool(materials.get("loose_surface", false))
+
 	var rows: int = maxi(2, ceili((end_along - start_along) / ROW_STEP) + 1)
 	var padding: int = 1
 	var total_rows: int = rows + padding * 2
@@ -166,7 +166,6 @@ static func _road_surface(
 	colors.resize(total_rows * ROAD_LANES)
 	uvs.resize(total_rows * ROAD_LANES)
 	for row in range(total_rows):
-		# Ряды за границей чанка: только для нормалей, в меш они не попадут.
 		var distance: float = _row_distance(row, padding, rows, start_along, end_along)
 		var center: Vector3 = center_at(distance, seed_value)
 		var half: float = half_width_at(distance, seed_value)
@@ -176,15 +175,27 @@ static func _road_surface(
 		var lateral: Array[float] = _road_laterals(half, shoulder, outer)
 		var dash: bool = fposmod(distance, DASH_PERIOD) < DASH_ON
 		var lane_dash: bool = fposmod(distance, LANE_DASH_PERIOD) < LANE_DASH_ON
+		var bridge_amt: float = terrain.bridge_deck_factor(distance) if terrain != null else 0.0
+		var wear_noise: float = RoadType.roll(int(floor(distance * 0.25)), seed_value, 97)
 		for lane in range(ROAD_LANES):
 			var lat: float = lateral[lane]
 			var point: Vector3 = center + side * lat
 			var y: float = surface_height_from(center.y, half, lat)
+			if bridge_amt > 0.01 and absf(lat) > half:
+				# На мосту кромка не ныряет в овраг — она остаётся настилом.
+				var flat_deck: float = center.y - CAMBER * 0.5 + ROAD_LIFT - (0.08 if absf(lat) > shoulder else 0.0)
+				y = lerpf(y, flat_deck, bridge_amt)
 			var index: int = row * ROAD_LANES + lane
-			vertices[index] = Vector3(point.x, y, point.z)
 			uvs[index] = Vector2(lat, distance)
-			colors[index] = _surface_color(absf(lat), half, shoulder, dash, lane_dash)
-			# Краска лежит чуть выше асфальта, иначе мерцает с ним по глубине.
+			var base_col := _surface_color_ex(
+				absf(lat), half, shoulder, dash, lane_dash,
+				road_col.lerp(road_col2, wear_noise * 0.45), shoulder_col
+			)
+			if not loose_surface and absf(lat) <= half:
+				base_col.a = 0.08
+			else:
+				base_col.a = 1.0
+			colors[index] = base_col
 			if _is_paint(absf(lat), half, dash, lane_dash):
 				y += PAINT_LIFT
 			vertices[index] = Vector3(point.x, y, point.z)
@@ -195,7 +206,12 @@ static func _road_surface(
 
 
 static func _verge_strip(
-	chunk: Build, start_along: float, end_along: float, seed_value: int, material: Material
+	chunk: Build,
+	start_along: float,
+	end_along: float,
+	seed_value: int,
+	material: Material,
+	terrain
 ) -> void:
 	var rows: int = maxi(2, ceili((end_along - start_along) / (ROW_STEP * 2.0)) + 1)
 	var padding: int = 1
@@ -204,34 +220,47 @@ static func _verge_strip(
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
 	var uvs := PackedVector2Array()
+	var spreads_per_vertex := PackedFloat32Array()
 	vertices.resize(total_rows * VERGE_LANES)
 	normals.resize(total_rows * VERGE_LANES)
 	colors.resize(total_rows * VERGE_LANES)
 	uvs.resize(total_rows * VERGE_LANES)
+	spreads_per_vertex.resize(total_rows * VERGE_LANES)
+
 	for row in range(total_rows):
 		var distance: float = _row_distance(row, padding, rows, start_along, end_along)
 		var center: Vector3 = center_at(distance, seed_value)
 		var half: float = half_width_at(distance, seed_value)
 		var side: Vector3 = side_at(direction_at(distance, seed_value))
 		var inner: float = half + SHOULDER + EDGE_BAND
+		var edge_y: float = center.y + ROAD_LIFT - DITCH_DEPTH
+		var bridge_amt: float = terrain.bridge_deck_factor(distance) if terrain != null else 0.0
 		for lane in range(VERGE_LANES):
 			var sign_side: float = -1.0 if lane < 3 else 1.0
 			var spread: float = float(VERGE_SPREAD[lane])
 			var across: float = inner + VERGE_WIDTH * spread
 			var point: Vector3 = center + side * across * sign_side
 			var index: int = row * VERGE_LANES + lane
-			var y: float = verge_height(distance, across * sign_side, seed_value)
+			var y: float
+			if terrain != null:
+				var world_y: float = terrain.height_at(point.x, point.z)
+				# На мосту придорожная полоса сразу опускается к берегам ущелья.
+				var start_y: float = lerpf(edge_y, world_y, bridge_amt)
+				var blend_t: float = smoothstep(0.0, 0.92, spread)
+				y = lerpf(start_y, world_y, blend_t) - 0.12 * smoothstep(0.65, 1.0, spread)
+			else:
+				y = verge_height(distance, across * sign_side, seed_value)
 			vertices[index] = Vector3(point.x, y, point.z)
 			uvs[index] = Vector2(across * sign_side, distance)
-			var shade: float = 0.78 + 0.22 * spread
-			colors[index] = Color(shade, shade, shade, 1.0)
+			spreads_per_vertex[index] = spread
 	_normals_from_grid(vertices, normals, total_rows, VERGE_LANES)
-	# Между левой и правой половинами ленты полотна нет — там шва не нужно.
-	# Полосы земли идут наружу в минус (-30 → -6.3), затем в плюс, то есть
-	# ПОПЕРЁК обхода полотна. С теми же индексами лента получает намотку,
-	# зеркальную полотну, и Godot отбрасывает её как обратную грань: полотно
-	# видно, а вокруг него — пустота до самого неба. Поэтому треугольники
-	# разворачиваются: полотно уже проверено, его обход и верен.
+	for i in range(total_rows * VERGE_LANES):
+		var sp: float = spreads_per_vertex[i]
+		var influence: float = smoothstep(0.0, 0.72, sp)
+		var rock: float = clampf((1.0 - normals[i].y) * influence * 1.35, 0.0, 1.0)
+		colors[i] = Color(influence, rock, 0.5, 1.0)
+	# Полосы земли идут поперёк обхода полотна, поэтому треугольники
+	# разворачиваются, чтобы лицевые грани смотрели вверх.
 	var indices := _grid_indices(rows, VERGE_LANES, padding, 2)
 	for i in range(0, indices.size(), 3):
 		var swap: int = indices[i + 1]
@@ -241,7 +270,6 @@ static func _verge_strip(
 		VERGE_LANES, material)
 
 
-## Километраж ряда: ряды вне [start, end] — «поле» для нормалей.
 static func _row_distance(
 	row: int, padding: int, rows: int, start_along: float, end_along: float
 ) -> float:
@@ -249,8 +277,6 @@ static func _row_distance(
 	return start_along + float(row - padding) * step
 
 
-## Нормали по соседям в полной (с полем) сетке: на стыке чанков они совпадают,
-## потому что обе стороны считают их по одной и той же геометрии.
 static func _normals_from_grid(
 	vertices: PackedVector3Array, normals: PackedVector3Array, rows: int, lanes: int
 ) -> void:
@@ -267,7 +293,6 @@ static func _normals_from_grid(
 			normals[here] = normal.normalized() if normal.length() > 0.0001 else Vector3.UP
 
 
-## Индексы только для внутренних рядов: поле нужно нормалям, а не геометрии.
 static func _grid_indices(
 	rows: int, lanes: int, padding: int, skip_lane: int = -1
 ) -> PackedInt32Array:
@@ -289,7 +314,6 @@ static func _grid_indices(
 	return indices
 
 
-## Упаковать сетку в меш, отбросить поле и повесить узел с коллайдером.
 static func _emit(
 	chunk: Build,
 	node_name: String,
@@ -303,7 +327,6 @@ static func _emit(
 	lanes: int,
 	material: Material
 ) -> void:
-	# Сжимаем буферы до внутренних рядов, иначе поле висело бы в меше мусором.
 	var used := PackedVector3Array()
 	var used_normals := PackedVector3Array()
 	var used_colors := PackedColorArray()
@@ -340,18 +363,11 @@ static func _emit(
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	chunk.root.add_child(visual)
 	var shape := mesh.create_trimesh_shape()
-	# Машина залетает на полотно сбоку и падает на землю сверху: без обратных
-	# граней на резком кювете колесо иногда «прошивало» бы настил.
 	shape.backface_collision = true
 	chunk.shapes.append(shape)
-	# «road» — полотно, «grass» — земляная лента: стример вешает коллайдеры в
-	# группы Road/Grass, по которым колесо и выбирает покрытие.
 	chunk.kinds.append("road" if node_name == "Road" else "grass")
 
 
-## Поперечные координаты полос полотна, слева направо. Разметка — отдельные
-## пары рядов вокруг своей линии: тогда её ширина = LINE_HALF, а не «полоса
-## сетки», и край получается резким на любом расстоянии.
 static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[float]:
 	var center_line: float = LINE_HALF
 	var lane_line: float = maxf(half * 0.5, LINE_HALF * 4.0)
@@ -363,7 +379,6 @@ static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[
 	]
 
 
-## Лежит ли координата на краске: осевая (пунктир) или линия полосы (пунктир).
 static func _is_paint(lateral: float, half: float, dash: bool, lane_dash: bool) -> bool:
 	if lateral <= LINE_HALF + 0.001 and dash:
 		return true
@@ -371,7 +386,7 @@ static func _is_paint(lateral: float, half: float, dash: bool, lane_dash: bool) 
 	return absf(lateral - lane_line) <= LINE_HALF + 0.001 and lane_dash
 
 
-## Цвет полотна: асфальт, обочина, краска разметки, трава за кромкой.
+## Цвет полотна по умолчанию (используется и статическими проверками).
 static func _surface_color(
 	lateral: float, half: float, shoulder: float, dash: bool, lane_dash: bool
 ) -> Color:
@@ -389,7 +404,34 @@ static func _surface_color(
 	return asphalt.lerp(shoulder_color, wear * 0.35)
 
 
-# ------------------------------------------------------------- деревня
+static func _surface_color_ex(
+	lateral: float, half: float, shoulder: float, dash: bool, lane_dash: bool,
+	asphalt: Color, shoulder_color: Color
+) -> Color:
+	var verge := shoulder_color * 0.9
+	if lateral > shoulder:
+		return verge
+	if lateral > half:
+		return shoulder_color
+	if _is_paint(lateral, half, dash, lane_dash):
+		return Color(0.86, 0.84, 0.78)
+	var wear: float = smoothstep(half * 0.55, half, lateral)
+	return asphalt.lerp(shoulder_color, wear * 0.35)
+
+
+# ------------------------------------------------------------- переходы и fallback
+
+
+static func _crossings(
+	chunk: Build, start_along: float, end_along: float, seed_value: int
+) -> void:
+	var first_leg: int = RoadType.leg_index_at(start_along)
+	var last_leg: int = RoadType.leg_index_at(end_along)
+	for leg_index in range(first_leg, last_leg + 1):
+		var built: RoadType.Leg = RoadType.leg(leg_index, seed_value)
+		for crossing in built.crossings:
+			if crossing >= start_along and crossing < end_along:
+				_place_crossing(chunk.root, crossing, seed_value)
 
 
 static func _village(chunk: Build, start_along: float, end_along: float, seed_value: int) -> void:
@@ -398,9 +440,6 @@ static func _village(chunk: Build, start_along: float, end_along: float, seed_va
 	var placed: int = 0
 	for leg_index in range(first_leg, last_leg + 1):
 		var built: RoadType.Leg = RoadType.leg(leg_index, seed_value)
-		for crossing in built.crossings:
-			if crossing >= start_along and crossing < end_along:
-				_place_crossing(chunk.root, crossing, seed_value)
 		for house in built.houses:
 			if placed >= MAX_HOUSES:
 				return
@@ -411,8 +450,6 @@ static func _village(chunk: Build, start_along: float, end_along: float, seed_va
 			placed += 1
 
 
-## Километраж дома: дома ставились вдоль осевой линии участка, поэтому ищем
-## ближайшую к нему точку полотна.
 static func _house_along(house: Vector4, built: RoadType.Leg) -> float:
 	var best: float = INF
 	var best_along: float = 0.0
@@ -428,35 +465,28 @@ static func _house_along(house: Vector4, built: RoadType.Leg) -> float:
 static func _place_house(
 	parent: Node3D, house: Vector4, along: float, seed_value: int, index: int
 ) -> void:
-	# Дом — коробка с двускатной крышей: в аркаде на скорости важен силуэт.
-	# Обстановки «изба» в библиотеке пропсов нет (forester_house — одиночная
-	# сторожка, а не деревенский дом), поэтому геометрия простая.
 	var house_seed: int = int(absf(house.x) * 17.0) & 0xffff
-	var scale: float = RoadType.roll_range(index, house_seed, 351, 0.9, 1.25)
-	var size := Vector3(7.0, 3.2, 5.4) * scale
-	# Дом стоит НА ЗЕМЛЕ, а не на высоте осевой линии: участок рядом с полотном
-	# лежит ниже на глубину кювета, и дом, посаженный по оси, висел бы в воздухе.
+	var scale_val: float = RoadType.roll_range(index, house_seed, 351, 0.9, 1.25)
+	var box_size := Vector3(7.0, 3.2, 5.4) * scale_val
 	var ground: float = verge_height(along, _house_lateral(house, along, seed_value), seed_value)
 	var walls := MeshInstance3D.new()
 	var body := BoxMesh.new()
-	body.size = size
+	body.size = box_size
 	walls.mesh = body
 	walls.material_override = _flat_material(Color(0.74, 0.70, 0.60))
-	walls.position = Vector3(house.x, ground + size.y * 0.5, house.z)
+	walls.position = Vector3(house.x, ground + box_size.y * 0.5, house.z)
 	walls.rotation.y = float(house.w)
 	parent.add_child(walls)
 	var roof := MeshInstance3D.new()
 	var prism := PrismMesh.new()
-	prism.size = Vector3(size.z * 1.08, size.y * 0.52, size.x * 1.05)
+	prism.size = Vector3(box_size.z * 1.08, box_size.y * 0.52, box_size.x * 1.05)
 	roof.mesh = prism
 	roof.material_override = _flat_material(Color(0.40, 0.19, 0.15))
-	# PrismMesh «конёк» смотрит по X, а дом повёрнут на yaw: доворачиваем.
-	roof.position = Vector3(house.x, ground + size.y + prism.size.y * 0.5, house.z)
+	roof.position = Vector3(house.x, ground + box_size.y + prism.size.y * 0.5, house.z)
 	roof.rotation.y = float(house.w)
 	parent.add_child(roof)
 
 
-## Поперечный сдвиг дома от оси — по нему выбирается высота земли под ним.
 static func _house_lateral(house: Vector4, along: float, seed_value: int) -> float:
 	var center: Vector3 = center_at(along, seed_value)
 	var side: Vector3 = side_at(direction_at(along, seed_value))
@@ -464,41 +494,37 @@ static func _house_lateral(house: Vector4, along: float, seed_value: int) -> flo
 
 
 static func _place_crossing(parent: Node3D, along: float, seed_value: int) -> void:
-	# «Зебра» — плоская полоса ПОВЕРХ полотна, повторяющая его крен: плоская
-	# плита на кривой профиле торчала бы углами. Не коллайдер: машина должна
-	# проезжать по разметке, а не спотыкаться о неё.
+	# Классическая «зебра» из отдельных белых полос по профилю полотна.
 	var half: float = half_width_at(along, seed_value)
 	var center: Vector3 = center_at(along, seed_value)
 	var direction: Vector3 = direction_at(along, seed_value)
 	var side: Vector3 = side_at(direction)
-	var stripes: int = 2
-	var spans: int = 9
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
-	for row in range(stripes):
-		var offset: float = (float(row) - (float(stripes) - 1) * 0.5) * 1.8
-		var base: Vector3 = center + side * offset
-		for lane in range(spans + 1):
-			var lateral: float = lerpf(-half, half, float(lane) / float(spans))
-			var point: Vector3 = base + side * lateral
-			var y: float = surface_height_from(center.y, half, lateral) + 0.03
-			vertices.append(Vector3(point.x, y, point.z))
-			normals.append(Vector3.UP)
 	var indices := PackedInt32Array()
-	for row in range(stripes - 1):
-		for lane in range(spans):
-			var i0: int = row * (spans + 1) + lane
-			var i1: int = i0 + 1
-			var i2: int = i0 + spans + 1
-			var i3: int = i2 + 1
-			indices.append(i0)
-			indices.append(i1)
-			indices.append(i2)
-			indices.append(i1)
-			indices.append(i3)
-			indices.append(i2)
-	if indices.is_empty():
-		return
+
+	var stripe_count: int = 5
+	var stripe_half_len: float = 1.05
+	var usable_half: float = half - 0.45
+	for s in range(stripe_count):
+		var lat_center: float = lerpf(-usable_half + 0.35, usable_half - 0.35, float(s) / float(stripe_count - 1))
+		var lat_a: float = lat_center - 0.28
+		var lat_b: float = lat_center + 0.28
+		var base_idx: int = vertices.size()
+		for d_sign in [-1.0, 1.0]:
+			var p_along: Vector3 = center + direction * (stripe_half_len * float(d_sign))
+			for lat in [lat_a, lat_b]:
+				var pt: Vector3 = p_along + side * lat
+				var y: float = surface_height_from(center.y, half, lat) + 0.025
+				vertices.append(Vector3(pt.x, y, pt.z))
+				normals.append(Vector3.UP)
+		indices.append(base_idx)
+		indices.append(base_idx + 1)
+		indices.append(base_idx + 2)
+		indices.append(base_idx + 1)
+		indices.append(base_idx + 3)
+		indices.append(base_idx + 2)
+
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -515,7 +541,7 @@ static func _place_crossing(parent: Node3D, along: float, seed_value: int) -> vo
 
 
 static func _flat_material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.92
-	return material
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.92
+	return mat

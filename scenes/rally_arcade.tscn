@@ -56,6 +56,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="SpeedShaderRect" parent="HUD" instance=ExtResource("9_retro")]
 material = SubResource("ShaderMaterial_retro")
-look = 0
+look = 3
 
 [node name="RallyHUD" parent="HUD" instance=ExtResource("8_hud")]
