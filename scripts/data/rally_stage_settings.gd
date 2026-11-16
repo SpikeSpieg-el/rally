@@ -130,31 +130,81 @@ extends Resource
 @export_range(0.1, 4.0, 0.05) var fog_depth_curve: float = 1.0
 
 @export_group("Время суток")
-## Выбор «ДЕНЬ» или «НОЧЬ» в меню переворачивает освещение трассы только тогда,
-## когда он отличается от её природного времени (night_mode). Эти поля —
-## насколько сильно меняется свет при переходе.
-## Дневной свет → ночь: солнце слабее и синее, окружение темнее.
-@export_range(0.0, 1.0, 0.01) var night_sun_scale: float = 0.35
-@export var night_sun_tint: Color = Color(0.6, 0.7, 1.0, 1.0)
-## Насколько сильно солнце окрашивается в ночной тон (0 — не окрашивать).
-@export_range(0.0, 1.0, 0.01) var night_sun_tint_strength: float = 0.7
-@export_range(0.0, 2.0, 0.01) var night_ambient_scale: float = 0.55
-## Ночной свет → день: солнце как на дневных трассах, окружение как у них же.
+## Режимы времени суток для выбора в меню (УТРО / ДЕНЬ / ВЕЧЕР / НОЧЬ).
+## «КАК НА ТРАССЕ» оставляет родную палитру .tres самой трассы.
+##
+## УТРО: низкое тёплое рассветное солнце и прохладная дымка.
+@export_range(0.0, 4.0, 0.05) var morning_sun_energy: float = 1.08
+@export var morning_sun_color: Color = Color(1.0, 0.78, 0.54, 1.0)
+@export_range(-85.0, -2.0, 1.0) var morning_sun_pitch: float = -13.0
+@export_range(-180.0, 180.0, 1.0) var morning_sun_yaw: float = 96.0
+@export_range(0.0, 3.0, 0.01) var morning_ambient_energy: float = 0.72
+@export var morning_ambient_color: Color = Color(0.50, 0.56, 0.68, 1.0)
+@export var morning_sky_top: Color = Color(0.24, 0.42, 0.68, 1.0)
+@export var morning_sky_horizon: Color = Color(0.95, 0.76, 0.58, 1.0)
+@export_range(0.05, 1.0, 0.01) var morning_sky_curve: float = 0.28
+@export var morning_fog_color: Color = Color(0.76, 0.72, 0.70, 1.0)
+@export_range(0.0, 400.0, 2.0) var morning_fog_near: float = 46.0
+@export_range(20.0, 900.0, 5.0) var morning_fog_far: float = 230.0
+@export_range(0.0, 0.05, 0.0002) var morning_fog_density: float = 0.0042
+@export var morning_volumetric_fog: bool = true
+@export_range(0.0, 0.05, 0.0002) var morning_volumetric_fog_density: float = 0.0045
+@export_range(0.2, 3.0, 0.05) var morning_exposure: float = 1.05
+## ДЕНЬ: высокое солнце, чистое небо и дальний горизонт.
 @export_range(0.2, 4.0, 0.05) var day_sun_energy: float = 1.4
 @export var day_sun_color: Color = Color(1.0, 0.95, 0.82, 1.0)
+@export_range(-85.0, -2.0, 1.0) var day_sun_pitch: float = -48.0
+@export_range(-180.0, 180.0, 1.0) var day_sun_yaw: float = 42.0
 @export_range(0.0, 3.0, 0.01) var day_ambient_energy: float = 0.85
-## Цвета неба и окружения при переключении (как у штатных ночных и дневных трасс).
-@export var night_sky_top: Color = Color(0.035, 0.045, 0.075, 1.0)
-@export var night_sky_horizon: Color = Color(0.13, 0.16, 0.19, 1.0)
-@export var night_ambient_color: Color = Color(0.48, 0.56, 0.72, 1.0)
+@export var day_ambient_color: Color = Color(0.6, 0.63, 0.7, 1.0)
 @export var day_sky_top: Color = Color(0.2, 0.38, 0.6, 1.0)
 @export var day_sky_horizon: Color = Color(0.75, 0.8, 0.85, 1.0)
-@export var day_ambient_color: Color = Color(0.6, 0.63, 0.7, 1.0)
-## Туман тоже переключается вместе со светом. Без этого дневная трасса,
-## запущенная ночью, оставалась с белым туманом — кадр становился молочным,
-## даже когда небо и солнце уже ночные.
-@export var night_fog_color: Color = Color(0.16, 0.18, 0.2, 1.0)
 @export var day_fog_color: Color = Color(0.72, 0.79, 0.88, 1.0)
+@export_range(0.0, 400.0, 2.0) var day_fog_near: float = 75.0
+@export_range(20.0, 900.0, 5.0) var day_fog_far: float = 320.0
+@export_range(0.0, 0.05, 0.0002) var day_fog_density: float = 0.0028
+@export var day_volumetric_fog: bool = false
+@export_range(0.0, 0.05, 0.0002) var day_volumetric_fog_density: float = 0.0015
+@export_range(0.2, 3.0, 0.05) var day_exposure: float = 1.0
+## ВЕЧЕР: светлые синие сумерки (прежний «ночной» режим — всё видно без фар, но небо темнеет).
+@export_range(0.0, 4.0, 0.05) var evening_sun_energy: float = 0.48
+@export var evening_sun_color: Color = Color(0.64, 0.74, 1.0, 1.0)
+@export_range(-85.0, -2.0, 1.0) var evening_sun_pitch: float = -34.0
+@export_range(-180.0, 180.0, 1.0) var evening_sun_yaw: float = 38.0
+@export_range(0.0, 3.0, 0.01) var evening_ambient_energy: float = 0.85
+@export var evening_ambient_color: Color = Color(0.48, 0.56, 0.72, 1.0)
+@export var evening_sky_top: Color = Color(0.035, 0.045, 0.075, 1.0)
+@export var evening_sky_horizon: Color = Color(0.13, 0.16, 0.19, 1.0)
+@export var evening_fog_color: Color = Color(0.16, 0.18, 0.2, 1.0)
+@export_range(0.0, 400.0, 2.0) var evening_fog_near: float = 55.0
+@export_range(20.0, 900.0, 5.0) var evening_fog_far: float = 260.0
+@export_range(0.0, 0.05, 0.0002) var evening_fog_density: float = 0.0022
+@export var evening_volumetric_fog: bool = true
+@export_range(0.0, 0.05, 0.0002) var evening_volumetric_fog_density: float = 0.0025
+@export_range(0.0, 2.0, 0.05) var evening_star_intensity: float = 0.45
+@export_range(0.2, 3.0, 0.05) var evening_exposure: float = 1.15
+## НОЧЬ: глубокая ночь с фарами и объёмной дымкой, как на трассе Англии.
+@export_range(0.0, 4.0, 0.02) var night_sun_energy: float = 0.16
+@export var night_sun_color: Color = Color(0.42, 0.50, 0.68, 1.0)
+@export_range(-85.0, -2.0, 1.0) var night_sun_pitch: float = -58.0
+@export_range(-180.0, 180.0, 1.0) var night_sun_yaw: float = 130.0
+@export_range(0.0, 3.0, 0.01) var night_ambient_energy: float = 0.10
+@export var night_ambient_color: Color = Color(0.10, 0.13, 0.18, 1.0)
+@export var night_sky_top: Color = Color(0.006, 0.008, 0.014, 1.0)
+@export var night_sky_horizon: Color = Color(0.02, 0.026, 0.032, 1.0)
+@export var night_fog_color: Color = Color(0.035, 0.042, 0.05, 1.0)
+@export_range(0.0, 400.0, 2.0) var night_fog_near: float = 24.0
+@export_range(20.0, 900.0, 5.0) var night_fog_far: float = 130.0
+@export_range(0.0, 0.05, 0.0002) var night_fog_density: float = 0.01
+@export var night_volumetric_fog: bool = true
+@export_range(0.0, 0.05, 0.0002) var night_volumetric_fog_density: float = 0.012
+@export_range(0.0, 2.0, 0.05) var night_star_intensity: float = 0.18
+@export_range(0.2, 3.0, 0.05) var night_exposure: float = 1.15
+## Запасные поля масштабирования (для старых сцен/ресурсов).
+@export_storage var night_sun_scale: float = 0.16
+@export_storage var night_sun_tint: Color = Color(0.42, 0.50, 0.68, 1.0)
+@export_storage var night_sun_tint_strength: float = 0.85
+@export_storage var night_ambient_scale: float = 0.12
 
 @export_group("Материалы полотна и земли")
 ## Шероховатость земли и масштаб зерна её текстуры.

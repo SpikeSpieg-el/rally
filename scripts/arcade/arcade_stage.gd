@@ -359,7 +359,7 @@ func _read_game_conditions() -> void:
 		track_profile = selected_profile as ProfileType
 	var selected_time: Variant = game.get("time_index")
 	if selected_time is int:
-		time_choice = clampi(int(selected_time), 0, 2)
+		time_choice = clampi(int(selected_time), 0, WeatherType.TimeOfDay.NIGHT)
 
 
 func _apply_conditions_to_track() -> void:
@@ -382,10 +382,13 @@ func _apply_conditions_to_track() -> void:
 func _configure_world() -> void:
 	var cfg := settings
 	_is_night = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
+	var explicit_time: int = WeatherType.explicit_time_choice(time_choice, weather)
 	var sky_top: Color = _weather_sky_color(track.sky_top_color)
 	var sky_horizon: Color = _weather_sky_color(track.sky_horizon_color)
 	var fog_col: Color = _weather_fog_tint(track.fog_color)
 	var fog_density: float = track.fog_density
+	var fog_near: float = track.fog_near
+	var fog_far: float = track.fog_far
 	var volumetric: bool = track.volumetric_fog
 	var volumetric_density: float = track.volumetric_fog_density
 	var ambient_energy: float = track.ambient_energy
@@ -393,37 +396,125 @@ func _configure_world() -> void:
 	var sun_energy: float = track.sun_energy
 	var sun_col: Color = track.sun_color
 	var ambient_col: Color = track.ambient_color
+	var sun_pitch: float = track.sun_pitch
+	var sun_yaw: float = track.sun_yaw
+	var star_intensity: float = track.star_intensity
+	var sky_curve: float = 0.55 if track.ps1_style and track.sky_flat else 0.18
+	if explicit_time == WeatherType.TimeOfDay.MORNING:
+		sun_energy = cfg.morning_sun_energy
+		sun_col = cfg.morning_sun_color
+		sun_pitch = cfg.morning_sun_pitch
+		sun_yaw = cfg.morning_sun_yaw
+		ambient_energy = cfg.morning_ambient_energy
+		ambient_col = cfg.morning_ambient_color
+		exposure = cfg.morning_exposure
+		sky_top = _weather_sky_color(cfg.morning_sky_top)
+		sky_horizon = _weather_sky_color(cfg.morning_sky_horizon)
+		fog_col = _weather_fog_tint(cfg.morning_fog_color)
+		fog_near = cfg.morning_fog_near
+		fog_far = cfg.morning_fog_far
+		fog_density = cfg.morning_fog_density
+		volumetric = cfg.morning_volumetric_fog
+		volumetric_density = cfg.morning_volumetric_fog_density
+		sky_curve = cfg.morning_sky_curve
+	elif explicit_time == WeatherType.TimeOfDay.EVENING:
+		sun_energy = cfg.evening_sun_energy
+		sun_col = cfg.evening_sun_color
+		sun_pitch = cfg.evening_sun_pitch
+		sun_yaw = cfg.evening_sun_yaw
+		ambient_energy = cfg.evening_ambient_energy
+		ambient_col = cfg.evening_ambient_color
+		exposure = cfg.evening_exposure
+		sky_top = _weather_sky_color(cfg.evening_sky_top)
+		sky_horizon = _weather_sky_color(cfg.evening_sky_horizon)
+		fog_col = _weather_fog_tint(cfg.evening_fog_color)
+		fog_near = cfg.evening_fog_near
+		fog_far = cfg.evening_fog_far
+		fog_density = cfg.evening_fog_density
+		volumetric = cfg.evening_volumetric_fog
+		volumetric_density = cfg.evening_volumetric_fog_density
+		star_intensity = cfg.evening_star_intensity
+	elif explicit_time == WeatherType.TimeOfDay.DAY:
+		sun_energy = cfg.day_sun_energy
+		sun_col = cfg.day_sun_color
+		sun_pitch = cfg.day_sun_pitch
+		sun_yaw = cfg.day_sun_yaw
+		ambient_energy = cfg.day_ambient_energy
+		ambient_col = cfg.day_ambient_color
+		exposure = cfg.day_exposure
+		sky_top = _weather_sky_color(cfg.day_sky_top)
+		sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
+		fog_col = _weather_fog_tint(cfg.day_fog_color)
+		fog_near = cfg.day_fog_near
+		fog_far = cfg.day_fog_far
+		fog_density = cfg.day_fog_density
+		volumetric = cfg.day_volumetric_fog
+		volumetric_density = cfg.day_volumetric_fog_density
+	elif explicit_time == WeatherType.TimeOfDay.NIGHT:
+		sun_energy = cfg.night_sun_energy
+		sun_col = cfg.night_sun_color
+		sun_pitch = cfg.night_sun_pitch
+		sun_yaw = cfg.night_sun_yaw
+		ambient_energy = cfg.night_ambient_energy
+		ambient_col = cfg.night_ambient_color
+		exposure = cfg.night_exposure
+		sky_top = _weather_sky_color(cfg.night_sky_top)
+		sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+		fog_col = _weather_fog_tint(cfg.night_fog_color)
+		fog_near = cfg.night_fog_near
+		fog_far = cfg.night_fog_far
+		fog_density = cfg.night_fog_density
+		volumetric = cfg.night_volumetric_fog
+		volumetric_density = cfg.night_volumetric_fog_density
+		star_intensity = cfg.night_star_intensity
+	elif _is_night != track.night_mode:
+		if _is_night:
+			sun_energy = cfg.night_sun_energy
+			sun_col = cfg.night_sun_color
+			sun_pitch = cfg.night_sun_pitch
+			sun_yaw = cfg.night_sun_yaw
+			ambient_energy = cfg.night_ambient_energy
+			ambient_col = cfg.night_ambient_color
+			exposure = cfg.night_exposure
+			sky_top = _weather_sky_color(cfg.night_sky_top)
+			sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+			fog_col = _weather_fog_tint(cfg.night_fog_color)
+			fog_near = cfg.night_fog_near
+			fog_far = cfg.night_fog_far
+			fog_density = cfg.night_fog_density
+			volumetric = cfg.night_volumetric_fog
+			volumetric_density = cfg.night_volumetric_fog_density
+			star_intensity = cfg.night_star_intensity
+		else:
+			sun_energy = cfg.day_sun_energy
+			sun_col = cfg.day_sun_color
+			sun_pitch = cfg.day_sun_pitch
+			sun_yaw = cfg.day_sun_yaw
+			ambient_energy = cfg.day_ambient_energy
+			ambient_col = cfg.day_ambient_color
+			exposure = cfg.day_exposure
+			sky_top = _weather_sky_color(cfg.day_sky_top)
+			sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
+			fog_col = _weather_fog_tint(cfg.day_fog_color)
+			fog_near = cfg.day_fog_near
+			fog_far = cfg.day_fog_far
+			fog_density = cfg.day_fog_density
+			volumetric = cfg.day_volumetric_fog
+			volumetric_density = cfg.day_volumetric_fog_density
 	if weather != null:
 		fog_density = clampf(
-			track.fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
+			fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
 		)
 		volumetric = volumetric or weather.volumetric_fog
 		volumetric_density = clampf(
-			track.volumetric_fog_density * weather.fog_density_scale + weather.fog_density_add * 0.5,
+			volumetric_density * weather.fog_density_scale + weather.fog_density_add * 0.5,
 			0.0,
 			0.05
 		)
 		ambient_energy *= weather.ambient_energy_scale
 		exposure *= weather.exposure_scale
 		sun_energy *= weather.sun_energy_scale
-		sun_col = track.sun_color.lerp(weather.sun_tint, weather.sun_tint_strength)
-	if _is_night != track.night_mode:
-		if _is_night:
-			sun_energy *= cfg.night_sun_scale
-			sun_col = sun_col.lerp(cfg.night_sun_tint, cfg.night_sun_tint_strength)
-			ambient_energy *= cfg.night_ambient_scale
-			ambient_col = cfg.night_ambient_color
-			sky_top = _weather_sky_color(cfg.night_sky_top)
-			sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
-			fog_col = _weather_fog_tint(cfg.night_fog_color)
-		else:
-			sun_energy = cfg.day_sun_energy
-			sun_col = cfg.day_sun_color
-			ambient_energy = cfg.day_ambient_energy
-			ambient_col = cfg.day_ambient_color
-			sky_top = _weather_sky_color(cfg.day_sky_top)
-			sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
-			fog_col = _weather_fog_tint(cfg.day_fog_color)
+		sun_col = sun_col.lerp(weather.sun_tint, weather.sun_tint_strength)
 
 	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env != null:
@@ -438,15 +529,15 @@ func _configure_world() -> void:
 			night_mat.shader = NightSkyShader
 			night_mat.set_shader_parameter("sky_top_color", sky_top)
 			night_mat.set_shader_parameter("sky_horizon_color", sky_horizon)
-			night_mat.set_shader_parameter("star_intensity", track.star_intensity)
+			night_mat.set_shader_parameter("star_intensity", star_intensity)
 			sky.sky_material = night_mat
 		else:
 			var day_mat := ProceduralSkyMaterial.new()
 			day_mat.sky_top_color = sky_top
 			day_mat.sky_horizon_color = sky_horizon
-			day_mat.ground_bottom_color = track.ground_color * 0.4
+			day_mat.ground_bottom_color = track.ground_color * (0.28 if explicit_time == WeatherType.TimeOfDay.MORNING else 0.4)
 			day_mat.ground_horizon_color = sky_horizon
-			day_mat.sky_curve = 0.55 if track.ps1_style and track.sky_flat else 0.18
+			day_mat.sky_curve = sky_curve
 			sky.sky_material = day_mat
 		env.background_mode = Environment.BG_SKY
 		env.background_energy_multiplier = 1.0
@@ -474,8 +565,8 @@ func _configure_world() -> void:
 		env.fog_enabled = fog_density > 0.0
 		env.fog_light_color = fog_col
 		if track.ps1_style:
-			var fog_begin: float = maxf(0.0, track.fog_near * _weather_visibility_scale())
-			var fog_end: float = maxf(fog_begin + 1.0, track.fog_far * _weather_visibility_scale())
+			var fog_begin: float = maxf(0.0, fog_near * _weather_visibility_scale())
+			var fog_end: float = maxf(fog_begin + 1.0, fog_far * _weather_visibility_scale())
 			env.fog_mode = Environment.FOG_MODE_DEPTH
 			env.fog_depth_end = fog_end
 			env.fog_depth_begin = fog_begin
@@ -492,7 +583,7 @@ func _configure_world() -> void:
 
 	var sun_light := get_node_or_null("SunLight") as DirectionalLight3D
 	if sun_light != null:
-		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
+		sun_light.rotation = Vector3(deg_to_rad(sun_pitch), deg_to_rad(sun_yaw), 0.0)
 		sun_light.light_color = sun_col
 		sun_light.light_energy = sun_energy
 

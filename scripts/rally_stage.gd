@@ -136,7 +136,7 @@ var track: TrackConfigType = null
 var setup: CarSetupType = null
 ## Погода и «характер трассы» текущего заезда (из автозагрузки RallyGame).
 var weather: WeatherType = null
-## Время суток из меню: 0 — как на трассе, 1 — день, 2 — ночь.
+## Время суток из меню: 0 — как на трассе, 1 — утро, 2 — день, 3 — вечер, 4 — ночь.
 var time_choice: int = 0
 var track_profile: ProfileType = null
 var car: CarType = null
@@ -433,8 +433,10 @@ func s_fx() -> FxProfileType:
 	return fx_profile
 
 
-## Конфиг обстановки (никогда null).
+## Конфиг обстановки (никогда null; может переопределяться в конфиге трассы).
 func s_scenery() -> SceneryType:
+	if track != null and track.scenery_override != null:
+		return track.scenery_override
 	if scenery == null:
 		_load_resources()
 	return scenery
@@ -716,7 +718,7 @@ func _resolve_conditions(game: Node) -> void:
 		track_profile = selected_profile
 	var selected_time: Variant = game.get("time_index")
 	if selected_time is int:
-		time_choice = clampi(selected_time, 0, 2)
+		time_choice = clampi(selected_time, 0, WeatherType.TimeOfDay.NIGHT)
 
 
 ## Накладывает профиль полотна и поправки погоды на копию конфига трассы.
@@ -2563,7 +2565,10 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 		var pool: Array[RallyProp] = []
 		var biome: RallySceneryBiome = cfg.biome_for_zone(zone)
 		for candidate in pickable:
-			if SceneryPlacement.allows(candidate, zone) and (biome == null or candidate.supports_biome(biome.id)):
+			var is_forest: bool = candidate.category == RallyProp.Category.FOREST
+			var zone_ok: bool = SceneryPlacement.allows(candidate, zone) or (cfg.forest_in_all_zones and is_forest)
+			var biome_ok: bool = biome == null or candidate.supports_biome(biome.id) or (cfg.forest_in_all_zones and is_forest)
+			if zone_ok and biome_ok:
 				pool.append(candidate)
 		zone_pools.append(pool)
 		var cover_pool: Array[RallyProp] = []
@@ -2595,7 +2600,7 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 		# Кластеризация вместо равномерного «шума по грядкам»: на полянах
 		# (cluster ~ 0) крупных пропсов нет совсем, в зарослях плотность
 		# почти вдвое выше базовой. Среднее по трассе не растёт.
-		var cluster: float = StageDressing.cluster_factor(distance, track.terrain_seed)
+		var cluster: float = maxf(cfg.cluster_floor, StageDressing.cluster_factor(distance, track.terrain_seed))
 		corridor = track.half_width_at(distance) + track.road_shoulder
 		var center: Vector3 = network.point_at(distance)
 		var dir: Vector3 = network.direction_at(distance)
@@ -2625,7 +2630,8 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				# Между тематическими участками оставляем переход без крупных
 				# объектов: jitter не смешивает камни, поле и лес на границе.
 				var block_position: float = fposmod(distance, maxf(1.0, cfg.biome_length))
-				if prop.category != RallyProp.Category.VEGETATION and (block_position < 8.0 or block_position > maxf(1.0, cfg.biome_length) - 8.0):
+				var skip_seam: bool = prop.category != RallyProp.Category.VEGETATION and not (cfg.forest_in_all_zones and prop.category == RallyProp.Category.FOREST)
+				if skip_seam and (block_position < 8.0 or block_position > maxf(1.0, cfg.biome_length) - 8.0):
 					continue
 				var prop_index: int = pickable.find(prop)
 				var far: float = cfg.max_offset
@@ -2636,7 +2642,10 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				near = maxf(near, cfg.road_clearance)
 				if far < near:
 					continue
-				var lateral: float = corridor + rng.randf_range(near, far)
+				var max_band: float = far
+				if prop.category == RallyProp.Category.FOREST and cfg.near_road_tree_bias > 0.0 and rng.randf() < cfg.near_road_tree_bias:
+					max_band = minf(far, near + 16.0)
+				var lateral: float = corridor + rng.randf_range(near, max_band)
 				var point: Vector3 = center + side * (lateral * side_sign) + dir * rng.randf_range(-jitter, jitter)
 				if not terrain_rect.has_point(Vector2(point.x, point.z)):
 					continue
@@ -2652,7 +2661,8 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				var size: float = rng.randf_range(prop.size.x, prop.size.y)
 				var width: float = size * rng.randf_range(prop.width_jitter.x, prop.width_jitter.y)
 				var height: float = size * rng.randf_range(prop.height_jitter.x, prop.height_jitter.y)
-				var radius: float = clampf(prop.placement_radius * maxf(width, height), 0.2, 12.0)
+				var spacing_scale: float = cfg.tree_spacing_scale if prop.category == RallyProp.Category.FOREST else 1.0
+				var radius: float = clampf(prop.placement_radius * maxf(width, height) * spacing_scale, 0.2, 12.0)
 				if not placement.has_space(point, radius):
 					continue
 				var yaw: float = rng.randf_range(0.0, TAU) if prop.random_yaw else 0.0
@@ -3980,10 +3990,13 @@ func _configure_world() -> void:
 	# Все константы постобработки живут в RallyStageSettings (инспектор).
 	var cfg := s_settings()
 	var night: bool = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
+	var explicit_time: int = WeatherType.explicit_time_choice(time_choice, weather)
 	var sky_top: Color = _weather_sky_color(track.sky_top_color)
 	var sky_horizon: Color = _weather_sky_color(track.sky_horizon_color)
 	var fog_color: Color = _effective_fog_color()
 	var fog_density: float = track.fog_density
+	var fog_near: float = track.fog_near
+	var fog_far: float = track.fog_far
 	var volumetric: bool = track.volumetric_fog
 	var volumetric_density: float = track.volumetric_fog_density
 	var ambient_energy: float = track.ambient_energy
@@ -3991,38 +4004,126 @@ func _configure_world() -> void:
 	var sun_energy: float = track.sun_energy
 	var sun_color: Color = track.sun_color
 	var ambient_color: Color = track.ambient_color
+	var sun_pitch: float = track.sun_pitch
+	var sun_yaw: float = track.sun_yaw
+	var star_intensity: float = track.star_intensity
+	var sky_curve: float = 0.55 if track.ps1_style and track.sky_flat else 0.18
+	if explicit_time == WeatherType.TimeOfDay.MORNING:
+		sun_energy = cfg.morning_sun_energy
+		sun_color = cfg.morning_sun_color
+		sun_pitch = cfg.morning_sun_pitch
+		sun_yaw = cfg.morning_sun_yaw
+		ambient_energy = cfg.morning_ambient_energy
+		ambient_color = cfg.morning_ambient_color
+		exposure = cfg.morning_exposure
+		sky_top = _weather_sky_color(cfg.morning_sky_top)
+		sky_horizon = _weather_sky_color(cfg.morning_sky_horizon)
+		fog_color = _weather_fog_tint(cfg.morning_fog_color)
+		fog_near = cfg.morning_fog_near
+		fog_far = cfg.morning_fog_far
+		fog_density = cfg.morning_fog_density
+		volumetric = cfg.morning_volumetric_fog
+		volumetric_density = cfg.morning_volumetric_fog_density
+		sky_curve = cfg.morning_sky_curve
+	elif explicit_time == WeatherType.TimeOfDay.EVENING:
+		sun_energy = cfg.evening_sun_energy
+		sun_color = cfg.evening_sun_color
+		sun_pitch = cfg.evening_sun_pitch
+		sun_yaw = cfg.evening_sun_yaw
+		ambient_energy = cfg.evening_ambient_energy
+		ambient_color = cfg.evening_ambient_color
+		exposure = cfg.evening_exposure
+		sky_top = _weather_sky_color(cfg.evening_sky_top)
+		sky_horizon = _weather_sky_color(cfg.evening_sky_horizon)
+		fog_color = _weather_fog_tint(cfg.evening_fog_color)
+		fog_near = cfg.evening_fog_near
+		fog_far = cfg.evening_fog_far
+		fog_density = cfg.evening_fog_density
+		volumetric = cfg.evening_volumetric_fog
+		volumetric_density = cfg.evening_volumetric_fog_density
+		star_intensity = cfg.evening_star_intensity
+	elif explicit_time == WeatherType.TimeOfDay.DAY:
+		sun_energy = cfg.day_sun_energy
+		sun_color = cfg.day_sun_color
+		sun_pitch = cfg.day_sun_pitch
+		sun_yaw = cfg.day_sun_yaw
+		ambient_energy = cfg.day_ambient_energy
+		ambient_color = cfg.day_ambient_color
+		exposure = cfg.day_exposure
+		sky_top = _weather_sky_color(cfg.day_sky_top)
+		sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
+		fog_color = _weather_fog_tint(cfg.day_fog_color)
+		fog_near = cfg.day_fog_near
+		fog_far = cfg.day_fog_far
+		fog_density = cfg.day_fog_density
+		volumetric = cfg.day_volumetric_fog
+		volumetric_density = cfg.day_volumetric_fog_density
+	elif explicit_time == WeatherType.TimeOfDay.NIGHT:
+		sun_energy = cfg.night_sun_energy
+		sun_color = cfg.night_sun_color
+		sun_pitch = cfg.night_sun_pitch
+		sun_yaw = cfg.night_sun_yaw
+		ambient_energy = cfg.night_ambient_energy
+		ambient_color = cfg.night_ambient_color
+		exposure = cfg.night_exposure
+		sky_top = _weather_sky_color(cfg.night_sky_top)
+		sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+		fog_color = _weather_fog_tint(cfg.night_fog_color)
+		fog_near = cfg.night_fog_near
+		fog_far = cfg.night_fog_far
+		fog_density = cfg.night_fog_density
+		volumetric = cfg.night_volumetric_fog
+		volumetric_density = cfg.night_volumetric_fog_density
+		star_intensity = cfg.night_star_intensity
+	# Запасная ветка для прямого переключения ночного флага при «как на трассе»:
+	if night != track.night_mode:
+		if explicit_time == WeatherType.TimeOfDay.KEEP:
+			if night:
+				sun_energy = cfg.night_sun_energy
+				sun_color = cfg.night_sun_color
+				sun_pitch = cfg.night_sun_pitch
+				sun_yaw = cfg.night_sun_yaw
+				ambient_energy = cfg.night_ambient_energy
+				ambient_color = cfg.night_ambient_color
+				exposure = cfg.night_exposure
+				sky_top = _weather_sky_color(cfg.night_sky_top)
+				sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
+				fog_color = _weather_fog_tint(cfg.night_fog_color)
+				fog_near = cfg.night_fog_near
+				fog_far = cfg.night_fog_far
+				fog_density = cfg.night_fog_density
+				volumetric = cfg.night_volumetric_fog
+				volumetric_density = cfg.night_volumetric_fog_density
+				star_intensity = cfg.night_star_intensity
+			else:
+				sun_energy = cfg.day_sun_energy
+				sun_color = cfg.day_sun_color
+				sun_pitch = cfg.day_sun_pitch
+				sun_yaw = cfg.day_sun_yaw
+				ambient_energy = cfg.day_ambient_energy
+				ambient_color = cfg.day_ambient_color
+				exposure = cfg.day_exposure
+				sky_top = _weather_sky_color(cfg.day_sky_top)
+				sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
+				fog_color = _weather_fog_tint(cfg.day_fog_color)
+				fog_near = cfg.day_fog_near
+				fog_far = cfg.day_fog_far
+				fog_density = cfg.day_fog_density
+				volumetric = cfg.day_volumetric_fog
+				volumetric_density = cfg.day_volumetric_fog_density
 	if weather != null:
 		fog_density = clampf(
-			track.fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
+			fog_density * weather.fog_density_scale + weather.fog_density_add, 0.0, 0.06
 		)
 		volumetric = volumetric or weather.volumetric_fog
 		volumetric_density = clampf(
-			track.volumetric_fog_density * weather.fog_density_scale
+			volumetric_density * weather.fog_density_scale
 			+ weather.fog_density_add * 0.5, 0.0, 0.05
 		)
 		ambient_energy *= weather.ambient_energy_scale
 		exposure *= weather.exposure_scale
 		sun_energy *= weather.sun_energy_scale
-		sun_color = track.sun_color.lerp(weather.sun_tint, weather.sun_tint_strength)
-	# Выбор «День»/«Ночь» против природы трассы: свет переворачивается только
-	# тогда, когда время реально другое. Обычный заезд не меняется.
-	if night != track.night_mode:
-		if night:
-			sun_energy *= cfg.night_sun_scale
-			sun_color = sun_color.lerp(cfg.night_sun_tint, cfg.night_sun_tint_strength)
-			ambient_energy *= cfg.night_ambient_scale
-			ambient_color = cfg.night_ambient_color
-			sky_top = _weather_sky_color(cfg.night_sky_top)
-			sky_horizon = _weather_sky_color(cfg.night_sky_horizon)
-			fog_color = _weather_fog_tint(cfg.night_fog_color)
-		else:
-			sun_energy = cfg.day_sun_energy
-			sun_color = cfg.day_sun_color
-			ambient_energy = cfg.day_ambient_energy
-			ambient_color = cfg.day_ambient_color
-			sky_top = _weather_sky_color(cfg.day_sky_top)
-			sky_horizon = _weather_sky_color(cfg.day_sky_horizon)
-			fog_color = _weather_fog_tint(cfg.day_fog_color)
+		sun_color = sun_color.lerp(weather.sun_tint, weather.sun_tint_strength)
 	if world_environment != null:
 		var env: Environment = null
 		if world_environment.environment != null:
@@ -4035,15 +4136,15 @@ func _configure_world() -> void:
 			night_material.shader = NightSkyShader
 			night_material.set_shader_parameter("sky_top_color", sky_top)
 			night_material.set_shader_parameter("sky_horizon_color", sky_horizon)
-			night_material.set_shader_parameter("star_intensity", track.star_intensity)
+			night_material.set_shader_parameter("star_intensity", star_intensity)
 			sky.sky_material = night_material
 		else:
 			var day_material := ProceduralSkyMaterial.new()
 			day_material.sky_top_color = sky_top
 			day_material.sky_horizon_color = sky_horizon
-			day_material.ground_bottom_color = track.ground_color * 0.4
+			day_material.ground_bottom_color = track.ground_color * (0.28 if explicit_time == WeatherType.TimeOfDay.MORNING else 0.4)
 			day_material.ground_horizon_color = sky_horizon
-			day_material.sky_curve = 0.55 if track.ps1_style and track.sky_flat else 0.18
+			day_material.sky_curve = sky_curve
 			sky.sky_material = day_material
 		env.background_mode = Environment.BG_SKY
 		env.background_energy_multiplier = 1.0
@@ -4074,8 +4175,8 @@ func _configure_world() -> void:
 		if track.ps1_style:
 			# Единый туман по расстоянию для земли, машин и деревьев. В Godot
 			# плотность depth-тумана — максимальная непрозрачность (не экспонента).
-			var fog_begin: float = maxf(0.0, track.fog_near * _weather_visibility_scale())
-			var fog_end: float = maxf(fog_begin + 1.0, track.fog_far * _weather_visibility_scale())
+			var fog_begin: float = maxf(0.0, fog_near * _weather_visibility_scale())
+			var fog_end: float = maxf(fog_begin + 1.0, fog_far * _weather_visibility_scale())
 			env.fog_mode = Environment.FOG_MODE_DEPTH
 			env.fog_depth_end = fog_end
 			env.fog_depth_begin = fog_begin
@@ -4091,7 +4192,7 @@ func _configure_world() -> void:
 			env.fog_sky_affect = 1.0
 		world_environment.environment = env
 	if sun_light != null:
-		sun_light.rotation = Vector3(deg_to_rad(track.sun_pitch), deg_to_rad(track.sun_yaw), 0.0)
+		sun_light.rotation = Vector3(deg_to_rad(sun_pitch), deg_to_rad(sun_yaw), 0.0)
 		sun_light.light_color = sun_color
 		sun_light.light_energy = sun_energy
 
