@@ -53,6 +53,10 @@ uniform float wet_darken : hint_range(0.0, 1.0) = 0.62;
 uniform float dry_specular : hint_range(0.0, 1.0) = 0.22;
 uniform float texture_gain : hint_range(0.0, 3.0) = 1.25;
 uniform float texture_base : hint_range(0.0, 2.0) = 0.65;
+// Для длинных аркадных чанков текстура слегка поворачивается и искажается,
+// чтобы её строки не превращались в поперечные тайлы.
+uniform float gravel_texture_warp : hint_range(0.0, 1.0) = 0.0;
+uniform float texture_detail_strength : hint_range(0.0, 1.0) = 1.0;
 uniform float puddle_roughness : hint_range(0.0, 1.0) = 0.18;
 uniform float puddle_mix : hint_range(0.0, 1.0) = 0.8;
 
@@ -96,10 +100,24 @@ void fragment() {
 	float rut_variation = mix(0.7, 1.0, value_noise(vec2(UV.y * 0.12, UV.x)));
 	float surface = 1.0 + gravel * detail_strength + broad * detail_strength * 0.5;
 	surface *= 1.0 - ruts * rut_variation * track_strength;
-	vec2 gravel_uv = vec2(UV.x, UV.y) * gravel_uv_scale;
+	// Один и тот же bitmap, разложенный строго по (поперёк, вдоль),
+	// образует повторяющиеся светлые строки. В аркадном режиме поворачиваем
+	// домен и мягко искажаем его низкочастотным шумом; мелкий рисунок остаётся,
+	// но не синхронизируется с рядами вершин чанка.
+	vec2 road_uv = vec2(UV.x, UV.y);
+	vec2 rotated_uv = vec2(
+		road_uv.x * 0.82 - road_uv.y * 0.57,
+		road_uv.x * 0.57 + road_uv.y * 0.82
+	);
+	vec2 texture_warp = vec2(
+		value_noise(road_uv * vec2(0.065, 0.052) + vec2(11.7, 3.4)),
+		value_noise(road_uv * vec2(0.047, 0.071) + vec2(27.1, 19.6))
+	) - vec2(0.5);
+	vec2 gravel_uv = mix(road_uv, rotated_uv + texture_warp * 1.8, gravel_texture_warp) * gravel_uv_scale;
 	vec3 gravel_detail = ps1_textures ? texture(gravel_texture, gravel_uv).rgb : texture(gravel_texture_smooth, gravel_uv).rgb;
 	float section_loose = section_surfaces ? COLOR.a : 1.0;
-	vec3 texture_detail = mix(vec3(1.0), texture_base + gravel_detail * texture_gain, section_loose);
+	float texture_presence = section_loose * texture_detail_strength;
+	vec3 texture_detail = mix(vec3(1.0), texture_base + gravel_detail * texture_gain, texture_presence);
 	vec3 albedo = COLOR.rgb * surface * texture_detail;
 	// Дождь: гравий темнеет, колеи блестят. Снег: полотно укрыто почти целиком.
 	albedo *= mix(1.0, 1.0 - wet_darken, wetness);

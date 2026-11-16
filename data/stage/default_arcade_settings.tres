@@ -5,4 +5,20 @@
 
 [resource]
 script = ExtResource("1_arcade_cfg")
+; Полотно аркады шире обычного спецучастка: 5.0 м × 1.25 = 6.25 м
+; полуширины до локальных коэффициентов доменов.
+road_width_scale = 1.25
+serpentine_width_scale = 0.98
+country_width_scale = 1.0
+village_width_scale = 1.05
+bridge_width_scale = 0.96
+fast_width_scale = 1.18
+width_transition_m = 40.0
+road_shoulder_scale = 1.0
+road_edge_band = 1.1
+road_camber = 0.07
+road_ditch_depth = 0.5
+verge_width = 8.0
+road_lift = 0.04
+road_mesh_row_step = 2.5
 pedestrian_scene = ExtResource("2_pedestrian")

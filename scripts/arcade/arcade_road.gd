@@ -29,9 +29,11 @@
 ## Свёртка границы достраивается вперёд от ближайшей известной: без рекурсии
 ## (на 5000-м участке она переполнила бы стек) и без O(n²).
 ##
-## Ширина полосы (половина) по доменам: серпантин 4.6, деревня 4.8, мост 4.5,
-## разгон 5.8 м (двухполосная трасса шириной 9–11.6 м под 2.3 м ралли-кар). Переход между доменами — внутри домена, поэтому на границе
-## участков ширина непрерывна.
+## Ширина полосы по доменам задаётся пультом `RallyArcadeSettings`:
+## серпантин, деревня, мост и разгон получают коэффициенты от общей
+## полуширины. Переход между доменами — внутри домена, поэтому на границе
+## участков ширина непрерывна. Старые прямые вызовы используют
+## `DEFAULT_HALF_WIDTH` и сохраняют прежний масштаб.
 class_name RallyArcadeRoad
 extends RefCounted
 
@@ -72,6 +74,12 @@ const MAX_SWEEP: float = 3.0
 ## Гармоники высотного профиля: (длина волны, м; амплитуда, м).
 const WAVE_LENGTHS := [2200.0, 760.0, 380.0]
 const WAVE_AMPLITUDES := [26.0, 4.0, 0.9]
+
+## Геометрия текущего заезда. Генератор остаётся статическим, чтобы сеть,
+## трафик, пешеходы и стример обращались к одному источнику истины, но все
+## числа дороги приходят сюда из RallyArcadeSettings перед созданием сети.
+static var _base_half_width: float = DEFAULT_HALF_WIDTH
+static var _geometry: Dictionary = {}
 
 
 ## Один собранный участок.
@@ -221,6 +229,24 @@ static func roll_range(index: int, seed_value: int, salt: int, low: float, high:
 	return lerpf(low, high, roll(index, seed_value, salt))
 
 
+## Настроить геометрию перед новым заездом. `base_half_width` уже учитывает
+## выбранный характер покрытия: этап передаёт сюда изменённую копию TrackConfig.
+## Параметры в словаре намеренно простые — это сохраняет генератор независимым
+## от Resource-класса и не создаёт циклический preload.
+static func configure(seed_value: int, base_half_width: float = DEFAULT_HALF_WIDTH, parameters: Dictionary = {}) -> void:
+	_base_half_width = clampf(base_half_width, 2.0, 12.0)
+	_geometry = parameters.duplicate(true)
+	# Даже тот же сид должен пересобраться, если игрок поменял настройки дороги
+	# и запустил сцену повторно в том же процессе.
+	_cache_seed = 0x7fffffff
+	reset(seed_value)
+
+
+static func geometry_value(name: String, fallback: float) -> float:
+	var value: Variant = _geometry.get(name, fallback)
+	return float(value) if value != null else fallback
+
+
 ## Сброс кэшей при смене сида (новый заезд).
 static func reset(seed_value: int) -> void:
 	if seed_value == _cache_seed:
@@ -322,18 +348,21 @@ static func axis_heading(distance: float, seed_value: int) -> float:
 	return heading
 
 
-## «Целевая» ширина домена (половина полотна), м.
+## «Целевая» ширина домена (половина полотна), м. Базовая ширина и
+## коэффициенты приходят из настроек аркады; fallback сохраняет поведение
+## старых прямых вызовов генератора.
 static func domain_half_width(domain: int, leg_index: int, seed_value: int) -> float:
+	var base: float = _base_half_width
 	match domain:
 		LegType.Kind.SERPENTINE:
-			return clampf(4.6 * roll_range(leg_index, seed_value, 11, 0.94, 1.08), 4.3, 5.4)
+			return base * geometry_value("serpentine_width_scale", 0.92) * roll_range(leg_index, seed_value, 11, 0.94, 1.08)
 		LegType.Kind.FAST:
-			return 5.8
+			return base * geometry_value("fast_width_scale", 1.16)
 		LegType.Kind.VILLAGE:
-			return 4.8
+			return base * geometry_value("village_width_scale", 0.96)
 		LegType.Kind.BRIDGE:
-			return 4.5
-	return DEFAULT_HALF_WIDTH
+			return base * geometry_value("bridge_width_scale", 0.90)
+	return base * geometry_value("country_width_scale", 1.0)
 
 
 ## Ширина предыдущего домена (для плавного входа в текущий). На границе
@@ -344,10 +373,10 @@ static func _previous_half_width(leg_index: int, slot: int, seed_value: int) -> 
 	if slot > 0:
 		return domain_half_width(int(plan.domains[slot - 1]), leg_index, seed_value)
 	if leg_index <= 0:
-		return DEFAULT_HALF_WIDTH
+		return _base_half_width
 	var previous := plan_for(leg_index - 1, seed_value)
 	if previous.slots() == 0:
-		return DEFAULT_HALF_WIDTH
+		return _base_half_width
 	return domain_half_width(int(previous.domains[previous.slots() - 1]), leg_index - 1, seed_value)
 
 
@@ -356,7 +385,7 @@ static func half_width_at(distance: float, seed_value: int) -> float:
 	var leg_index: int = leg_index_at(distance)
 	var plan := plan_for(leg_index, seed_value)
 	if plan.slots() == 0:
-		return DEFAULT_HALF_WIDTH
+		return _base_half_width
 	var local: float = distance - leg_start(leg_index)
 	var cursor: float = 0.0
 	for slot in range(plan.slots()):
@@ -369,10 +398,10 @@ static func half_width_at(distance: float, seed_value: int) -> float:
 		var from: float = _previous_half_width(leg_index, slot, seed_value)
 		# Окно перехода не длиннее половины домена: короткий домен успевает
 		# прийти к своей ширине, поэтому на выходе значение всегда `goal`.
-		var window: float = minf(WIDTH_BLEND, slot_length * 0.5)
+		var window: float = minf(geometry_value("width_transition_m", WIDTH_BLEND), slot_length * 0.5)
 		var blend: float = 1.0 if window <= 0.001 else clampf((local - cursor) / window, 0.0, 1.0)
 		return lerpf(from, goal, smoothstep(0.0, 1.0, blend))
-	return DEFAULT_HALF_WIDTH
+	return _base_half_width
 
 
 # --------------------------------------------------------------- границы

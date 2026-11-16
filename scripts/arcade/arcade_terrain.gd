@@ -34,6 +34,12 @@ var hills_height: float = 24.0
 var ridge_height: float = 20.0
 var detail_height: float = 0.45
 var ground_material: Material = null
+## Поперечная геометрия должна совпадать с чанк-мешем, иначе тайл земли
+## вернётся к старой обочине и начнёт прорезать расширенную дорогу.
+var shoulder_width: float = SHOULDER
+var edge_band_width: float = EDGE_BAND
+var road_lift_height: float = ROAD_LIFT
+var ditch_depth: float = DITCH_DEPTH
 
 var _noise_hills: FastNoiseLite = null
 var _noise_ridge: FastNoiseLite = null
@@ -59,7 +65,8 @@ func setup(
 	p_ridge_height: float,
 	p_ridge_freq: float,
 	p_detail_height: float,
-	p_ground_material: Material
+	p_ground_material: Material,
+	geometry: Dictionary = {}
 ) -> void:
 	track_seed = road_seed
 	terrain_seed = t_seed
@@ -67,6 +74,10 @@ func setup(
 	ridge_height = p_ridge_height
 	detail_height = p_detail_height
 	ground_material = p_ground_material
+	shoulder_width = float(geometry.get("road_shoulder", SHOULDER))
+	edge_band_width = float(geometry.get("road_edge_band", EDGE_BAND))
+	road_lift_height = float(geometry.get("road_lift", ROAD_LIFT))
+	ditch_depth = float(geometry.get("road_ditch_depth", DITCH_DEPTH))
 
 	for child in get_children():
 		child.queue_free()
@@ -291,8 +302,8 @@ func _sample_height(px: float, pz: float, apply_road_dip: bool) -> float:
 	var ridge: float = (ridge_raw - 0.5) * 2.0 * ridge_height
 	var detail: float = _noise_detail.get_noise_2d(px, pz) * detail_height if _noise_detail != null else 0.0
 
-	var corridor: float = half + SHOULDER + EDGE_BAND
-	var road_edge_y: float = road_y + ROAD_LIFT - DITCH_DEPTH
+	var corridor: float = half + shoulder_width + edge_band_width
+	var road_edge_y: float = road_y + road_lift_height - ditch_depth
 	var far_blend: float = smoothstep(corridor + 1.5, corridor + 64.0, dist)
 	var h: float = lerpf(road_edge_y, reg_y + hills + ridge, far_blend)
 	h += detail * smoothstep(corridor, corridor + 8.0, dist)
@@ -423,7 +434,7 @@ func _build_tile(key: Vector2i) -> void:
 				heights[h - halo] - heights[h + halo]
 			).normalized()
 			normals[vi] = normal
-			var corridor: float = road_halves[h] + SHOULDER
+			var corridor: float = road_halves[h] + shoulder_width
 			var influence: float = smoothstep(corridor * 0.85, corridor + 14.0, road_dists[h])
 			var rock_factor: float = clampf((1.0 - normal.y) * influence * 1.35, 0.0, 1.0)
 			colors[vi] = Color(influence, rock_factor, 0.5, 1.0)

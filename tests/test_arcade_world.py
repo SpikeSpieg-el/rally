@@ -149,6 +149,22 @@ class ArcadeWorldTest(unittest.TestCase):
         ):
             self.assertIn(required, text, f'arcade_stage.gd не обновляет/не связывает {required}')
 
+    def test_arcade_road_material_avoids_transverse_stripes(self):
+        chunk = _text(CHUNK)
+        shader = _text(ROOT / 'shaders/gravel_road.gdshader')
+        stage = _text(STAGE)
+        self.assertNotIn('RoadType.roll(int(floor(distance * 0.25))', chunk)
+        self.assertIn('road_base_col', chunk)
+        for required in ('gravel_texture_warp', 'texture_detail_strength', 'rotated_uv'):
+            self.assertIn(required, shader)
+        for required in (
+            'mat.set_shader_parameter("gravel_texture_warp", 1.0)',
+            'mat.set_shader_parameter("texture_detail_strength", 0.52)',
+            'mat.set_shader_parameter("zone_contrast", 0.0)',
+            'mat.set_shader_parameter("puddle_mix", 0.0)',
+        ):
+            self.assertIn(required, stage)
+
     def test_verge_skirt_does_not_overlap_hairpins(self):
         text = _text(CHUNK)
         verge_w = float(re.search(r'const VERGE_WIDTH: float = ([\d.]+)', text).group(1))

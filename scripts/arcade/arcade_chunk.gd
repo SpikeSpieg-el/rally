@@ -54,6 +54,48 @@ const VERGE_LANES := 6
 ## Доли ширины земляной ленты по полосам.
 const VERGE_SPREAD := [0.0, 0.42, 1.0, 1.0, 0.42, 0.0]
 
+## Поперечные параметры настраиваются тем же ресурсом, что и ширина
+## генератора. Константы выше остаются fallback для прямого вызова класса и
+## для старых сцен, а заезд вызывает `configure_geometry()` один раз.
+static var _geometry: Dictionary = {}
+
+
+static func configure_geometry(parameters: Dictionary = {}) -> void:
+	_geometry = parameters.duplicate(true)
+
+
+static func _geometry_value(name: String, fallback: float) -> float:
+	var value: Variant = _geometry.get(name, fallback)
+	return float(value) if value != null else fallback
+
+
+static func shoulder_width() -> float:
+	return _geometry_value("road_shoulder", SHOULDER)
+
+
+static func edge_band_width() -> float:
+	return _geometry_value("road_edge_band", EDGE_BAND)
+
+
+static func road_lift_height() -> float:
+	return _geometry_value("road_lift", ROAD_LIFT)
+
+
+static func ditch_depth() -> float:
+	return _geometry_value("road_ditch_depth", DITCH_DEPTH)
+
+
+static func camber_amount() -> float:
+	return _geometry_value("road_camber", CAMBER)
+
+
+static func verge_width() -> float:
+	return _geometry_value("verge_width", VERGE_WIDTH)
+
+
+static func mesh_row_step() -> float:
+	return _geometry_value("road_mesh_row_step", ROW_STEP)
+
 
 ## Результат сборки: готовый узел и коллайдеры (полотно и земля).
 class Build:
@@ -119,24 +161,25 @@ static func surface_height(distance: float, lateral: float, seed_value: int) -> 
 
 
 static func surface_height_from(center_y: float, half: float, lateral: float) -> float:
-	var shoulder: float = half + SHOULDER
+	var shoulder: float = half + shoulder_width()
+	var edge_band: float = edge_band_width()
 	var across: float = clampf(absf(lateral) / maxf(shoulder, 0.01), 0.0, 1.0)
-	var y: float = center_y - CAMBER * across * across
+	var y: float = center_y - camber_amount() * across * across
 	if absf(lateral) > half:
-		y -= DITCH_DEPTH * smoothstep(0.0, EDGE_BAND, absf(lateral) - half)
-	return y + ROAD_LIFT
+		y -= ditch_depth() * smoothstep(0.0, edge_band, absf(lateral) - half)
+	return y + road_lift_height()
 
 
 ## Высота земли в полосе вокруг дороги (fallback без тайлов рельефа).
 static func verge_height(distance: float, lateral: float, seed_value: int) -> float:
 	var center: Vector3 = center_at(distance, seed_value)
 	var half: float = half_width_at(distance, seed_value)
-	var inner: float = half + SHOULDER + EDGE_BAND
+	var inner: float = half + shoulder_width() + edge_band_width()
 	var across: float = absf(lateral)
-	var edge_y: float = center.y + ROAD_LIFT - DITCH_DEPTH
+	var edge_y: float = center.y + road_lift_height() - ditch_depth()
 	if across <= inner:
 		return edge_y
-	var t: float = clampf((across - inner) / VERGE_WIDTH, 0.0, 1.0)
+	var t: float = clampf((across - inner) / maxf(verge_width(), 0.01), 0.0, 1.0)
 	var hills: float = sin(distance * 0.031 + across * 0.045) * 0.45 * t
 	return edge_y - VERGE_DROP * smoothstep(0.0, 1.0, t) + hills
 
@@ -151,10 +194,14 @@ static func _road_surface(
 	var terrain = materials.get("terrain", null)
 	var road_col: Color = materials.get("road_color", Color(0.22, 0.22, 0.24))
 	var road_col2: Color = materials.get("road_color_2", Color(0.29, 0.29, 0.31))
+	# Оба цвета остаются настраиваемыми, но базовый оттенок постоянен вдоль
+	# строки сетки. Продольную неоднородность добавляет шейдерный шум, а не
+	# случайная смена COLOR у всей поперечной строки.
+	var road_base_col: Color = road_col.lerp(road_col2, 0.12)
 	var shoulder_col: Color = materials.get("shoulder_color", Color(0.31, 0.26, 0.18))
 	var loose_surface: bool = bool(materials.get("loose_surface", false))
 
-	var rows: int = maxi(2, ceili((end_along - start_along) / ROW_STEP) + 1)
+	var rows: int = maxi(2, ceili((end_along - start_along) / mesh_row_step()) + 1)
 	var padding: int = 1
 	var total_rows: int = rows + padding * 2
 	var vertices := PackedVector3Array()
@@ -170,26 +217,25 @@ static func _road_surface(
 		var center: Vector3 = center_at(distance, seed_value)
 		var half: float = half_width_at(distance, seed_value)
 		var side: Vector3 = side_at(direction_at(distance, seed_value))
-		var shoulder: float = half + SHOULDER
-		var outer: float = shoulder + EDGE_BAND
+		var shoulder: float = half + shoulder_width()
+		var outer: float = shoulder + edge_band_width()
 		var lateral: Array[float] = _road_laterals(half, shoulder, outer)
 		var dash: bool = fposmod(distance, DASH_PERIOD) < DASH_ON
 		var lane_dash: bool = fposmod(distance, LANE_DASH_PERIOD) < LANE_DASH_ON
 		var bridge_amt: float = terrain.bridge_deck_factor(distance) if terrain != null else 0.0
-		var wear_noise: float = RoadType.roll(int(floor(distance * 0.25)), seed_value, 97)
 		for lane in range(ROAD_LANES):
 			var lat: float = lateral[lane]
 			var point: Vector3 = center + side * lat
 			var y: float = surface_height_from(center.y, half, lat)
 			if bridge_amt > 0.01 and absf(lat) > half:
 				# На мосту кромка не ныряет в овраг — она остаётся настилом.
-				var flat_deck: float = center.y - CAMBER * 0.5 + ROAD_LIFT - (0.08 if absf(lat) > shoulder else 0.0)
+				var flat_deck: float = center.y - camber_amount() * 0.5 + road_lift_height() - (0.08 if absf(lat) > shoulder else 0.0)
 				y = lerpf(y, flat_deck, bridge_amt)
 			var index: int = row * ROAD_LANES + lane
 			uvs[index] = Vector2(lat, distance)
 			var base_col := _surface_color_ex(
 				absf(lat), half, shoulder, dash, lane_dash,
-				road_col.lerp(road_col2, wear_noise * 0.45), shoulder_col
+				road_base_col, shoulder_col
 			)
 			if not loose_surface and absf(lat) <= half:
 				base_col.a = 0.08
@@ -213,7 +259,7 @@ static func _verge_strip(
 	material: Material,
 	terrain
 ) -> void:
-	var rows: int = maxi(2, ceili((end_along - start_along) / (ROW_STEP * 2.0)) + 1)
+	var rows: int = maxi(2, ceili((end_along - start_along) / (mesh_row_step() * 2.0)) + 1)
 	var padding: int = 1
 	var total_rows: int = rows + padding * 2
 	var vertices := PackedVector3Array()
@@ -232,13 +278,13 @@ static func _verge_strip(
 		var center: Vector3 = center_at(distance, seed_value)
 		var half: float = half_width_at(distance, seed_value)
 		var side: Vector3 = side_at(direction_at(distance, seed_value))
-		var inner: float = half + SHOULDER + EDGE_BAND
-		var edge_y: float = center.y + ROAD_LIFT - DITCH_DEPTH
+		var inner: float = half + shoulder_width() + edge_band_width()
+		var edge_y: float = center.y + road_lift_height() - ditch_depth()
 		var bridge_amt: float = terrain.bridge_deck_factor(distance) if terrain != null else 0.0
 		for lane in range(VERGE_LANES):
 			var sign_side: float = -1.0 if lane < 3 else 1.0
 			var spread: float = float(VERGE_SPREAD[lane])
-			var across: float = inner + VERGE_WIDTH * spread
+			var across: float = inner + verge_width() * spread
 			var point: Vector3 = center + side * across * sign_side
 			var index: int = row * VERGE_LANES + lane
 			var y: float
