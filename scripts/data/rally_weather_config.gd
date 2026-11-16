@@ -12,7 +12,7 @@ class_name RallyWeatherConfig
 extends Resource
 
 enum Precipitation { NONE, RAIN, SNOW }
-enum TimeOfDay { KEEP, DAY, NIGHT }
+enum TimeOfDay { KEEP, MORNING, DAY, EVENING, NIGHT }
 
 @export_group("Описание")
 @export var id: String = "default"
@@ -28,7 +28,7 @@ enum TimeOfDay { KEEP, DAY, NIGHT }
 @export_range(0.0, 30.0, 0.5) var wind_speed: float = 0.0
 
 @export_group("Небо и свет")
-@export_enum("Как на трассе", "День", "Ночь") var time_of_day: int = TimeOfDay.KEEP
+@export_enum("Как на трассе", "Утро", "День", "Вечер", "Ночь") var time_of_day: int = TimeOfDay.KEEP
 ## 0 — небо трассы не трогаем, 1 — полностью красим в sky_tint.
 @export_range(0.0, 1.0, 0.01) var sky_tint_strength: float = 0.0
 @export var sky_tint: Color = Color(0.62, 0.68, 0.74, 1.0)
@@ -92,26 +92,40 @@ func get_summary() -> String:
 	return "  •  ".join(parts)
 
 
+## Считается ли конкретный режим тёмным временем со звёздами и фарами (вечер или ночь).
+static func is_night_time(time_mode: int) -> bool:
+	return time_mode == TimeOfDay.EVENING or time_mode == TimeOfDay.NIGHT
+
+
 ## Ночной ли заезд с этой погодой. KEEP оставляет решение за трассой.
 func resolve_night(track_night: bool) -> bool:
-	match time_of_day:
-		TimeOfDay.DAY:
-			return false
-		TimeOfDay.NIGHT:
-			return true
-		_:
-			return track_night
+	if time_of_day == TimeOfDay.KEEP:
+		return track_night
+	return is_night_time(time_of_day)
 
 
-## Время суток, выбранное в меню отдельно от погоды (0 — как на трассе,
-## 1 — день, 2 — ночь). Явный выбор главнее поля погоды; «как на трассе»
-## передаёт решение погодному пресету, а тот — трассе.
+## Явно выбранное время суток (без учёта природного флага трассы).
+## 0 (KEEP) — остаётся «как на трассе», иначе конкретный режим 1..4.
+static func explicit_time_choice(choice: int, weather: Resource) -> int:
+	if choice > TimeOfDay.KEEP and choice <= TimeOfDay.NIGHT:
+		return choice
+	if weather != null:
+		var weather_time: Variant = weather.get("time_of_day")
+		if weather_time is int and int(weather_time) > TimeOfDay.KEEP and int(weather_time) <= TimeOfDay.NIGHT:
+			return int(weather_time)
+	return TimeOfDay.KEEP
+
+
+## Итоговое время суток для этапа (всегда 1..4: УТРО, ДЕНЬ, ВЕЧЕР, НОЧЬ).
+static func resolve_time_choice(choice: int, weather: Resource, track_night: bool) -> int:
+	var explicit: int = explicit_time_choice(choice, weather)
+	if explicit != TimeOfDay.KEEP:
+		return explicit
+	return TimeOfDay.NIGHT if track_night else TimeOfDay.DAY
+
+
+## Время суток, выбранное в меню отдельно от погоды: 0 — как на трассе,
+## 1 — утро, 2 — день, 3 — вечер (сумерки), 4 — ночь.
 static func resolve_night_choice(choice: int, weather: Resource, track_night: bool) -> bool:
-	match choice:
-		TimeOfDay.DAY:
-			return false
-		TimeOfDay.NIGHT:
-			return true
-	if weather != null and weather.has_method("resolve_night"):
-		return bool(weather.call("resolve_night", track_night))
-	return track_night
+	var resolved: int = resolve_time_choice(choice, weather, track_night)
+	return is_night_time(resolved)

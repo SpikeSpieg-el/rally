@@ -14,8 +14,8 @@ const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
-## Варианты времени суток в меню: как на трассе, день, ночь.
-const TIME_CHOICE_COUNT := 3
+## Варианты времени суток в меню: как на трассе, утро, день, вечер, ночь.
+const TIME_CHOICE_COUNT := 5
 ## Коробка из главного меню: 0 — автомат, 1 — ручная, 2 — ручная + сцепление.
 ## Совпадает с RallyCarSetup.Transmission, поэтому индекс передаётся в машину как есть.
 const TRANSMISSION_CHOICE_COUNT := 3
@@ -38,7 +38,7 @@ var track_index: int = 0
 var setup_index: int = 0
 var vehicle_id: String = "mitsubishi"
 var weather_index: int = 0
-## Время суток из меню: 0 — как на трассе, 1 — день, 2 — ночь.
+## Время суток из меню: 0 — как на трассе, 1 — утро, 2 — день, 3 — вечер, 4 — ночь.
 var time_index: int = 0
 ## Коробка передач игрока. Не часть пресета машины: задаётся отдельно в меню.
 var transmission_index: int = 0
@@ -531,7 +531,7 @@ func select_weather(index: int) -> void:
 	conditions_changed.emit()
 
 
-## Время суток: 0 — как на трассе, 1 — день, 2 — ночь.
+## Время суток: 0 — как на трассе, 1 — утро, 2 — день, 3 — вечер, 4 — ночь.
 func select_time(index: int) -> void:
 	time_index = clampi(index, 0, TIME_CHOICE_COUNT - 1)
 	_save_selection()

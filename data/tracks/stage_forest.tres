@@ -1,123 +1,68 @@
 [gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://b7vnrvvmjm6mv"]
 
-[ext_resource type="Script" uid="uid://dhqqnoi54ek8o" path="res://scripts/data/rally_bridge_placement.gd" id="1_gfha5"]
 [ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_script"]
 [ext_resource type="Curve3D" uid="uid://cnkrnb4gwuihg" path="res://data/tracks/stage_forest_route.tres" id="2_curve"]
-[ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_ve6sl"]
-
-[sub_resource type="Resource" id="Resource_gfha5"]
-script = ExtResource("2_ve6sl")
-start_distance = 740.0
-title = "Участок 2"
-half_width = 2.5
-road_color = Color(0.35, 0.28, 0.19, 1)
-transition_length = 140.0
-
-[sub_resource type="Resource" id="Resource_dfi7e"]
-script = ExtResource("2_ve6sl")
-start_distance = 740.01
-title = "Участок 3"
-surface_name = "Грязь"
-half_width = 2.5
-road_color = Color(0.42, 0.29, 0.19, 1)
-transition_length = 59.99000000000001
-
-[sub_resource type="Resource" id="Resource_7uqyg"]
-script = ExtResource("2_ve6sl")
-start_distance = 776.0
-title = "Участок 4"
-half_width = 5.101868
-road_color = Color(0.62, 0.5, 0.32, 1)
-transition_length = 99.98000000000002
-
-[sub_resource type="Resource" id="Resource_xajco"]
-script = ExtResource("2_ve6sl")
-start_distance = 880.0
-title = "Участок 8"
-half_width = 3.9308853
-road_color = Color(0.62, 0.5, 0.32, 1)
-transition_length = 0.0
-
-[sub_resource type="Resource" id="Resource_ot66i"]
-script = ExtResource("2_ve6sl")
-start_distance = 1060.0
-title = "Участок 6"
-half_width = 5.787676
-road_color = Color(0.62, 0.5, 0.32, 1)
-transition_length = 140.0
-
-[sub_resource type="Resource" id="Resource_a3hu1"]
-script = ExtResource("2_ve6sl")
-start_distance = 1300.0
-title = "Участок 7"
-half_width = 2.7928205
-road_color = Color(0.62, 0.5, 0.32, 1)
-transition_length = 140.0
-
-[sub_resource type="Resource" id="Resource_nppj4"]
-script = ExtResource("2_ve6sl")
-start_distance = 1480.0
-title = "Участок 5"
-half_width = 3.7832184
-road_color = Color(0.35, 0.28, 0.19, 1)
-transition_length = 0.0
-
-[sub_resource type="Resource" id="Resource_ve6sl"]
-script = ExtResource("2_ve6sl")
-start_distance = 2140.0
-title = "Участок 1"
-half_width = 2.5
-road_color = Color(0.35, 0.28, 0.19, 1)
-transition_length = 140.0
+[ext_resource type="Resource" uid="uid://densef33dc1673" path="res://data/stage/dense_forest_scenery.tres" id="3_scenery"]
 
 [resource]
 script = ExtResource("1_script")
 id = "forest_stage2"
 display_name = "НОЧНОЙ ЛЕС"
-description = "Ночной лес2 , лунный свет и фары. Ручная трасса"
+description = "Густой ночной бор, шпильки серпантина, гребни с трамплинами и скоростной спуск сквозь чащу."
+difficulty = 4
+target_time = 185.0
 road_curve = ExtResource("2_curve")
-road_half_width = 5.0
-road_shoulder = 2.0
+road_half_width = 4.2
+road_shoulder = 1.4
 road_camber = 0.08
-offroad_grip = 0.9
-route_sections = Array[ExtResource("2_ve6sl")]([SubResource("Resource_gfha5"), SubResource("Resource_dfi7e"), SubResource("Resource_7uqyg"), SubResource("Resource_xajco"), SubResource("Resource_ot66i"), SubResource("Resource_a3hu1"), SubResource("Resource_nppj4"), SubResource("Resource_ve6sl")])
-terrain_margin = 130.0
+offroad_grip = 0.65
+terrain_margin = 120.0
+terrain_cell = 2.5
 terrain_seed = 4711
-hills_height = 16.0
+hills_height = 22.0
 hills_frequency = 0.0042
-ridge_height = 12.0
-ridge_frequency = 0.0019
-max_terrain_slope_deg = 32.0
-road_ditch_depth = 0.3
+ridge_height = 14.0
+ridge_frequency = 0.0018
+hills_fade_start = 10.0
+hills_fade_length = 60.0
+max_terrain_slope_deg = 38.0
+road_ditch_depth = 0.42
 detail_height = 0.3
-embankment_slope_deg = 22.0
-embankment_min_width = 5.0
-embankment_max_width = 40.0
-bumps_amplitude = 0.07
-bumps_wavelength = 12.0
-bumps_cross = 0.15
+embankment_slope_deg = 24.0
+embankment_min_width = 4.0
+embankment_max_width = 34.0
+road_feature_height = 1.7
+road_feature_spacing = 240.0
+bumps_amplitude = 0.06
+bumps_wavelength = 10.0
+bumps_roughness = 0.02
+use_baked_props = false
 procedural_scenery = true
-scenery_density = 0.9
+scenery_density = 1.85
+scenery_override = ExtResource("3_scenery")
 checkpoint_interval = 420.0
-ground_color = Color(0.3, 0.38, 0.23, 1)
-ground_color_2 = Color(0.42, 0.45, 0.28, 1)
-rock_color = Color(0.3, 0.31, 0.32, 1)
-road_color = Color(0.35, 0.28, 0.19, 1)
-road_color_2 = Color(0.46, 0.38, 0.27, 1)
-sky_top_color = Color(0.035, 0.045, 0.075, 1)
-sky_horizon_color = Color(0.13, 0.16, 0.19, 1)
-fog_color = Color(0.16, 0.18, 0.2, 1)
-fog_near = 55.0
-fog_far = 260.0
+ground_color = Color(0.08, 0.13, 0.055, 1)
+ground_color_2 = Color(0.14, 0.19, 0.08, 1)
+rock_color = Color(0.24, 0.25, 0.26, 1)
+road_color = Color(0.24, 0.19, 0.14, 1)
+road_color_2 = Color(0.33, 0.27, 0.2, 1)
+shoulder_color = Color(0.2, 0.16, 0.12, 1)
+edge_post_color = Color(0.84, 0.16, 0.11, 1)
+sky_top_color = Color(0.006, 0.008, 0.014, 1)
+sky_horizon_color = Color(0.02, 0.026, 0.032, 1)
+fog_color = Color(0.035, 0.042, 0.05, 1)
+fog_near = 24.0
+fog_far = 130.0
 night_mode = true
-sun_color = Color(0.64, 0.74, 1, 1)
-ambient_color = Color(0.48, 0.56, 0.72, 1)
-ambient_energy = 0.85
+star_intensity = 0.2
+sun_color = Color(0.42, 0.5, 0.68, 1)
+ambient_color = Color(0.1, 0.13, 0.18, 1)
+ambient_energy = 0.1
 exposure = 1.15
-fog_density = 0.0022
+fog_density = 0.01
 volumetric_fog = true
-volumetric_fog_density = 0.0025
-sun_energy = 0.48
-sun_pitch = -34.0
-sun_yaw = 38.0
-grip_scale = 1.2
+volumetric_fog_density = 0.012
+sun_energy = 0.16
+sun_pitch = -58.0
+sun_yaw = 130.0
+grip_scale = 1.0

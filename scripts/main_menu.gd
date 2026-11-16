@@ -48,7 +48,7 @@ var selected_track: int = 0
 var selected_setup: int = 0
 var selected_weather: int = 0
 var selected_profile: int = 0
-## Время суток: 0 — как на трассе, 1 — день, 2 — ночь (подписи — в layout).
+## Время суток: 0 — как на трассе, 1 — утро, 2 — день, 3 — вечер, 4 — ночь (подписи — в layout).
 var selected_time: int = 0
 var time_buttons: Array[Button] = []
 var selected_transmission: int = 0
@@ -682,9 +682,13 @@ func _track_info_text(
 		if not weather_summary.is_empty() and weather_summary != weather.display_name:
 			weather_line += "  •  %s" % weather_summary
 		grip *= weather.grip_scale
-	var time_line: String = "ВРЕМЯ: %s" % (
+	var resolved_time: int = WeatherType.resolve_time_choice(time_choice, weather, track.night_mode)
+	var time_names: PackedStringArray = layout().time_mode_names
+	var time_name_index: int = clampi(resolved_time - 1, 0, maxi(0, time_names.size() - 1))
+	var time_name: String = time_names[time_name_index] if not time_names.is_empty() else (
 		"НОЧЬ" if WeatherType.resolve_night_choice(time_choice, weather, track.night_mode) else "ДЕНЬ"
 	)
+	var time_line: String = "ВРЕМЯ: %s" % time_name
 	if time_choice == 0:
 		time_line += " (как на трассе)"
 	var engine_line: String = "\nМАШИНА И НАСТРОЙКИ — В ГАРАЖЕ"

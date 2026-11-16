@@ -167,6 +167,8 @@ func _live_width_target(block: int) -> float:
 @export var procedural_scenery: bool = false
 ## Плотность генерируемой обстановки: 0.5 — редко, 1.0 — стандарт, 1.5 — глухо.
 @export_range(0.0, 2.0, 0.05) var scenery_density: float = 1.0
+## Свой пресет плотности и раскладки леса (пусто — общий пресет сцены).
+@export var scenery_override: RallySceneryConfig = null
 ## Автоматические ворота старт/финиш и маркеры обочины.
 @export var spawn_route_markers: bool = true
 ## Красно-белые столбики по обочинам (классика ралли).
