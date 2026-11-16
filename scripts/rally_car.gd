@@ -9,11 +9,8 @@ signal camera_mode_changed(new_mode: int)
 enum CameraMode { CHASE_3RD, HOOD, COCKPIT_1ST }
 enum DrivetrainMode { AWD, RWD, FWD }
 
-# Геометрия импортированной модели Lancer Evo: центр колеса и клиренс кузова.
-# Значения по умолчанию; действующие числа берутся из RallyCarFeelConfig
-# (data/car/default_car_feel.tres) — правятся в инспекторе.
-const MODEL_WHEEL_CENTER_Y: float = 1.4588
-const MODEL_BODY_GROUND_CLEARANCE: float = 0.063
+# Геометрия импортированной модели (центр колеса, клиренс кузова) живёт в
+# RallyCarFeelConfig — data/car/default_car_feel.tres — и правится в инспекторе.
 const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
@@ -30,6 +27,13 @@ const BASE_COF := {"Road": 1.50, "Dirt": 1.25, "Grass": 1.0}
 const BASE_ROLLING := {"Road": 1.0, "Dirt": 1.20, "Grass": 1.5}
 const BASE_LATERAL := {"Road": 0.0, "Dirt": 0.04, "Grass": 0.06}
 const BASE_LONGITUDINAL := {"Road": 0.90, "Dirt": 0.85, "Grass": 0.75}
+## Ключи таблиц трения GEVP ("Road"/"Dirt"/"Grass") — в имена видов покрытия,
+## которые отдаёт RoadSurface.surface_kind() и ждут звук и эффекты.
+const SURFACE_KIND_BY_TYPE := {"Road": "asphalt", "Dirt": "gravel", "Grass": "grass"}
+## Ручник: доля сцепления задней оси в полном зажатии и скорости отклика, 1/с.
+const HANDBRAKE_GRIP: float = 0.55
+const HANDBRAKE_ENGAGE_RESPONSE: float = 16.0
+const HANDBRAKE_RELEASE_RESPONSE: float = 7.0
 ## На какой скорости ещё можно включить задний ход из первой передачи.
 const REVERSE_SHIFT_MAX_KMH: float = 15.0
 ## Базовое торможение двигателем: момент при закрытом дросселе, Н·м на каждую
@@ -119,7 +123,8 @@ const FEEL_GRAVITY: float = 9.81
 @export var mouse_look_enabled: bool = true
 @export_range(0.0005, 0.01, 0.0005) var mouse_sensitivity: float = 0.0025
 @export var mouse_auto_return_delay: float = 1.5
-@export var mouse_return_speed: float = 4.5
+# Скорости возврата взгляда здесь нет намеренно: она одна на весь «свободный
+# обзор» и живёт в RallyCarFeelConfig.mouse_return_speed — см. f().
 @export var chase_min_pitch_deg: float = -5.0
 @export var chase_max_pitch_deg: float = 45.0
 @export var inside_max_yaw_deg: float = 110.0
@@ -184,6 +189,9 @@ var _feel_previous_basis: Basis = Basis.IDENTITY
 var _feel_previous_velocity: Vector3 = Vector3.ZERO
 ## Текущая шероховатость покрытия под колёсами (для геймпада и звука).
 var _surface_roughness_value: float = 0.0
+## Сглаженный множитель сцепления задней оси под ручником (1 — без ручника).
+## Сглаживается он, а не `current_cof` колеса: см. `_update_handbrake_grip()`.
+var _handbrake_grip_scale: float = 1.0
 ## Поток частиц на обочине: живёт в машине, пока включён в конфиге.
 var speed_motes: GPUParticles3D = null
 
@@ -466,6 +474,8 @@ func _configure_gevp() -> void:
 	# TCS ограничивает пробуксовку плавно, не выключая тягу целиком.
 	traction_control_max_slip = 0.65
 
+	# Стабилизацию выключаем здесь, на старте заезда; дальше её владелец —
+	# настройка машины, и reset_to_spawn() её не перезаписывает.
 	enable_stability = false
 	stability_yaw_engage_angle = 0.10
 	stability_yaw_strength = 0.0
@@ -709,7 +719,12 @@ func _refresh_grip_tuning() -> void:
 		var surface: String = str(wheel.surface_type)
 		if surface.is_empty() or not coefficient_of_friction.has(surface):
 			surface = "Dirt"
-		wheel.current_cof = float(coefficient_of_friction.get(surface, 1.0))
+		# Ручник живёт в `_handbrake_grip_scale`: смена сетапа/трассы не должна
+		# выдавать задней оси полный грип посреди сглаженного возврата.
+		var base_scale: float = 1.0
+		if rear_axle != null and wheel in rear_axle.wheels:
+			base_scale = _handbrake_grip_scale
+		wheel.current_cof = float(coefficient_of_friction.get(surface, 1.0)) * base_scale
 		wheel.current_rolling_resistance = float(rolling_resistance.get(surface, 1.0))
 		wheel.current_lateral_grip_assist = float(lateral_grip_assist.get(surface, 0.0))
 		wheel.current_longitudinal_grip_ratio = float(longitudinal_grip_ratio.get(surface, 0.5))
@@ -925,6 +940,9 @@ func _physics_process(delta: float) -> void:
 	speed_kmh = speed_mps * 3.6
 
 	current_rpm = motor_rpm
+	# Шероховатость считается до отдачи геймпада: вибрация и звук должны
+	# получать покрытие этого кадра, а не предыдущего.
+	_surface_roughness_value = _surface_roughness()
 	if not cinematic_mode:
 		_update_driving_feedback(controller)
 	manual_mode = not automatic_transmission
@@ -935,8 +953,6 @@ func _physics_process(delta: float) -> void:
 			surface_effects.update(self, wheel_array, str(tire_marks.get("road_surface")), float(tire_marks.get("wetness")), float(tire_marks.get("snow_cover")), delta, precipitation_rain, precipitation_snow)
 	if is_instance_valid(blood_fx):
 		blood_fx.update(self)
-
-	_surface_roughness_value = _surface_roughness()
 
 	if not cinematic_mode:
 		_update_cameras(delta)
@@ -1070,14 +1086,23 @@ func _apply_drivetrain() -> void:
 	average_drive_wheel_radius /= float(maxi(1, drive_wheels.size()))
 
 
+## Плавное сцепление задней оси при ручнике.
+##
+## `Wheel` переписывает `current_cof` из таблицы **только при смене**
+## `surface_type` (и разово в `initialize()`). Поэтому каждый такт здесь
+## значение собирается заново: табличное сцепление текущего покрытия ×
+## сглаженный множитель ручника. Сглаживается только множитель — наезд на
+## другое покрытие не сбивает плавный возврат и не даёт «полный грип на кадр»
+## посередине заноса с ручником.
 func _update_handbrake_grip(delta: float) -> void:
 	if rear_axle == null:
 		return
+	var grip: float = clampf(handbrake_input, 0.0, 1.0)
+	var target_scale: float = lerpf(1.0, HANDBRAKE_GRIP, grip)
+	var response: float = HANDBRAKE_ENGAGE_RESPONSE if grip > 0.1 else HANDBRAKE_RELEASE_RESPONSE
+	_handbrake_grip_scale = lerpf(_handbrake_grip_scale, target_scale, clampf(response * delta, 0.0, 1.0))
 	for wheel: WheelType in rear_axle.wheels:
-		var surface_grip: float = _get_surface_cof(str(wheel.surface_type))
-		var target_grip: float = surface_grip * lerpf(1.0, 0.55, clampf(handbrake_input, 0.0, 1.0))
-		var response: float = 16.0 if handbrake_input > 0.1 else 7.0
-		wheel.current_cof = lerpf(wheel.current_cof, target_grip, clampf(response * delta, 0.0, 1.0))
+		wheel.current_cof = _get_surface_cof(str(wheel.surface_type)) * _handbrake_grip_scale
 
 
 func _setup_gravel_particles() -> void:
@@ -1522,10 +1547,12 @@ func _surface_roughness() -> float:
 		if not wheel.has_ground_contact():
 			continue
 		contacts += 1
-		match wheel.surface_type:
-			"Dirt": roughness += f().surface_roughness_dirt
-			"Grass": roughness += f().surface_roughness_grass
-			_: roughness += f().surface_roughness_asphalt
+		# Развёрнутое покрытие точнее группы коллайдера: на «Асфальте» трассы
+		# край всё ещё физически в группе "Dirt". Гравий, грязь и снег — «dirt».
+		match surface_kind_of(str(wheel.surface_type), str(wheel.surface_kind)):
+			"grass": roughness += f().surface_roughness_grass
+			"asphalt": roughness += f().surface_roughness_asphalt
+			_: roughness += f().surface_roughness_dirt
 	if contacts <= 0:
 		return 0.0
 	# Реальные неровности полотна: вертикальная «работа» кузова поверх базовой
@@ -1650,12 +1677,15 @@ func speed_motes_intensity() -> float:
 
 ## Поток частиц на обочине. Плотность растёт со скоростью, направление и
 ## вытягивание берутся из скорости машины: чем быстрее — тем длиннее штрихи.
+## `amount` — та же весовая кривая скорости, что и у остальной отдачи: ноль
+## выключает поток (в кабине и на капоте), единица даёт полную плотность.
 func _update_speed_motes(amount: float) -> void:
 	if speed_motes == null:
 		return
 	var motes: FeelConfigType = f()
-	if not motes.speed_motes_enabled:
+	if not motes.speed_motes_enabled or amount <= 0.0:
 		speed_motes.emitting = false
+		speed_motes.amount_ratio = 0.0
 		return
 	var intensity: float = clampf(
 		Sway.speed_weight(speed_kmh, motes.speed_motes_start_kmh, motes.speed_motes_full_kmh),
@@ -1663,6 +1693,8 @@ func _update_speed_motes(amount: float) -> void:
 	)
 	speed_motes.emitting = intensity > 0.02
 	speed_motes.amount_ratio = clampf(intensity, 0.0, 1.0)
+	if not speed_motes.emitting:
+		return
 	var pm := speed_motes.process_material as ParticleProcessMaterial
 	if pm == null:
 		return
@@ -1874,7 +1906,12 @@ func reset_to_spawn() -> void:
 	torque_output = 0.0
 	clutch_torque = 0.0
 	is_braking = false
-	enable_stability = false
+	# Ручник отпущен: сглаженный множитель возвращаем сразу, иначе после
+	# респавна первое срабатывание ручника начиналось бы с «полусжатого» грипа.
+	_handbrake_grip_scale = 1.0
+	# `enable_stability` здесь намеренно не трогаем: это настройка машины, а не
+	# быстрое состояние кадра. Раньше сброс на трассу жёстко выключал её и любая
+	# правка сетапа/инспектора откатывалась после первого нажатия R.
 	motor_rpm = idle_rpm
 	motor_is_redline = false
 	current_rpm = idle_rpm
@@ -1919,7 +1956,6 @@ func reset_to_spawn() -> void:
 		wheel.previous_global_position = wheel.global_position
 		wheel.abs_enable_time = 0.0
 		wheel.limit_spin = false
-		wheel.current_cof = _get_surface_cof(str(wheel.surface_type))
 		wheel.force_raycast_update()
 
 	g_force_offset = Vector3.ZERO
@@ -1941,6 +1977,21 @@ func get_average_tire_slip() -> float:
 	return total_slip / float(maxi(1, wheel_array.size()))
 
 
+## Развёрнутое покрытие колеса в словаре звука и эффектов: "gravel", "mud",
+## "snow", "asphalt", "grass". `wheel.surface_kind` уже приходит из этапа
+## (RoadSurface.surface_kind()), а если этап покрытие не сообщил, ключ таблиц
+## GEVP ("Road"/"Dirt"/"Grass") переводится в то же имя — иначе звук получал
+## "Dirt" и молча падал в «гравий» по умолчанию.
+static func surface_kind_of(surface_type: String, surface_kind: String) -> String:
+	var kind := surface_kind.strip_edges().to_lower()
+	if not kind.is_empty():
+		return kind
+	var type := surface_type.strip_edges()
+	if SURFACE_KIND_BY_TYPE.has(type):
+		return String(SURFACE_KIND_BY_TYPE[type])
+	return type.to_lower()
+
+
 ## Преобладающее покрытие под колёсами: "gravel", "mud", "snow",
 ## "asphalt" или "grass". Пустая строка — колёса сейчас в воздухе (звук и
 ## эффекты в этом кадре оставляют прошлую темпру, прыжок бывает на кадр).
@@ -1949,9 +2000,7 @@ func dominant_surface_kind() -> String:
 	for wheel: WheelType in wheel_array:
 		if wheel == null or not wheel.has_ground_contact():
 			continue
-		var kind := String(wheel.surface_kind)
-		if kind.is_empty():
-			kind = String(wheel.surface_type)
+		var kind: String = surface_kind_of(str(wheel.surface_type), String(wheel.surface_kind))
 		if kind.is_empty():
 			continue
 		counts[kind] = int(counts.get(kind, 0)) + 1

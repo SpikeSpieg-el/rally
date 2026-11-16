@@ -59,8 +59,8 @@ extends Resource
 @export_range(0, 200, 1) var setup_button_height: int = 34
 @export_range(0, 200, 1) var chip_height: int = 28
 @export_range(0, 400, 1) var seed_field_width: int = 104
-@export_range(0, 400, 1) var overlay_min_width: int = 920
-@export_range(0, 600, 1) var overlay_min_height: int = 820
+@export_range(0, 1920, 1) var overlay_min_width: int = 920
+@export_range(0, 1080, 1) var overlay_min_height: int = 820
 @export_range(0, 400, 1) var overlay_button_width: int = 200
 @export_range(0, 400, 1) var overlay_button_height: int = 44
 @export_range(0, 400, 1) var overlay_reset_button_width: int = 230

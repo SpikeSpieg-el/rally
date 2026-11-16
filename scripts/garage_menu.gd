@@ -17,8 +17,9 @@ const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
 const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 
 @export_group("Инспектор: витрина")
-## Скорость вращения витрины, радиан/сек. Берётся из layout, если не задана.
-@export_range(0.0, 1.0, 0.01) var turntable_speed_override: float = -1.0
+## Скорость вращения витрины, радиан/сек. −1 — брать из layout, как и раньше;
+## иначе значение перекрывает ресурс. Диапазон включает «не задано».
+@export_range(-1.0, 1.0, 0.01) var turntable_speed_override: float = -1.0
 ## Цвета и размеры шрифтов. Пусто — res://data/ui/default_ui_theme.tres.
 @export var ui_theme: UiThemeType = null
 ## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.

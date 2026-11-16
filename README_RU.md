@@ -587,6 +587,15 @@ Bluetooth может не поддерживать подсветку, по USB 
 3. Для проверки запустите этап и нажмите **C** до надписи «КАБИНА».
    `ActiveCamera` скрипт перемещает сам; редактировать её положение не нужно.
 
+Свободный обзор настраивается в двух местах, и это разделение намеренное:
+`mouse_look_enabled`, `mouse_sensitivity`, `mouse_auto_return_delay` и пределы
+наклона — на корне `RallyCar`; скорость возврата взгляда к центру
+(`mouse_return_speed`) — только в `data/car/default_car_feel.tres`, рядом с
+тремя оставшимися числами свободного взгляда (`freelook_influence`,
+`freelook_focus_min/max`). Экспорт-копии `mouse_return_speed` на узле больше
+нет: раньше она молча перекрывалась ресурсом, и правка в инспекторе сцены
+ничего не меняла.
+
 В инспекторе корня `RallyCar` доступны `initial_camera_mode`, `cockpit_fov`,
 `hood_fov`, `inside_speed_fov_bonus` (прибавка FOV для капота),
 `cockpit_speed_fov_bonus` (отдельная, более заметная прибавка FOV для кабины),

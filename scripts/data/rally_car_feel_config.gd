@@ -131,8 +131,9 @@ extends Resource
 @export_group("Обзор мышью и геймпадом")
 ## Скорость возврата взгляда к центру, 1/с.
 @export_range(0.0, 30.0, 0.1) var mouse_return_speed: float = 4.5
-## Насколько «свободный взгляд» смешивается с обычной точкой (0–1).
-@export_range(0.0, 1.0, 0.01) var freelook_influence: float = 1.5
+## Насколько «свободный взгляд» смешивается с обычной точкой. Это множитель
+## перед clampf(…, 0, 1): 1.5 — полный уход точки фокуса уже на ~37° обзора.
+@export_range(0.0, 4.0, 0.01) var freelook_influence: float = 1.5
 ## Сдвиг точки фокуса при свободном взгляде, м.
 @export_range(-5.0, 5.0, 0.05) var freelook_focus_min: float = -0.6
 @export_range(-5.0, 5.0, 0.05) var freelook_focus_max: float = 1.5
