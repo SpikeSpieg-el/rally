@@ -205,6 +205,11 @@ enum GaugeStyleMode {
 	set(value):
 		cockpit_hide_timer_panel = value
 		emit_changed()
+## В 1-м лице скрывает панель живой дельты времени.
+@export var cockpit_hide_delta_panel: bool = false:
+	set(value):
+		cockpit_hide_delta_panel = value
+		emit_changed()
 ## В 1-м лице скрывает мини-карту.
 @export var cockpit_hide_mini_map: bool = false:
 	set(value):

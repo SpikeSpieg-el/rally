@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/rally_ghost_look.gd" id="1_ghost"]
+
+[node name="Ghost" type="Node3D"]
+editor_description = "Единственный пульт призрака лучшего проезда и расчёта живой дельты времени. Правка здесь задаёт вид, огни, затухание и след во всех заездах."
+script = ExtResource("1_ghost")
+look = 2

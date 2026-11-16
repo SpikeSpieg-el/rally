@@ -1,0 +1,84 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/rally_delta_widget.gd" id="1_widget"]
+[ext_resource type="Script" path="res://scripts/ui/delta_bar_view.gd" id="2_bar"]
+[ext_resource type="Resource" path="res://data/ui/default_hud_style.tres" id="3_style"]
+
+[sub_resource type="StyleBoxFlat" id="SB_delta_panel"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.025, 0.035, 0.055, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.24, 0.86, 1, 0.65)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
+[node name="DeltaPanel" type="PanelContainer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -165.0
+offset_top = 92.0
+offset_right = 165.0
+offset_bottom = 152.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("SB_delta_panel")
+script = ExtResource("1_widget")
+hud_style = ExtResource("3_style")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="TopRow" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BadgeLabel" type="Label" parent="Box/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.32, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 11
+text = "ПРИЗРАК"
+vertical_alignment = 1
+
+[node name="DeltaLabel" type="Label" parent="Box/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.24, 0.96, 0.56, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.88)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 23
+text = "▲ -1.24"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MetaLabel" type="Label" parent="Box/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.98, 0.78, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 12
+text = "+8 км/ч · +16 м"
+vertical_alignment = 1
+
+[node name="DeltaBar" type="Control" parent="Box"]
+custom_minimum_size = Vector2(264, 8)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_bar")
