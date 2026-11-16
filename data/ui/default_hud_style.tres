@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="RallyHudStyle" format=3 uid="uid://1qoem1fkj6pwb"]
+[gd_resource type="Resource" script_class="RallyHudStyle" format=3 uid="uid://dj753ov15yhdp"]
 
-[ext_resource type="Script" uid="uid://y6mawszn6b8b" path="res://scripts/data/rally_hud_style.gd" id="1_hud_style"]
+[ext_resource type="Script" uid="uid://y6maws0n6b8b" path="res://scripts/data/rally_hud_style.gd" id="1_hud_style"]
 [ext_resource type="Texture2D" uid="uid://bah85jbsxbrqn" path="res://scenes/ui/ui_hud_r1_ru.png" id="2_sheet"]
 
 [resource]

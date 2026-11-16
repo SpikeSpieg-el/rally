@@ -64,78 +64,78 @@ static func _cfg() -> ConfigFile:
 	return cfg
 
 
-static func _get(key: String, fallback: Variant) -> Variant:
+static func _read(key: String, fallback: Variant) -> Variant:
 	return _cfg().get_value("video", key, fallback)
 
 
-static func _set(key: String, value: Variant) -> void:
+static func _write(key: String, value: Variant) -> void:
 	var cfg := _cfg()
 	cfg.set_value("video", key, value)
 	cfg.save(SETTINGS_PATH)
 
 
 static func ps1_enabled() -> bool:
-	return bool(_get("ps1_retro_enabled", true))
+	return bool(_read("ps1_retro_enabled", true))
 
 
 static func set_ps1_enabled(enabled: bool) -> void:
-	_set("ps1_retro_enabled", enabled)
+	_write("ps1_retro_enabled", enabled)
 
 
 static func retro_strength() -> float:
-	return float(_get("retro_strength", 1.0))
+	return float(_read("retro_strength", 1.0))
 
 
 static func retro_resolution_height() -> int:
-	return int(_get("retro_resolution_height", 270))
+	return int(_read("retro_resolution_height", 270))
 
 
 static func retro_vertex_snap() -> float:
-	return float(_get("retro_vertex_snap", 0.15))
+	return float(_read("retro_vertex_snap", 0.15))
 
 
 static func retro_color_bits() -> int:
-	return int(_get("retro_color_bits", -1))
+	return int(_read("retro_color_bits", -1))
 
 
 static func retro_dithering() -> bool:
-	return bool(_get("retro_dithering", true))
+	return bool(_read("retro_dithering", true))
 
 
 static func window_mode() -> int:
-	return int(_get("window_mode", 0))
+	return int(_read("window_mode", 0))
 
 
 static func resolution_index() -> int:
-	return clampi(int(_get("resolution_index", 1)), 0, RESOLUTIONS.size() - 1)
+	return clampi(int(_read("resolution_index", 1)), 0, RESOLUTIONS.size() - 1)
 
 
 static func vsync_enabled() -> bool:
-	return bool(_get("vsync_enabled", true))
+	return bool(_read("vsync_enabled", true))
 
 
 static func max_fps() -> int:
-	return int(_get("max_fps", 0))
+	return int(_read("max_fps", 0))
 
 
 static func msaa_index() -> int:
-	return clampi(int(_get("msaa_index", 0)), 0, 3)
+	return clampi(int(_read("msaa_index", 0)), 0, 3)
 
 
 static func scaling_mode() -> int:
-	return clampi(int(_get("scaling_mode", 0)), 0, 2)
+	return clampi(int(_read("scaling_mode", 0)), 0, 2)
 
 
 static func scaling_scale() -> float:
-	return clampf(float(_get("scaling_scale", 1.0)), 0.5, 1.0)
+	return clampf(float(_read("scaling_scale", 1.0)), 0.5, 1.0)
 
 
 static func shadow_quality() -> int:
-	return clampi(int(_get("shadow_quality", 1)), 0, 2)
+	return clampi(int(_read("shadow_quality", 1)), 0, 2)
 
 
 static func anisotropic_index() -> int:
-	return clampi(int(_get("anisotropic_index", 0)), 0, 4)
+	return clampi(int(_read("anisotropic_index", 0)), 0, 4)
 
 
 ## Применить дисплейные параметры к движку. Вызывать из _ready меню/заезда.
@@ -162,7 +162,7 @@ static func apply_display(viewport: Viewport = null) -> void:
 	)
 	ProjectSettings.set_setting("rendering/textures/anisotropic_filtering_level", anisotropic_index())
 	if viewport != null:
-		viewport.msaa_3d = msaa_index() as Viewport.MSAA3D
+		viewport.msaa_3d = msaa_index()
 		viewport.scaling_3d_mode = scaling_mode()
 		viewport.scaling_3d_scale = scaling_scale()
 
@@ -338,7 +338,7 @@ func _apply_live() -> void:
 func _on_window_mode_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("window_mode", index)
+	_write("window_mode", index)
 	_resolution.disabled = index == 2
 	_apply_live()
 
@@ -346,35 +346,35 @@ func _on_window_mode_changed(index: int) -> void:
 func _on_resolution_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("resolution_index", index)
+	_write("resolution_index", index)
 	_apply_live()
 
 
 func _on_vsync_toggled(enabled: bool) -> void:
 	if _loading:
 		return
-	_set("vsync_enabled", enabled)
+	_write("vsync_enabled", enabled)
 	_apply_live()
 
 
 func _on_fps_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("max_fps", FPS_VALUES[index])
+	_write("max_fps", FPS_VALUES[index])
 	_apply_live()
 
 
 func _on_msaa_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("msaa_index", index)
+	_write("msaa_index", index)
 	_apply_live()
 
 
 func _on_scaling_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("scaling_mode", index)
+	_write("scaling_mode", index)
 	_scaling_scale.editable = index != 0
 	_apply_live()
 
@@ -383,21 +383,21 @@ func _on_scaling_scale_changed(value: float) -> void:
 	_scaling_scale_value.text = "%d%%" % roundi(value * 100.0)
 	if _loading:
 		return
-	_set("scaling_scale", value)
+	_write("scaling_scale", value)
 	_apply_live()
 
 
 func _on_shadows_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("shadow_quality", index)
+	_write("shadow_quality", index)
 	_apply_live()
 
 
 func _on_aniso_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("anisotropic_index", index)
+	_write("anisotropic_index", index)
 	_apply_live()
 
 
@@ -414,7 +414,7 @@ func _on_retro_strength_changed(value: float) -> void:
 	_retro_strength_value.text = "%d%%" % roundi(value * 100.0)
 	if _loading:
 		return
-	_set("retro_strength", value)
+	_write("retro_strength", value)
 	_apply_live()
 
 
@@ -422,7 +422,7 @@ func _on_retro_resolution_changed(value: float) -> void:
 	_retro_resolution_value.text = "%d" % roundi(value)
 	if _loading:
 		return
-	_set("retro_resolution_height", roundi(value))
+	_write("retro_resolution_height", roundi(value))
 	_apply_live()
 
 
@@ -430,19 +430,19 @@ func _on_retro_snap_changed(value: float) -> void:
 	_retro_snap_value.text = "%d%%" % roundi(value * 100.0)
 	if _loading:
 		return
-	_set("retro_vertex_snap", value)
+	_write("retro_vertex_snap", value)
 	_apply_live()
 
 
 func _on_palette_changed(index: int) -> void:
 	if _loading:
 		return
-	_set("retro_color_bits", PALETTE_VALUES[index])
+	_write("retro_color_bits", PALETTE_VALUES[index])
 	_apply_live()
 
 
 func _on_dithering_toggled(enabled: bool) -> void:
 	if _loading:
 		return
-	_set("retro_dithering", enabled)
+	_write("retro_dithering", enabled)
 	_apply_live()
