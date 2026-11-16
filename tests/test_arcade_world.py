@@ -22,6 +22,8 @@ SETTINGS_RES = ROOT / 'data/stage/default_arcade_settings.tres'
 SCENE = ROOT / 'scenes/rally_arcade.tscn'
 STAGE = ROOT / 'scripts/arcade/arcade_stage.gd'
 CHUNK = ROOT / 'scripts/arcade/arcade_chunk.gd'
+NETWORK = ROOT / 'scripts/arcade/arcade_network.gd'
+ROAD = ROOT / 'scripts/arcade/arcade_road.gd'
 STREAMER = ROOT / 'scripts/arcade/arcade_streamer.gd'
 TRACK = ROOT / 'data/tracks/stage_arcade.tres'
 
@@ -169,8 +171,20 @@ class ArcadeWorldTest(unittest.TestCase):
         self.assertIn('_again_button.focus_mode = Control.FOCUS_ALL', stage)
         self.assertIn('_resume_button.focus_mode = Control.FOCUS_ALL', stage)
 
+    def test_smooth_direction_and_traffic_lateral_stability(self):
+        net = _text(NETWORK)
+        self.assertIn('_vertex_dir(i).lerp(_vertex_dir(j), t)', net)
+        self.assertIn('lerpf(_dists[seg_start], _dists[seg_start + 1], t)', net)
+
+        road = _text(ROAD)
+        self.assertIn('_vertex_dir(i).lerp(_vertex_dir(j), t)', road)
+
+        traffic = _text(TRAFFIC)
+        for required in ('smooth_steer_yaw', 'yield_hold', 'speed_factor'):
+            self.assertIn(required, traffic)
+
     def test_new_scripts_pass_gdtype_check(self):
-        for path in (TERRAIN, SCENERY, TRAFFIC, PEDESTRIANS, RULES, SETTINGS_SCRIPT, STAGE, CHUNK, STREAMER):
+        for path in (TERRAIN, SCENERY, TRAFFIC, PEDESTRIANS, RULES, SETTINGS_SCRIPT, STAGE, CHUNK, NETWORK, ROAD, STREAMER):
             issues = gdtype_check.check_file(_text(path))
             self.assertEqual(issues, [], f'ошибки типов в {path.name}: {issues}')
 

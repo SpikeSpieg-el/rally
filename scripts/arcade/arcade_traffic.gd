@@ -48,6 +48,8 @@ class TrafficUnit:
 	var base_speed: float = 13.0
 	var current_speed: float = 11.0
 	var yield_offset: float = 0.0
+	var yield_hold: float = 0.0
+	var smooth_steer_yaw: float = 0.0
 	var wheel_spin: float = 0.0
 	var wheel_radius: float = 0.35
 	var hit_pause: float = 0.0
@@ -199,16 +201,24 @@ func step(delta: float, player_along: float, player_pos: Vector3, player_vel: Ve
 		var lane_frac: float = cfg.traffic_lane_fraction if cfg != null else 0.50
 		var base_lat: float = unit.lane_dir * half * lane_frac
 		var target_yield: float = _compute_yield_offset(unit, player_along, player_lat, player_speed, half)
+		if absf(target_yield) > 0.01:
+			unit.yield_hold = 0.65
+		elif unit.yield_hold > 0.0:
+			unit.yield_hold = maxf(0.0, unit.yield_hold - delta)
+			target_yield = unit.yield_offset
 		var prev_yield: float = unit.yield_offset
-		unit.yield_offset = move_toward(unit.yield_offset, target_yield, 2.5 * delta)
+		var desired_yield: float = lerpf(unit.yield_offset, target_yield, clampf(delta * 3.2, 0.0, 1.0))
+		unit.yield_offset = move_toward(unit.yield_offset, desired_yield, 2.2 * delta)
 		var lateral_vel: float = (unit.yield_offset - prev_yield) / maxf(delta, 0.001)
 		var max_lat: float = maxf(half - 1.10, 1.5)
 		var actual_lat: float = clampf(base_lat + unit.yield_offset, -max_lat, max_lat)
 		unit.last_lateral = actual_lat
 
 		# 4. Точная посадка на полотно с уклоном, поворотом и вращением колёс.
-		var steer_yaw: float = clampf(-lateral_vel * unit.lane_dir * 0.14, -0.22, 0.22)
-		_apply_transform(unit, actual_lat, steer_yaw)
+		var speed_factor: float = clampf(unit.current_speed / 4.5, 0.0, 1.0)
+		var target_steer_yaw: float = clampf(-lateral_vel * unit.lane_dir * 0.11 * speed_factor, -0.16, 0.16)
+		unit.smooth_steer_yaw = move_toward(unit.smooth_steer_yaw, target_steer_yaw, 1.1 * delta)
+		_apply_transform(unit, actual_lat, unit.smooth_steer_yaw)
 		_update_lights_and_wheels(unit, delta, braking, absf(unit.along - player_along))
 
 
@@ -339,6 +349,8 @@ func _place_unit_at(unit: TrafficUnit, dist: float, lane_dir: float, slot: int) 
 	unit.base_speed = RoadType.roll_range(_spawn_counter + slot * 7, road_seed, 952, min_s, maxf(min_s, max_s))
 	unit.current_speed = minf(unit.base_speed, _target_speed_for(unit))
 	unit.yield_offset = 0.0
+	unit.yield_hold = 0.0
+	unit.smooth_steer_yaw = 0.0
 	unit.hit_pause = 0.0
 	unit.overtaken = false
 	unit.near_missed = false

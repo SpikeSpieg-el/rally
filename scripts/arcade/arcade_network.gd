@@ -143,16 +143,30 @@ func height_at_along(distance: float) -> float:
 	return RoadType.elevation_at(distance, track_seed)
 
 
+func _vertex_dir(idx: int) -> Vector3:
+	var last: int = _points.size() - 1
+	if last < 1:
+		return Vector3.FORWARD
+	var k: int = maxi(0, idx - 1)
+	var j: int = mini(last, idx + 1)
+	var v := Vector3(_points[j].x - _points[k].x, 0.0, _points[j].z - _points[k].z)
+	if v.length_squared() < 0.000001:
+		if idx >= 0 and idx < _dirs.size() and _dirs[idx].length_squared() >= 0.000001:
+			return _dirs[idx].normalized()
+		return Vector3.FORWARD
+	return v.normalized()
+
+
 func direction_at(distance: float) -> Vector3:
 	ensure_length(distance)
-	if _dirs.size() < 2:
+	if _points.size() < 2:
 		return Vector3.FORWARD
 	var i: int = _index_at(distance)
-	var k: int = maxi(0, i - 1)
-	var j: int = mini(i + 2, _dirs.size() - 1)
-	var dir: Vector3 = Vector3(_points[j].x - _points[k].x, 0.0, _points[j].z - _points[k].z)
-	if dir.length_squared() < 0.000001:
-		dir = _dirs[i]
+	var j: int = mini(i + 1, _points.size() - 1)
+	var a: float = _dists[i]
+	var b: float = _dists[j]
+	var t: float = 0.0 if b <= a else clampf((distance - a) / (b - a), 0.0, 1.0)
+	var dir: Vector3 = _vertex_dir(i).lerp(_vertex_dir(j), t)
 	if dir.length_squared() < 0.000001:
 		return Vector3.FORWARD
 	return dir.normalized()
@@ -172,7 +186,7 @@ func nearest(x: float, z: float, hint: float = -1.0) -> Vector2:
 	if _points.size() < 2:
 		return Vector2(0.0, 0.0)
 	var best_d: float = INF
-	var best_along: float = 0.0
+	var best_idx: int = 0
 	var step_index: int = maxi(1, int(20.0 / STEP))
 	var low: int = 0
 	var high: int = _points.size() - 1
@@ -185,16 +199,32 @@ func nearest(x: float, z: float, hint: float = -1.0) -> Vector2:
 		var d: float = Vector2(p.x - x, p.z - z).length_squared()
 		if d < best_d:
 			best_d = d
-			best_along = _dists[i]
+			best_idx = i
 		i += step_index
 	# Уточнение по соседям найденной точки — грубый шаг мог перескочить.
-	var fine: int = _index_at(best_along)
+	var fine: int = best_idx
 	for j in range(maxi(0, fine - step_index), mini(_points.size(), fine + step_index + 1)):
 		var p2: Vector3 = _points[j]
 		var d2: float = Vector2(p2.x - x, p2.z - z).length_squared()
 		if d2 < best_d:
 			best_d = d2
-			best_along = _dists[j]
+			best_idx = j
+	var best_along: float = _dists[best_idx]
+	var q := Vector2(x, z)
+	for seg_start in [best_idx - 1, best_idx]:
+		if seg_start < 0 or seg_start + 1 >= _points.size():
+			continue
+		var pa := Vector2(_points[seg_start].x, _points[seg_start].z)
+		var pb := Vector2(_points[seg_start + 1].x, _points[seg_start + 1].z)
+		var ab: Vector2 = pb - pa
+		var len_sq: float = ab.length_squared()
+		if len_sq < 0.000001:
+			continue
+		var t: float = clampf((q - pa).dot(ab) / len_sq, 0.0, 1.0)
+		var seg_d: float = q.distance_squared_to(pa + ab * t)
+		if seg_d < best_d:
+			best_d = seg_d
+			best_along = lerpf(_dists[seg_start], _dists[seg_start + 1], t)
 	return Vector2(sqrt(best_d), best_along)
 
 
