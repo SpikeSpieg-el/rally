@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="RallyArcadeSettings" format=3]
+[gd_resource type="Resource" script_class="RallyArcadeSettings" format=3 uid="uid://brn4l2autuxqj"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_arcade_settings.gd" id="1_arcade_cfg"]
-[ext_resource type="PackedScene" path="res://scenes/props/spectator_person.tscn" id="2_pedestrian"]
+[ext_resource type="Script" uid="uid://dtbe85qyfxwc1" path="res://scripts/data/rally_arcade_settings.gd" id="1_arcade_cfg"]
+[ext_resource type="PackedScene" uid="uid://b02trgqm0njp" path="res://scenes/props/spectator_person.tscn" id="2_pedestrian"]
 
 [resource]
 script = ExtResource("1_arcade_cfg")

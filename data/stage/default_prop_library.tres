@@ -18,7 +18,7 @@
 [ext_resource type="PackedScene" path="res://scenes/props/dead_tree.tscn" id="scene_dead_tree"]
 [ext_resource type="PackedScene" path="res://scenes/props/dirt_mound.tscn" id="scene_dirt_mound"]
 [ext_resource type="PackedScene" uid="uid://drxgo4b1xemgp" path="res://scenes/props/dry_shrub.tscn" id="scene_dry_shrub"]
-[ext_resource type="PackedScene" path="res://scenes/props/dry_stone_wall.tscn" id="scene_dry_stone_wall"]
+[ext_resource type="PackedScene" uid="uid://ekuyqyrwbivi" path="res://scenes/props/dry_stone_wall.tscn" id="scene_dry_stone_wall"]
 [ext_resource type="PackedScene" uid="uid://d26nm0fevmqui" path="res://scenes/props/fern.tscn" id="scene_fern"]
 [ext_resource type="PackedScene" uid="uid://dapw3awdeo6if" path="res://scenes/props/finish_warning_sign.tscn" id="scene_finish_warning_sign"]
 [ext_resource type="PackedScene" uid="uid://d116xkaf32gdd" path="res://scenes/props/fir_tree.tscn" id="scene_fir_tree"]
