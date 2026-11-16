@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_track"]
+
+[resource]
+script = ExtResource("1_track")
+display_name = "Аркада: бесконечная дорога"
+procedural = false
+surface_name = "Асфальт"
+stage_scene = "res://scenes/rally_arcade.tscn"
+road_half_width = 3.6
+road_shoulder = 1.2
+grip_scale = 1.0
+rolling_resistance_scale = 1.0
+offroad_grip = 0.55
+ground_color = Color(0.24, 0.30, 0.16, 1)
+ground_color_2 = Color(0.33, 0.36, 0.19, 1)
+shoulder_color = Color(0.33, 0.29, 0.21, 1)
+road_color = Color(0.30, 0.28, 0.26, 1)
+road_color_2 = Color(0.36, 0.34, 0.31, 1)
