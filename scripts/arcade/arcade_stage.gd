@@ -426,12 +426,25 @@ func _rescue_transform() -> Transform3D:
 func _frame_at(along: float, extra_height: float) -> Transform3D:
 	var point: Vector3 = network.point_at(along)
 	var direction: Vector3 = network.direction_at(along)
+	# Правая полоса, а не осевая: на двухсторонке середина дороги — это
+	# разделительная линия. Машина, поставленная на неё, едет «по встречке»
+	# с точки зрения любого, кто смотрит на разметку.
+	var lateral: float = _driving_lateral(along)
+	var side: Vector3 = Vector3(direction.z, 0.0, -direction.x)
+	point += side * lateral
 	var height_offset: float = extra_height
 	if car != null and car.has_method("get_spawn_height_offset"):
 		height_offset += float(car.call("get_spawn_height_offset"))
-	var y: float = ChunkType.surface_height(along, 0.0, generation_seed) + height_offset
+	var y: float = ChunkType.surface_height(along, lateral, generation_seed) + height_offset
 	var facing := Basis(Vector3.UP, atan2(direction.x, direction.z))
 	return Transform3D(facing, Vector3(point.x, y, point.z))
+
+
+## Центр правой полосы: середина между осевой и линией полосы.
+func _driving_lateral(along: float) -> float:
+	var half: float = ChunkType.half_width_at(along, generation_seed)
+	var lane_line: float = maxf(half * 0.5, ChunkType.LINE_HALF * 4.0)
+	return lane_line * 0.5
 
 
 ## Порог «машина ушла в бездну»: считается от полотна, а не от абсолюта —

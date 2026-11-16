@@ -43,8 +43,20 @@ const MAX_HOUSES: int = 24
 ## Пунктир осевой линии: штрих и период, м.
 const DASH_ON: float = 4.5
 const DASH_PERIOD: float = 9.0
-## Полосы поперёк полотна: край, обочина, кромка, центр, кромка, обочина, край.
-const ROAD_LANES := 7
+## Полосы поперёк полотна: край, обочина, кромка, у разметки, центр,
+## у разметки, кромка, обочина, край. Разметка идёт ОТДЕЛЬНЫМИ рядами: при
+## одной широкой полосе на центр цвет размазывался по всей её ширине, и
+## «пунктира» не было видно — только мутное пятно.
+const ROAD_LANES := 9
+## Полуширина дорожной разметки, м. Уже — не читается на скорости.
+const LINE_HALF: float = 0.09
+## Пунктир правой (встречной) полосы: штрих и период, м. Сдвинут относительно
+## осевого, чтобы полосы не пульсировали синхронно.
+const LANE_DASH_ON: float = 3.0
+const LANE_DASH_PERIOD: float = 7.0
+## Насколько краска приподнята над асфальтом, м: иначе совпадёт с ним по
+## глубине и будет мерцать (z-fighting).
+const PAINT_LIFT: float = 0.012
 ## Полосы земляной ленты: три слева (кромка → вниз → край) и три справа.
 const VERGE_LANES := 6
 ## Доли ширины земляной ленты по полосам.
@@ -161,8 +173,9 @@ static func _road_surface(
 		var side: Vector3 = side_at(direction_at(distance, seed_value))
 		var shoulder: float = half + SHOULDER
 		var outer: float = shoulder + EDGE_BAND
-		var lateral: Array[float] = [-outer, -shoulder, -half, 0.0, half, shoulder, outer]
+		var lateral: Array[float] = _road_laterals(half, shoulder, outer)
 		var dash: bool = fposmod(distance, DASH_PERIOD) < DASH_ON
+		var lane_dash: bool = fposmod(distance, LANE_DASH_PERIOD) < LANE_DASH_ON
 		for lane in range(ROAD_LANES):
 			var lat: float = lateral[lane]
 			var point: Vector3 = center + side * lat
@@ -170,7 +183,11 @@ static func _road_surface(
 			var index: int = row * ROAD_LANES + lane
 			vertices[index] = Vector3(point.x, y, point.z)
 			uvs[index] = Vector2(lat, distance)
-			colors[index] = _surface_color(absf(lat), half, shoulder, dash)
+			colors[index] = _surface_color(absf(lat), half, shoulder, dash, lane_dash)
+			# Краска лежит чуть выше асфальта, иначе мерцает с ним по глубине.
+			if _is_paint(absf(lat), half, dash, lane_dash):
+				y += PAINT_LIFT
+			vertices[index] = Vector3(point.x, y, point.z)
 	_normals_from_grid(vertices, normals, total_rows, ROAD_LANES)
 	var indices := _grid_indices(rows, ROAD_LANES, padding)
 	_emit(chunk, "Road", vertices, normals, colors, uvs, indices, total_rows, padding,
@@ -210,7 +227,16 @@ static func _verge_strip(
 			colors[index] = Color(shade, shade, shade, 1.0)
 	_normals_from_grid(vertices, normals, total_rows, VERGE_LANES)
 	# Между левой и правой половинами ленты полотна нет — там шва не нужно.
+	# Полосы земли идут наружу в минус (-30 → -6.3), затем в плюс, то есть
+	# ПОПЕРЁК обхода полотна. С теми же индексами лента получает намотку,
+	# зеркальную полотну, и Godot отбрасывает её как обратную грань: полотно
+	# видно, а вокруг него — пустота до самого неба. Поэтому треугольники
+	# разворачиваются: полотно уже проверено, его обход и верен.
 	var indices := _grid_indices(rows, VERGE_LANES, padding, 2)
+	for i in range(0, indices.size(), 3):
+		var swap: int = indices[i + 1]
+		indices[i + 1] = indices[i + 2]
+		indices[i + 2] = swap
 	_emit(chunk, "Verge", vertices, normals, colors, uvs, indices, total_rows, padding,
 		VERGE_LANES, material)
 
@@ -323,8 +349,32 @@ static func _emit(
 	chunk.kinds.append("road" if node_name == "Road" else "grass")
 
 
-## Цвет полотна: асфальт, обочина, трава за кромкой, осевая разметка.
-static func _surface_color(lateral: float, half: float, shoulder: float, dash: bool) -> Color:
+## Поперечные координаты полос полотна, слева направо. Разметка — отдельные
+## пары рядов вокруг своей линии: тогда её ширина = LINE_HALF, а не «полоса
+## сетки», и край получается резким на любом расстоянии.
+static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[float]:
+	var center_line: float = LINE_HALF
+	var lane_line: float = maxf(half * 0.5, LINE_HALF * 4.0)
+	return [
+		-outer, -shoulder, -half,
+		-center_line, center_line,
+		lane_line - LINE_HALF, lane_line + LINE_HALF,
+		shoulder, outer,
+	]
+
+
+## Лежит ли координата на краске: осевая (пунктир) или линия полосы (пунктир).
+static func _is_paint(lateral: float, half: float, dash: bool, lane_dash: bool) -> bool:
+	if lateral <= LINE_HALF + 0.001 and dash:
+		return true
+	var lane_line: float = maxf(half * 0.5, LINE_HALF * 4.0)
+	return absf(lateral - lane_line) <= LINE_HALF + 0.001 and lane_dash
+
+
+## Цвет полотна: асфальт, обочина, краска разметки, трава за кромкой.
+static func _surface_color(
+	lateral: float, half: float, shoulder: float, dash: bool, lane_dash: bool
+) -> Color:
 	var asphalt := Color(0.30, 0.28, 0.26)
 	var shoulder_color := Color(0.33, 0.28, 0.20)
 	var verge := Color(0.26, 0.30, 0.18)
@@ -332,9 +382,9 @@ static func _surface_color(lateral: float, half: float, shoulder: float, dash: b
 		return verge
 	if lateral > half:
 		return shoulder_color
-	if lateral < 0.16:
-		# Осевая линия: пунктир, чтобы на скорости читался масштаб.
-		return Color(0.84, 0.82, 0.76) if dash else asphalt
+	if _is_paint(lateral, half, dash, lane_dash):
+		# Краска: почти белая, чуть тёплая — читается и в темноте, и в снег.
+		return Color(0.86, 0.84, 0.78)
 	var wear: float = smoothstep(half * 0.55, half, lateral)
 	return asphalt.lerp(shoulder_color, wear * 0.35)
 
