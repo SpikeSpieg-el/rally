@@ -15,6 +15,9 @@ const ChunkType = preload("res://scripts/arcade/arcade_chunk.gd")
 const TerrainType = preload("res://scripts/arcade/arcade_terrain.gd")
 const SceneryType = preload("res://scripts/arcade/arcade_scenery.gd")
 const TrafficType = preload("res://scripts/arcade/arcade_traffic.gd")
+const PedestriansType = preload("res://scripts/arcade/arcade_pedestrians.gd")
+const RulesType = preload("res://scripts/arcade/arcade_rules.gd")
+const ArcadeSettingsType = preload("res://scripts/data/rally_arcade_settings.gd")
 const LegType = preload("res://scripts/data/rally_arcade_leg.gd")
 const TrackType = preload("res://scripts/data/rally_track_config.gd")
 const SettingsType = preload("res://scripts/data/rally_stage_settings.gd")
@@ -40,6 +43,7 @@ const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const DEFAULT_TRACK_PATH := "res://data/tracks/stage_arcade.tres"
 const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"
 const DEFAULT_SPAWN_PATH := "res://data/stage/default_spawn_layout.tres"
+const DEFAULT_ARCADE_SETTINGS_PATH := "res://data/stage/default_arcade_settings.tres"
 const HUD_REFRESH: float = 0.08
 
 ## Сид генерации. 0 — взять сид заезда из трассы / времени.
@@ -47,6 +51,7 @@ const HUD_REFRESH: float = 0.08
 @export var track: TrackType = null
 @export var settings: SettingsType = null
 @export var spawn_layout: SpawnType = null
+@export var arcade_settings: ArcadeSettingsType = null
 @export var car_setup_override: CarSetupType = null
 
 var network: NetworkType = null
@@ -60,6 +65,8 @@ var _streamer: StreamerType = null
 var _terrain: TerrainType = null
 var _scenery: SceneryType = null
 var _traffic: TrafficType = null
+var _pedestrians: PedestriansType = null
+var _rules: RulesType = null
 var _surface = SurfaceType.new()
 var _road_material: ShaderMaterial = null
 var _ground_material: ShaderMaterial = null
@@ -72,13 +79,31 @@ var _max_speed_kmh: float = 0.0
 var _elapsed_time: float = 0.0
 var _frame_delta: float = 0.016
 var _prev_lin_vel := Vector3.ZERO
+var _prev_physics_vel := Vector3.ZERO
 var _is_night: bool = false
+var _best_distance_m: float = 0.0
 
 var _query_point := Vector3(INF, INF, INF)
 var _query_half: float = 0.0
 var _lateral_cache: float = 0.0
 var _hud_clock: float = 0.0
 var _is_paused: bool = false
+
+var _alert_text: String = ""
+var _alert_color := Color(1.0, 0.8, 0.2, 1.0)
+var _alert_timer: float = 0.0
+
+var _arcade_panel: PanelContainer = null
+var _hp_bar: ProgressBar = null
+var _hp_fill_style: StyleBoxFlat = null
+var _hp_value_label: Label = null
+var _score_label: Label = null
+var _mult_label: Label = null
+var _overtake_label: Label = null
+var _results_panel: Control = null
+var _results_title: Label = null
+var _results_label: Label = null
+var _again_button: Button = null
 
 var _pause_panel: CanvasItem = null
 var _resume_button: Button = null
@@ -175,10 +200,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if car == null or _streamer == null:
 		return
-	if _is_paused:
+	if _is_paused or (_rules != null and _rules.run_ended):
 		return
 	_frame_delta = maxf(delta, 0.0001)
 	_elapsed_time += delta
+	if _alert_timer > 0.0:
+		_alert_timer = maxf(0.0, _alert_timer - delta)
 	var here: Vector3 = car.global_position
 	var near: Vector2 = network.nearest(here.x, here.z, _last_along)
 	_last_along = near.y
@@ -204,9 +231,39 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _is_paused or car == null or _traffic == null:
+	if _is_paused or car == null:
 		return
-	_traffic.step(delta, _last_along, car.global_position, car.linear_velocity)
+	if _rules != null and _rules.run_ended:
+		return
+
+	var vel: Vector3 = car.linear_velocity
+	var cur_horiz := Vector2(vel.x, vel.z)
+	var prev_horiz := Vector2(_prev_physics_vel.x, _prev_physics_vel.z)
+	var dv_horiz: float = 0.0
+	if _elapsed_time > 1.2:
+		dv_horiz = cur_horiz.distance_to(prev_horiz)
+	_prev_physics_vel = vel
+
+	if _traffic != null:
+		_traffic.step(delta, _last_along, car.global_position, vel)
+		if _rules != null:
+			for ev in _traffic.last_events:
+				_push_alert(_rules.on_traffic_event(ev))
+
+	if _pedestrians != null:
+		var ped_events: Array[Dictionary] = _pedestrians.step(delta, _last_along, car.global_position, vel, car)
+		if _rules != null:
+			for ev in ped_events:
+				_push_alert(_rules.on_pedestrian_event(ev))
+
+	if _rules != null:
+		var on_road: bool = _on_surface(car.global_position)
+		var speed_mps: float = cur_horiz.length()
+		var tick_alerts: Array[Dictionary] = _rules.tick(delta, speed_mps, on_road, _max_along, dv_horiz)
+		for al in tick_alerts:
+			_push_alert(al)
+		if _rules.run_ended:
+			_end_arcade_run()
 
 
 func _resolve_seed() -> void:
@@ -235,6 +292,10 @@ func _load_resources() -> void:
 		spawn_layout = _load(DEFAULT_SPAWN_PATH) as SpawnType
 	if spawn_layout == null:
 		spawn_layout = SpawnType.new()
+	if arcade_settings == null:
+		arcade_settings = _load(DEFAULT_ARCADE_SETTINGS_PATH) as ArcadeSettingsType
+	if arcade_settings == null:
+		arcade_settings = ArcadeSettingsType.new()
 
 
 func _load(path: String) -> Resource:
@@ -452,29 +513,37 @@ func _build_world() -> void:
 	_road_material = _make_road_material()
 	_ground_material = _make_ground_material()
 
-	_scenery = SceneryType.new()
-	_scenery.configure(track.ps1_style and settings.scenery_ps1_filter, _is_night)
-	_scenery.warm_up()
+	var use_scenery: bool = arcade_settings.scenery_enabled if arcade_settings != null else true
+	var use_terrain: bool = arcade_settings.terrain_enabled if arcade_settings != null else true
 
-	_terrain = TerrainType.new()
-	_terrain.name = "ArcadeTerrain"
-	add_child(_terrain)
-	_terrain.setup(
-		generation_seed,
-		track.terrain_seed,
-		track.hills_height,
-		track.hills_frequency,
-		track.ridge_height,
-		track.ridge_frequency,
-		track.detail_height,
-		_ground_material
-	)
+	if use_scenery:
+		_scenery = SceneryType.new()
+		_scenery.configure(track.ps1_style and settings.scenery_ps1_filter, _is_night)
+		_scenery.warm_up()
+	else:
+		_scenery = null
 
 	var prime_dist: float = StreamerType.CHUNK_LENGTH * float(StreamerType.LOOKAHEAD + 2)
 	network.ensure_length(prime_dist)
-	_terrain.sync_road_to(prime_dist)
-	var spawn_pt: Vector3 = network.point_at(clampf(spawn_layout.car_spawn_distance, 0.0, 40.0))
-	_terrain.prime(spawn_pt)
+	if use_terrain:
+		_terrain = TerrainType.new()
+		_terrain.name = "ArcadeTerrain"
+		add_child(_terrain)
+		_terrain.setup(
+			generation_seed,
+			track.terrain_seed,
+			track.hills_height,
+			track.hills_frequency,
+			track.ridge_height,
+			track.ridge_frequency,
+			track.detail_height,
+			_ground_material
+		)
+		_terrain.sync_road_to(prime_dist)
+		var spawn_pt: Vector3 = network.point_at(clampf(spawn_layout.car_spawn_distance, 0.0, 40.0))
+		_terrain.prime(spawn_pt)
+	else:
+		_terrain = null
 
 	_streamer = StreamerType.new()
 	_streamer.name = "RoadStreamer"
@@ -493,12 +562,28 @@ func _build_world() -> void:
 	_streamer.focus(0.0)
 	_streamer.prime(behind, StreamerType.LOOKAHEAD)
 
-	_traffic = TrafficType.new()
-	_traffic.name = "ArcadeTraffic"
+	var spawn_d: float = clampf(spawn_layout.car_spawn_distance, 0.0, 40.0)
+	_traffic = get_node_or_null("ArcadeTraffic") as TrafficType
+	if _traffic == null:
+		_traffic = TrafficType.new()
+		_traffic.name = "ArcadeTraffic"
+		add_child(_traffic)
 	_traffic.process_mode = Node.PROCESS_MODE_PAUSABLE
-	add_child(_traffic)
-	_traffic.setup(generation_seed, network, _is_night)
-	_traffic.prime(clampf(spawn_layout.car_spawn_distance, 0.0, 40.0))
+	_traffic.setup(generation_seed, network, _is_night, arcade_settings)
+	_traffic.prime(spawn_d)
+
+	_pedestrians = get_node_or_null("ArcadePedestrians") as PedestriansType
+	if _pedestrians == null:
+		_pedestrians = PedestriansType.new()
+		_pedestrians.name = "ArcadePedestrians"
+		add_child(_pedestrians)
+	_pedestrians.process_mode = Node.PROCESS_MODE_PAUSABLE
+	_pedestrians.setup(generation_seed, network, self, arcade_settings)
+	_pedestrians.prime(spawn_d)
+
+	_rules = RulesType.new()
+	_rules.configure(arcade_settings)
+	_best_distance_m = RulesType.best_distance(arcade_settings)
 
 
 func _make_road_material() -> ShaderMaterial:
@@ -584,6 +669,7 @@ func _setup_hud() -> void:
 		var node := hud.get_node_or_null(path) as CanvasItem
 		if node != null:
 			node.visible = false
+	_setup_arcade_hud()
 	_setup_pause()
 	_setup_screen()
 	_update_input_hint()
@@ -668,9 +754,194 @@ func _open_input_settings() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _input_settings != null and _input_settings.blocks_actions():
 		return
+	if _rules != null and _rules.run_ended:
+		return
 	if event.is_action_pressed("ui_cancel"):
 		_set_paused(not _is_paused)
 		get_viewport().set_input_as_handled()
+
+
+func _setup_arcade_hud() -> void:
+	if hud == null:
+		return
+	_results_panel = hud.get_node_or_null("ResultsPanel") as Control
+	_results_title = hud.get_node_or_null("ResultsPanel/Box/FinishTitle") as Label
+	_results_label = hud.get_node_or_null("ResultsPanel/Box/ResultsLabel") as Label
+	_again_button = hud.get_node_or_null("ResultsPanel/Box/AgainButton") as Button
+	_connect_button("ResultsPanel/Box/AgainButton", _on_restart_pressed)
+	_connect_button("ResultsPanel/Box/MenuButton", _on_menu_pressed)
+	if _results_panel != null:
+		_results_panel.custom_minimum_size = Vector2(560.0, 470.0)
+	if _results_label != null:
+		_results_label.add_theme_font_size_override("font_size", 16)
+
+	var scene_panel := get_node_or_null("HUD/ArcadeStatusPanel") as PanelContainer
+	if scene_panel != null:
+		_arcade_panel = scene_panel
+		_hp_value_label = scene_panel.get_node_or_null("Box/HpRow/HpValue") as Label
+		_hp_bar = scene_panel.get_node_or_null("Box/HpBar") as ProgressBar
+		_score_label = scene_panel.get_node_or_null("Box/ScoreRow/ScoreLabel") as Label
+		_mult_label = scene_panel.get_node_or_null("Box/ScoreRow/MultiplierLabel") as Label
+		_overtake_label = scene_panel.get_node_or_null("Box/StatsLabel") as Label
+		if _hp_bar != null:
+			_hp_bar.max_value = _rules.max_hp if _rules != null else RulesType.MAX_HP
+			_hp_bar.value = _hp_bar.max_value
+			var existing_fill := _hp_bar.get_theme_stylebox("fill")
+			if existing_fill is StyleBoxFlat:
+				_hp_fill_style = (existing_fill as StyleBoxFlat).duplicate() as StyleBoxFlat
+				_hp_bar.add_theme_stylebox_override("fill", _hp_fill_style)
+	else:
+		if _arcade_panel != null and is_instance_valid(_arcade_panel):
+			_arcade_panel.queue_free()
+		var panel := PanelContainer.new()
+		panel.name = "ArcadeStatusPanel"
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		panel.offset_left = -256.0
+		panel.offset_top = 20.0
+		panel.offset_right = -24.0
+		panel.offset_bottom = 176.0
+		var box_style := StyleBoxFlat.new()
+		box_style.bg_color = Color(0.03, 0.04, 0.06, 0.88)
+		box_style.skew = Vector2(0.06, 0.0)
+		box_style.border_width_left = 4
+		box_style.border_width_top = 1
+		box_style.border_width_right = 1
+		box_style.border_width_bottom = 1
+		box_style.border_color = Color(1.0, 0.45, 0.05, 1.0)
+		box_style.corner_radius_top_left = 4
+		box_style.corner_radius_top_right = 10
+		box_style.corner_radius_bottom_left = 6
+		box_style.corner_radius_bottom_right = 4
+		box_style.content_margin_left = 14.0
+		box_style.content_margin_right = 14.0
+		box_style.content_margin_top = 10.0
+		box_style.content_margin_bottom = 10.0
+		panel.add_theme_stylebox_override("panel", box_style)
+		var vbox := VBoxContainer.new()
+		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_theme_constant_override("separation", 4)
+		panel.add_child(vbox)
+		var hp_row := HBoxContainer.new()
+		hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(hp_row)
+		var hp_title := Label.new()
+		hp_title.text = "ПРОЧНОСТЬ"
+		hp_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hp_title.add_theme_font_size_override("font_size", 11)
+		hp_title.add_theme_color_override("font_color", Color(0.85, 0.90, 0.96, 0.92))
+		hp_row.add_child(hp_title)
+		_hp_value_label = Label.new()
+		_hp_value_label.text = "100 / 100"
+		_hp_value_label.add_theme_font_size_override("font_size", 12)
+		_hp_value_label.add_theme_color_override("font_color", Color(0.32, 0.96, 0.58, 1.0))
+		hp_row.add_child(_hp_value_label)
+		_hp_bar = ProgressBar.new()
+		_hp_bar.custom_minimum_size = Vector2(0.0, 14.0)
+		_hp_bar.max_value = _rules.max_hp if _rules != null else RulesType.MAX_HP
+		_hp_bar.value = _hp_bar.max_value
+		_hp_bar.show_percentage = false
+		var hp_bg := StyleBoxFlat.new()
+		hp_bg.bg_color = Color(0.14, 0.16, 0.20, 0.9)
+		_hp_fill_style = StyleBoxFlat.new()
+		_hp_fill_style.bg_color = Color(0.28, 0.92, 0.52, 1.0)
+		_hp_bar.add_theme_stylebox_override("background", hp_bg)
+		_hp_bar.add_theme_stylebox_override("fill", _hp_fill_style)
+		vbox.add_child(_hp_bar)
+		var score_row := HBoxContainer.new()
+		score_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(score_row)
+		_score_label = Label.new()
+		_score_label.text = "ОЧКИ: 0"
+		_score_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_score_label.add_theme_font_size_override("font_size", 18)
+		score_row.add_child(_score_label)
+		_mult_label = Label.new()
+		_mult_label.text = "×1.0"
+		_mult_label.add_theme_font_size_override("font_size", 16)
+		_mult_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.18, 1.0))
+		score_row.add_child(_mult_label)
+		_overtake_label = Label.new()
+		_overtake_label.text = "ОБГОНЫ 0  |  РАЗЪЕЗДЫ 0  |  НАЕЗДЫ 0"
+		_overtake_label.add_theme_font_size_override("font_size", 11)
+		vbox.add_child(_overtake_label)
+		hud.add_child(panel)
+		_arcade_panel = panel
+
+	var fps_label := hud.get_node_or_null("FPSLabel") as Control
+	if fps_label != null:
+		fps_label.offset_top = 186.0
+		fps_label.offset_bottom = 214.0
+
+
+func _push_alert(alert: Dictionary) -> void:
+	if alert.is_empty():
+		return
+	_alert_text = String(alert.get("text", ""))
+	var col: Variant = alert.get("color", Color(1.0, 0.80, 0.22, 1.0))
+	if col is Color:
+		_alert_color = col as Color
+	_alert_timer = arcade_settings.alert_duration_sec if arcade_settings != null else 2.4
+
+
+func _end_arcade_run() -> void:
+	_update_hud()
+	if car != null:
+		car.process_mode = Node.PROCESS_MODE_DISABLED
+	if get_tree() != null:
+		get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	var vehicle_name: String = "Ралли-кар"
+	if car != null and car.active_setup != null and not car.active_setup.display_name.is_empty():
+		vehicle_name = car.active_setup.display_name
+
+	var lb: Dictionary = RulesType.record_run({
+		"distance_m": _max_along,
+		"score": _rules.score,
+		"max_speed_kmh": _max_speed_kmh,
+		"overtakes": _rules.overtakes,
+		"near_misses": _rules.near_misses,
+		"ped_hits": _rules.ped_hits,
+		"elapsed_sec": _elapsed_time,
+		"vehicle": vehicle_name,
+	}, arcade_settings)
+	_best_distance_m = RulesType.best_distance(arcade_settings)
+
+	if _results_panel == null:
+		return
+	if _results_title != null:
+		var is_rec: bool = bool(lb.get("is_record", false))
+		_results_title.text = "НОВЫЙ РЕКОРД ДИСТАНЦИИ!" if is_rec else "МАШИНА РАЗБИТА!"
+		_results_title.add_theme_color_override(
+			"font_color", Color(0.32, 0.98, 0.58, 1.0) if is_rec else Color(1.0, 0.30, 0.22, 1.0)
+		)
+
+	if _results_label != null:
+		var lines: Array[String] = []
+		lines.append("ДИСТАНЦИЯ: %.0f м (%.2f км)   •   ОЧКИ: %d" % [_max_along, _max_along / 1000.0, _rules.score])
+		lines.append("МАКС. СКОРОСТЬ: %d КМ/Ч   •   ВРЕМЯ: %s" % [roundi(_max_speed_kmh), _format_time(_elapsed_time)])
+		lines.append("ОБГОНЫ: %d   •   РАЗЪЕЗДЫ: %d   •   НАЕЗДЫ: %d" % [_rules.overtakes, _rules.near_misses, _rules.ped_hits])
+		lines.append("")
+		lines.append("ТАБЛИЦА РЕЗУЛЬТАТОВ ПО ДИСТАНЦИИ:")
+		var entries: Array = lb.get("entries", []) as Array
+		var my_rank: int = int(lb.get("rank", -1))
+		for i in range(entries.size()):
+			var row: Dictionary = entries[i] as Dictionary
+			var marker: String = "  ◀" if (i + 1) == my_rank else ""
+			lines.append("%d. %.0f м  |  %d очк.  |  %d км/ч  |  %s%s" % [
+				i + 1,
+				float(row.get("distance_m", 0.0)),
+				int(row.get("score", 0)),
+				roundi(float(row.get("max_speed_kmh", 0.0))),
+				String(row.get("vehicle", "—")),
+				marker,
+			])
+		_results_label.text = "\n".join(lines)
+
+	_results_panel.visible = true
+	if _again_button != null:
+		_again_button.grab_focus()
 
 
 func _set_paused(value: bool) -> void:
@@ -761,8 +1032,31 @@ func _update_hud() -> void:
 	var time_str: String = _format_time(_elapsed_time)
 	hud.update_timer_display(time_str)
 	if _split_label != null:
-		var pass_count: int = _traffic.overtakes if _traffic != null else 0
-		_split_label.text = "ПРОБЕГ %.0f м  |  МАКС %d КМ/Ч  |  ОБГОНОВ %d" % [_max_along, roundi(_max_speed_kmh), pass_count]
+		var best_m: float = maxf(_best_distance_m, _max_along)
+		_split_label.text = "ПРОБЕГ %.0f м  |  МАКС %d КМ/Ч  |  РЕКОРД %.0f м" % [_max_along, roundi(_max_speed_kmh), best_m]
+
+	if _rules != null:
+		var hp_val: float = _rules.hp
+		if _hp_bar != null:
+			_hp_bar.value = hp_val
+		var hp_col := Color(0.28, 0.92, 0.52, 1.0)
+		if hp_val < 30.0:
+			hp_col = Color(1.0, 0.24, 0.18, 1.0)
+		elif hp_val < 60.0:
+			hp_col = Color(1.0, 0.72, 0.18, 1.0)
+		if _hp_fill_style != null:
+			_hp_fill_style.bg_color = hp_col
+		if _hp_value_label != null:
+			_hp_value_label.text = "%d / %d" % [ceili(hp_val), int(_rules.max_hp)]
+			_hp_value_label.add_theme_color_override("font_color", hp_col)
+		if _score_label != null:
+			_score_label.text = "ОЧКИ: %d" % _rules.score
+		if _mult_label != null:
+			_mult_label.text = "×%.1f" % _rules.multiplier
+		if _overtake_label != null:
+			_overtake_label.text = "ОБГОНЫ %d  |  РАЗЪЕЗДЫ %d  |  НАЕЗДЫ %d" % [
+				_rules.overtakes, _rules.near_misses, _rules.ped_hits
+			]
 
 	if _stage_label != null:
 		var domain_label: String = _current_domain_name(_last_along)
@@ -816,10 +1110,16 @@ func _update_hud() -> void:
 		_gforce_bar.set_value(clampf(Vector2(accel.x, accel.z).length() / 9.81, 0.0, 1.0))
 
 	if _clutch_notice != null:
-		_clutch_notice.visible = car.engine_stalled or car.shift_notice_time > 0.0
+		var show_notice: bool = car.engine_stalled or car.shift_notice_time > 0.0 or _alert_timer > 0.0
+		_clutch_notice.visible = show_notice
 		if car.engine_stalled:
+			_clutch_notice.add_theme_color_override("font_color", Color(1.0, 0.72, 0.2, 1.0))
 			_clutch_notice.text = "ДВИГАТЕЛЬ ЗАГЛОХ — ВЫЖМИТЕ СЦЕПЛЕНИЕ И ГАЗ"
+		elif _alert_timer > 0.0 and not _alert_text.is_empty():
+			_clutch_notice.add_theme_color_override("font_color", _alert_color)
+			_clutch_notice.text = _alert_text
 		elif car.shift_notice_time > 0.0:
+			_clutch_notice.add_theme_color_override("font_color", Color(1.0, 0.72, 0.2, 1.0))
 			_clutch_notice.text = car.shift_notice_text
 
 
@@ -849,7 +1149,18 @@ func _rescue_transform() -> Transform3D:
 	var here: Vector3 = car.global_position
 	var near: Vector2 = network.nearest(here.x, here.z, _last_along)
 	_last_along = near.y
+	_prev_physics_vel = Vector3.ZERO
+	if _elapsed_time > 1.5 and _rules != null and not _rules.run_ended:
+		_push_alert(_rules.on_rescue())
+		if _rules.run_ended:
+			_end_arcade_run.call_deferred()
 	return _frame_at(near.y, spawn_layout.car_rescue_height_extra)
+
+
+func surface_height_at(x: float, z: float) -> float:
+	if _terrain != null:
+		return _terrain.height_at(x, z)
+	return ChunkType.surface_height(_last_along, 0.0, generation_seed)
 
 
 func _frame_at(along: float, extra_height: float) -> Transform3D:
@@ -868,8 +1179,8 @@ func _frame_at(along: float, extra_height: float) -> Transform3D:
 
 func _driving_lateral(along: float) -> float:
 	var half: float = ChunkType.half_width_at(along, generation_seed)
-	var lane_line: float = maxf(half * 0.5, ChunkType.LINE_HALF * 4.0)
-	return lane_line * 0.5
+	var frac: float = arcade_settings.player_lane_fraction if arcade_settings != null else 0.50
+	return half * frac
 
 
 func _fall_limit_y() -> float:

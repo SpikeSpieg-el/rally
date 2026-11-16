@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="RallyArcadeSettings" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_arcade_settings.gd" id="1_arcade_cfg"]
+[ext_resource type="PackedScene" path="res://scenes/props/spectator_person.tscn" id="2_pedestrian"]
+
+[resource]
+script = ExtResource("1_arcade_cfg")
+pedestrian_scene = ExtResource("2_pedestrian")
