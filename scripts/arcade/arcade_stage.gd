@@ -640,6 +640,14 @@ func _make_road_material() -> ShaderMaterial:
 	mat.set_shader_parameter("road_roughness", settings.road_roughness)
 	mat.set_shader_parameter("detail_strength", settings.road_detail_strength)
 	mat.set_shader_parameter("track_strength", settings.road_track_strength)
+	# Аркадный чанк уже даёт стабильный базовый цвет; bitmap сохраняем как
+	# мягкую деталь, но не даём его повтору совпадать с поперечными рядами.
+	mat.set_shader_parameter("gravel_texture_warp", 1.0)
+	mat.set_shader_parameter("texture_detail_strength", 0.52)
+	# В аркаде нет физики grip-зон из обычного этапа: не рисуем искусственные
+	# периодические ленты поверх бесконечной дороги.
+	mat.set_shader_parameter("zone_contrast", 0.0)
+	mat.set_shader_parameter("puddle_mix", 0.0)
 	var relief: float = settings.road_loose_relief_asphalt if track.surface_name == "Асфальт" else settings.road_loose_relief
 	mat.set_shader_parameter("loose_relief", relief)
 	mat.set_shader_parameter("vertex_snap", settings.retro_vertex_snap if settings.is_retro(track) else 0.0)

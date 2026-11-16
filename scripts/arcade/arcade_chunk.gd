@@ -194,6 +194,10 @@ static func _road_surface(
 	var terrain = materials.get("terrain", null)
 	var road_col: Color = materials.get("road_color", Color(0.22, 0.22, 0.24))
 	var road_col2: Color = materials.get("road_color_2", Color(0.29, 0.29, 0.31))
+	# Оба цвета остаются настраиваемыми, но базовый оттенок постоянен вдоль
+	# строки сетки. Продольную неоднородность добавляет шейдерный шум, а не
+	# случайная смена COLOR у всей поперечной строки.
+	var road_base_col: Color = road_col.lerp(road_col2, 0.12)
 	var shoulder_col: Color = materials.get("shoulder_color", Color(0.31, 0.26, 0.18))
 	var loose_surface: bool = bool(materials.get("loose_surface", false))
 
@@ -219,7 +223,6 @@ static func _road_surface(
 		var dash: bool = fposmod(distance, DASH_PERIOD) < DASH_ON
 		var lane_dash: bool = fposmod(distance, LANE_DASH_PERIOD) < LANE_DASH_ON
 		var bridge_amt: float = terrain.bridge_deck_factor(distance) if terrain != null else 0.0
-		var wear_noise: float = RoadType.roll(int(floor(distance * 0.25)), seed_value, 97)
 		for lane in range(ROAD_LANES):
 			var lat: float = lateral[lane]
 			var point: Vector3 = center + side * lat
@@ -232,7 +235,7 @@ static func _road_surface(
 			uvs[index] = Vector2(lat, distance)
 			var base_col := _surface_color_ex(
 				absf(lat), half, shoulder, dash, lane_dash,
-				road_col.lerp(road_col2, wear_noise * 0.45), shoulder_col
+				road_base_col, shoulder_col
 			)
 			if not loose_surface and absf(lat) <= half:
 				base_col.a = 0.08
