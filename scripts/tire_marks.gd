@@ -75,6 +75,19 @@ func break_trails() -> void:
 	_trails.clear()
 
 
+func clear_marks() -> void:
+	_trails.clear()
+	_next_segment = 0
+	_flush_timer = 0.0
+	for chunk in _chunks:
+		chunk.segments.clear()
+		chunk.dirty = false
+		if is_instance_valid(chunk.visual):
+			chunk.visual.mesh = null
+		if is_instance_valid(chunk.soil):
+			chunk.soil.mesh = null
+
+
 func _process(delta: float) -> void:
 	_flush_timer += delta
 	if _flush_timer < _p("flush_interval", FLUSH_INTERVAL):

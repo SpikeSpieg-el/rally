@@ -1118,10 +1118,89 @@ func _on_resume_pressed() -> void:
 	_set_paused(false)
 
 
+func can_restart_in_place() -> bool:
+	return car != null and is_instance_valid(car) and network != null and _streamer != null and _terrain != null
+
+
+func restart_in_place() -> void:
+	if not can_restart_in_place():
+		return
+	_is_paused = false
+	if get_tree() != null:
+		get_tree().paused = false
+	if _resume_button != null:
+		_resume_button.focus_mode = Control.FOCUS_NONE
+	if _input_settings != null and _input_settings.visible:
+		_input_settings.close()
+	if _pause_panel != null:
+		_pause_panel.visible = false
+	if _results_panel != null:
+		_results_panel.visible = false
+
+	_elapsed_time = 0.0
+	_max_along = 0.0
+	_max_speed_kmh = 0.0
+	_prev_lin_vel = Vector3.ZERO
+	_prev_physics_vel = Vector3.ZERO
+	_alert_text = ""
+	_alert_timer = 0.0
+	_hud_clock = 0.0
+	_query_point = Vector3(INF, INF, INF)
+	_query_half = 0.0
+	_lateral_cache = 0.0
+	_surface.clear()
+	_best_distance_m = RulesType.best_distance(arcade_settings)
+
+	var spawn_d: float = clampf(spawn_layout.car_spawn_distance, 0.0, 40.0)
+	_last_along = spawn_d
+	var spawn_xform: Transform3D = _spawn_transform()
+
+	_terrain.sync_road_to(StreamerType.LOOKAHEAD * StreamerType.CHUNK_LENGTH + StreamerType.CHUNK_LENGTH)
+	_terrain.prime(spawn_xform.origin)
+	var behind: float = StreamerType.KEEP_BEHIND * StreamerType.CHUNK_LENGTH + 1.0
+	_streamer.focus(0.0)
+	_streamer.prime(behind, StreamerType.LOOKAHEAD)
+
+	if _rules != null:
+		_rules.reset()
+	if _traffic != null:
+		_traffic.reset(spawn_d)
+	if _pedestrians != null:
+		_pedestrians.reset(spawn_d)
+
+	var controller := _controller_manager()
+	if controller != null and controller.has_method("stop_driving_feedback"):
+		controller.call("stop_driving_feedback")
+
+	if car != null:
+		car.process_mode = Node.PROCESS_MODE_PAUSABLE
+		car.freeze = false
+		car.spawn_transform = spawn_xform
+		if car.has_method("restart_at_spawn"):
+			car.restart_at_spawn()
+		else:
+			car.reset_to_spawn()
+
+	if _weather_particles != null and is_instance_valid(_weather_particles) and car != null:
+		var fx_root := get_node_or_null("VisualEffects")
+		if fx_root != null and fx_root.has_method("anchor_for"):
+			_weather_particles.global_position = fx_root.call("anchor_for", car.global_position, Vector3.ZERO)
+		_weather_particles.restart()
+		_weather_particles.emitting = true
+
+	var capture: bool = car != null and car.mouse_look_enabled
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if capture else Input.MOUSE_MODE_VISIBLE
+	if is_inside_tree():
+		get_viewport().gui_release_focus()
+	_update_hud()
+
+
 func _on_restart_pressed() -> void:
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null and game.has_method("restart_race"):
 		game.call("restart_race")
+	elif can_restart_in_place():
+		restart_in_place()
 	else:
 		get_tree().reload_current_scene()
 

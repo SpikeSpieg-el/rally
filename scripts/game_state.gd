@@ -636,6 +636,14 @@ func _stage_scene_path() -> String:
 
 
 func restart_race() -> void:
+	var tree := get_tree()
+	var scene: Node = tree.current_scene if tree != null else null
+	if scene != null and scene.has_method("can_restart_in_place") and bool(scene.call("can_restart_in_place")):
+		last_time = 0.0
+		is_new_record = false
+		race_started.emit()
+		scene.call("restart_in_place")
+		return
 	start_race()
 
 

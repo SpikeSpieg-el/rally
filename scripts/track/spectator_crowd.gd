@@ -97,6 +97,8 @@ func _randomize_jackets() -> void:
 ## people — сколько зрителей показать из расставленных в сцене,
 ## with_camp — показывать ли кемпер, палатку и костёр.
 func setup(stage: Node, rng_seed: int, people: int, with_camp: bool) -> void:
+	if not Engine.is_editor_hint():
+		add_to_group("rally_spectator_crowds")
 	_stage = stage
 	_rng.seed = rng_seed
 	_collect()
@@ -110,6 +112,19 @@ func setup(stage: Node, rng_seed: int, people: int, with_camp: bool) -> void:
 		if with_camp:
 			_fire_light = camp.get_node_or_null("Campfire/FireLight") as OmniLight3D
 	set_process(true)
+
+
+func reset_crowd() -> void:
+	for entry in _photographers:
+		entry["t"] = 0.0
+		var root := entry["root"] as Node3D
+		if is_instance_valid(root):
+			root.position = entry["home"]
+			if root.has_method("reset_person"):
+				root.call("reset_person")
+	for person in _persons:
+		if is_instance_valid(person) and person.has_method("reset_person"):
+			person.call("reset_person")
 
 
 func _process(delta: float) -> void:

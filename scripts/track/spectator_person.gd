@@ -69,11 +69,21 @@ var _time: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _sprite: Sprite3D = null
 var _hitbox: Area3D = null
+var _idle_billboard: BaseMaterial3D.BillboardMode = BaseMaterial3D.BILLBOARD_ENABLED
+var _idle_no_depth: bool = false
+var _idle_render_priority: int = 0
+var _idle_sprite_pos: Vector3 = Vector3.ZERO
+var _idle_sprite_rot: Vector3 = Vector3.ZERO
+var _idle_modulate: Color = Color.WHITE
+var _idle_saved: bool = false
 
 
 func _ready() -> void:
+	if not Engine.is_editor_hint():
+		add_to_group("rally_spectators")
 	_sprite = get_node_or_null("Sprite") as Sprite3D
 	_hitbox = get_node_or_null("Hitbox") as Area3D
+	_capture_idle_sprite()
 	if _hitbox != null and not _hitbox.body_entered.is_connected(_on_body_entered):
 		_hitbox.body_entered.connect(_on_body_entered)
 	if _home == Vector3.ZERO:
@@ -87,9 +97,26 @@ func _ready() -> void:
 	set_physics_process(not Engine.is_editor_hint())
 
 
+func _capture_idle_sprite() -> void:
+	if _idle_saved or _sprite == null:
+		return
+	_idle_billboard = _sprite.billboard
+	_idle_no_depth = _sprite.no_depth_test
+	_idle_render_priority = _sprite.render_priority
+	_idle_sprite_pos = _sprite.position
+	_idle_sprite_rot = _sprite.rotation_degrees
+	_idle_modulate = _sprite.modulate
+	_idle_saved = true
+
+
 ## stage — RallyStage (для поиска машины), eager — шаг на полотно навстречу,
 ## toward_road — горизонталь к оси трассы в мире.
 func setup(stage: Node, eager: bool = false, toward_road: Vector3 = Vector3.ZERO) -> void:
+	if not Engine.is_editor_hint():
+		add_to_group("rally_spectators")
+	_sprite = get_node_or_null("Sprite") as Sprite3D
+	_hitbox = get_node_or_null("Hitbox") as Area3D
+	_capture_idle_sprite()
 	_stage = stage
 	_eager = eager or start_eager
 	_road_toward = toward_road
@@ -105,6 +132,30 @@ func setup(stage: Node, eager: bool = false, toward_road: Vector3 = Vector3.ZERO
 
 func is_crushed() -> bool:
 	return _crushed
+
+
+func reset_person() -> void:
+	position = _home
+	if not _crushed:
+		return
+	_crushed = false
+	var puddle := get_node_or_null("BloodPuddle")
+	if puddle != null:
+		puddle.queue_free()
+	if _sprite != null:
+		_sprite.billboard = _idle_billboard
+		_sprite.no_depth_test = _idle_no_depth
+		_sprite.render_priority = _idle_render_priority
+		_sprite.pixel_size = pixel_size_idle
+		_sprite.position = _idle_sprite_pos
+		_sprite.rotation_degrees = _idle_sprite_rot
+		_sprite.modulate = _idle_modulate
+	if _hitbox != null:
+		if not _hitbox.body_entered.is_connected(_on_body_entered):
+			_hitbox.body_entered.connect(_on_body_entered)
+		_hitbox.monitoring = true
+		_hitbox.monitorable = true
+	set_physics_process(true)
 
 
 func _randomize_jacket() -> void:

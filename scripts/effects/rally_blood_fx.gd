@@ -770,6 +770,26 @@ func wipe_glass(strength: float = 0.5) -> void:
 		decal.modulate = tint_decal
 
 
+func clear_all() -> void:
+	for i in range(_splat_data.size()):
+		_splat_pos[i] = Vector3.ZERO
+		_splat_dir[i] = Vector3(0.0, 0.0, 1.0)
+		_splat_data[i] = Vector4.ZERO
+	_next_splat = 0
+	if not _splat_data.is_empty():
+		_write_splats()
+	for decal in _decals:
+		if is_instance_valid(decal):
+			decal.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_next_decal = 0
+	_glass_dirt = 0.0
+	_glass_wetness = 0.0
+	_wipe_clean = 0.0
+	_swept_max = 0.0
+	_wiper_pos = 0.0
+	_sync_glass_shader(0.0)
+
+
 func _prime_glass_smear(car: Node3D) -> void:
 	# Создаём и прогреваем прозрачный материал заранее, но не отмечаем стекло грязным.
 	_ensure_glass_smear(car, Vector3.ZERO)

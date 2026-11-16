@@ -70,6 +70,7 @@ var _terrain_cache = TerrainCache.new()
 var _scenery_height_cache = TerrainCache.new()
 var _terrain_task_id: int = -1
 var _stopping: bool = false
+var _restarting_focus: bool = false
 var _terrain_work_max_usec: int = 0
 var _terrain_upload_max_usec: int = 0
 var _terrain_collider_max_usec: int = 0
@@ -362,8 +363,59 @@ func _retire_one() -> bool:
 		return true
 	return false
 
+func is_area_ready(centre_pos: Vector3) -> bool:
+	if stage == null or stage.network == null:
+		return false
+	var distance: float = stage.network.distance_to_road(centre_pos.x, centre_pos.z)
+	var along: float = stage.network.along_road(centre_pos.x, centre_pos.z)
+	var road_id: int = floori(along / ROAD_LENGTH)
+	road_id = mini(road_id, ceili(stage.network.total_length / ROAD_LENGTH) - 1)
+	var needs_road: bool = distance <= stage.track.half_width_at(along) + stage.track.road_shoulder + 2.0
+	return tiles.has(_tile_key(centre_pos)) and (not needs_road or roads.has(road_id))
+
+
+func prepare_for_restart(start_pos_local: Vector3) -> void:
+	if _stopping or stage == null:
+		return
+	_restarting_focus = true
+	_holding_car = false
+	_saved_freeze = false
+	_saved_velocity = Vector3.ZERO
+	_saved_angular_velocity = Vector3.ZERO
+	_refresh_clock = 0.0
+	_last_position = start_pos_local
+	while _busy:
+		if _stopping or _clock == null:
+			_restarting_focus = false
+			return
+		await _clock.tick
+	_request(start_pos_local, LOAD_RADIUS)
+	while not is_area_ready(start_pos_local):
+		if _stopping or _clock == null:
+			_restarting_focus = false
+			return
+		if _busy:
+			await _clock.tick
+			continue
+		var next_idx := -1
+		for i in range(_pending.size()):
+			if _pending[i].kind != "decor":
+				next_idx = i
+				break
+		if next_idx < 0:
+			break
+		_jobs_since_retire = 0
+		await _run_job(next_idx)
+		if _stopping or _clock == null:
+			_restarting_focus = false
+			return
+		if not is_area_ready(start_pos_local):
+			await _clock.tick
+	_restarting_focus = false
+
+
 func _process(delta: float) -> void:
-	if _priming or _stopping or stage == null or not stage._stage_live or stage.car == null or stage.is_paused:
+	if _priming or _stopping or _restarting_focus or stage == null or not stage._stage_live or stage.car == null or stage.is_paused:
 		return
 	# Road/tile data is stage-local; this node itself remains stationary.
 	var car_pos: Vector3 = stage.to_local(stage.car.global_position)

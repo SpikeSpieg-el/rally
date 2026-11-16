@@ -146,6 +146,25 @@ func _reset_dirt_look() -> void:
 	_write_dirt_look()
 
 
+func clear_body_dirt() -> void:
+	amounts = Vector4.ZERO
+	damp = Vector4.ZERO
+	snow_amounts = Vector4.ZERO
+	_reset_dirt_look()
+	if _material != null:
+		_material.set_shader_parameter("dirt_amount", Vector4.ZERO)
+		_material.set_shader_parameter("damp_amount", Vector4.ZERO)
+		_material.set_shader_parameter("snow_amount", Vector4.ZERO)
+	for foam in _foams:
+		if is_instance_valid(foam):
+			foam.emitting = false
+			foam.restart()
+	for grit in _sprays:
+		if is_instance_valid(grit):
+			grit.emitting = false
+			grit.restart()
+
+
 ## Передать в шейдер цвет и вид пятна каждого колеса.
 func _write_dirt_look() -> void:
 	if _material == null or _dirt_colors.size() < 4 or _dirt_looks.size() < 4:

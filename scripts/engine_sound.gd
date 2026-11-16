@@ -869,3 +869,21 @@ func _camera_wind_gain() -> float:
 		2:
 			return cockpit_wind_boost_db
 	return 0.0
+
+
+func reset_state() -> void:
+	_load = 0.0
+	_prev_throttle = 0.0
+	_prev_gear = car.current_gear if car != null else 0
+	_boost = 0.0
+	_pop_cooldown = 0.0
+	_bov_cooldown = 0.0
+	_duck = 0.0
+	_slip_amount = 0.0
+	_timbre_gain_db = 0.0
+	_timbre_pitch = 1.0
+	_spray_surface_db = 0.0
+	for player in _event_players:
+		var event_audio := player as AudioStreamPlayer3D
+		if event_audio != null:
+			event_audio.stop()

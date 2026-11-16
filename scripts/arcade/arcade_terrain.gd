@@ -338,9 +338,17 @@ func prime(center_pos: Vector3) -> void:
 	var center_tile := _tile_key(center_pos)
 	_last_center_tile = center_tile
 	_refresh_wanted(center_tile)
+	while not _ready_queue.is_empty():
+		var ready_key: Vector2i = _ready_queue.pop_front()
+		if not _tiles.has(ready_key) and _prepared.has(ready_key):
+			_finish_tile(ready_key)
 	while not _pending.is_empty():
 		var key: Vector2i = _pending.pop_front()
-		if not _tiles.has(key):
+		if _tiles.has(key):
+			continue
+		if _prepared.has(key):
+			_finish_tile(key)
+		else:
 			_build_tile(key)
 
 
