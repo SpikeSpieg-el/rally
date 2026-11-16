@@ -42,16 +42,9 @@ extends Resource
 @export var start_button_text: String = "НА СТАРТ"
 @export var controls_button_text: String = "УПРАВЛЕНИЕ"
 @export var quit_button_text: String = "ВЫХОД"
-## Горячие клавиши быстрого выбора и текст подсказки внизу.
-@export var track_hotkey_count: int = 5
-@export var footer_keyboard: String = "F1-F5 — трасса  •  F6 — погода  •  F7 — характер трассы  •  F8 — новый сид «Живой ленты»  •  F9 — время суток  •  N — трек  •  M — радио.  Выбор сохраняется между заездами."
+## Подсказки внизу экрана.
+@export var footer_keyboard: String = "N — трек  •  M — радио.  Выбор сохраняется между заездами."
 @export var footer_gamepad: String = "Геймпад: [%s/%s] трасса  •  [%s] гараж  •  [%s] выход  •  радио — кнопки карточки  •  погода и сид — мышью"
-@export var hotkey_weather: Key = KEY_F6
-@export var hotkey_profile: Key = KEY_F7
-@export var hotkey_reroll: Key = KEY_F8
-@export var hotkey_time: Key = KEY_F9
-## Формат строки кнопки трассы: F-клавиша и название.
-@export var track_button_format: String = "F%d   %s"
 ## Сообщения о сиде (форматы — как в GDScript, «%d» подставит число).
 @export var seed_status_new: String = "Новый сид %d сохранён — трасса переплетается"
 @export var seed_status_invalid: String = "Сид — целое число от 1 до 999 999 999"

@@ -147,7 +147,7 @@ func _run() -> void:
 	var screen = stage.input_settings
 	ok = ok and screen != null and screen.visible and screen.can_process() and paused
 	stage.stage_time = 7.5
-	screen.tabs.current_tab = 2
+	screen.tabs.current_tab = 1
 	screen._begin_capture("clutch", "keyboard", 1)
 	var captured := InputEventKey.new()
 	captured.keycode = KEY_R

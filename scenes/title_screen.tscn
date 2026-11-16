@@ -21,16 +21,6 @@ shader_parameter/dither_strength = 0.65
 shader_parameter/speed_intensity = 0.0
 shader_parameter/vignette_strength = 0.1
 
-[sub_resource type="StyleBoxFlat" id="Primary"]
-content_margin_left = 26.0
-content_margin_right = 24.0
-bg_color = Color(0.95, 0.48, 0.12, 1)
-
-[sub_resource type="StyleBoxFlat" id="PrimaryHover"]
-content_margin_left = 26.0
-content_margin_right = 24.0
-bg_color = Color(1, 0.65, 0.25, 1)
-
 [sub_resource type="StyleBoxFlat" id="Secondary"]
 content_margin_left = 26.0
 content_margin_right = 24.0
@@ -114,47 +104,17 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 0
 
-[node name="Brand" type="Label" parent="Menu/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.63, 0.27, 1)
-theme_override_font_sizes/font_size = 17
-text = "R / 47     •     RALLY"
-
 [node name="TopSpace" type="Control" parent="Menu/Column"]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 0.7
 mouse_filter = 2
 
-[node name="Overline" type="Label" parent="Menu/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.64, 0.3, 1)
-theme_override_font_sizes/font_size = 16
-text = "ГЛАВНОЕ МЕНЮ     /     01"
-
 [node name="Title" type="Label" parent="Menu/Column"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.96, 0.92, 1)
 theme_override_font_sizes/font_size = 104
 text = "RALLY"
-
-[node name="Subtitle" type="Label" parent="Menu/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.73, 0.78, 0.73, 1)
-theme_override_font_sizes/font_size = 20
-text = "ДОРОГА НАЧИНАЕТСЯ ЗДЕСЬ"
-
-[node name="Rule" type="ColorRect" parent="Menu/Column"]
-custom_minimum_size = Vector2(0, 2)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.77, 0.83, 0.79, 0.24)
-
-[node name="Description" type="Label" parent="Menu/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.68, 0.75, 0.71, 1)
-theme_override_font_sizes/font_size = 17
-text = "Выбери трассу. Подготовь машину.\nОстальное решит дорога."
 
 [node name="ActionsSpace" type="Control" parent="Menu/Column"]
 custom_minimum_size = Vector2(0, 35)
@@ -174,11 +134,11 @@ theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
 theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
 theme_override_colors/font_focus_color = Color(0.08, 0.07, 0.05, 1)
 theme_override_font_sizes/font_size = 20
-theme_override_styles/normal = SubResource("Primary")
-theme_override_styles/hover = SubResource("PrimaryHover")
-theme_override_styles/pressed = SubResource("PrimaryHover")
+theme_override_styles/normal = SubResource("Secondary")
+theme_override_styles/hover = SubResource("SecondaryHover")
+theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "01     НАЧАТЬ ЗАЕЗД                         →"
+text = "НАЧАТЬ ЗАЕЗД"
 alignment = 0
 
 [node name="TestPadButton" type="Button" parent="Menu/Column/Actions"]
@@ -192,7 +152,7 @@ theme_override_styles/normal = SubResource("Secondary")
 theme_override_styles/hover = SubResource("SecondaryHover")
 theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "02     ТЕСТ-ПОЛИГОН"
+text = "ТЕСТ-ПОЛИГОН"
 alignment = 0
 
 [node name="SettingsButton" type="Button" parent="Menu/Column/Actions"]
@@ -206,7 +166,7 @@ theme_override_styles/normal = SubResource("Secondary")
 theme_override_styles/hover = SubResource("SecondaryHover")
 theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "03     НАСТРОЙКИ"
+text = "НАСТРОЙКИ"
 alignment = 0
 
 [node name="QuitButton" type="Button" parent="Menu/Column/Actions"]
@@ -220,7 +180,7 @@ theme_override_styles/normal = SubResource("Secondary")
 theme_override_styles/hover = SubResource("SecondaryHover")
 theme_override_styles/pressed = SubResource("SecondaryHover")
 theme_override_styles/focus = SubResource("Focus")
-text = "04     ВЫХОД"
+text = "ВЫХОД"
 alignment = 0
 
 [node name="BottomSpace" type="Control" parent="Menu/Column"]
@@ -228,8 +188,4 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="Footer" type="Label" parent="Menu/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.64, 0.59, 1)
-theme_override_font_sizes/font_size = 13
-text = "ENTER  ВЫБРАТЬ     ↑ ↓  НАВИГАЦИЯ"
+

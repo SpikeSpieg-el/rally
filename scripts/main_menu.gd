@@ -126,9 +126,9 @@ func _apply_theme() -> void:
 		if button != null:
 			button.add_theme_font_size_override("font_size", t.font_button_small)
 	if start_button != null:
-		start_button.add_theme_stylebox_override("normal", t.start_button_style())
-		start_button.add_theme_stylebox_override("hover", t.start_button_style())
-		start_button.add_theme_stylebox_override("pressed", t.start_button_style())
+		start_button.add_theme_stylebox_override("normal", t.button_style())
+		start_button.add_theme_stylebox_override("hover", t.button_hover_style())
+		start_button.add_theme_stylebox_override("pressed", t.button_hover_style())
 	if footer_label != null:
 		footer_label.add_theme_color_override("font_color", t.text_muted)
 
@@ -218,7 +218,7 @@ func _build_buttons() -> void:
 			var t := theme_cfg()
 			var button := Button.new()
 			button.name = "TrackButton_%d" % i
-			button.text = layout().track_button_format % [i + 1, track.display_name]
+			button.text = track.display_name
 			button.tooltip_text = track.description
 			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			button.custom_minimum_size = Vector2(0, t.track_button_height)
@@ -808,38 +808,6 @@ func _on_seed_copy_pressed() -> void:
 	DisplayServer.clipboard_set(str(track.generation_seed))
 	if _seed_status != null:
 		_seed_status.text = layout().seed_status_copied % track.generation_seed
-
-
-## Горячие клавиши меню: F1–F5 — трассы, F6 — погода, F7 — характер,
-## F8 — новый сид «Живой ленты». Раньше F1–F5 были только в подписи.
-func _input(event: InputEvent) -> void:
-	if _transitioning:
-		return
-	if input_settings != null and input_settings.blocks_actions():
-		return
-	if garage != null and garage.visible:
-		return
-	var key := event as InputEventKey
-	if key == null or not key.pressed or key.echo:
-		return
-	var cfg := layout()
-	var code: int = key.keycode
-	# Горячие клавиши трасс: F1..F1+track_hotkey_count (число — из инспектора).
-	if code >= KEY_F1 and code < KEY_F1 + cfg.track_hotkey_count:
-		_select_track_shortcut(code - KEY_F1)
-		get_viewport().set_input_as_handled()
-		return
-	if code == cfg.hotkey_weather:
-		_cycle_choice(true)
-	elif code == cfg.hotkey_profile:
-		_cycle_choice(false)
-	elif code == cfg.hotkey_time:
-		_cycle_time()
-	elif code == cfg.hotkey_reroll:
-		_on_seed_reroll_pressed()
-	else:
-		return
-	get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:

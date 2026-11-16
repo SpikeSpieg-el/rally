@@ -252,7 +252,6 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	_rebuild_selector()
 	show()
 	_select_setup(clampi(index, 0, maxi(0, _setup_count() - 1)))
-	_start.grab_focus()
 
 
 ## Машины в порядке реестра: индекс пункта = индекс в data/vehicles.

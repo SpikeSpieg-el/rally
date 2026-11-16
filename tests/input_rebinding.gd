@@ -107,7 +107,7 @@ func _run() -> void:
 	root.add_child(menu)
 	menu._open_input_settings()
 	var screen = menu.input_settings
-	check(screen.visible and screen.tabs.get_tab_count() == 3, "настройки открыты из главного меню, есть отдельные вкладки")
+	check(screen.visible and screen.tabs.get_tab_count() == 4, "настройки открыты из главного меню: графика, управление, геймпад, камера")
 	await process_frame
 	# Геймпадом можно выбрать вкладку, но нельзя вывести фокус под модальное окно.
 	screen.tabs.get_tab_bar().grab_focus()
@@ -117,11 +117,10 @@ func _run() -> void:
 	screen.tabs.get_tab_bar().grab_focus()
 	await send(button(JOY_BUTTON_DPAD_RIGHT))
 	await send(button(JOY_BUTTON_DPAD_RIGHT, false))
-	check(screen.tabs.current_tab == 1, "вкладка привязок геймпада выбирается с геймпада")
-	await send(button(JOY_BUTTON_DPAD_RIGHT))
-	await send(button(JOY_BUTTON_DPAD_RIGHT, false))
-	check(screen.tabs.current_tab == 2, "вкладка клавиатуры выбирается с геймпада")
-	screen.tabs.current_tab = 2
+	check(screen.tabs.current_tab == 1, "вкладка управления выбрана с геймпада")
+	screen.tabs.current_tab = 1
+	# Вкладке управления устройство выбирается кнопкой, а не перелистыванием вкладок.
+	screen._device_keyboard_button.pressed.emit()
 	screen._begin_capture("clutch", "keyboard", 1)
 	screen._input(key(KEY_G))
 	check((service.call("get_binding", "clutch", "keyboard", 1) as Dictionary).code == KEY_G, "окно сохраняет введённую клавишу")
@@ -131,7 +130,7 @@ func _run() -> void:
 	screen._begin_capture("clutch", "keyboard", 1)
 	screen._input(key(KEY_BACKSPACE))
 	check(service.call("get_binding", "clutch", "keyboard", 1) == null, "Backspace очищает выбранный слот")
-	screen.tabs.current_tab = 1
+	screen._device_gamepad_button.pressed.emit()
 	screen._begin_capture("clutch", "gamepad", 1)
 	screen._input(axis(JOY_AXIS_LEFT_Y, -0.2))
 	check(not screen.capture_action.is_empty(), "дрейф оси не назначается")
