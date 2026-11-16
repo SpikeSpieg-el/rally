@@ -234,6 +234,14 @@ class ArcadeSceneTest(unittest.TestCase):
         )
         self.assertEqual(gdtype_check.check_file(correct), [])
 
+    def test_game_settings_is_preloaded_in_arcade_stage(self):
+        text = _text(STAGE)
+        if 'GameSettings.' in text:
+            self.assertRegex(
+                text,
+                r'(?m)^const\s+GameSettings\s*=\s*preload\(\s*"res://scripts/ui/game_settings\.gd"\s*\)',
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

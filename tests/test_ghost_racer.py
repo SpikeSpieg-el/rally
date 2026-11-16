@@ -219,6 +219,83 @@ class GhostRacerDeliverablesTest(unittest.TestCase):
         self.assertIn("RallyGhostLook", doc)
         self.assertIn("RallyDeltaWidget", doc)
 
+    def test_godot47_parse_and_runtime_contracts(self):
+        rig = read("scripts/ghost/ghost_car_rig.gd")
+        self.assertNotIn("CULL_MODE_DISABLED", rig)
+        self.assertIn("BaseMaterial3D.CULL_DISABLED", rig)
+        self.assertNotIn("FeelConfigType.load_default", rig)
+        self.assertIn('res://data/car/default_car_feel.tres', rig)
+        self.assertIn('src.get("feel")', rig)
+        self.assertIn("ghost_src_mat", rig)
+        self.assertIn("245.0", rig)
+
+        ghost_look = read("scripts/effects/rally_ghost_look.gd")
+        self.assertIn('setup_res.get("livery")', ghost_look)
+
+        arcade = read("scripts/arcade/arcade_stage.gd")
+        self.assertIn(
+            'const GameSettings = preload("res://scripts/ui/game_settings.gd")',
+            arcade,
+        )
+        self.assertIn("GameSettings.apply_display(", arcade)
+
+        # Проверяем, что ни один скрипт в scripts/ не вызывает несуществующий static метод
+        # или отсутствующий enum через const Alias = preload("res://...gd").
+        gd_files = sorted((ROOT / "scripts").rglob("*.gd"))
+        static_funcs_by_rel = {}
+        enums_by_rel = {}
+        for gd in gd_files:
+            rel = gd.relative_to(ROOT).as_posix()
+            txt = gd.read_text(encoding="utf-8", errors="ignore")
+            static_funcs_by_rel[rel] = set(
+                re.findall(r"^static\s+func\s+(\w+)\s*\(", txt, re.M)
+            )
+            enum_map = {}
+            for em in re.finditer(r"^enum\s+(\w+)\s*\{([^}]*)\}", txt, re.M | re.S):
+                members = set()
+                for line in em.group(2).splitlines():
+                    line = line.split("#")[0].strip()
+                    for tok in line.split(","):
+                        tok = tok.strip().split("=")[0].strip()
+                        if tok:
+                            members.add(tok)
+                enum_map[em.group(1)] = members
+            enums_by_rel[rel] = enum_map
+
+        for gd in gd_files:
+            rel = gd.relative_to(ROOT).as_posix()
+            txt = "\n".join(
+                line.split("#")[0]
+                for line in gd.read_text(encoding="utf-8", errors="ignore").splitlines()
+            )
+            for am in re.finditer(
+                r'^const\s+(\w+)\s*=\s*preload\(\s*"res://([^"]+\.gd)"\s*\)',
+                txt,
+                re.M,
+            ):
+                alias, target = am.group(1), am.group(2)
+                if target not in static_funcs_by_rel:
+                    continue
+                for cm in re.finditer(rf"(?<![.\w]){re.escape(alias)}\.(\w+)\s*\(", txt):
+                    meth = cm.group(1)
+                    if meth == "new":
+                        continue
+                    self.assertIn(
+                        meth,
+                        static_funcs_by_rel[target],
+                        f"{rel}: {alias}.{meth}() не является static func в {target}",
+                    )
+                for em in re.finditer(
+                    rf"(?<![.\w]){re.escape(alias)}\.(\w+)\.(\w+)\b", txt
+                ):
+                    en, ev = em.group(1), em.group(2)
+                    if en in enums_by_rel[target]:
+                        self.assertIn(
+                            ev,
+                            enums_by_rel[target][en],
+                            f"{rel}: {alias}.{en}.{ev} не найден в {target}",
+                        )
+
 
 if __name__ == "__main__":
     unittest.main()

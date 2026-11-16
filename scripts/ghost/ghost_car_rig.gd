@@ -11,6 +11,7 @@ const GhostShader = preload("res://shaders/ghost_car.gdshader")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
+const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 
 const SKIP_NODES := [
 	"RallyCockpit",
@@ -98,15 +99,21 @@ func build_from_scene_path(
 	_built_livery = livery_index
 	_built_paint = paint_col
 
-	var front_r: float = float(src.get("front_tire_radius")) if src.get("front_tire_radius") != null else 0.34
-	var rear_r: float = float(src.get("rear_tire_radius")) if src.get("rear_tire_radius") != null else 0.34
-	var front_w: float = float(src.get("front_tire_width")) if src.get("front_tire_width") != null else 0.245
-	var rear_w: float = float(src.get("rear_tire_width")) if src.get("rear_tire_width") != null else 0.245
-	var visual_r: float = float(src.get("wheel_visual_radius")) if src.get("wheel_visual_radius") != null else 0.393
-	var align_wheels: bool = bool(src.get("align_model_to_wheels")) if src.get("align_model_to_wheels") != null else true
-	var feel_cfg: FeelConfigType = src.get("feel_config") as FeelConfigType
+	var visual_r: float = float(src.get("wheel_visual_radius")) if src.get("wheel_visual_radius") != null else 0.438
+	var raw_front_r: Variant = src.get("front_tire_radius")
+	var raw_rear_r: Variant = src.get("rear_tire_radius")
+	var front_r: float = visual_r if (raw_front_r == null or is_equal_approx(float(raw_front_r), 0.3)) else float(raw_front_r)
+	var rear_r: float = visual_r if (raw_rear_r == null or is_equal_approx(float(raw_rear_r), 0.3)) else float(raw_rear_r)
+	var raw_front_w: Variant = src.get("front_tire_width")
+	var raw_rear_w: Variant = src.get("rear_tire_width")
+	var front_w: float = 245.0 if raw_front_w == null else (float(raw_front_w) * 1000.0 if float(raw_front_w) < 10.0 else float(raw_front_w))
+	var rear_w: float = 245.0 if raw_rear_w == null else (float(raw_rear_w) * 1000.0 if float(raw_rear_w) < 10.0 else float(raw_rear_w))
+	var align_wheels: bool = bool(src.get("align_model_to_wheels")) if src.get("align_model_to_wheels") != null else false
+	var feel_cfg: FeelConfigType = src.get("feel") as FeelConfigType
+	if feel_cfg == null and ResourceLoader.exists(DEFAULT_FEEL_PATH):
+		feel_cfg = ResourceLoader.load(DEFAULT_FEEL_PATH) as FeelConfigType
 	if feel_cfg == null:
-		feel_cfg = FeelConfigType.load_default() as FeelConfigType
+		feel_cfg = FeelConfigType.new()
 
 	var body_path_var: Variant = src.get("body_model_path")
 	var src_body: Node3D = null
@@ -360,7 +367,7 @@ func _setup_trail_node() -> void:
 	_trail_mat = StandardMaterial3D.new()
 	_trail_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_trail_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_trail_mat.cull_mode = BaseMaterial3D.CULL_MODE_DISABLED
+	_trail_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_trail_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	_trail_mat.vertex_color_use_as_albedo = true
 	_trail_mat.no_depth_test = false
@@ -663,11 +670,13 @@ func _emit_ribbon(key: String, half_w: float, base_col: Color, max_alpha: float)
 
 
 static func _source_material_of(mesh_node: MeshInstance3D) -> Material:
-	if mesh_node.material_override != null:
-		return mesh_node.material_override
-	if mesh_node.mesh != null and mesh_node.mesh.get_surface_count() > 0:
-		return mesh_node.mesh.surface_get_material(0)
-	return null
+	if mesh_node.has_meta(&"ghost_src_mat"):
+		return mesh_node.get_meta(&"ghost_src_mat") as Material
+	var found: Material = mesh_node.material_override
+	if found == null and mesh_node.mesh != null and mesh_node.mesh.get_surface_count() > 0:
+		found = mesh_node.mesh.surface_get_material(0)
+	mesh_node.set_meta(&"ghost_src_mat", found)
+	return found
 
 
 static func _relative_transform(node: Node, root: Node3D) -> Transform3D:

@@ -39,6 +39,7 @@ const ScreenLookType = preload("res://scripts/effects/rally_screen_look.gd")
 const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
 const GaugeBar = preload("res://scripts/ui/gauge_bar.gd")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 
 const DEFAULT_TRACK_PATH := "res://data/tracks/stage_arcade.tres"
 const DEFAULT_SETTINGS_PATH := "res://data/stage/default_stage_settings.tres"

@@ -580,7 +580,9 @@ func _fill_car_setup_meta(rec: GhostRecording, car_node: Node3D) -> void:
 		var sid: Variant = setup_res.get("id")
 		if sid != null:
 			rec.setup_id = String(sid)
-		var liv: Variant = setup_res.get("livery_index")
+		var liv: Variant = setup_res.get("livery")
+		if liv == null:
+			liv = setup_res.get("livery_index")
 		if liv != null:
 			rec.livery_index = int(liv)
 		var p_col: Variant = setup_res.get("body_color")
