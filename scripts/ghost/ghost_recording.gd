@@ -614,6 +614,7 @@ static func _pack_vec3(arr: PackedVector3Array) -> PackedFloat32Array:
 
 
 static func _unpack_vec3(floats: PackedFloat32Array) -> PackedVector3Array:
+	@warning_ignore("integer_division")
 	var count: int = floats.size() / 3
 	var out := PackedVector3Array()
 	out.resize(count)
