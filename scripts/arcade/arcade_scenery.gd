@@ -895,19 +895,28 @@ func _baked_mesh(key: String) -> Mesh:
 	var out_mesh := ArrayMesh.new()
 	for g in range(mats.size()):
 		var group: Array = groups[g] as Array
+		var v_arr: PackedVector3Array = group[0] as PackedVector3Array
+		if v_arr.is_empty():
+			continue
 		var surface: Array = []
 		surface.resize(Mesh.ARRAY_MAX)
-		surface[Mesh.ARRAY_VERTEX] = group[0]
+		surface[Mesh.ARRAY_VERTEX] = v_arr
 		surface[Mesh.ARRAY_NORMAL] = group[1]
 		surface[Mesh.ARRAY_TEX_UV] = group[2]
 		surface[Mesh.ARRAY_INDEX] = group[3]
 		out_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface)
+		var surf_idx: int = out_mesh.get_surface_count() - 1
+		if surf_idx < 0:
+			continue
 		var mat_entry = mats[g]
 		if mat_entry != null:
 			mat_entry = (mat_entry as Material).duplicate()
 			if mat_entry is BaseMaterial3D and ps1_filter:
 				(mat_entry as BaseMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-		out_mesh.surface_set_material(g, mat_entry)
+		out_mesh.surface_set_material(surf_idx, mat_entry)
+	if out_mesh.get_surface_count() == 0:
+		_mesh_cache[key] = null
+		return null
 	_mesh_cache[key] = out_mesh
 	return out_mesh
 
@@ -970,5 +979,9 @@ static func _collect_surfaces(
 				else:
 					for idx in src_idx:
 						i_out.append(base + int(idx))
+				group[0] = v_out
+				group[1] = n_out
+				group[2] = uv_out
+				group[3] = i_out
 	for child in node.get_children():
 		_collect_surfaces(child, mats, groups, xform)

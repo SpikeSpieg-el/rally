@@ -153,6 +153,22 @@ class ArcadeWorldTest(unittest.TestCase):
         self.assertLessEqual(verge_w, 10.0, 'VERGE_WIDTH слишком велик и налезет на встречный виток шпильки')
         self.assertIn('bridge_deck_factor', text)
 
+    def test_baked_mesh_writeback_and_button_focus_mode(self):
+        scenery = _text(SCENERY)
+        for required in (
+            'group[0] = v_out',
+            'group[1] = n_out',
+            'group[2] = uv_out',
+            'group[3] = i_out',
+            'if v_arr.is_empty():',
+            'out_mesh.get_surface_count() == 0',
+        ):
+            self.assertIn(required, scenery, f'arcade_scenery.gd missing {required}')
+
+        stage = _text(STAGE)
+        self.assertIn('_again_button.focus_mode = Control.FOCUS_ALL', stage)
+        self.assertIn('_resume_button.focus_mode = Control.FOCUS_ALL', stage)
+
     def test_new_scripts_pass_gdtype_check(self):
         for path in (TERRAIN, SCENERY, TRAFFIC, PEDESTRIANS, RULES, SETTINGS_SCRIPT, STAGE, CHUNK, STREAMER):
             issues = gdtype_check.check_file(_text(path))
