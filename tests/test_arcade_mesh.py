@@ -10,9 +10,12 @@
    шейпера и проверяется численно.
 
 2. Разметка. При одной широкой полосе на центр цвет размазывался по всей её
-   ширине, и пунктир не читался. Теперь краска — отдельные узкие ряды, и
-   проверяется, что полосы идут строго слева направо и что краска на них
-   действительно попадает.
+   ширине, и пунктир не читался. Теперь краска — отдельные узкие ряды, а
+   рядом с каждой линией стоит асфальтовая колонка-отступ (PAINT_FADE):
+   без неё белый цвет вершин тянулся градиентом через полдороги, и каждый
+   штрих выглядел светлой полосой поперёк всего полотна. Проверяется, что
+   полосы идут строго слева направо и что краска на них действительно
+   попадает.
 
 Запуск: python3 -m unittest tests.test_arcade_mesh
 """
@@ -48,14 +51,17 @@ class WindingTest(unittest.TestCase):
         cls.spread = [float(v) for v in spreads.split(',')]
         cls.road_lanes = int(re.search(r'const ROAD_LANES := (\d+)', text).group(1))
         cls.verge_lanes = int(re.search(r'const VERGE_LANES := (\d+)', text).group(1))
+        cls.paint_fade = _number(text, r'const PAINT_FADE: float = ([\d.]+)')
         cls.flips = 'for i in range(0, indices.size(), 3)' in text
 
     def _laterals(self, half):
+        lane_line = max(half * 0.9, self.line_half * 4.0)
+        fade = self.paint_fade
         return [
             -(half + self.shoulder + self.edge), -(half + self.shoulder), -half,
-            -self.line_half, self.line_half,
-            max(half * 0.5, self.line_half * 4.0) - self.line_half,
-            max(half * 0.5, self.line_half * 4.0) + self.line_half,
+            -(self.line_half + fade), -self.line_half, self.line_half, self.line_half + fade,
+            lane_line - fade, lane_line - self.line_half, lane_line + self.line_half,
+            lane_line + fade,
             half + self.shoulder, half + self.shoulder + self.edge,
         ]
 
@@ -134,20 +140,40 @@ class MarkingTest(unittest.TestCase):
         cls.lane_on = _number(text, r'const LANE_DASH_ON: float = ([\d.]+)')
         cls.lane_period = _number(text, r'const LANE_DASH_PERIOD: float = ([\d.]+)')
         cls.lift = _number(text, r'const PAINT_LIFT: float = ([\d.]+)')
+        cls.paint_fade = _number(text, r'const PAINT_FADE: float = ([\d.]+)')
 
     def test_laterals_are_strictly_ordered(self):
         # Разметка — отдельные пары рядов; если порядок сбит, треугольники
-        # вывернутся и краска исчезнет.
+        # вывернутся и краска исчезнет. Отступы краски не должны налезать
+        # друг на друга: между осевой и линией полосы остаётся асфальт.
         text = self.text
         half = 3.6
         shoulder = half + 1.2
         outer = shoulder + 1.1
-        lane_line = max(half * 0.5, self.line_half * 4.0)
-        laterals = [-outer, -shoulder, -half, -self.line_half, self.line_half,
-                    lane_line - self.line_half, lane_line + self.line_half,
-                    shoulder, outer]
+        lane_line = max(half * 0.9, self.line_half * 4.0)
+        fade = self.paint_fade
+        laterals = [
+            -outer, -shoulder, -half,
+            -(self.line_half + fade), -self.line_half, self.line_half, self.line_half + fade,
+            lane_line - fade, lane_line - self.line_half, lane_line + self.line_half,
+            lane_line + fade,
+            shoulder, outer,
+        ]
         for a, b in zip(laterals, laterals[1:]):
             self.assertLess(a, b, 'координаты полос полотна не по порядку')
+        # Отступ краски узкий: он не дотягивается до соседней линии, иначе
+        # градиент снова размажет краску по полдороги.
+        self.assertLess(self.line_half + fade, lane_line - fade,
+                        'отступ краски осевой дорос до линии полосы')
+
+    def test_paint_fade_is_local(self):
+        # Смысл фикса полосатости: асфальтовая колонка стоит рядом с краской,
+        # поэтому белая градиентная «шлейф» не накрывает соседние ряды.
+        self.assertIsNotNone(self.paint_fade, 'нет колонки-отступа PAINT_FADE')
+        self.assertGreater(self.paint_fade, self.line_half,
+                           'отступ уже линии — краска будет резкой ступенькой')
+        self.assertLess(self.paint_fade, 1.0,
+                        'отступ слишком велик — краска снова размажется по дороге')
 
     def test_paint_is_narrower_than_the_road(self):
         half = 3.6

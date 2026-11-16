@@ -82,6 +82,12 @@ func warm_up() -> void:
 	_ensure_shared_materials()
 
 
+## Сколько стадий декора чанка: лес, отбойники, столбики, инфраструктура,
+## мосты/реки, деревни. Стример строит их отдельными ступенями бюджета,
+## чтобы сборка чанка не съедала кадр целиком.
+const STAGE_COUNT: int = 6
+
+
 func decorate_chunk(
 	chunk_root: Node3D,
 	start_along: float,
@@ -90,16 +96,45 @@ func decorate_chunk(
 	terrain,
 	edge_post_color: Color
 ) -> void:
+	for stage in range(STAGE_COUNT):
+		decorate_stage(chunk_root, stage, start_along, end_along, seed_value, terrain, edge_post_color)
+
+
+## Одна стадия декора (0..STAGE_COUNT-1). Корень «Scenery» создаётся лениво:
+## стример вызывает стадии по одной, между кадрами чанк существует уже без них.
+func decorate_stage(
+	chunk_root: Node3D,
+	stage: int,
+	start_along: float,
+	end_along: float,
+	seed_value: int,
+	terrain,
+	edge_post_color: Color
+) -> void:
+	var scenery_root := _ensure_root(chunk_root)
+	match stage:
+		0:
+			_place_forest_and_undergrowth(scenery_root, start_along, end_along, seed_value, terrain)
+		1:
+			_place_guardrails(scenery_root, start_along, end_along, seed_value, terrain)
+		2:
+			_place_edge_posts(scenery_root, start_along, end_along, seed_value, terrain, edge_post_color)
+		3:
+			_place_roadside_infra(scenery_root, start_along, end_along, seed_value, terrain)
+		4:
+			_place_bridges_and_rivers(scenery_root, start_along, end_along, seed_value, terrain)
+		5:
+			_place_villages(scenery_root, start_along, end_along, seed_value, terrain)
+
+
+func _ensure_root(chunk_root: Node3D) -> Node3D:
+	for child in chunk_root.get_children():
+		if child is Node3D and (child as Node3D).name == "Scenery":
+			return child as Node3D
 	var scenery_root := Node3D.new()
 	scenery_root.name = "Scenery"
 	chunk_root.add_child(scenery_root)
-
-	_place_forest_and_undergrowth(scenery_root, start_along, end_along, seed_value, terrain)
-	_place_guardrails(scenery_root, start_along, end_along, seed_value, terrain)
-	_place_edge_posts(scenery_root, start_along, end_along, seed_value, terrain, edge_post_color)
-	_place_roadside_infra(scenery_root, start_along, end_along, seed_value, terrain)
-	_place_bridges_and_rivers(scenery_root, start_along, end_along, seed_value, terrain)
-	_place_villages(scenery_root, start_along, end_along, seed_value, terrain)
+	return scenery_root
 
 
 # --------------------------------------------------------- лес и подлесок

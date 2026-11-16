@@ -57,6 +57,11 @@ enum Kind {
 ## левый и правый сосед могут предсказать границы друг друга.
 static func plan(leg_index: int, seed_value: int) -> Array[Kind]:
 	var result: Array[Kind] = []
+	if leg_index < 0:
+		# Виртуальный участок «до старта» нужен только для непрерывности
+		# ширины полотна на километре 0: пусть это будет нейтральный просёлок.
+		result.append(Kind.COUNTRY)
+		return result
 	var roll: float = RallyArcadeRoad.roll(leg_index, seed_value, 101)
 	# Серпантин — почти каждый третий-четвёртый участок: это «лицо» режима,
 	# но между ними дорога должна дышать и разгоняться.

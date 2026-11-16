@@ -216,7 +216,12 @@ func step(delta: float, player_along: float, player_pos: Vector3, player_vel: Ve
 
 		# 4. Точная посадка на полотно с уклоном, поворотом и вращением колёс.
 		var speed_factor: float = clampf(unit.current_speed / 4.5, 0.0, 1.0)
-		var target_steer_yaw: float = clampf(-lateral_vel * unit.lane_dir * 0.11 * speed_factor, -0.16, 0.16)
+		# Нос наклоняется В СТОРОНУ бокового смещения (машина рулит, а не
+		# скользит «крабом»): положительный steer_yaw в Godot всегда крутит
+		# нос к собственной левой стороне, а смещение к обочине тоже всегда
+		# идёт к своей левой — поэтому знак даёт произведение
+		# lateral_vel * lane_dir, без инверсии.
+		var target_steer_yaw: float = clampf(lateral_vel * unit.lane_dir * 0.11 * speed_factor, -0.16, 0.16)
 		unit.smooth_steer_yaw = move_toward(unit.smooth_steer_yaw, target_steer_yaw, 1.1 * delta)
 		_apply_transform(unit, actual_lat, unit.smooth_steer_yaw)
 		_update_lights_and_wheels(unit, delta, braking, absf(unit.along - player_along))

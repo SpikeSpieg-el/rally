@@ -8,6 +8,7 @@ class_name RallyArcadeStreamer
 extends Node3D
 
 const ChunkType = preload("res://scripts/arcade/arcade_chunk.gd")
+const SceneryType = preload("res://scripts/arcade/arcade_scenery.gd")
 
 ## Длина одного чанка, м. Должна делить LEG_LENGTH (260) нацело.
 const CHUNK_LENGTH: float = 130.0
@@ -26,7 +27,10 @@ var scenery = null
 var chunk_style: Dictionary = {}
 
 var _chunks: Dictionary = {}
-var _queue: Array[int] = []
+## Незаконченные сборки: (поверхность готова, декор по стадиям).
+var _builds: Dictionary = {}
+## Очередь заданий (ключ чанка, стадия): 0 — поверхность, 1..6 — декор.
+var _queue: Array[Vector2i] = []
 var _last_center: int = -9999
 var _generated_count: int = 0
 
@@ -49,6 +53,7 @@ func setup(
 	for child in get_children():
 		child.queue_free()
 	_chunks.clear()
+	_builds.clear()
 	_queue.clear()
 	_last_center = -9999
 
@@ -70,13 +75,14 @@ func _refresh_wanted(center: int) -> void:
 		if not wanted.has(key):
 			var node: Variant = _chunks[key]
 			_chunks.erase(key)
+			_builds.erase(key)
 			if is_instance_valid(node):
 				(node as Node).queue_free()
 	_queue.clear()
 	for offset in range(0, LOOKAHEAD + 1):
 		var key: int = center + offset
 		if not is_ready(float(key) * CHUNK_LENGTH):
-			_queue.append(key)
+			_queue.append(Vector2i(key, 0))
 	_queue.sort()
 
 
@@ -88,7 +94,11 @@ func prime(behind: float, ahead_chunks: int) -> void:
 		var key: int = center + offset
 		if key < 0 or is_ready(float(key) * CHUNK_LENGTH):
 			continue
+		# Синхронно: поверхность + все стадии декора.
 		_build(key)
+		var materials: Dictionary = _build_materials()
+		for stage in range(1, SceneryType.STAGE_COUNT + 1):
+			_run_stage(key, stage, materials)
 
 
 func ready_chunks() -> int:
@@ -109,10 +119,21 @@ func _process(_delta: float) -> void:
 		return
 	var started: int = Time.get_ticks_usec()
 	while not _queue.is_empty() and Time.get_ticks_usec() - started < BUDGET_USEC:
-		var key: int = _queue.pop_front()
-		if is_ready(float(key) * CHUNK_LENGTH):
+		var job: Vector2i = _queue.pop_front()
+		var key: int = job.x
+		var stage: int = job.y
+		if not _chunks.has(key) and not _builds.has(key):
 			continue
-		_build(key)
+		if stage == 0:
+			if _chunks.has(key):
+				continue
+			_build(key)
+			# Декор добирается стадиями: вставляем в голову очереди, чтобы
+			# чанк доделывался целиком раньше следующего.
+			for next_stage in range(SceneryType.STAGE_COUNT, 0, -1):
+				_queue.push_front(Vector2i(key, next_stage))
+		else:
+			_run_stage(key, stage, _build_materials())
 
 
 func covered_ahead(from_distance: float) -> float:
@@ -130,18 +151,9 @@ func _build(key: int) -> void:
 	var end_along: float = start_along + CHUNK_LENGTH
 	if terrain != null and terrain.has_method("sync_road_to"):
 		terrain.sync_road_to(end_along + CHUNK_LENGTH)
-	var materials: Dictionary = {
-		"road": road_material,
-		"ground": ground_material,
-		"terrain": terrain,
-		"scenery": scenery,
-		"road_color": chunk_style.get("road_color", Color(0.22, 0.22, 0.24)),
-		"road_color_2": chunk_style.get("road_color_2", Color(0.29, 0.29, 0.31)),
-		"shoulder_color": chunk_style.get("shoulder_color", Color(0.31, 0.26, 0.18)),
-		"edge_post_color": chunk_style.get("edge_post_color", Color(0.88, 0.14, 0.10)),
-		"loose_surface": bool(chunk_style.get("loose_surface", false)),
-	}
-	var built := ChunkType.build(start_along, end_along, arcade_seed, materials)
+	var materials: Dictionary = _build_materials()
+	# Только поверхность: дорога сразу ездабельна, декор доедет стадиями.
+	var built := ChunkType.build_surface(start_along, end_along, arcade_seed, materials)
 	built.root.name = "Chunk%d" % key
 	add_child(built.root)
 	for i in range(built.shapes.size()):
@@ -156,4 +168,31 @@ func _build(key: int) -> void:
 			body.add_to_group("Grass")
 		built.root.add_child(body)
 	_chunks[key] = built.root
+	_builds[key] = built
 	_generated_count += 1
+
+
+## Материалы/настройки для сборки: одни и те же для поверхности и стадий.
+func _build_materials() -> Dictionary:
+	return {
+		"road": road_material,
+		"ground": ground_material,
+		"terrain": terrain,
+		"scenery": scenery,
+		"road_color": chunk_style.get("road_color", Color(0.22, 0.22, 0.24)),
+		"road_color_2": chunk_style.get("road_color_2", Color(0.29, 0.29, 0.31)),
+		"shoulder_color": chunk_style.get("shoulder_color", Color(0.31, 0.26, 0.18)),
+		"edge_post_color": chunk_style.get("edge_post_color", Color(0.88, 0.14, 0.10)),
+		"loose_surface": bool(chunk_style.get("loose_surface", false)),
+	}
+
+
+## Выполнить одну стадию декора чанка. Пустой вызов (чанк уже выгружен)
+## безопасен.
+func _run_stage(key: int, stage: int, materials: Dictionary) -> void:
+	var built: Variant = _builds.get(key, null)
+	if built == null or not is_instance_valid(_chunks.get(key)):
+		return
+	ChunkType.decorate_stage(built as ChunkType.Build, stage, materials)
+	if stage >= SceneryType.STAGE_COUNT:
+		_builds.erase(key)

@@ -15,6 +15,7 @@ class_name RallyArcadeChunk
 extends RefCounted
 
 const RoadType = preload("res://scripts/arcade/arcade_road.gd")
+const SceneryType = preload("res://scripts/arcade/arcade_scenery.gd")
 
 ## Обочина, м (как road_shoulder в раллийных трассах).
 const SHOULDER: float = 1.2
@@ -39,11 +40,18 @@ const MAX_HOUSES: int = 24
 ## Пунктир осевой линии: штрих и период, м.
 const DASH_ON: float = 4.5
 const DASH_PERIOD: float = 9.0
-## Полосы поперёк полотна: край, обочина, кромка, у разметки, центр,
-## у разметки, кромка, обочина, край.
-const ROAD_LANES := 9
+## Полосы поперёк полотна: край, обочина, кромка, отступ от краски,
+## осевая (2 колонки), отступ, линия полосы (2 колонки), отступ,
+## обочина, край. Отступные асфальтовые колонки держат градиент краски
+## в узкой ленте: без них белый цвет вершин размазывался градиентом
+## на 4–5 м в стороны, и каждый штрих пунктира выглядел широкой
+## светлой полосой поперёк всей дороги.
+const ROAD_LANES := 13
 ## Полуширина дорожной разметки, м.
 const LINE_HALF: float = 0.09
+## Отступ асфальтовой колонки от линии разметки, м: ширина мягкого края
+## краски. Должен быть заметно меньше расстояния до соседней линии.
+const PAINT_FADE: float = 0.42
 ## Пунктир правой (встречной) полосы: штрих и период, м.
 const LANE_DASH_ON: float = 3.0
 const LANE_DASH_PERIOD: float = 7.0
@@ -104,26 +112,58 @@ class Build:
 	var shapes: Array[ConcavePolygonShape3D] = []
 	## Тип поверхности каждого коллайдера: "road" или "grass", в том же порядке.
 	var kinds: Array[String] = []
+	## Километраж и сид, по которым чанк собран: стадии декора вызываются
+	## позже, поэтому им нужно то же «задание».
+	var start_along: float = 0.0
+	var end_along: float = 0.0
+	var seed_value: int = 0
 
 
 ## Собрать чанк, покрывающий километраж [start_along, end_along).
+## Полная сборка (поверхность + весь декор) — для прямых вызовов;
+## стример использует `build_surface` + `decorate_stage` по стадиям.
 static func build(
+	start_along: float, end_along: float, seed_value: int, materials: Dictionary
+) -> Build:
+	var out := build_surface(start_along, end_along, seed_value, materials)
+	for stage in range(SceneryType.STAGE_COUNT):
+		decorate_stage(out, stage, materials)
+	return out
+
+
+## Только полотно, юбка и переходы: дорога уже ездабельна, декор добирается
+## стадиями. Это самая дорогая часть чанка, и именно она нужна первой.
+static func build_surface(
 	start_along: float, end_along: float, seed_value: int, materials: Dictionary
 ) -> Build:
 	var out := Build.new()
 	out.root = Node3D.new()
 	out.root.name = "ArcadeChunk"
+	out.start_along = start_along
+	out.end_along = end_along
+	out.seed_value = seed_value
 	var terrain = materials.get("terrain", null)
-	var scenery = materials.get("scenery", null)
 	_road_surface(out, start_along, end_along, seed_value, materials)
 	_verge_strip(out, start_along, end_along, seed_value, materials.get("ground", null), terrain)
 	_crossings(out, start_along, end_along, seed_value)
-	if scenery != null:
-		var post_col: Color = materials.get("edge_post_color", Color(0.88, 0.14, 0.10))
-		scenery.decorate_chunk(out.root, start_along, end_along, seed_value, terrain, post_col)
-	else:
+	if materials.get("scenery", null) == null:
+		# Автономный режим без генератора обстановки: дома деревни ставим
+		# сразу, на стадии поверхности.
 		_village(out, start_along, end_along, seed_value)
 	return out
+
+
+## Одна стадия декора (0..SceneryType.STAGE_COUNT-1) поверх собранной
+## поверхности.
+static func decorate_stage(out: Build, stage: int, materials: Dictionary) -> void:
+	var scenery = materials.get("scenery", null)
+	if scenery == null or not scenery.has_method("decorate_stage"):
+		return
+	var post_col: Color = materials.get("edge_post_color", Color(0.88, 0.14, 0.10))
+	scenery.decorate_stage(
+		out.root, stage, out.start_along, out.end_along,
+		out.seed_value, materials.get("terrain", null), post_col
+	)
 
 
 # ------------------------------------------------------------- геометрия
@@ -415,12 +455,13 @@ static func _emit(
 
 
 static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[float]:
-	var center_line: float = LINE_HALF
 	var lane_line: float = maxf(half * 0.90, LINE_HALF * 4.0)
 	return [
 		-outer, -shoulder, -half,
-		-center_line, center_line,
-		lane_line - LINE_HALF, lane_line + LINE_HALF,
+		# Осевая: асфальтовый отступ, две колонки краски, снова отступ.
+		-(LINE_HALF + PAINT_FADE), -LINE_HALF, LINE_HALF, LINE_HALF + PAINT_FADE,
+		# Линия полосы: та же схема — краска не тянется через полдороги.
+		lane_line - PAINT_FADE, lane_line - LINE_HALF, lane_line + LINE_HALF, lane_line + PAINT_FADE,
 		shoulder, outer,
 	]
 

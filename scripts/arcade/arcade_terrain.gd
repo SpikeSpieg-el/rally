@@ -53,6 +53,11 @@ var _bridge_cells: Dictionary = {}
 
 var _tiles: Dictionary = {}
 var _pending: Array[Vector2i] = []
+## Готовые заготовки тайлов: высоты/дистанции посчитаны, меш ещё нет.
+## Строим тайл двумя стадиями, чтобы ни одна из них не выбивалась из
+## кадрового бюджета целиком (см. _process).
+var _prepared: Dictionary = {}
+var _ready_queue: Array[Vector2i] = []
 var _last_center_tile := Vector2i(999999, 999999)
 var _focus_pos := Vector3.ZERO
 
@@ -83,6 +88,8 @@ func setup(
 		child.queue_free()
 	_tiles.clear()
 	_pending.clear()
+	_prepared.clear()
+	_ready_queue.clear()
 	_road_cells.clear()
 	_rep_cells.clear()
 	_bridges_by_leg.clear()
@@ -346,14 +353,24 @@ func focus(center_pos: Vector3) -> void:
 
 
 func _process(_delta: float) -> void:
-	if _pending.is_empty():
+	if _pending.is_empty() and _ready_queue.is_empty():
 		return
 	var started: int = Time.get_ticks_usec()
-	while not _pending.is_empty() and Time.get_ticks_usec() - started < BUDGET_USEC:
-		var key: Vector2i = _pending.pop_front()
-		if _tiles.has(key):
-			continue
-		_build_tile(key)
+	while Time.get_ticks_usec() - started < BUDGET_USEC:
+		if not _ready_queue.is_empty():
+			# Сначала достраиваем начатое: меш из готовых высот стоит
+			# дешевле, чем подготовка нового тайла.
+			var ready_key: Vector2i = _ready_queue.pop_front()
+			if _tiles.has(ready_key) or not _prepared.has(ready_key):
+				continue
+			_finish_tile(ready_key)
+		elif not _pending.is_empty():
+			var key: Vector2i = _pending.pop_front()
+			if _tiles.has(key) or _prepared.has(key):
+				continue
+			_prepare_tile(key)
+		else:
+			return
 
 
 func _tile_key(pos: Vector3) -> Vector2i:
@@ -386,11 +403,34 @@ func _refresh_wanted(center_tile: Vector2i) -> void:
 
 	queue_list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["dist"]) < float(b["dist"]))
 	_pending.clear()
+	_ready_queue.clear()
+	var queued := {}
 	for item in queue_list:
-		_pending.append(item["key"] as Vector2i)
+		var key: Vector2i = item["key"] as Vector2i
+		if queued.has(key):
+			continue
+		queued[key] = true
+		if _prepared.has(key):
+			# Заготовка уже есть — тайлу остаётся только финиш.
+			_ready_queue.append(key)
+		else:
+			_pending.append(key)
+	# Забытые заготовки вне круга внимания — выбросить.
+	for prep_key in _prepared.keys():
+		if not wanted.has(prep_key):
+			_prepared.erase(prep_key)
 
 
+## Собрать тайл целиком (синхронно — для старта заезда).
 func _build_tile(key: Vector2i) -> void:
+	_prepare_tile(key)
+	_finish_tile(key)
+
+
+## Стадия 1: высоты и дистанции до дороги по «полю» из halo-вершин.
+## Самая дорогая часть тайла, поэтому вынесена в отдельную ступень
+## кадрового бюджета.
+func _prepare_tile(key: Vector2i) -> void:
 	var width: int = TILE_DIVISIONS + 1
 	var halo: int = width + 2
 	var cell: float = TILE_SIZE / float(TILE_DIVISIONS)
@@ -414,6 +454,29 @@ func _build_tile(key: Vector2i) -> void:
 			road_halves[idx] = float(near["half"])
 			heights[idx] = _sample_height(px, pz, true)
 
+	_prepared[key] = {
+		"heights": heights,
+		"road_dists": road_dists,
+		"road_halves": road_halves,
+	}
+	_ready_queue.append(key)
+
+
+## Стадия 2: меш и коллайдер из готовой заготовки.
+func _finish_tile(key: Vector2i) -> void:
+	if not _prepared.has(key):
+		return
+	var data: Dictionary = _prepared[key]
+	var heights: PackedFloat32Array = data["heights"]
+	var road_dists: PackedFloat32Array = data["road_dists"]
+	var road_halves: PackedFloat32Array = data["road_halves"]
+	_prepared.erase(key)
+
+	var width: int = TILE_DIVISIONS + 1
+	var halo: int = width + 2
+	var cell: float = TILE_SIZE / float(TILE_DIVISIONS)
+	var origin_x: float = float(key.x) * TILE_SIZE
+	var origin_z: float = float(key.y) * TILE_SIZE
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()

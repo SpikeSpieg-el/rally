@@ -212,6 +212,7 @@ static var _wave_amp := PackedFloat32Array()
 static var _wave_phase := PackedFloat32Array()
 static var _axis_seed: int = 0x7fffffff
 static var _axis_phase := PackedFloat32Array()
+static var _axis_len := PackedFloat32Array()
 
 
 # ------------------------------------------------------------- детерминизм
@@ -219,10 +220,23 @@ static var _axis_phase := PackedFloat32Array()
 
 ## Детерминированный псевдошум [0,1). Тот же стиль, что у RallyRoadProfile:
 ## без RandomNumberGenerator, поэтому порядок вызовов не влияет на результат.
+##
+## Финализатор splitmix64 (две ступени умножения + сдвиг). После каждой
+## ступени маскируем 63 бита: int в Godot — знаковый 64-битный, умножение
+## переполняется с оборотом, а сдвиги вправо арифметические. Маска делает
+## число неотрицательным, поэтому сдвиги в GDScript и в Python-зеркале
+## (tools/arcade_road_model.py) совпадают бит в бит.
+##
+## Прежняя версия сводилась к почти арифметической прогрессии по индексу:
+## соседние индексы отличались на постоянный шаг ≈ 0.21 по модулю 1, поэтому
+## радиусы/углы кусков шли «пилой», и дорога повторяла один и тот же ритм
+## из заезда в заезд.
 static func roll(index: int, seed_value: int, salt: int) -> float:
 	var n: int = posmod(index, 1000003) * 92821 + posmod(seed_value, 1000003) * 68917 + salt * 2833
-	n = posmod((n ^ (n >> 13)) * 127, 1000003)
-	return float(n) / 1000003.0
+	n = ((n ^ (n >> 30)) * 0xbf58476d1ce4e5b9) & 0x7fffffffffffffff
+	n = ((n ^ (n >> 27)) * 0x94d049bb133111eb) & 0x7fffffffffffffff
+	n = (n ^ (n >> 31)) & 0x7fffffffffffffff
+	return float(n & 0xffffffff) / 4294967296.0
 
 
 static func roll_range(index: int, seed_value: int, salt: int, low: float, high: float) -> float:
@@ -333,8 +347,12 @@ static func _ensure_axis(seed_value: int) -> void:
 		return
 	_axis_seed = seed_value
 	_axis_phase.clear()
+	_axis_len.clear()
 	for i in range(AXIS_WAVES.size()):
 		_axis_phase.append(roll_range(i, seed_value, 411, 0.0, TAU))
+		# Длины волн оси тоже зависят от сида: без этого макро-S дороги
+		# повторялся строго каждые 3400 м на любом сиде.
+		_axis_len.append(float(AXIS_WAVES[i]) * roll_range(i, seed_value, 412, 0.82, 1.18))
 
 
 ## «Генеральный курс» трассы на километраже: ось, вокруг которой дорога
@@ -343,8 +361,8 @@ static func _ensure_axis(seed_value: int) -> void:
 static func axis_heading(distance: float, seed_value: int) -> float:
 	_ensure_axis(seed_value)
 	var heading: float = initial_heading(seed_value)
-	for i in range(AXIS_WAVES.size()):
-		heading += AXIS_AMPLITUDES[i] * sin(distance / float(AXIS_WAVES[i]) * TAU + _axis_phase[i])
+	for i in range(_axis_len.size()):
+		heading += AXIS_AMPLITUDES[i] * sin(distance / _axis_len[i] * TAU + _axis_phase[i])
 	return heading
 
 
@@ -562,64 +580,94 @@ static func _domain_pieces(
 	var pieces: Array = []
 	match domain:
 		LegType.Kind.SERPENTINE:
-			# Сначала шпильки: длина их ДУГ (радиус × угол) заметно больше
-			# предполагаемых 34 м на разворот, поэтому остаток длины делят
-			# между собой уже площадки — по факту, а не по прикидке.
+			# Число шпилек зависит от длины домена И от сида: раньше их было
+			# всегда ровно две (int(260/150) = 1), и каждый серпантин
+			# выглядел как одна и та же заготовка.
 			# Чётное число шпилек — принципиально: они чередуют сторону, и
 			# после пары «туда-обратно» дорога возвращается к прежнему курсу.
-			# С нечётным серпантин всегда уходил бы в сторону на 150–170°, и
-			# привязка к оси была бы вынуждена ломать сами шпильки.
-			var hairpins: int = 2 * maxi(1, int(length / 150.0))
+			var pair_step: float = roll_range(leg_index * 7 + 3, seed_value, 314, 110.0, 190.0)
+			var pairs: int = clampi(int(length / maxf(pair_step, 1.0)), 1, 4)
+			var hairpins: int = 2 * pairs
 			var arcs: Array = []
 			var arc_total: float = 0.0
 			var direction: float = 1.0 if roll(leg_index * 7, seed_value, 311) < 0.5 else -1.0
 			for i in range(hairpins):
-				var radius: float = roll_range(leg_index * 7 + i, seed_value, 312, 14.5, 19.5)
-				var sweep: float = deg_to_rad(roll_range(leg_index * 7 + i, seed_value, 313, 140.0, 172.0))
+				var radius: float = roll_range(leg_index * 7 + i, seed_value, 312, 12.5, 19.5)
+				var sweep: float = deg_to_rad(roll_range(leg_index * 7 + i, seed_value, 313, 118.0, 176.0))
 				# Угол дуги знаковый: направление поворота живёт в знаке, а не в
 				# отдельном поле — при привязке к оси менять знак нельзя.
 				arcs.append({"kind": "a", "radius": radius, "sweep": sweep * direction})
 				arc_total += radius * absf(sweep)
 				direction = -direction
-			var shelf: float = clampf((length - arc_total) / float(hairpins + 1), 4.0, 34.0)
-			pieces.append({"kind": "s", "length": shelf})
+			var base_shelf: float = clampf((length - arc_total) / float(hairpins + 1), 4.0, 34.0)
+			pieces.append({"kind": "s", "length": base_shelf})
 			for i in range(hairpins):
 				pieces.append(arcs[i])
-				var next_shelf: float = shelf if i < hairpins - 1 else shelf * 0.7
-				pieces.append({"kind": "s", "length": next_shelf})
+				# Полки между шпильками тоже разные: у каждой своя длина.
+				var factor: float = roll_range(leg_index * 7 + 31 + i, seed_value, 315, 0.55, 1.5)
+				var shelf: float = clampf(base_shelf * factor, 4.0, 34.0)
+				pieces.append({"kind": "s", "length": shelf if i < hairpins - 1 else shelf * 0.7})
 		LegType.Kind.BRIDGE:
+			# Мосты раньше были клонами: радиус всегда 200, изгиб 0.10–0.16
+			# и одно и то же деление 30/45/25.
 			var bridge_dir: float = 1.0 if roll(leg_index, seed_value, 322) < 0.5 else -1.0
-			var bridge_sweep: float = roll_range(leg_index, seed_value, 321, 0.10, 0.16) * bridge_dir
+			var bridge_radius: float = roll_range(leg_index, seed_value, 323, 130.0, 260.0)
+			var bridge_sweep: float = roll_range(leg_index, seed_value, 321, 0.06, 0.17) * bridge_dir
+			var first: float = length * roll_range(leg_index, seed_value, 324, 0.22, 0.36)
+			var second: float = length * roll_range(leg_index, seed_value, 325, 0.40, 0.55)
 			pieces = [
-				{"kind": "s", "length": length * 0.30},
-				{"kind": "a", "radius": 200.0, "sweep": bridge_sweep},
-				{"kind": "s", "length": length * 0.45},
-				{"kind": "s", "length": length * 0.25},
+				{"kind": "s", "length": first},
+				{"kind": "a", "radius": bridge_radius, "sweep": bridge_sweep},
+				{"kind": "s", "length": second},
+				{"kind": "s", "length": maxf(0.0, length - first - second)},
 			]
+		LegType.Kind.VILLAGE:
+			# Деревня — не одна идеальная прямая: 1–3 прямых с лёгкими
+			# чередующимися дугами. Бюджет дуг ограничен долей длины, чтобы
+			# суммарная длина всегда собиралась в ровно `length`.
+			var bends: int = 1 + int(roll(leg_index * 13, seed_value, 316) * 3.0)
+			var side: float = 1.0 if roll(leg_index * 13, seed_value, 317) < 0.5 else -1.0
+			var village_radius: float = 240.0
+			var arc_budget: float = 0.0
+			var sweeps: Array[float] = []
+			for i in range(bends):
+				var bend_sweep: float = roll_range(leg_index * 13 + i, seed_value, 318, 0.05, 0.16) * side
+				sweeps.append(bend_sweep)
+				arc_budget += village_radius * absf(bend_sweep)
+				side = -side
+			var cap: float = length * 0.35
+			if arc_budget > cap and arc_budget > 0.001:
+				var scale: float = cap / arc_budget
+				for i in range(sweeps.size()):
+					sweeps[i] = sweeps[i] * scale
+				arc_budget = cap
+			var straight_len: float = maxf(6.0, (length - arc_budget) / float(bends))
+			for i in range(bends):
+				pieces.append({"kind": "s", "length": straight_len})
+				pieces.append({"kind": "a", "radius": village_radius, "sweep": sweeps[i]})
 		_:
-			# Просёлок/разгон/деревня — «связка» из дуг и прямых.
+			# Просёлок/разгон — «связка» из дуг и прямых.
 			var twist: float = 0.55
 			if domain == LegType.Kind.FAST:
 				twist = 0.24
-			elif domain == LegType.Kind.VILLAGE:
-				twist = 0.10
 			var index: int = leg_index * 17 + slot * 5
 			var cursor: float = 0.0
 			# Дуги чередуются по стороне: дорога «гуляет» S-образно, а не
 			# накапливает поворот в одну сторону (иначе за несколько доменов
 			# она описала бы полный круг).
 			var turn_side: float = 1.0 if roll(index, seed_value, 304) < 0.5 else -1.0
+			# «Характер» участка: у одного просёлка дуги шире и длиннее, у
+			# другого — частые короткие. Раньше диапазон радиусов был один
+			# и тот же на всех участках.
+			var radius_scale: float = roll_range(leg_index, seed_value, 306, 0.72, 1.35)
+			var before: float = 0.0
 			while cursor < length - 1.0:
-				var radius: float = roll_range(index, seed_value, 302, 62.0, 150.0)
-				if domain == LegType.Kind.VILLAGE:
-					radius = 240.0
-				var sweep: float = roll_range(index, seed_value, 303, 0.22, 1.05) * (0.55 + twist)
+				var radius: float = roll_range(index, seed_value, 302, 62.0, 150.0) * radius_scale
+				radius = clampf(radius, 40.0, 240.0)
+				var sweep: float = roll_range(index, seed_value, 303, 0.20, 1.10) * (0.55 + twist)
 				var sign_side: float = turn_side
 				turn_side = -turn_side
 				var straight: float = roll_range(index, seed_value, 305, 14.0, 58.0)
-				if domain == LegType.Kind.VILLAGE:
-					sweep = 0.16
-					straight = length - cursor
 				var arc_len: float = radius * sweep
 				if cursor + arc_len + straight > length + 12.0:
 					straight = maxf(0.0, length - cursor - arc_len)
@@ -630,11 +678,19 @@ static func _domain_pieces(
 					var use_sweep: float = sweep
 					if cursor + arc_len > length:
 						use_sweep = sweep * maxf(0.0, (length - cursor) / maxf(arc_len, 0.001))
-					pieces.append({"kind": "a", "radius": radius, "sweep": use_sweep * sign_side})
-					cursor += radius * absf(use_sweep)
+					var tail: float = radius * absf(use_sweep)
+					if tail >= 12.0:
+						# Обрезанный «огрызок» дуги (меньше 12 м) даёт
+						# вырожденно малый радиус при балансировке пар —
+						# лучше оставить место прямиком, его добьёт
+						# `_fit_length`.
+						pieces.append({"kind": "a", "radius": radius, "sweep": use_sweep * sign_side})
+						cursor += tail
 				index += 1
-				if domain == LegType.Kind.VILLAGE:
+				if before == cursor:
+					# Ничего не уместилось — дальше только нули, выходим.
 					break
+				before = cursor
 	return _fit_length(pieces, length)
 
 
@@ -673,6 +729,109 @@ static func _fit_length(pieces: Array, length: float) -> Array:
 	return pieces
 
 
+## Выравнивание встречных пар дуг по модулю угла.
+##
+## Идея: S-изгиб из двух дуг с равными |углами| даёт почти нулевой
+## нетто-поворот, поэтому `_pin_turn` всегда сходится (он докручивает курс
+## в пределах ±MAX_DOMAIN_TURN рад). Без выравнивания одна дуга пары могла
+## быть в разы круче другой, и привязка к оси не успевала.
+##
+## Правила:
+##   * пары берутся последовательно: следующая встречная дуга закрывает
+##     предыдущую;
+##   * внутри пары углы усредняются (знаки сохраняются);
+##   * длина дуги сохраняется: радиус = длина / |угол|;
+##   * радиус зажат снизу 6 м (`_emit_domain` всё равно поднимает радиус
+##     до 6 — а это ломает точную длину участка);
+##   * |угол| не опускается ниже 0.11 рад, иначе `_pin_turn` считает дугу
+##     замороженной и не может ею докрутить;
+##   * крутая одиночная дуга (|угол| > 0.45 рад) не может быть докручена
+##     полномочиями `_pin_turn` — расщепляем её на встречную пару половин
+##     угла: длина сохраняется, радиус не меняется, нетто ≈ 0.
+static func _balance_arcs(pieces: Array) -> void:
+	var min_r: float = 6.0
+	var min_sweep: float = 0.11
+	var arcs: Array[int] = []
+	for i in range(pieces.size()):
+		if str(pieces[i]["kind"]) == "a":
+			arcs.append(i)
+	if arcs.is_empty():
+		return
+	# Группируем дуги по знаку: встречная дуга закрывает предыдущую.
+	var groups: Array = []
+	var current: Array[int] = []
+	for i in arcs:
+		if not current.is_empty() \
+				and float(pieces[i]["sweep"]) * float(pieces[current[current.size() - 1]]["sweep"]) < 0.0:
+			groups.append(current)
+			current = []
+		current.append(i)
+	if not current.is_empty():
+		groups.append(current)
+
+	# Действия по «первому» индексу: [b, mean, знак a, знак b] для пары
+	# либо [radius, sweep] для расщепления; вторые индексы пар пропускаются.
+	var actions := {}
+	var skip := {}
+	for group in groups:
+		if group.size() == 2:
+			var a: int = group[0]
+			var b: int = group[1]
+			var len_a: float = float(pieces[a]["radius"]) * absf(float(pieces[a]["sweep"]))
+			var len_b: float = float(pieces[b]["radius"]) * absf(float(pieces[b]["sweep"]))
+			# Общий угол пары: ниже 0.11 (иначе _pin_turn дугу не тронет),
+			# ниже длины/6 (иначе радиус < 6 м) и ниже 2.6 рад — потолок
+			# MAX_SWEEP=3.0 нужен как запас на докрутку ±MAX_DOMAIN_TURN рад.
+			var mean: float = 0.5 * (absf(float(pieces[a]["sweep"])) + absf(float(pieces[b]["sweep"])))
+			mean = minf(mean, minf(minf(len_a, len_b) / min_r, 2.6))
+			actions[a] = [b, maxf(min_sweep, mean),
+				1.0 if float(pieces[a]["sweep"]) >= 0.0 else -1.0,
+				1.0 if float(pieces[b]["sweep"]) >= 0.0 else -1.0]
+			skip[b] = true
+		else:
+			for i in group:
+				var piece: Dictionary = pieces[i]
+				var arc_len: float = float(piece["radius"]) * absf(float(piece["sweep"]))
+				if absf(float(piece["sweep"])) <= 0.45:
+					# Спокойная одиночная дуга: сохраняем форму, только
+					# снимая вырожденные радиусы/углы.
+					var sweep: float = maxf(min_sweep, minf(arc_len / min_r, absf(float(piece["sweep"]))))
+					var piece_sign: float = 1.0 if float(piece["sweep"]) >= 0.0 else -1.0
+					pieces[i] = {"kind": "a", "radius": maxf(min_r, arc_len / sweep),
+						"sweep": sweep * piece_sign}
+				else:
+					# Расщепление на встречную пару: каждый кусок — половина
+					# длины и половина угла, радиус тот же.
+					var half_len: float = arc_len * 0.5
+					var half_sweep: float = maxf(min_sweep, minf(0.5 * absf(float(piece["sweep"])), half_len / min_r))
+					var radius: float = maxf(min_r, half_len / half_sweep)
+					var dir_sign: float = 1.0 if float(piece["sweep"]) >= 0.0 else -1.0
+					actions[i] = [radius, half_sweep * dir_sign]
+	var result: Array = []
+	for idx in range(pieces.size()):
+		var piece: Dictionary = pieces[idx]
+		if skip.has(idx):
+			continue
+		if not actions.has(idx):
+			result.append(piece)
+			continue
+		var action: Array = actions[idx]
+		if action.size() == 4:
+			var b: int = action[0]
+			var common: float = action[1]
+			var len_a: float = float(piece["radius"]) * absf(float(piece["sweep"]))
+			var len_b: float = float(pieces[b]["radius"]) * absf(float(pieces[b]["sweep"]))
+			result.append({"kind": "a", "radius": maxf(min_r, len_a / common),
+				"sweep": common * float(action[2])})
+			result.append({"kind": "a", "radius": maxf(min_r, len_b / common),
+				"sweep": common * float(action[3])})
+		else:
+			result.append({"kind": "a", "radius": float(action[0]), "sweep": float(action[1])})
+			result.append({"kind": "a", "radius": float(action[0]), "sweep": -float(action[1])})
+	pieces.clear()
+	pieces.append_array(result)
+
+
 ## Привязать нетто-поворот домена к `turn`, НЕ меняя длину пути.
 ##
 ## Каждая дуга описывает arc = R·|sweep| метров. Добавка угла `sweep` на
@@ -694,6 +853,10 @@ static func _pin_turn(pieces: Array, turn: float) -> void:
 	if arcs.is_empty() or arc_total < 1.0:
 		return
 	var delta: float = turn - net
+	# Минимальный |угол| после докрутки: нулевой угол означал бы радиус
+	# в бесконечность и исчезнувший кусок дороги, а 0.02 рад сохраняют
+	# длину дуги и позволяют дуге сменить знак (нужно одиночным дугам).
+	var min_active: float = 0.02
 	# Два прохода: второй достаёт остаток, если первый упёрся в MIN_PINNED_SWEEP.
 	for _pass in range(2):
 		if absf(delta) < 0.0001:
@@ -711,14 +874,12 @@ static func _pin_turn(pieces: Array, turn: float) -> void:
 				continue
 			var add: float = delta * arc_length / share_total
 			var sweep: float = float(piece.sweep) + add
-			var sign_before: float = signf(float(piece.sweep))
-			if sign_before != 0.0 and signf(sweep) != sign_before:
-				# Дуга не должна развернуться в другую сторону от добавки.
-				sweep = sign_before * MIN_PINNED_SWEEP
+			if absf(sweep) < min_active:
+				sweep = min_active if sweep >= 0.0 else -min_active
 			sweep = clampf(sweep, -MAX_SWEEP, MAX_SWEEP)
 			used += sweep - float(piece.sweep)
 			piece["sweep"] = sweep
-			piece["radius"] = arc_length / maxf(absf(sweep), 0.0001)
+			piece["radius"] = arc_length / maxf(absf(sweep), min_active)
 		delta -= used
 		if absf(delta) < 0.02:
 			return
@@ -732,9 +893,11 @@ static func _pin_turn(pieces: Array, turn: float) -> void:
 				biggest = piece
 		var arc_length_big: float = biggest_arc
 		var sweep_big: float = clampf(float(biggest.sweep) + delta, -MAX_SWEEP, MAX_SWEEP)
+		if absf(sweep_big) < min_active:
+			sweep_big = min_active if sweep_big >= 0.0 else -min_active
 		delta -= sweep_big - float(biggest.sweep)
 		biggest["sweep"] = sweep_big
-		biggest["radius"] = arc_length_big / maxf(absf(sweep_big), 0.0001)
+		biggest["radius"] = arc_length_big / maxf(absf(sweep_big), min_active)
 
 
 ## Прогон кусков домена. Пишет точки в target (если он есть) и всегда
@@ -744,6 +907,9 @@ static func _emit_domain(
 	x: float, z: float, heading: float, target: Leg, along: float
 ) -> Dictionary:
 	var pieces := _domain_pieces(domain, leg_index, seed_value, slot, length)
+	# Сначала выравниваем встречные пары дуг: с нулевым нетто-поворотом
+	# привязка к оси сходится всегда. Потом привязываем остаток к оси.
+	_balance_arcs(pieces)
 	# Нетто-поворот домена привязывается к оси трассы: после каждого домена
 	# курс равен оси, поэтому на всей бесконечной дороге он остаётся в узком
 	# конусе и дорога не может свернуться сама в себя.
