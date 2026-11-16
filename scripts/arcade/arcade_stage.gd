@@ -32,6 +32,9 @@ const GravelTexture = preload("res://textures/environment/gravel.png")
 const GroundTexture = preload("res://textures/environment/forest_floor.png")
 const RockTexture = preload("res://textures/environment/rock.png")
 const HudType = preload("res://scripts/ui/rally_hud.gd")
+const CarType = preload("res://scripts/rally_car.gd")
+const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 const ScreenLookType = preload("res://scripts/effects/rally_screen_look.gd")
 const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
 const DEFAULT_TRACK_PATH := "res://data/tracks/stage_arcade.tres"
@@ -47,6 +50,8 @@ const HUD_REFRESH: float = 0.1
 @export var track: TrackType = null
 @export var settings: SettingsType = null
 @export var spawn_layout: SpawnType = null
+## Пресет машины. Пусто — берётся выбранный в гараже (как в RallyStage).
+@export var car_setup_override: CarSetupType = null
 
 var network: NetworkType = null
 var car = null
@@ -70,8 +75,67 @@ var _gear_label: Label = null
 var _stage_label: Label = null
 
 
+## Машина из гаража и пресет — ДО _ready(): иначе заезд шёл бы на той машине,
+## что лежит в сцене, и выбор гаража не применялся бы (в аркаде машина
+## создаётся в этой же сцене, а не подменяется этапом, как в ралли).
+func _enter_tree() -> void:
+	# В редакторе ничего не подменяем: сцена должна открываться в том виде,
+	# в каком лежит на диске. Тот же приём, что в RallyStage.
+	if Engine.is_editor_hint():
+		return
+	var game: Node = get_node_or_null("/root/RallyGame")
+	if game != null:
+		_swap_race_car(game)
+	_apply_race_setup(game)
+
+
+## Подменить машину на выбранную в гараже. Тот же порядок, что в RallyStage:
+## позиция и пресет переносятся, узел остаётся с именем RallyCar, чтобы все
+## get_node("RallyCar") продолжали работать.
+func _swap_race_car(game: Node) -> void:
+	if not game.has_method("get_race_vehicle_id"):
+		return
+	var scene_path := CarModels.race_scene_path(String(game.call("get_race_vehicle_id")))
+	var current := get_node_or_null("RallyCar") as Node3D
+	if current == null or scene_path.is_empty() or current.scene_file_path == scene_path:
+		return
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		push_warning("RallyArcadeStage: сцена машины %s не открывается" % scene_path)
+		return
+	var replacement := packed.instantiate() as Node3D
+	if replacement == null:
+		return
+	replacement.name = "RallyCar"
+	replacement.transform = current.transform
+	var index := current.get_index()
+	remove_child(current)
+	current.free()
+	add_child(replacement)
+	move_child(replacement, index)
+
+
+## Пресет гаража на машину текущей сцены.
+func _apply_race_setup(game: Node) -> void:
+	var car_node := get_node_or_null("RallyCar") as CarType
+	if car_node == null:
+		return
+	var setup: CarSetupType = null
+	if game != null and game.has_method("get_race_setup_override"):
+		setup = game.call("get_race_setup_override") as CarSetupType
+	if setup == null:
+		setup = car_setup_override
+	if setup != null:
+		car_node.setup_override = setup
+		if game != null:
+			game.set("current_setup", setup)
+
+
 func _ready() -> void:
 	add_to_group("rally_stage")
+	# Этап обязан тикать во время паузы: иначе Esc открывает меню, из которого
+	# нет выхода — онемевший _process не увидит повторного нажатия.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_resources()
 	_resolve_seed()
 	network = NetworkType.new(generation_seed)
@@ -200,6 +264,9 @@ func _setup_hud() -> void:
 	hud = get_node_or_null("HUD/RallyHUD") as HudType
 	if hud == null:
 		return
+	# Кнопки паузы живут в HUD: если он PAUSABLE, замерший HUD не примет ни
+	# клика, ни фокуса — меню видно, но оно не работает.
+	hud.process_mode = Node.PROCESS_MODE_ALWAYS
 	_stage_label = hud.get_node_or_null("StagePanel/StageBox/StageLabel") as Label
 	_speed_label = hud.get_node_or_null("SpeedPanel/SpeedBox/SpeedLabel") as Label
 	_gear_label = hud.get_node_or_null("SpeedPanel/SpeedBox/GearLabel") as Label
