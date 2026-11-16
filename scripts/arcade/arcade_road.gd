@@ -140,16 +140,27 @@ class Leg:
 		var t: float = 0.0 if b <= a else clampf((distance - a) / (b - a), 0.0, 1.0)
 		return points[i].lerp(points[j], t)
 
-	## Горизонтальное направление (единичное).
+	func _vertex_dir(idx: int) -> Vector3:
+		var last: int = points.size() - 1
+		if last < 1:
+			return Vector3.FORWARD
+		var k: int = maxi(0, idx - 1)
+		var j: int = mini(last, idx + 1)
+		var v := Vector3(points[j].x - points[k].x, 0.0, points[j].z - points[k].z)
+		if v.length_squared() < 0.000001:
+			return Vector3.FORWARD
+		return v.normalized()
+
+	## Горизонтальное направление (единичное, плавно интерполируется между точками).
 	func direction_at(distance: float) -> Vector3:
 		if points.size() < 2:
 			return Vector3.FORWARD
 		var i: int = index_at(distance)
-		var k: int = maxi(0, i - 1)
-		var j: int = mini(i + 2, points.size() - 1)
-		if j <= k:
-			j = mini(k + 1, points.size() - 1)
-		var dir: Vector3 = Vector3(points[j].x - points[k].x, 0.0, points[j].z - points[k].z)
+		var j: int = mini(i + 1, points.size() - 1)
+		var a: float = along[i]
+		var b: float = along[j]
+		var t: float = 0.0 if b <= a else clampf((distance - a) / (b - a), 0.0, 1.0)
+		var dir: Vector3 = _vertex_dir(i).lerp(_vertex_dir(j), t)
 		if dir.length_squared() < 0.000001:
 			return Vector3.FORWARD
 		return dir.normalized()
