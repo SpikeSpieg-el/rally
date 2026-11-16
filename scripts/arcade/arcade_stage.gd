@@ -941,7 +941,9 @@ func _end_arcade_run() -> void:
 
 	_results_panel.visible = true
 	if _again_button != null:
-		_again_button.grab_focus()
+		_again_button.focus_mode = Control.FOCUS_ALL
+		if _again_button.is_visible_in_tree():
+			_again_button.grab_focus()
 
 
 func _set_paused(value: bool) -> void:
@@ -952,8 +954,12 @@ func _set_paused(value: bool) -> void:
 	if value:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		if _resume_button != null:
-			_resume_button.grab_focus()
+			_resume_button.focus_mode = Control.FOCUS_ALL
+			if _resume_button.is_visible_in_tree():
+				_resume_button.grab_focus()
 	else:
+		if _resume_button != null:
+			_resume_button.focus_mode = Control.FOCUS_NONE
 		if _input_settings != null and _input_settings.visible:
 			_input_settings.close()
 		var capture: bool = car != null and car.mouse_look_enabled
