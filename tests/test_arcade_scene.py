@@ -18,7 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(ROOT / 'tests'))
 import check_project
+import gdtype_check
 
 TRACK = ROOT / 'data/tracks/stage_arcade.tres'
 SCENE = ROOT / 'scenes/rally_arcade.tscn'
@@ -163,6 +165,47 @@ class ArcadeSceneTest(unittest.TestCase):
                     f'{path.name}: функция {name}() определена дважды '
                     f'(строки {seen.get(name)} и {number})')
                 seen[name] = number
+
+    def test_no_point_of_the_wrong_dimensionality(self):
+        # gdparse проверяет только синтаксис, а Godot — ещё и типы аргументов:
+        # `bounds.expand(Vector3(...))` валит разбор файла целиком, потому что
+        # Rect2.expand() ждёт Vector2. Ни линтер, ни глаза этого не видят:
+        # Vector3 и Vector2 различаются одним символом.
+        #
+        # Проверяется ВЕСЬ проект, а не только аркада: такой ошибке всё равно,
+        # в каком файле жить, а падает на ней всегда загрузка сцены.
+        for path in sorted((ROOT / 'scripts').rglob('*.gd')):
+            for number, method, got, owner, expected in gdtype_check.check_file(
+                    _text(path)):
+                self.fail(f'{path.name}:{number}: {owner}.{method}() ждёт {expected}, '
+                          f'а получает {got} — Godot не разберёт файл')
+
+    def test_type_check_catches_the_real_failure(self):
+        # Защита от «тест зелёный, потому что ничего не проверяет»: подсовываем
+        # ровно ту строку, из-за которой игра не запускалась, и требуем, чтобы
+        # проверка её нашла.
+        broken = (
+            'var bounds: Rect2 = Rect2()\n'
+            'func _build_to() -> void:\n'
+            '\tbounds = bounds.expand(Vector3(1.0, 0.0, 2.0))\n'
+        )
+        found = gdtype_check.check_file(broken)
+        self.assertEqual(len(found), 1, 'проверка типов не видит ошибку разбора')
+        self.assertEqual(found[0][1], 'expand')
+        self.assertEqual(found[0][2], 'Vector3')
+
+    def test_type_check_does_not_blame_correct_code(self):
+        # Ложные падения хуже пропусков: на них перестают смотреть. AABB
+        # трёхмерный, три-в-три — это правильно, и ругаться нельзя.
+        correct = (
+            'func _build() -> void:\n'
+            '\tvar box: AABB = AABB(Vector3.ZERO, Vector3.ONE)\n'
+            '\tbox = box.merge(Vector3.ONE)\n'
+            '\tvar a: Vector3 = Vector3.ZERO\n'
+            '\tvar b: Vector3 = Vector3.ONE\n'
+            '\tvar d: float = a.distance_to(b)\n'
+        )
+        self.assertEqual(gdtype_check.check_file(correct), [])
 
 
 if __name__ == '__main__':
