@@ -14,6 +14,7 @@ const GarageScene = preload("res://scenes/garage_menu.tscn")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
 const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
+const GhostRecordingType = preload("res://scripts/ghost/ghost_recording.gd")
 
 @export_group("Данные (инспектор)")
 @export var config: GameConfigType = null
@@ -625,6 +626,11 @@ func _refresh() -> void:
 			best_label.text = layout().best_time_label % [
 				note, _format_time(best) if best > 0.0 else "—"
 			]
+			var menu_veh_id: String = ""
+			if game.has_method("get_race_vehicle_id"):
+				menu_veh_id = String(game.call("get_race_vehicle_id"))
+			if GhostRecordingType.has_saved_ghost(key, menu_veh_id, true) or GhostRecordingType.has_saved_ghost(key, menu_veh_id, false):
+				best_label.text += layout().ghost_available_badge
 		else:
 			best_label.text = layout().best_time_empty
 	_update_dynamic_focus()

@@ -56,6 +56,7 @@ extends Resource
 ## Подпись лучшего времени на кнопке трассы.
 @export var best_time_label: String = "ЛУЧШЕЕ ВРЕМЯ%s:  %s"
 @export var best_time_empty: String = "ЛУЧШЕЕ ВРЕМЯ:  —"
+@export var ghost_available_badge: String = "  •  ПРИЗРАК ГОТОВ"
 
 @export_group("Гараж")
 @export var garage_turntable_speed: float = 0.16

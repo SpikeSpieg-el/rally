@@ -14,6 +14,7 @@ const ScreenLook = preload("res://scripts/effects/rally_screen_look.gd")
 const SpeedFeel = preload("res://scripts/effects/rally_speed_feel.gd")
 const Precip = preload("res://scripts/effects/rally_precipitation_effect.gd")
 const Surfaces = preload("res://scripts/effects/rally_surface_looks.gd")
+const GhostLook = preload("res://scripts/effects/rally_ghost_look.gd")
 
 @export_group("Где живут эффекты в сцене")
 ## Обычно это HUD/SpeedShaderRect: настоящий материал экранного фильтра.
@@ -34,6 +35,9 @@ const Surfaces = preload("res://scripts/effects/rally_surface_looks.gd")
 @export var surfaces_path: NodePath = ^"Surfaces":
 	set(value):
 		surfaces_path = value
+@export var ghost_path: NodePath = ^"Ghost":
+	set(value):
+		ghost_path = value
 
 @export_group("Область осадков вокруг машины")
 ## Новые капли рождаются в этой сетке; уже выпавшие остаются в мире.
@@ -76,6 +80,10 @@ func snow() -> Precip:
 
 func surfaces() -> Surfaces:
 	return get_node_or_null(surfaces_path) as Surfaces
+
+
+func ghost() -> GhostLook:
+	return get_node_or_null(ghost_path) as GhostLook
 
 
 func configure_screen(track: Resource) -> void:

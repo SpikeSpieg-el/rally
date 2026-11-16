@@ -716,7 +716,10 @@ func _setup_hud() -> void:
 
 	if car != null:
 		hud.bind_vehicle(car)
-	for path in ["ResultsPanel", "MiniMapPanel", "MiniMap"]:
+	var arcade_delta := hud.get_node_or_null("DeltaPanel")
+	if arcade_delta != null:
+		arcade_delta.set("enabled", false)
+	for path in ["ResultsPanel", "MiniMapPanel", "MiniMap", "DeltaPanel", "PausePanel/Box/GhostOptions"]:
 		var node := hud.get_node_or_null(path) as CanvasItem
 		if node != null:
 			node.visible = false

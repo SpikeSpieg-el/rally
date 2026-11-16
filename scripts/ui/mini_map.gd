@@ -35,6 +35,25 @@ extends Control
 @export var show_checkpoints: bool = true
 @export var show_car: bool = true
 @export_range(0.5, 4.0, 0.1) var route_line_width: float = 2.2
+@export_group("Призрак")
+## Показывать маркер машины-призрака на мини-карте.
+@export var show_ghost: bool = true:
+	set(v):
+		show_ghost = v
+		queue_redraw()
+@export var ghost_color: Color = Color(0.24, 0.90, 1.0, 0.92):
+	set(v):
+		ghost_color = v
+		queue_redraw()
+@export var ghost_outline_color: Color = Color(0.0, 0.0, 0.0, 0.72):
+	set(v):
+		ghost_outline_color = v
+		queue_redraw()
+@export_range(2.0, 20.0, 0.2) var ghost_marker_size: float = 6.2:
+	set(v):
+		ghost_marker_size = v
+		queue_redraw()
+@export_range(0.5, 5.0, 0.1) var ghost_outline_width: float = 1.6
 @export_group("Геометрия и тени")
 ## Скругление карточки, px.
 @export_range(0, 40, 1) var corner_radius: int = 10
@@ -55,6 +74,9 @@ var finish_point: Vector2 = Vector2.ZERO
 var car_position: Vector2 = Vector2.ZERO
 var car_heading: float = 0.0
 var has_car: bool = false
+var ghost_position: Vector2 = Vector2.ZERO
+var ghost_heading: float = 0.0
+var has_ghost: bool = false
 var progress: float = 0.0
 var _has_progress: bool = false
 
@@ -128,6 +150,18 @@ func set_car(car_pos: Vector2, heading: float) -> void:
 
 func clear_car() -> void:
 	has_car = false
+	queue_redraw()
+
+
+func set_ghost(ghost_pos: Vector2, heading: float, active: bool = true) -> void:
+	ghost_position = ghost_pos
+	ghost_heading = heading
+	has_ghost = active
+	queue_redraw()
+
+
+func clear_ghost() -> void:
+	has_ghost = false
 	queue_redraw()
 
 
@@ -229,6 +263,21 @@ func _draw() -> void:
 		draw_circle(sp, start_marker_radius, start_color)
 		draw_circle(fp, start_marker_radius + 1.2, marker_outline_color)
 		draw_circle(fp, start_marker_radius, finish_color)
+
+	if show_ghost and has_ghost:
+		var ghost_screen := _to_screen(ghost_position)
+		var gs: float = ghost_marker_size
+		var g_pts := PackedVector2Array([
+			Vector2(0.0, -gs),
+			Vector2(gs * 0.65, gs * 0.65),
+			Vector2(0.0, gs * 0.3),
+			Vector2(-gs * 0.65, gs * 0.65)
+		])
+		var g_rot := PackedVector2Array()
+		for p in g_pts:
+			g_rot.append(ghost_screen + p.rotated(-ghost_heading))
+		draw_circle(ghost_screen, gs * 0.85, ghost_outline_color)
+		draw_colored_polygon(g_rot, ghost_color)
 
 	if show_car and has_car:
 		var car_screen := _to_screen(car_position)

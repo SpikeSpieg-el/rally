@@ -70,6 +70,7 @@ enum CockpitHideMode {
 @export var timer_label_path: NodePath = NodePath("TimerPanel/TimerBox/TimerLabel")
 @export var timer_sprite_path: NodePath = NodePath("TimerPanel/TimerBox/TimerSprite")
 @export var split_label_path: NodePath = NodePath("TimerPanel/TimerBox/SplitLabel")
+@export var delta_panel_path: NodePath = NodePath("DeltaPanel")
 @export var mini_map_path: NodePath = NodePath("MiniMap")
 @export var fps_label_path: NodePath = NodePath("FPSLabel")
 @export var speed_panel_path: NodePath = NodePath("SpeedPanel")
@@ -169,6 +170,7 @@ func _should_hide_in_cockpit() -> Dictionary:
 		"telemetry": false,
 		"stage": false,
 		"timer": false,
+		"delta": false,
 		"mini_map": false,
 		"fps": false,
 		"hint": false,
@@ -192,6 +194,7 @@ func _should_hide_in_cockpit() -> Dictionary:
 	result["telemetry"] = hud_style.cockpit_hide_telemetry_panel
 	result["stage"] = hud_style.cockpit_hide_stage_panel
 	result["timer"] = hud_style.cockpit_hide_timer_panel
+	result["delta"] = hud_style.cockpit_hide_delta_panel
 	result["mini_map"] = hud_style.cockpit_hide_mini_map
 	result["fps"] = hud_style.cockpit_hide_fps
 	result["hint"] = hud_style.cockpit_hide_hint
@@ -200,6 +203,9 @@ func _should_hide_in_cockpit() -> Dictionary:
 
 func _apply_cockpit_visibility() -> void:
 	var flags: Dictionary = _should_hide_in_cockpit()
+	var delta_node := get_delta_panel()
+	if delta_node != null and delta_node.has_method("set_cockpit_hidden"):
+		delta_node.call("set_cockpit_hidden", bool(flags["delta"]))
 	var mapping := [
 		[speed_panel_path, bool(flags["speed"])],
 		[radio_card_path, bool(flags["radio"])],
@@ -247,6 +253,10 @@ func get_speedometer() -> SpriteSpeedometer:
 	return get_node_or_null(speedometer_path) as SpriteSpeedometer
 
 
+func get_delta_panel() -> Control:
+	return get_node_or_null(delta_panel_path) as Control
+
+
 func _on_hud_style_changed() -> void:
 	if is_inside_tree():
 		apply_hud_style()
@@ -272,6 +282,10 @@ func apply_hud_style() -> void:
 	var fps := get_node_or_null(fps_label_path)
 	if fps != null and fps.has_method("set_hud_style"):
 		fps.call("set_hud_style", effective_style)
+
+	var delta_p := get_delta_panel()
+	if delta_p != null and delta_p.has_method("set_hud_style"):
+		delta_p.call("set_hud_style", effective_style)
 
 	var radio := get_node_or_null(radio_card_path)
 	# rally_radio_card.gd — не @tool: в редакторе это placeholder-инстанс и

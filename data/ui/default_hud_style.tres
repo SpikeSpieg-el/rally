@@ -43,6 +43,7 @@ cockpit_hide_radio_card = true
 cockpit_hide_telemetry_panel = false
 cockpit_hide_stage_panel = false
 cockpit_hide_timer_panel = false
+cockpit_hide_delta_panel = false
 cockpit_hide_mini_map = false
 cockpit_hide_fps = false
 cockpit_hide_hint = false

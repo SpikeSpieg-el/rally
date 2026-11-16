@@ -80,6 +80,8 @@ const VisualEffectsType = preload("res://scripts/effects/rally_visual_effects.gd
 const VisualEffectsScene = preload("res://scenes/effects/visual_effects.tscn")
 const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
 const SpeedFeelScene = preload("res://scenes/effects/speed_effect.tscn")
+const GhostLookType = preload("res://scripts/effects/rally_ghost_look.gd")
+const GhostLookScene = preload("res://scenes/effects/ghost_racer.tscn")
 const ScreenLookType = preload("res://scripts/effects/rally_screen_look.gd")
 const RallyHudType = preload("res://scripts/ui/rally_hud.gd")
 const SpriteSpeedometerType = preload("res://scripts/ui/sprite_speedometer.gd")
@@ -204,8 +206,12 @@ var _stage_live := false
 var _speed_fx_reported := false
 ## Единственный источник чисел эффекта скорости для этого заезда.
 var _speed_feel: SpeedFeelType = null
+## Единственный источник настроек и сессии призрака / живой дельты.
+var _ghost_look: GhostLookType = null
+var _last_ghost_state: Dictionary = {}
 ## Экран со скриптом RallyScreenLook (если он есть в сцене).
 var _screen_look: ScreenLookType = null
+var delta_widget: Control = null
 var _prev_lin_vel: Vector3 = Vector3.ZERO
 var _frame_delta: float = 0.016
 
@@ -4324,6 +4330,7 @@ func _hud_node(path: String) -> Node:
 func _setup_world_effects() -> void:
 	_bind_visual_effects()
 	_speed_feel = _resolve_speed_feel()
+	_ghost_look = _resolve_ghost_look()
 	_screen_look = _find_screen_look()
 	if _screen_look != null:
 		speed_rect = _screen_look
@@ -4379,6 +4386,59 @@ func _resolve_speed_feel() -> SpeedFeelType:
 		"RallyStage: в сцене нет узла VisualEffects/Speed — добавлен из scenes/effects/speed_effect.tscn."
 	)
 	return node
+
+
+## Узел настроек призрака и живой дельты. Нет в сцене — создаём из шаблона.
+func _resolve_ghost_look() -> GhostLookType:
+	if fx_nodes != null and fx_nodes.ghost() != null:
+		return fx_nodes.ghost()
+	if _ghost_look != null and is_instance_valid(_ghost_look):
+		return _ghost_look
+	var node := GhostLookScene.instantiate() as GhostLookType
+	if node == null:
+		return null
+	node.name = "Ghost"
+	if fx_nodes != null:
+		fx_nodes.add_child(node)
+	else:
+		add_child(node)
+	return node
+
+
+func _setup_ghost_session() -> void:
+	if _ghost_look == null or track == null or network == null:
+		return
+	var game: Node = get_node_or_null("/root/RallyGame")
+	var key: String = _record_key()
+	var veh_id: String = ""
+	if game != null and game.has_method("get_race_vehicle_id"):
+		veh_id = String(game.call("get_race_vehicle_id"))
+	if veh_id.is_empty() and car != null and not car.scene_file_path.is_empty():
+		veh_id = car.scene_file_path.get_file().get_basename()
+	var start_along: float = clampf(s_spawn().car_spawn_distance, 0.0, network.total_length)
+	var finish_along: float = network.total_length
+	var night_flag: bool = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
+	_ghost_look.begin_session(
+		self,
+		network,
+		key,
+		car,
+		veh_id,
+		start_along,
+		finish_along,
+		track.target_time,
+		night_flag
+	)
+	var ghost_options := _hud_node("RallyHUD/PausePanel/Box/GhostOptions")
+	if ghost_options != null and ghost_options.has_method("initialize"):
+		ghost_options.call("initialize", _ghost_look, delta_widget)
+	if delta_widget != null:
+		delta_widget.set("enabled", _ghost_look.effective_delta_enabled())
+		if delta_widget.has_method("clear_runtime"):
+			delta_widget.call("clear_runtime")
+		if hud_controller != null:
+			hud_controller.apply_hud_style()
+	_last_ghost_state = _ghost_look.update_runtime(0.0, 0.0, false, false)
 
 
 ## Экранный фильтр: сначала из VisualEffects, потом узел под HUD.
@@ -4447,6 +4507,7 @@ func _setup_hud() -> void:
 		hud_controller.bind_vehicle(car)
 	timer_label = _hud_node("RallyHUD/TimerPanel/TimerBox/TimerLabel") as Label
 	split_label = _hud_node("RallyHUD/TimerPanel/TimerBox/SplitLabel") as Label
+	delta_widget = _hud_node("RallyHUD/DeltaPanel") as Control
 
 	# Мини-карта — узел из сцены, экспорты (цвета) editable прямо в инспекторе.
 	mini_map = _hud_node("RallyHUD/MiniMap") as MiniMap
@@ -4513,6 +4574,7 @@ func _setup_hud() -> void:
 	hint_label = _hud_node("RallyHUD/Hint") as Label
 	clutch_notice = _hud_node("RallyHUD/ClutchNotice") as Label
 	_update_input_hint()
+	_setup_ghost_session()
 	var controller := _controller_manager()
 	if controller != null and controller.has_signal("active_device_changed"):
 		if not controller.is_connected("active_device_changed", _on_active_input_device_changed):
@@ -4677,11 +4739,21 @@ func _update_hud() -> void:
 		var accel: Vector3 = (car.linear_velocity - _prev_lin_vel) / maxf(_frame_delta, 0.0001)
 		_prev_lin_vel = car.linear_velocity
 		gforce_bar.set_value(clampf(Vector2(accel.x, accel.z).length() / 9.81, 0.0, 1.0))
+	# Живая дельта и призрак.
+	if delta_widget != null and not _last_ghost_state.is_empty():
+		if delta_widget.has_method("update_live_delta"):
+			delta_widget.call("update_live_delta", _last_ghost_state)
 	# Мини-карта.
 	if mini_map != null:
 		var forward: Vector3 = car.global_transform.basis.z
 		var heading: float = atan2(-forward.x, -forward.z)
 		mini_map.set_car(Vector2(car.global_position.x, car.global_position.z), heading)
+		if bool(_last_ghost_state.get("ghost_map_active", false)):
+			var g_pos := Vector2(_last_ghost_state.get("ghost_pos_xz", Vector2.ZERO))
+			var g_head: float = float(_last_ghost_state.get("ghost_heading", 0.0))
+			mini_map.set_ghost(g_pos, g_head, true)
+		else:
+			mini_map.clear_ghost()
 		var progress: float = 0.0
 		if network != null and network.total_length > 0.0:
 			progress = clampf(
@@ -4829,6 +4901,8 @@ func _process(delta: float) -> void:
 			stage_time += delta
 		_check_checkpoints()
 		_check_finish()
+	if _ghost_look != null and car != null and network != null and not stage_finished:
+		_last_ghost_state = _ghost_look.update_runtime(delta, stage_time, timer_running, false)
 	var speed: float = car.speed_kmh if car != null else 0.0
 	var camera_mode: int = car.camera_mode if car != null else 0
 	# Единственный путь: узел Speed -> экранный фильтр.
@@ -4936,6 +5010,10 @@ func _check_checkpoints() -> void:
 				var game: Node = get_node_or_null("/root/RallyGame")
 				if game != null:
 					game.call("submit_split", _split_key(i), stage_time)
+				if _ghost_look != null:
+					var cp_res: Dictionary = _ghost_look.record_checkpoint(i, stage_time)
+					if bool(cp_res.get("has_delta", false)) and delta_widget != null and delta_widget.has_method("flash_checkpoint"):
+						delta_widget.call("flash_checkpoint", i, float(cp_res.get("delta_sec", 0.0)))
 				var controller := _controller_manager()
 				if controller != null and controller.has_method("rumble"):
 					controller.call("rumble", 0.18, 0.22, 0.10)
@@ -4969,6 +5047,15 @@ func _finish_stage() -> void:
 	if game != null:
 		is_new_record = bool(game.call("submit_time", _record_key(), stage_time))
 		best_time = float(game.call("get_best_time", _record_key()))
+	var ghost_summary: String = ""
+	if _ghost_look != null:
+		var ghost_result: Dictionary = _ghost_look.finish_session(stage_time, is_new_record)
+		ghost_summary = String(ghost_result.get("summary_line", ""))
+		if delta_widget != null and bool(ghost_result.get("has_prev_ghost", false)) and delta_widget.has_method("update_live_delta"):
+			var final_state := _last_ghost_state.duplicate()
+			final_state["delta_active"] = _ghost_look.effective_delta_enabled()
+			final_state["delta_sec"] = float(ghost_result.get("delta_vs_ghost", 0.0))
+			delta_widget.call("update_live_delta", final_state)
 	var marathon_running: bool = game != null and game.has_method("marathon_active") and bool(game.call("marathon_active"))
 	if marathon_running:
 		game.call("finish_marathon_stage", stage_time)
@@ -4985,6 +5072,8 @@ func _finish_stage() -> void:
 				results_label.text = "%s\nЭТАП  %s\nОБЩЕЕ ВРЕМЯ  %s\nСИД  %d" % [heading, _format_time(stage_time), _format_time(float(game.call("marathon_total"))), track.generation_seed]
 			else:
 				results_label.text = "%s\n\nВРЕМЯ  %s\n%s" % [track.display_name, _format_time(stage_time), record_line]
+			if not ghost_summary.is_empty():
+				results_label.text += "\n" + ghost_summary
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if again_button != null:
 		again_button.grab_focus()

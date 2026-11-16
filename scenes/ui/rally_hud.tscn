@@ -11,6 +11,8 @@
 [ext_resource type="Script" uid="uid://1thm1p96wzd09" path="res://scripts/ui/sprite_speedometer.gd" id="8_speedometer"]
 [ext_resource type="Script" uid="uid://n5mwwvnvq8uq" path="res://scripts/ui/fps_label.gd" id="9_fps"]
 [ext_resource type="Script" uid="uid://1cx7fcdia80jy" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
+[ext_resource type="PackedScene" path="res://scenes/ui/delta_panel.tscn" id="11_delta_panel"]
+[ext_resource type="Script" path="res://scripts/ui/ghost_settings.gd" id="12_ghost_settings"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 18.0
@@ -304,6 +306,14 @@ theme_override_font_sizes/font_size = 13
 text = "ЦЕЛЬ 00:00.000"
 horizontal_alignment = 1
 
+[node name="DeltaPanel" parent="." instance=ExtResource("11_delta_panel")]
+layout_mode = 1
+offset_left = -165.0
+offset_top = 92.0
+offset_right = 165.0
+offset_bottom = 152.0
+hud_style = ExtResource("7_hud_style")
+
 [node name="MiniMap" type="Control" parent="." unique_id=541321273]
 texture_filter = 2
 layout_mode = 1
@@ -569,9 +579,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -380.0
-offset_top = 104.0
+offset_top = 162.0
 offset_right = 380.0
-offset_bottom = 142.0
+offset_bottom = 200.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(1, 0.72, 0.2, 1)
 theme_override_font_sizes/font_size = 17
@@ -607,10 +617,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -290.0
-offset_top = -410.0
-offset_right = 290.0
-offset_bottom = 410.0
+offset_left = -310.0
+offset_top = -485.0
+offset_right = 310.0
+offset_bottom = 485.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -619,7 +629,7 @@ theme_override_styles/panel = SubResource("SB_modal")
 [node name="Box" type="VBoxContainer" parent="PausePanel" unique_id=44511180]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 7
 alignment = 1
 
 [node name="PauseTitle" type="Label" parent="PausePanel/Box" unique_id=1276704520]
@@ -786,8 +796,119 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("4_controller_settings")
 
+[node name="GhostOptions" type="VBoxContainer" parent="PausePanel/Box"]
+layout_mode = 2
+theme_override_constants/separation = 4
+script = ExtResource("12_ghost_settings")
+
+[node name="GhostTitle" type="Label" parent="PausePanel/Box/GhostOptions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "ПРИЗРАК И ДЕЛЬТА"
+
+[node name="TogglesRow" type="HBoxContainer" parent="PausePanel/Box/GhostOptions"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="GhostEnabled" type="CheckBox" parent="PausePanel/Box/GhostOptions/TogglesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_colors/font_color = Color(0.88, 0.93, 0.98, 1)
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "ПРИЗРАК"
+
+[node name="DeltaEnabled" type="CheckBox" parent="PausePanel/Box/GhostOptions/TogglesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_colors/font_color = Color(0.88, 0.93, 0.98, 1)
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "ДЕЛЬТА"
+
+[node name="TrailEnabled" type="CheckBox" parent="PausePanel/Box/GhostOptions/TogglesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_colors/font_color = Color(0.88, 0.93, 0.98, 1)
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "СЛЕД"
+
+[node name="OpacityRow" type="HBoxContainer" parent="PausePanel/Box/GhostOptions"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="PausePanel/Box/GhostOptions/OpacityRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.96, 1)
+theme_override_font_sizes/font_size = 12
+text = "ПРОЗРАЧНОСТЬ"
+
+[node name="Slider" type="HSlider" parent="PausePanel/Box/GhostOptions/OpacityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 1.0
+step = 0.05
+value = 0.42
+
+[node name="Value" type="Label" parent="PausePanel/Box/GhostOptions/OpacityRow"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "42%"
+horizontal_alignment = 2
+
+[node name="ModeRow" type="HBoxContainer" parent="PausePanel/Box/GhostOptions"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="PausePanel/Box/GhostOptions/ModeRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.96, 1)
+theme_override_font_sizes/font_size = 12
+text = "ОРИЕНТИР"
+
+[node name="ModeOption" type="OptionButton" parent="PausePanel/Box/GhostOptions/ModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_font_sizes/font_size = 12
+
+[node name="ActionsRow" type="HBoxContainer" parent="PausePanel/Box/GhostOptions"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResetButton" type="Button" parent="PausePanel/Box/GhostOptions/ActionsRow"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/hover = SubResource("SB_button_hover")
+text = "СБРОСИТЬ ПРИЗРАКА"
+
+[node name="DeleteButton" type="Button" parent="PausePanel/Box/GhostOptions/ActionsRow"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SB_button")
+theme_override_styles/pressed = SubResource("SB_button_pressed")
+theme_override_styles/hover = SubResource("SB_button_hover")
+text = "УДАЛИТЬ ПРИЗРАКА"
+
 [node name="ControlsButton" type="Button" parent="PausePanel/Box" unique_id=2086676567]
-custom_minimum_size = Vector2(260, 40)
+custom_minimum_size = Vector2(260, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("SB_button")
@@ -797,7 +918,7 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "НАСТРОИТЬ УПРАВЛЕНИЕ"
 
 [node name="ResumeButton" type="Button" parent="PausePanel/Box" unique_id=2015482319]
-custom_minimum_size = Vector2(260, 42)
+custom_minimum_size = Vector2(260, 38)
 layout_mode = 2
 focus_mode = 0
 theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
@@ -810,7 +931,7 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ПРОДОЛЖИТЬ"
 
 [node name="RestartButton" type="Button" parent="PausePanel/Box" unique_id=44005054]
-custom_minimum_size = Vector2(260, 42)
+custom_minimum_size = Vector2(260, 38)
 layout_mode = 2
 focus_mode = 0
 theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
@@ -823,7 +944,7 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ЗАЕЗД ЗАНОВО"
 
 [node name="MenuButton" type="Button" parent="PausePanel/Box" unique_id=1114197855]
-custom_minimum_size = Vector2(260, 42)
+custom_minimum_size = Vector2(260, 38)
 layout_mode = 2
 focus_mode = 0
 theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
@@ -836,7 +957,7 @@ theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ГЛАВНОЕ МЕНЮ"
 
 [node name="QuitButton" type="Button" parent="PausePanel/Box" unique_id=197663561]
-custom_minimum_size = Vector2(260, 42)
+custom_minimum_size = Vector2(260, 38)
 layout_mode = 2
 focus_mode = 0
 theme_override_colors/font_color = Color(0.95, 0.97, 1, 1)
