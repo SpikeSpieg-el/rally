@@ -233,8 +233,12 @@ static var _axis_len := PackedFloat32Array()
 ## из заезда в заезд.
 static func roll(index: int, seed_value: int, salt: int) -> float:
 	var n: int = posmod(index, 1000003) * 92821 + posmod(seed_value, 1000003) * 68917 + salt * 2833
-	n = ((n ^ (n >> 30)) * 0xbf58476d1ce4e5b9) & 0x7fffffffffffffff
-	n = ((n ^ (n >> 27)) * 0x94d049bb133111eb) & 0x7fffffffffffffff
+	# Константы splitmix64 записаны как отрицательные: GDScript не принимает
+	# литералы выше INT64_MAX (0xbf58476d1ce4e5b9 и т.п. дают ошибку
+	# «Cannot represent ... as a 64-bit signed integer»). Дополнение до 2^64
+	# сохраняет вычет по модулю 2^64, поэтому после маски результат тот же.
+	n = ((n ^ (n >> 30)) * -0x40a7b892e31b1a47) & 0x7fffffffffffffff  # = 0xbf58476d1ce4e5b9
+	n = ((n ^ (n >> 27)) * -0x6b2fb644ecceee15) & 0x7fffffffffffffff  # = 0x94d049bb133111eb
 	n = (n ^ (n >> 31)) & 0x7fffffffffffffff
 	return float(n & 0xffffffff) / 4294967296.0
 
