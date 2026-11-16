@@ -146,6 +146,24 @@ class ArcadeSceneTest(unittest.TestCase):
             self.assertNotIn('const DEFAULT_HALF_WIDTH', text,
                              f'{path.name} не должен дублировать ширину полотна')
 
+    def test_no_function_is_defined_twice(self):
+        # Две функции с одним именем в классе — это Parse Error, и Godot гасит
+        # весь скрипт разом: этап падает с «Could not preload arcade_network.gd»,
+        # хотя виноват самый нижний файл. Поймать это глазами в 700-строчном
+        # файле после правок почти невозможно.
+        for path in (CHUNK, NETWORK, ROAD, STAGE, STREAMER, LEG):
+            seen = {}
+            for number, line in enumerate(_text(path).splitlines(), 1):
+                found = re.match(r'^(?:static\s+)?func\s+([A-Za-z_]\w*)\s*\(', line)
+                if not found:
+                    continue
+                name = found.group(1)
+                self.assertNotIn(
+                    name, seen,
+                    f'{path.name}: функция {name}() определена дважды '
+                    f'(строки {seen.get(name)} и {number})')
+                seen[name] = number
+
 
 if __name__ == '__main__':
     unittest.main()
