@@ -1,0 +1,61 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/arcade/arcade_stage.gd" id="1_stage"]
+[ext_resource type="PackedScene" path="res://scenes/rally_car.tscn" id="2_car"]
+[ext_resource type="Resource" path="res://data/tracks/stage_arcade.tres" id="3_track"]
+[ext_resource type="Resource" path="res://data/stage/default_stage_settings.tres" id="4_settings"]
+[ext_resource type="Resource" path="res://data/stage/default_spawn_layout.tres" id="5_spawn"]
+[ext_resource type="Environment" path="res://data/tracks/night_environment.tres" id="6_env"]
+[ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="7_fx"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rally_hud.tscn" id="8_hud"]
+[ext_resource type="PackedScene" path="res://scenes/effects/retro_screen.tscn" id="9_retro"]
+[ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="10_speed"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_retro"]
+resource_local_to_scene = true
+shader = ExtResource("10_speed")
+shader_parameter/retro_strength = 1.0
+shader_parameter/resolution_y = 270.0
+shader_parameter/color_levels = 31.0
+shader_parameter/dither_strength = 1.0
+shader_parameter/speed_intensity = 0.0
+shader_parameter/blur_strength = 0.02
+shader_parameter/vignette_strength = 0.26
+shader_parameter/camera_mode = 0
+shader_parameter/blur_gain = 2.8
+shader_parameter/cockpit_scale = 0.7
+shader_parameter/speed_stretch = 0.031
+shader_parameter/speed_stretch_gain = 1.0
+
+[node name="RallyArcadeStage" type="Node3D"]
+script = ExtResource("1_stage")
+track = ExtResource("3_track")
+settings = ExtResource("4_settings")
+spawn_layout = ExtResource("5_spawn")
+
+[node name="VisualEffects" parent="." instance=ExtResource("7_fx")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("6_env")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.76604444, -0.34062552, 0.54511476, 0, 0.8480481, 0.52991927, -0.6427876, -0.4059417, 0.6496425, 0, 0, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.35
+light_indirect_energy = 0.4
+light_angular_distance = 1.2
+shadow_enabled = true
+shadow_bias = 0.06
+shadow_normal_bias = 0.8
+directional_shadow_max_distance = 220.0
+
+[node name="RallyCar" parent="." instance=ExtResource("2_car")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="SpeedShaderRect" parent="HUD" instance=ExtResource("9_retro")]
+material = SubResource("ShaderMaterial_retro")
+look = 0
+
+[node name="RallyHUD" parent="HUD" instance=ExtResource("8_hud")]
