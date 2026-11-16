@@ -29,8 +29,8 @@
 ## Свёртка границы достраивается вперёд от ближайшей известной: без рекурсии
 ## (на 5000-м участке она переполнила бы стек) и без O(n²).
 ##
-## Ширина полосы (половина) по доменам: серпантин 3.2, деревня 3.4, мост 3.0,
-## разгон 4.4 м. Переход между доменами — внутри домена, поэтому на границе
+## Ширина полосы (половина) по доменам: серпантин 4.6, деревня 4.8, мост 4.5,
+## разгон 5.8 м (двухполосная трасса шириной 9–11.6 м под 2.3 м ралли-кар). Переход между доменами — внутри домена, поэтому на границе
 ## участков ширина непрерывна.
 class_name RallyArcadeRoad
 extends RefCounted
@@ -43,8 +43,8 @@ const LEG_LENGTH: float = 260.0
 const WALK_STEP: float = 2.0
 ## Предел уклона (градусы). Соблюдается автоматически, см. `_ensure_waves`.
 const MAX_GRADE_DEG: float = 7.0
-## Ширина полосы по умолчанию: две полосы по 3.6 плюс обочины.
-const DEFAULT_HALF_WIDTH: float = 3.6
+## Ширина полотна по умолчанию: две полноценные полосы по 5.0 м.
+const DEFAULT_HALF_WIDTH: float = 5.0
 ## Сколько участков держать в кэше. Кэш только ускоряет повторные запросы
 ## (возврат назад по трассе), на корректность не влияет.
 const LEG_CACHE_LIMIT: int = 32
@@ -315,13 +315,13 @@ static func axis_heading(distance: float, seed_value: int) -> float:
 static func domain_half_width(domain: int, leg_index: int, seed_value: int) -> float:
 	match domain:
 		LegType.Kind.SERPENTINE:
-			return clampf(3.2 * roll_range(leg_index, seed_value, 11, 0.94, 1.06), 2.9, 4.8)
+			return clampf(4.6 * roll_range(leg_index, seed_value, 11, 0.94, 1.08), 4.3, 5.4)
 		LegType.Kind.FAST:
-			return 4.4
+			return 5.8
 		LegType.Kind.VILLAGE:
-			return 3.4
+			return 4.8
 		LegType.Kind.BRIDGE:
-			return 3.0
+			return 4.5
 	return DEFAULT_HALF_WIDTH
 
 
@@ -534,7 +534,7 @@ static func _domain_pieces(
 			var arc_total: float = 0.0
 			var direction: float = 1.0 if roll(leg_index * 7, seed_value, 311) < 0.5 else -1.0
 			for i in range(hairpins):
-				var radius: float = roll_range(leg_index * 7 + i, seed_value, 312, 12.0, 17.5)
+				var radius: float = roll_range(leg_index * 7 + i, seed_value, 312, 14.5, 19.5)
 				var sweep: float = deg_to_rad(roll_range(leg_index * 7 + i, seed_value, 313, 140.0, 172.0))
 				# Угол дуги знаковый: направление поворота живёт в знаке, а не в
 				# отдельном поле — при привязке к оси менять знак нельзя.

@@ -78,8 +78,8 @@ class ArcadeRoadTest(unittest.TestCase):
             self.assertAlmostEqual(road.half_width_at(joint - 0.001, SEED),
                                    road.half_width_at(joint + 0.001, SEED), places=4)
         widths = [road.half_width_at(d, SEED) for d in range(0, 40000, 5)]
-        self.assertGreaterEqual(min(widths), 2.9)
-        self.assertLessEqual(max(widths), 4.8)
+        self.assertGreaterEqual(min(widths), 4.2)
+        self.assertLessEqual(max(widths), 6.2)
 
     def test_road_never_folds_back_on_itself(self):
         points = _collect(LEGS)

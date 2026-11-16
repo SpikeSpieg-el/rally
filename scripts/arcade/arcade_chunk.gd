@@ -370,7 +370,7 @@ static func _emit(
 
 static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[float]:
 	var center_line: float = LINE_HALF
-	var lane_line: float = maxf(half * 0.5, LINE_HALF * 4.0)
+	var lane_line: float = maxf(half * 0.90, LINE_HALF * 4.0)
 	return [
 		-outer, -shoulder, -half,
 		-center_line, center_line,
@@ -382,7 +382,7 @@ static func _road_laterals(half: float, shoulder: float, outer: float) -> Array[
 static func _is_paint(lateral: float, half: float, dash: bool, lane_dash: bool) -> bool:
 	if lateral <= LINE_HALF + 0.001 and dash:
 		return true
-	var lane_line: float = maxf(half * 0.5, LINE_HALF * 4.0)
+	var lane_line: float = maxf(half * 0.90, LINE_HALF * 4.0)
 	return absf(lateral - lane_line) <= LINE_HALF + 0.001 and lane_dash
 
 

@@ -138,7 +138,7 @@ func _place_forest_and_undergrowth(
 		var center: Vector3 = built.point_at(along) if built != null else Vector3.ZERO
 		var dir: Vector3 = built.direction_at(along) if built != null else Vector3.FORWARD
 		var side := Vector3(dir.z, 0.0, -dir.x)
-		var half: float = built.half_width_at(along) if built != null else 3.6
+		var half: float = built.half_width_at(along) if built != null else 5.0
 		var cluster: float = DressingType.cluster_factor(along, seed_value)
 
 		var tree_density: float = 1.0
@@ -520,9 +520,9 @@ func _place_bridges_and_rivers(
 				bridge_node.name = "Bridge_%d" % int(round(b_along))
 				bridge_node.position = Vector3(center.x, center.y + 0.02, center.z)
 				bridge_node.rotation.y = yaw
-				# Ширина проезжей части моста: 3.0 м полуширина + обочина -> парапеты
-				# на Z = ±5.3 м (исходная сцена bridge_small — ±6.98 м).
-				bridge_node.scale = Vector3(1.0, 1.0, 0.76)
+				# Ширина проезжей части моста: 4.5 м полуширина + обочина -> парапеты
+				# на Z = ±6.4 м (исходная сцена bridge_small — ±6.98 м).
+				bridge_node.scale = Vector3(1.0, 1.0, 0.92)
 				root.add_child(bridge_node)
 
 		# Лента воды на дне ущелья.

@@ -115,7 +115,7 @@ func _index_leg(leg_index: int) -> void:
 	for i in range(0, count, 2):
 		var pt: Vector3 = built.points[i]
 		var d: float = built.along[i]
-		var hw: float = built.half_width[i] if i < built.half_width.size() else 3.6
+		var hw: float = built.half_width[i] if i < built.half_width.size() else 5.0
 		var cell_key := Vector2i(floori(pt.x / ROAD_CELL_SIZE), floori(pt.z / ROAD_CELL_SIZE))
 		var bucket: Array
 		if _road_cells.has(cell_key):

@@ -15,6 +15,11 @@ import gdtype_check
 TERRAIN = ROOT / 'scripts/arcade/arcade_terrain.gd'
 SCENERY = ROOT / 'scripts/arcade/arcade_scenery.gd'
 TRAFFIC = ROOT / 'scripts/arcade/arcade_traffic.gd'
+PEDESTRIANS = ROOT / 'scripts/arcade/arcade_pedestrians.gd'
+RULES = ROOT / 'scripts/arcade/arcade_rules.gd'
+SETTINGS_SCRIPT = ROOT / 'scripts/data/rally_arcade_settings.gd'
+SETTINGS_RES = ROOT / 'data/stage/default_arcade_settings.tres'
+SCENE = ROOT / 'scenes/rally_arcade.tscn'
 STAGE = ROOT / 'scripts/arcade/arcade_stage.gd'
 CHUNK = ROOT / 'scripts/arcade/arcade_chunk.gd'
 STREAMER = ROOT / 'scripts/arcade/arcade_streamer.gd'
@@ -30,6 +35,48 @@ class ArcadeWorldTest(unittest.TestCase):
         self.assertTrue(TERRAIN.exists(), 'нет scripts/arcade/arcade_terrain.gd')
         self.assertTrue(SCENERY.exists(), 'нет scripts/arcade/arcade_scenery.gd')
         self.assertTrue(TRAFFIC.exists(), 'нет scripts/arcade/arcade_traffic.gd')
+        self.assertTrue(PEDESTRIANS.exists(), 'нет scripts/arcade/arcade_pedestrians.gd')
+        self.assertTrue(RULES.exists(), 'нет scripts/arcade/arcade_rules.gd')
+        self.assertTrue(SETTINGS_SCRIPT.exists(), 'нет scripts/data/rally_arcade_settings.gd')
+        self.assertTrue(SETTINGS_RES.exists(), 'нет data/stage/default_arcade_settings.tres')
+
+    def test_scene_and_inspector_settings_are_authored(self):
+        scene_text = _text(SCENE)
+        for required in (
+            'default_arcade_settings.tres',
+            '[node name="ArcadeTraffic"',
+            '[node name="ArcadePedestrians"',
+            '[node name="ArcadeStatusPanel"',
+            'arcade_settings =',
+        ):
+            self.assertIn(required, scene_text, f'в scenes/rally_arcade.tscn нет редактируемого элемента {required}')
+        cfg_text = _text(SETTINGS_SCRIPT)
+        self.assertIn('@tool', cfg_text)
+        self.assertIn('class_name RallyArcadeSettings', cfg_text)
+        for group in ('Трафик', 'Пешеходы и переходы', 'Очки и прочность (HP)'):
+            self.assertIn(group, cfg_text)
+
+    def test_pedestrians_rules_and_leaderboard_contracts(self):
+        ped_text = _text(PEDESTRIANS)
+        self.assertIn('spectator_person.tscn', ped_text)
+        self.assertIn('pedestrian_hit', ped_text)
+        self.assertIn('crosswalk_courtesy', ped_text)
+        self.assertTrue((ROOT / 'scenes/props/spectator_person.tscn').exists())
+
+        rules_text = _text(RULES)
+        for required in ('MAX_HP', 'on_traffic_event', 'on_pedestrian_event', 'record_run', 'load_leaderboard'):
+            self.assertIn(required, rules_text, f'arcade_rules.gd не содержит {required}')
+
+        stage_text = _text(STAGE)
+        for required in (
+            'PedestriansType',
+            'RulesType',
+            '_end_arcade_run',
+            'ArcadeStatusPanel',
+            'surface_height_at',
+            'ResultsPanel/Box/AgainButton',
+        ):
+            self.assertIn(required, stage_text, f'arcade_stage.gd не интегрирует {required}')
 
     def test_traffic_system_contracts(self):
         traffic_text = _text(TRAFFIC)
@@ -39,6 +86,7 @@ class ArcadeWorldTest(unittest.TestCase):
             'sync_to_physics = true',
             '_compute_yield_offset',
             '_nearest_ahead_gap',
+            '_player_hazard_speed',
             'SpotLight3D',
         ):
             self.assertIn(required, traffic_text, f'arcade_traffic.gd не содержит {required}')
@@ -46,6 +94,9 @@ class ArcadeWorldTest(unittest.TestCase):
         self.assertIn('TrafficType', stage_text)
         self.assertIn('_traffic.process_mode = Node.PROCESS_MODE_PAUSABLE', stage_text)
         self.assertIn('_traffic.step(', stage_text)
+        road_text = _text(ROOT / 'scripts/arcade/arcade_road.gd')
+        hw = float(re.search(r'const DEFAULT_HALF_WIDTH: float = ([\d.]+)', road_text).group(1))
+        self.assertGreaterEqual(hw, 4.5, 'двухполосная дорога должна вмещать две машины шириной 2.3 м')
 
     def test_scenery_asset_paths_exist(self):
         text = _text(SCENERY)
@@ -103,7 +154,7 @@ class ArcadeWorldTest(unittest.TestCase):
         self.assertIn('bridge_deck_factor', text)
 
     def test_new_scripts_pass_gdtype_check(self):
-        for path in (TERRAIN, SCENERY, TRAFFIC, STAGE, CHUNK, STREAMER):
+        for path in (TERRAIN, SCENERY, TRAFFIC, PEDESTRIANS, RULES, SETTINGS_SCRIPT, STAGE, CHUNK, STREAMER):
             issues = gdtype_check.check_file(_text(path))
             self.assertEqual(issues, [], f'ошибки типов в {path.name}: {issues}')
 

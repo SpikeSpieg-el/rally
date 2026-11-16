@@ -1,8 +1,6 @@
-[gd_resource type="Resource" script_class="RallyTrackConfig" format=3 uid="uid://c1u0sbjnaky1f"]
+[gd_resource type="Resource" script_class="RallyTrackConfig" format=3]
 
-[ext_resource type="Script" uid="uid://dhqqnoi54ek8o" path="res://scripts/data/rally_bridge_placement.gd" id="1_pc5h4"]
-[ext_resource type="Script" uid="uid://bhw2sm8dhilqi" path="res://scripts/data/rally_track_config.gd" id="1_track"]
-[ext_resource type="Script" uid="uid://b2d0dbu27a666" path="res://scripts/data/rally_route_section.gd" id="2_4m1jo"]
+[ext_resource type="Script" path="res://scripts/data/rally_track_config.gd" id="1_track"]
 
 [resource]
 script = ExtResource("1_track")
@@ -10,10 +8,13 @@ id = "arcade_endless"
 display_name = "АРКАДА · ГОРНАЯ ДОРОГА"
 description = "Бесконечный заезд по процедурной дороге: горные серпантины, лесные просёлки, деревни, мосты через реки и скоростные участки. Без финиша — поезжайте сколько угодно в любую погоду и время суток."
 surface_name = "Асфальт"
-road_half_width = 3.6
+difficulty = 3
+road_half_width = 5.0
 road_shoulder = 1.2
 road_step = 2.0
+road_camber = 0.07
 offroad_grip = 0.55
+terrain_margin = 120.0
 terrain_cell = 4.0
 terrain_seed = 4049
 hills_height = 24.0
@@ -24,25 +25,41 @@ detail_height = 0.45
 stage_scene = "res://scenes/rally_arcade.tscn"
 use_baked_props = false
 procedural_scenery = true
+scenery_density = 1.0
 spawn_route_markers = false
+spawn_edge_posts = true
 spawn_checkpoints = false
+procedural = false
 ground_color = Color(0.14, 0.22, 0.09, 1)
 ground_color_2 = Color(0.25, 0.3, 0.13, 1)
 rock_color = Color(0.32, 0.33, 0.35, 1)
 road_color = Color(0.22, 0.22, 0.24, 1)
 road_color_2 = Color(0.29, 0.29, 0.31, 1)
 shoulder_color = Color(0.31, 0.26, 0.18, 1)
+edge_post_color = Color(0.88, 0.14, 0.1, 1)
 sky_top_color = Color(0.16, 0.32, 0.56, 1)
 sky_horizon_color = Color(0.7, 0.79, 0.88, 1)
 fog_color = Color(0.72, 0.8, 0.89, 1)
 fog_near = 75.0
 fog_far = 310.0
+night_mode = false
 star_intensity = 0.85
 sun_color = Color(1, 0.94, 0.8, 1)
 ambient_color = Color(0.56, 0.62, 0.72, 1)
 ambient_energy = 0.85
+exposure = 1.05
 fog_density = 0.0028
+volumetric_fog = false
 volumetric_fog_density = 0.0025
+screen_space_ao = true
+sun_energy = 1.4
 sun_pitch = -28.0
 sun_yaw = 42.0
 grip_scale = 1.05
+rolling_resistance_scale = 1.0
+ps1_style = true
+flat_shading = true
+dither_fog = true
+color_banding = 5
+sky_flat = true
+enable_speed_fx = true

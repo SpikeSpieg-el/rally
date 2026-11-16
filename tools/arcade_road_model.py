@@ -17,7 +17,7 @@ import math
 LEG_LENGTH = 260.0
 WALK_STEP = 2.0
 MAX_GRADE_DEG = 7.0
-DEFAULT_HALF_WIDTH = 3.6
+DEFAULT_HALF_WIDTH = 5.0
 WIDTH_BLEND = 40.0
 WAVE_LENGTHS = (2200.0, 760.0, 380.0)
 WAVE_AMPLITUDES = (26.0, 4.0, 0.9)
@@ -145,13 +145,13 @@ def axis_heading(distance, seed):
 
 def domain_half_width(domain, leg, seed):
     if domain == SERPENTINE:
-        return min(4.8, max(2.9, 3.2 * roll_range(leg, seed, 11, 0.94, 1.06)))
+        return min(5.4, max(4.3, 4.6 * roll_range(leg, seed, 11, 0.94, 1.08)))
     if domain == FAST:
-        return 4.4
+        return 5.8
     if domain == VILLAGE:
-        return 3.4
+        return 4.8
     if domain == BRIDGE:
-        return 3.0
+        return 4.5
     return DEFAULT_HALF_WIDTH
 
 
@@ -201,7 +201,7 @@ def pieces(domain, leg, seed, slot, length):
         arc_total = 0.0
         direction = 1.0 if roll(leg * 7, seed, 311) < 0.5 else -1.0
         for i in range(hairpins):
-            radius = roll_range(leg * 7 + i, seed, 312, 12.0, 17.5)
+            radius = roll_range(leg * 7 + i, seed, 312, 14.5, 19.5)
             sweep = math.radians(roll_range(leg * 7 + i, seed, 313, 140.0, 172.0))
             arcs.append(('a', radius, sweep * direction))
             arc_total += radius * abs(sweep)
