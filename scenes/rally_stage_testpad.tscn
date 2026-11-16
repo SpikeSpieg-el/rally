@@ -80,7 +80,7 @@
 [ext_resource type="PackedScene" path="res://scenes/props/wildflowers.tscn" id="prop_52"]
 [ext_resource type="PackedScene" uid="uid://x352v4piuwv6" path="res://scenes/props/wooden_fence.tscn" id="prop_53"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_1a1dp"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bw6gc"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("4_bw6gc")
@@ -121,7 +121,7 @@ shader_parameter/snow_specular = 0.1
 shader_parameter/wet_specular = 0.42
 shader_parameter/dry_specular = 0.16
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_563j0"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1a1dp"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("13_ewyku")
@@ -169,7 +169,7 @@ shader_parameter/texture_base = 0.65
 shader_parameter/puddle_roughness = 0.18
 shader_parameter/puddle_mix = 0.35
 
-[sub_resource type="Resource" id="Resource_fsy7v"]
+[sub_resource type="Resource" id="Resource_563j0"]
 script = ExtResource("15_p5noe")
 ps1_enabled = false
 retro_style_strength = 0.65
@@ -183,10 +183,10 @@ road_loose_relief = 0.5
 road_detail_strength = 0.08
 road_track_strength = 0.06
 road_decal_profiles = Array[Resource]([ExtResource("8_n0brd"), ExtResource("9_fscdg"), ExtResource("10_8u7po"), ExtResource("11_wrtuu"), ExtResource("12_nf7g8")])
-ground_material = SubResource("ShaderMaterial_1a1dp")
-road_material = SubResource("ShaderMaterial_563j0")
+ground_material = SubResource("ShaderMaterial_bw6gc")
+road_material = SubResource("ShaderMaterial_1a1dp")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_n0brd"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fsy7v"]
 resource_local_to_scene = true
 shader = ExtResource("0_screen_shader")
 shader_parameter/retro_strength = 0.0
@@ -206,7 +206,7 @@ shader_parameter/speed_stretch_gain = 1.0
 script = ExtResource("1_stage")
 game_config = ExtResource("2_config")
 track_override = ExtResource("3_track")
-settings = SubResource("Resource_fsy7v")
+settings = SubResource("Resource_563j0")
 legacy_effects_imported = true
 spawn_layout = ExtResource("16_o6uxo")
 fx_profile = ExtResource("17_ihe82")
@@ -402,7 +402,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="SpeedShaderRect" parent="HUD" unique_id=1549415691 instance=ExtResource("7_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_n0brd")
+material = SubResource("ShaderMaterial_fsy7v")
 look = 0
 enabled = false
 
