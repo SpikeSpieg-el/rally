@@ -126,6 +126,5 @@ explosiveness = 0.72
 randomness = 0.35
 visibility_aabb = AABB(-10, -5, -10, 20, 14, 20)
 draw_order = 1
-trail_lifetime = 0.0
 process_material = SubResource("Process_mist")
 draw_pass_1 = SubResource("Mesh_mist")

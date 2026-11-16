@@ -274,7 +274,10 @@ func apply_hud_style() -> void:
 		fps.call("set_hud_style", effective_style)
 
 	var radio := get_node_or_null(radio_card_path)
-	if radio != null and radio.has_method("apply_hud_style"):
+	# rally_radio_card.gd — не @tool: в редакторе это placeholder-инстанс и
+	# вызов apply_hud_style даёт ошибку. В рантайме карточка сама применит
+	# стиль в _ready().
+	if radio != null and not Engine.is_editor_hint() and radio.has_method("apply_hud_style"):
 		radio.call("apply_hud_style", effective_style)
 
 	var tele_box := get_node_or_null(telemetry_box_path)

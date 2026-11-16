@@ -3293,7 +3293,10 @@ func _spawn_stage_dressing(distance_start: float = 0.0, distance_end: float = -1
 		if crowd_node != null:
 			crowd_node.name = "Spectators_%02d" % spot_index
 			var crowd := crowd_node as SpectatorCrowd
-			if crowd != null:
+			# spectator_crowd.gd — не @tool: в редакторе его инстанс является
+			# placeholder'ом и любой вызов метода даёт ошибку. Сцена уже
+			# содержит дефолтную расстановку зрителей для превью.
+			if crowd != null and not Engine.is_editor_hint():
 				crowd.setup(self, track.terrain_seed + spot_index * 131, cfg.spectator_crowd_size, spot_index % 2 == 0)
 		if spot_index % 3 == 1:
 			var car_frame: Array = _dressing_frame(entry + 26.0, corridor + 13.0, outer_sign)

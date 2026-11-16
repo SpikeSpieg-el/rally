@@ -78,7 +78,10 @@ class BloodSplashTest(unittest.TestCase):
         self.assertLess(float(value(droplet_material, "initial_velocity_max")), 6.0)
         self.assertEqual(int(value(mist, "amount")), 14)
         self.assertLess(float(value(mist, "lifetime")), 0.5)
-        self.assertEqual(float(value(mist, "trail_lifetime")), 0.0)
+        # trail_lifetime у Mist не должен задаваться явно: сеттер
+        # GPUParticles3D.set_trail_lifetime() отбрасывает значения < 0.01
+        # (в т.ч. 0.0) с ошибкой C++. Дефолт свойства — 0.0, трейлы выключены.
+        self.assertNotIn("trail_lifetime", mist)
         self.assertLess(float(value(mist_material, "initial_velocity_max")), 1.5)
 
     def test_reused_burst_does_not_accumulate_speed_each_hit(self):
