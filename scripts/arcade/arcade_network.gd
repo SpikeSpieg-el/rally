@@ -26,12 +26,21 @@ const STEP: float = 2.0
 var track_seed: int = 0
 ## Пробег, до которого сеть «обеспечивает» дорогу.
 var total_length: float = 0.0
+## Габарит дороги в плане: Rect2 по X/Z, как у RoadNetwork — чтобы код,
+## который ждёт прямоугольник участка, работал с обеими сетями одинаково.
+## Высота сюда не входит: expand() у Rect2 принимает только Vector2.
 var bounds: Rect2 = Rect2()
 
 var _points := PackedVector3Array()
 var _dists := PackedFloat32Array()
 var _dirs := PackedVector3Array()
 var _built_to: float = 0.0
+## Габарит копится по мере роста дороги: пересчитывать его целиком на каждом
+## участке — это O(пробег) на 300-м км, а дорога только растёт.
+var _min_x: float = INF
+var _min_z: float = INF
+var _max_x: float = -INF
+var _max_z: float = -INF
 
 
 func _init(seed_value: int = 0) -> void:
@@ -41,6 +50,7 @@ func _init(seed_value: int = 0) -> void:
 	_points.append(Vector3(float(start.x), RoadType.elevation_at(0.0, seed_value), float(start.z)))
 	_dists.append(0.0)
 	_dirs.append(Vector3(cos(float(start.heading)), 0.0, sin(float(start.heading))))
+	_fold_bounds(_points[0])
 	ensure_length(0.0)
 
 
@@ -67,6 +77,7 @@ func _build_to(distance: float) -> void:
 				continue
 			_points.append(built.points[i])
 			_dists.append(d)
+			_fold_bounds(built.points[i])
 			var prev: Vector3 = _points[_points.size() - 2]
 			var here: Vector3 = built.points[i]
 			var side: Vector3 = Vector3(here.x - prev.x, 0.0, here.z - prev.z)
@@ -75,7 +86,16 @@ func _build_to(distance: float) -> void:
 			_dirs.append(side.normalized())
 		_built_to = float(built.end_along())
 		leg_index += 1
-	bounds = bounds.expand(_points[_points.size() - 1])
+
+
+## Учесть точку в габарите плана. Отдельный метод, а не expand() на месте:
+## Rect2.expand() молча ждёт Vector2 и падает на Vector3 ещё при разборе.
+func _fold_bounds(point: Vector3) -> void:
+	_min_x = minf(_min_x, point.x)
+	_max_x = maxf(_max_x, point.x)
+	_min_z = minf(_min_z, point.z)
+	_max_z = maxf(_max_z, point.z)
+	bounds = Rect2(Vector2(_min_x, _min_z), Vector2(_max_x - _min_x, _max_z - _min_z))
 
 
 func built_metres() -> float:
