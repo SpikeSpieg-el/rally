@@ -43,6 +43,9 @@ func setup(
 	terrain = extra.get("terrain", null)
 	scenery = extra.get("scenery", null)
 	chunk_style = extra.duplicate()
+	var geometry: Variant = extra.get("geometry", {})
+	if geometry is Dictionary:
+		ChunkType.configure_geometry(geometry as Dictionary)
 	for child in get_children():
 		child.queue_free()
 	_chunks.clear()

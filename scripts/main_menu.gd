@@ -8,6 +8,7 @@ const TrackConfigType = preload("res://scripts/data/rally_track_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const WeatherType = preload("res://scripts/data/rally_weather_config.gd")
 const ProfileType = preload("res://scripts/data/rally_track_profile.gd")
+const ArcadeSettingsType = preload("res://scripts/data/rally_arcade_settings.gd")
 const StagePreviewType = preload("res://scripts/stage_preview.gd")
 const GarageScene = preload("res://scenes/garage_menu.tscn")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
@@ -661,6 +662,13 @@ func _track_info_text(
 		grip *= profile.grip_scale
 		width *= profile.road_width_scale
 		bumps_mm *= profile.bumps_scale
+	# Аркадный генератор использует свой пульт геометрии поверх копии
+	# RallyTrackConfig. Показываем итоговую ширину, а не устаревшие 10 м из
+	# ресурса-носителя, иначе меню противоречит дороге в заезде.
+	if track.id == "arcade_endless":
+		var arcade_cfg := ResourceLoader.load("res://data/stage/default_arcade_settings.tres") as ArcadeSettingsType
+		if arcade_cfg != null:
+			width = arcade_cfg.road_half_width_override * 2.0 if arcade_cfg.road_half_width_override > 0.001 else width * arcade_cfg.road_width_scale
 	var weather_line: String = "ПОГОДА: как на трассе"
 	if weather != null:
 		weather_line = "ПОГОДА: %s" % weather.display_name

@@ -1,4 +1,5 @@
-## Настройки аркадного режима: трафик, пешеходы, очки, строгий HP и рекорды.
+## Полный пульт аркадного режима: геометрия дороги, трафик, пешеходы,
+## очки, строгий HP, окружение и рекорды.
 ##
 ## Файл по умолчанию — `res://data/stage/default_arcade_settings.tres`.
 ## Откройте его в инспекторе Godot (или выберите в корневом узле
@@ -7,6 +8,35 @@
 @tool
 class_name RallyArcadeSettings
 extends Resource
+
+@export_group("Дорога аркады")
+## Коэффициент ширины относительно `RallyTrackConfig.road_half_width`.
+## Аркада по умолчанию заметно шире обычного спецучастка: значение 1.25
+## даёт около 12,5 м полотна при базовой полуширине 5 м.
+@export_range(0.80, 2.00, 0.05) var road_width_scale: float = 1.25
+## Явная полуширина полотна. 0 — брать ширину трассы и умножать на
+## `road_width_scale`; ненулевое значение полностью заменяет этот расчёт.
+@export_range(0.0, 12.0, 0.1, "suffix:м") var road_half_width_override: float = 0.0
+## Масштабы ширины для разных доменов бесконечной дороги.
+@export_range(0.70, 1.30, 0.01) var serpentine_width_scale: float = 0.98
+@export_range(0.70, 1.30, 0.01) var country_width_scale: float = 1.00
+@export_range(0.70, 1.30, 0.01) var village_width_scale: float = 1.05
+@export_range(0.70, 1.30, 0.01) var bridge_width_scale: float = 0.96
+@export_range(0.70, 1.50, 0.01) var fast_width_scale: float = 1.18
+## Длина плавного перехода между ширинами доменов, м.
+@export_range(0.0, 120.0, 1.0, "suffix:м") var width_transition_m: float = 40.0
+## Поперечная геометрия. Эти значения раньше были константами в меше и
+## поэтому не настраивались вместе с аркадой.
+@export_range(0.0, 2.0, 0.05) var road_shoulder_scale: float = 1.0
+## Ненулевое значение полностью заменяет ширину обочины трассы.
+@export_range(0.0, 5.0, 0.05, "suffix:м") var road_shoulder_override: float = 0.0
+@export_range(0.0, 4.0, 0.05, "suffix:м") var road_edge_band: float = 1.1
+@export_range(0.0, 0.4, 0.01, "suffix:м") var road_camber: float = 0.07
+@export_range(0.0, 2.0, 0.05, "suffix:м") var road_ditch_depth: float = 0.5
+@export_range(0.0, 20.0, 0.5, "suffix:м") var verge_width: float = 8.0
+@export_range(0.0, 0.5, 0.01, "suffix:м") var road_lift: float = 0.04
+## Шаг строк сетки дороги. Меньше — ровнее меш, больше — дешевле.
+@export_range(1.0, 6.0, 0.25, "suffix:м") var road_mesh_row_step: float = 2.5
 
 @export_group("Трафик")
 ## Включить живой двухсторонний трафик на дороге.

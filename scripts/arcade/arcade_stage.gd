@@ -70,6 +70,7 @@ var _rules: RulesType = null
 var _surface = SurfaceType.new()
 var _road_material: ShaderMaterial = null
 var _ground_material: ShaderMaterial = null
+var _arcade_geometry: Dictionary = {}
 var _weather_particles: GPUParticles3D = null
 var _input_settings = null
 
@@ -181,6 +182,7 @@ func _ready() -> void:
 	_read_game_conditions()
 	_apply_conditions_to_track()
 	_resolve_seed()
+	_configure_arcade_geometry()
 	network = NetworkType.new(generation_seed)
 	var car_node := get_node_or_null("RallyCar") as RigidBody3D
 	if car_node != null:
@@ -272,6 +274,45 @@ func _resolve_seed() -> void:
 	if generation_seed == 0:
 		generation_seed = int(Time.get_unix_time_from_system() * 1000.0) & 0x7fffffff
 	RoadType.reset(generation_seed)
+
+
+## Свести настройки трассы, выбранный профиль и пульт аркады в одну геометрию.
+## Раньше генератор дороги и чанк имели собственные константы: меню могло
+## показать новую ширину, но визуально и физически аркада оставалась прежней.
+func _configure_arcade_geometry() -> void:
+	var width_scale: float = arcade_settings.road_width_scale if arcade_settings != null else 1.25
+	var override_half: float = arcade_settings.road_half_width_override if arcade_settings != null else 0.0
+	var base_half: float = override_half if override_half > 0.001 else track.road_half_width * width_scale
+	base_half = clampf(base_half, 2.0, 12.0)
+
+	var serpentine_scale: float = arcade_settings.serpentine_width_scale if arcade_settings != null else 0.98
+	var country_scale: float = arcade_settings.country_width_scale if arcade_settings != null else 1.0
+	var village_scale: float = arcade_settings.village_width_scale if arcade_settings != null else 1.05
+	var bridge_scale: float = arcade_settings.bridge_width_scale if arcade_settings != null else 0.96
+	var fast_scale: float = arcade_settings.fast_width_scale if arcade_settings != null else 1.18
+	var transition_m: float = arcade_settings.width_transition_m if arcade_settings != null else 40.0
+
+	var shoulder_scale: float = arcade_settings.road_shoulder_scale if arcade_settings != null else 1.0
+	var shoulder_override: float = arcade_settings.road_shoulder_override if arcade_settings != null else 0.0
+	var shoulder: float = shoulder_override if shoulder_override > 0.001 else track.road_shoulder * shoulder_scale
+	var geometry := {
+		"serpentine_width_scale": serpentine_scale,
+		"country_width_scale": country_scale,
+		"village_width_scale": village_scale,
+		"bridge_width_scale": bridge_scale,
+		"fast_width_scale": fast_scale,
+		"width_transition_m": maxf(0.0, transition_m),
+		"road_shoulder": clampf(shoulder, 0.0, 5.0),
+		"road_edge_band": arcade_settings.road_edge_band if arcade_settings != null else 1.1,
+		"road_camber": arcade_settings.road_camber if arcade_settings != null else track.road_camber,
+		"road_ditch_depth": arcade_settings.road_ditch_depth if arcade_settings != null else 0.5,
+		"verge_width": arcade_settings.verge_width if arcade_settings != null else 8.0,
+		"road_lift": arcade_settings.road_lift if arcade_settings != null else 0.04,
+		"road_mesh_row_step": arcade_settings.road_mesh_row_step if arcade_settings != null else 2.5,
+	}
+	_arcade_geometry = geometry
+	RoadType.configure(generation_seed, base_half, geometry)
+	ChunkType.configure_geometry(geometry)
 
 
 # --------------------------------------------------------------- ресурсы и условия
@@ -537,7 +578,8 @@ func _build_world() -> void:
 			track.ridge_height,
 			track.ridge_frequency,
 			track.detail_height,
-			_ground_material
+			_ground_material,
+			_arcade_geometry
 		)
 		_terrain.sync_road_to(prime_dist)
 		var spawn_pt: Vector3 = network.point_at(clampf(spawn_layout.car_spawn_distance, 0.0, 40.0))
@@ -557,6 +599,7 @@ func _build_world() -> void:
 		"shoulder_color": track.shoulder_color,
 		"edge_post_color": track.edge_post_color,
 		"loose_surface": is_loose,
+		"geometry": _arcade_geometry,
 	})
 	var behind: float = StreamerType.KEEP_BEHIND * StreamerType.CHUNK_LENGTH + 1.0
 	_streamer.focus(0.0)
@@ -1217,7 +1260,7 @@ func _on_surface(world_point: Vector3) -> bool:
 		var near: Vector2 = network.nearest(world_point.x, world_point.z, _last_along)
 		var offset: Vector3 = world_point - network.point_at(near.y)
 		var direction: Vector3 = network.direction_at(near.y)
-		_query_half = ChunkType.half_width_at(near.y, generation_seed) + ChunkType.SHOULDER
+		_query_half = ChunkType.half_width_at(near.y, generation_seed) + ChunkType.shoulder_width() + ChunkType.edge_band_width()
 		_lateral_cache = absf(Vector3(direction.z, 0.0, -direction.x).dot(offset))
 		_query_point = world_point
 	return _lateral_cache <= _query_half
