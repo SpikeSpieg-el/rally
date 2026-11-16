@@ -82,12 +82,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var soil_wet_darken: float = 0.6
 
 @export_group("Грязь и пыль на кузове")
-## Устаревшие поля для совместимости ресурсов; кузов выбирается группой rally_body_fx.
-@export var dirt_body_prefixes: PackedStringArray = PackedStringArray()
-## Меши, которые грязь не трогает (стёкла, фары, салон, диски).
-@export var dirt_body_skip: PackedStringArray = PackedStringArray(
-	["glass", "light", "window", "interior", "wheel", "tire", "hub"]
-)
+## Кузов выбирается группой rally_body_fx в сцене машины.
 ## Цвет сухой пыли на кузове и снежного налёта.
 @export var dirt_color: Color = Color(0.32, 0.235, 0.14, 1.0)
 @export var body_snow_color: Color = Color(0.80, 0.85, 0.90, 1.0)

@@ -220,12 +220,6 @@ void fragment() {
 @export_group("Всплеск")
 @export var burst_scene: PackedScene
 
-@export_group("Устаревшие фильтры (кузов: группа rally_body_fx)")
-@export var body_prefixes: PackedStringArray = PackedStringArray()
-@export var body_skip: PackedStringArray = PackedStringArray(
-	["wheel", "light", "disc", "tire", "cabin", "seat", "interior", "cockpit", "charm", "robe"]
-)
-
 @export_group("Размер пятна от скорости")
 @export var amount_from_speed: Vector2 = Vector2(0.82, 0.012)
 @export var radius_from_speed: Vector2 = Vector2(0.34, 0.007)
