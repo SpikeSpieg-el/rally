@@ -4,18 +4,6 @@
 [ext_resource type="Script" uid="uid://cri301mtntwul" path="res://scripts/stage_preview.gd" id="2_preview"]
 [ext_resource type="Script" path="res://scripts/ui/rally_radio_card.gd" id="16_radio"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start"]
-content_margin_left = 16.0
-content_margin_top = 12.0
-content_margin_right = 16.0
-content_margin_bottom = 12.0
-bg_color = Color(0.92, 0.42, 0.04, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.82, 0.28, 1)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
 content_margin_left = 12.0
 content_margin_top = 6.0
@@ -138,7 +126,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.08, 0.08, 0.09, 1)
 theme_override_font_sizes/font_size = 22
-theme_override_styles/normal = SubResource("StyleBoxFlat_start")
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "ДАЛЕЕ · МАШИНА  ▶"
 
@@ -222,4 +210,4 @@ station_override = ""
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 15
-text = "Выбор трассы и конфигурации сохраняется между заездами.  F1-F5 — смена трассы, N — трек, M — радио, ESC — пауза, C — камера, V — привод."
+text = "Выбор трассы и конфигурации сохраняется между заездами. N — трек, M — радио, ESC — пауза, C — камера, V — привод."

@@ -1064,6 +1064,12 @@ func _setup_screen() -> void:
 	screen.visible = true
 
 
+
+## Полный набор графики из окна настроек.
+func apply_graphics_settings() -> void:
+	GameSettings.apply_display(get_viewport())
+
+
 func _current_domain_name(along: float) -> String:
 	var leg_index: int = RoadType.leg_index_at(along)
 	var built: RoadType.Leg = RoadType.leg(leg_index, generation_seed)

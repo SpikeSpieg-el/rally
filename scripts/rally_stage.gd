@@ -406,6 +406,13 @@ func apply_ps1_setting(enabled: bool) -> void:
 		)
 
 
+## Полный набор графики из окна настроек: окно/разрешение/VSync/FPS,
+## MSAA, масштабирование, тени, анизотропия — плюс ретро-экран PS1.
+func apply_graphics_settings() -> void:
+	GameSettings.apply_display(get_viewport())
+	apply_ps1_setting(GameSettings.ps1_enabled())
+
+
 ## Раскладка спавнов (никогда null).
 func s_spawn() -> SpawnLayoutType:
 	if spawn_layout == null:

@@ -7,7 +7,14 @@ signal closed
 const Bindings = preload("res://scripts/input/input_bindings.gd")
 const ControllerSettings = preload("res://scripts/ui/controller_settings.gd")
 const GameSettings = preload("res://scripts/ui/game_settings.gd")
+const CameraPanel = preload("res://scripts/ui/camera_settings_panel.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+
+## Порядок вкладок: 0 — графика, 1 — управление, 2 — геймпад, 3 — камера.
+const TAB_GRAPHICS := 0
+const TAB_CONTROLS := 1
+const TAB_GAMEPAD := 2
+const TAB_CAMERA := 3
 
 ## Палитра/размеры окна. Пусто — res://data/ui/default_ui_theme.tres.
 @export var ui_theme: UiThemeType = null
@@ -20,6 +27,10 @@ var cancel_button: Button
 var close_button: Button
 var controller_options: VBoxContainer
 var buttons: Dictionary = {}
+var _bindings_device: String = "keyboard"
+var _bindings_content: VBoxContainer = null
+var _device_keyboard_button: Button = null
+var _device_gamepad_button: Button = null
 var capture_action: String = ""
 var capture_device: String = ""
 var capture_slot := -1
@@ -85,7 +96,7 @@ func _build() -> void:
 	layout.add_theme_constant_override("separation", t.overlay_separation)
 	panel.add_child(layout)
 	var eyebrow := Label.new()
-	eyebrow.text = "НАСТРОЙКИ  /  УПРАВЛЕНИЕ"
+	eyebrow.text = "НАСТРОЙКИ"
 	eyebrow.add_theme_color_override("font_color", t.accent)
 	eyebrow.add_theme_font_size_override("font_size", t.font_overlay_note)
 	layout.add_child(eyebrow)
@@ -101,9 +112,9 @@ func _build() -> void:
 	tabs.clip_tabs = true
 	layout.add_child(tabs)
 	_build_game_tab()
+	_build_controls_tab()
 	_build_controller_tab()
-	_build_bindings_tab("gamepad", "ГЕЙМПАД · КНОПКИ")
-	_build_bindings_tab("keyboard", "КЛАВИАТУРА")
+	_build_camera_tab()
 	tabs.tab_changed.connect(_on_tab_changed)
 
 	status = Label.new()
@@ -168,10 +179,83 @@ func _new_scroll(title: String) -> VBoxContainer:
 
 
 func _build_game_tab() -> void:
-	var content := _new_scroll("ИГРА")
+	var content := _new_scroll("ГРАФИКА")
 	var settings := GameSettings.new()
 	settings.name = "GameSettings"
 	content.add_child(settings)
+
+
+func _build_camera_tab() -> void:
+	var content := _new_scroll("КАМЕРА")
+	var panel := CameraPanel.new()
+	panel.name = "CameraPanel"
+	content.add_child(panel)
+
+
+func _build_controls_tab() -> void:
+	var content := _new_scroll("УПРАВЛЕНИЕ")
+	var device_row := HBoxContainer.new()
+	device_row.add_theme_constant_override("separation", theme_cfg().row_separation)
+	content.add_child(device_row)
+	_device_keyboard_button = Button.new()
+	_device_keyboard_button.text = "КЛАВИАТУРА"
+	_device_keyboard_button.custom_minimum_size = Vector2(180, 38)
+	_device_keyboard_button.focus_mode = Control.FOCUS_ALL
+	_device_keyboard_button.pressed.connect(_select_bindings_device.bind("keyboard"))
+	device_row.add_child(_device_keyboard_button)
+	_device_gamepad_button = Button.new()
+	_device_gamepad_button.text = "ГЕЙМПАД"
+	_device_gamepad_button.custom_minimum_size = Vector2(180, 38)
+	_device_gamepad_button.focus_mode = Control.FOCUS_ALL
+	_device_gamepad_button.pressed.connect(_select_bindings_device.bind("gamepad"))
+	device_row.add_child(_device_gamepad_button)
+	_bindings_content = VBoxContainer.new()
+	_bindings_content.add_theme_constant_override("separation", maxi(1, theme_cfg().overlay_margin_vertical / 2))
+	content.add_child(_bindings_content)
+	_rebuild_bindings()
+
+
+func _select_bindings_device(device: String) -> void:
+	if _bindings_device == device:
+		return
+	_bindings_device = device
+	_rebuild_bindings()
+	_refresh_buttons()
+
+
+func _rebuild_bindings() -> void:
+	if _bindings_content == null:
+		return
+	for child in _bindings_content.get_children():
+		child.queue_free()
+	buttons.clear()
+	_device_keyboard_button.button_pressed = _bindings_device == "keyboard"
+	_device_gamepad_button.button_pressed = _bindings_device == "gamepad"
+	var note := Label.new()
+	note.text = "Два слота на действие. Выберите слот и нажмите клавишу, кнопку или отклоните ось.\nEsc — отменить ввод, Backspace — очистить слот. Конфликтующие назначения меняются местами."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", theme_cfg().text_muted)
+	note.add_theme_font_size_override("font_size", theme_cfg().font_overlay_note)
+	_bindings_content.add_child(note)
+	for entry: Dictionary in Bindings.ACTIONS:
+		var action: String = entry.id
+		var row := HBoxContainer.new()
+		row.name = action.to_pascal_case()
+		row.add_theme_constant_override("separation", theme_cfg().row_separation)
+		_bindings_content.add_child(row)
+		var label := Label.new()
+		label.text = String(entry.label)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.add_theme_font_size_override("font_size", theme_cfg().font_overlay_label)
+		row.add_child(label)
+		for slot in range(Bindings.SLOTS):
+			var button := Button.new()
+			button.name = "Slot%d" % (slot + 1)
+			button.custom_minimum_size = Vector2(theme_cfg().binding_button_width, theme_cfg().binding_button_height)
+			button.focus_mode = Control.FOCUS_ALL
+			button.pressed.connect(_begin_capture.bind(action, _bindings_device, slot))
+			row.add_child(button)
+			buttons[_button_key(action, _bindings_device, slot)] = button
 
 
 func _build_controller_tab() -> void:
@@ -184,35 +268,6 @@ func _build_controller_tab() -> void:
 	controller_options = ControllerSettings.new()
 	controller_options.ui_theme = theme_cfg()
 	content.add_child(controller_options)
-
-
-func _build_bindings_tab(device: String, title: String) -> void:
-	var content := _new_scroll(title)
-	var note := Label.new()
-	note.text = "Два слота на действие. Выберите слот и нажмите клавишу, кнопку или отклоните ось.\nEsc — отменить ввод, Backspace — очистить слот. Конфликтующие назначения меняются местами."
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_color_override("font_color", theme_cfg().text_muted)
-	note.add_theme_font_size_override("font_size", theme_cfg().font_overlay_note)
-	content.add_child(note)
-	for entry: Dictionary in Bindings.ACTIONS:
-		var action: String = entry.id
-		var row := HBoxContainer.new()
-		row.name = action.to_pascal_case()
-		row.add_theme_constant_override("separation", theme_cfg().row_separation)
-		content.add_child(row)
-		var label := Label.new()
-		label.text = String(entry.label)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_font_size_override("font_size", theme_cfg().font_overlay_label)
-		row.add_child(label)
-		for slot in range(Bindings.SLOTS):
-			var button := Button.new()
-			button.name = "Slot%d" % (slot + 1)
-			button.custom_minimum_size = Vector2(theme_cfg().binding_button_width, theme_cfg().binding_button_height)
-			button.focus_mode = Control.FOCUS_ALL
-			button.pressed.connect(_begin_capture.bind(action, device, slot))
-			row.add_child(button)
-			buttons[_button_key(action, device, slot)] = button
 
 
 func _button_key(action: String, device: String, slot: int) -> String:
@@ -236,7 +291,7 @@ func open() -> void:
 	modulate.a = 0.0
 	_on_tab_changed(tabs.current_tab)
 	_refresh_buttons()
-	if tabs.current_tab == 1 and controller_options != null:
+	if tabs.current_tab == 2 and controller_options != null:
 		var first := controller_options.get_node_or_null("VibrationRow/VibrationToggle") as Control
 		if first != null:
 			first.grab_focus()
@@ -294,7 +349,7 @@ func _on_tab_changed(index: int) -> void:
 	if not capture_action.is_empty():
 		_cancel_capture()
 	if reset_button != null:
-		reset_button.visible = index > 1
+		reset_button.visible = index == 1
 	if status != null:
 		status.text = "Настройки сохраняются автоматически."
 
@@ -400,9 +455,9 @@ func _refresh_buttons() -> void:
 
 
 func _reset_current_device() -> void:
-	if manager == null or tabs.current_tab == 0:
+	if manager == null or tabs.current_tab != 1:
 		return
 	_cancel_capture()
-	var device := "gamepad" if tabs.current_tab == 2 else "keyboard"
+	var device := _bindings_device
 	var service: RefCounted = manager.get("bindings")
 	status.text = "Заводские привязки восстановлены." if service != null and bool(service.call("reset_device", device)) else "Не удалось сохранить привязки."
