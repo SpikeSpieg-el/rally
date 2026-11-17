@@ -20,6 +20,5 @@ shading_contrast = 0.5
 livery_tint_strength = 0.9
 headlights_night_only = false
 trail_length_m = 4.0
-trail_dual_offset_x = 0.33999999999999997
 trail_opacity = 0.31
 trail_min_speed_kmh = 37.0
