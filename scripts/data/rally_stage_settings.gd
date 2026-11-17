@@ -26,6 +26,12 @@ extends Resource
 @export var show_debug_info: bool = false
 ## Применять point-фильтрацию текстур (PS1) к объектам сцены при заезде.
 @export var apply_ps1_materials: bool = true
+## Автоматически сохранять верхний PNG-план при пересборке трассы в редакторе.
+@export var auto_export_plan_png: bool = true
+## Папка, куда сохраняются PNG-превью планов трасс.
+@export var plan_preview_dir: String = "res://docs/previews"
+## Базовая ширина выходного PNG-плана, px.
+@export_range(480, 2400, 20, "suffix:px") var plan_preview_width: int = 1100
 
 @export_group("PS1 / ретро-экран")
 ## Главный выключатель ретро-оформления (поверх `ps1_style` у трассы).

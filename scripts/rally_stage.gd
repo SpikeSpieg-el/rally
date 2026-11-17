@@ -73,6 +73,7 @@ const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SceneryType = preload("res://scripts/data/rally_scenery_config.gd")
 const PropLibraryType = preload("res://scripts/data/rally_prop_library.gd")
 const RouteAnalysis = preload("res://scripts/track/route_analysis.gd")
+const PlanPreview = preload("res://scripts/track/stage_plan_preview.gd")
 const StageDressing = preload("res://scripts/track/stage_dressing.gd")
 const SpectatorCrowd = preload("res://scripts/track/spectator_crowd.gd")
 const HelicopterType = preload("res://scripts/track/helicopter.gd")
@@ -121,6 +122,7 @@ const DEFAULT_PROP_LIBRARY_PATH := "res://data/stage/default_prop_library.tres"
 @export_group("Редактор")
 @export_tool_button("Пересобрать трассу") var rebuild_button = rebuild_preview
 @export_tool_button("Посадить ассеты на землю") var snap_button = snap_props_to_ground
+@export_tool_button("Обновить план PNG") var export_plan_button = export_plan_preview
 
 @onready var world_environment: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 @onready var sun_light: DirectionalLight3D = get_node_or_null("SunLight") as DirectionalLight3D
@@ -222,6 +224,7 @@ var _frame_delta: float = 0.016
 var _rebuild_pending: bool = false
 var _rebuild_timer: float = 0.0
 var _pending_from_track: bool = false
+var _opening_editor_preview: bool = false
 var _watched_curve: Curve3D = null
 var _built_curve_signature: float = NAN
 
@@ -485,7 +488,9 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		set_process(true)
 		if s_settings().preview_in_editor:
+			_opening_editor_preview = true
 			rebuild_preview()
+			_opening_editor_preview = false
 		_watch_sources()
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -552,6 +557,41 @@ func rebuild_preview(fast_mode: bool = false) -> void:
 				% track.resource_path + "будет рисовать старую. Назначьте эту же кривую "
 				+ "в road_curve трассы (или наоборот)."
 			)
+	if Engine.is_editor_hint():
+		_maybe_export_plan_preview()
+
+
+func export_plan_preview() -> String:
+	_resolve_track()
+	if track == null or track.road_curve == null:
+		return ""
+	var st := s_settings()
+	var preview_dir: String = st.plan_preview_dir if st != null else PlanPreview.DEFAULT_PREVIEWS_DIR
+	var preview_width: int = st.plan_preview_width if st != null else PlanPreview.DEFAULT_WIDTH_PX
+	var fallback_stem: String = ""
+	if not scene_file_path.is_empty():
+		fallback_stem = scene_file_path.get_file().get_basename()
+	var saved_path: String = PlanPreview.export_for_track(track, preview_dir, preview_width, "", fallback_stem)
+	if not saved_path.is_empty():
+		print("План этапа сохранён: %s" % saved_path)
+	return saved_path
+
+
+func _maybe_export_plan_preview() -> void:
+	var st := s_settings()
+	if st == null or not st.auto_export_plan_png:
+		return
+	if track == null or track.road_curve == null:
+		return
+	var fallback_stem: String = ""
+	if not scene_file_path.is_empty():
+		fallback_stem = scene_file_path.get_file().get_basename()
+	var target_path: String = PlanPreview.output_path_for_track(track, st.plan_preview_dir, fallback_stem)
+	if target_path.is_empty():
+		return
+	if _opening_editor_preview and FileAccess.file_exists(ProjectSettings.globalize_path(target_path)):
+		return
+	PlanPreview.export_for_track(track, st.plan_preview_dir, st.plan_preview_width, target_path, fallback_stem)
 
 
 ## Следит за кривой дороги и настройками трассы: любое изменение ставит

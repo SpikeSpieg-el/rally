@@ -27,6 +27,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import make_prop_textures as uid_tool  # noqa: E402
+import plot_stage_plan  # noqa: E402
 import road_profile  # noqa: E402
 import route_kit as kit  # noqa: E402
 import stage_model as model  # noqa: E402
@@ -783,6 +784,7 @@ def main():
     print("Готово: %s, %s, %s" % (
         os.path.relpath(ROUTE_PATH, ROOT), os.path.relpath(RIVER_PATH, ROOT),
         os.path.relpath(TRACK_PATH, ROOT)))
+    plot_stage_plan.build_stage_plan(TRACK_PATH)
     return 0
 
 

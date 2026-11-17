@@ -4,6 +4,7 @@
 extends SceneTree
 
 const Analysis = preload("res://scripts/track/route_analysis.gd")
+const PlanPreview = preload("res://scripts/track/stage_plan_preview.gd")
 const Settings = preload("res://scripts/data/rally_track_studio_settings.gd")
 const Track = preload("res://scripts/data/rally_track_config.gd")
 const Dock = preload("res://addons/rally_track_studio/dock.gd")
@@ -119,6 +120,15 @@ func _initialize() -> void:
 	assert(project_text.contains("addons/rally_track_studio/plugin.cfg"), "плагин включён в проекте")
 	var plugin_cfg := FileAccess.get_file_as_string("res://addons/rally_track_studio/plugin.cfg")
 	assert(plugin_cfg.contains("script=\"plugin.gd\""), "у плагина есть точка входа")
+
+	# Генератор 2D-плана PNG (включая рендер на CPU-Image).
+	assert(settings.auto_export_plan_png, "автоэкспорт PNG-плана включён по умолчанию")
+	var plan_path: String = PlanPreview.output_path_for_track(forest, settings.plan_preview_dir)
+	assert(plan_path == "res://docs/previews/forest2_stage_plan.png", "имя PNG для stage_forest2")
+	var plan_img: Image = PlanPreview.render_image(forest, 640)
+	assert(plan_img != null and plan_img.get_width() >= 560 and plan_img.get_height() >= 360, "рендер Image-плана трассы")
+	var dynamic_track = load("res://data/tracks/stage_dynamic.tres") as Track
+	assert(dynamic_track != null and PlanPreview.render_image(dynamic_track, 640) == null, "процедурная трасса без road_curve пропускается")
 
 	print("Track studio: OK")
 	quit(0)

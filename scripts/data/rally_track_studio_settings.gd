@@ -264,3 +264,11 @@ extends Resource
 @export var text_no_stage: String = "откройте сцену этапа RallyStage"
 ## Строка «трасса не задана».
 @export var text_no_route: String = "у трассы нет осевой линии"
+
+@export_group("Превью-план PNG")
+## Автоматически сохранять 2D-план этапа в PNG при сохранении трассы.
+@export var auto_export_plan_png: bool = true
+## Папка, куда сохраняются PNG-превью планов трасс.
+@export var plan_preview_dir: String = "res://docs/previews"
+## Базовая ширина выходного PNG-плана, px.
+@export_range(480, 2400, 20, "suffix:px") var plan_preview_width: int = 1100

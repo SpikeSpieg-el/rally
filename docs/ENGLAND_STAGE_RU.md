@@ -27,7 +27,7 @@
 | 3560 | Гравий | 3,5 | 0,92 | после моста, подъём из долины |
 | 4100 | Асфальт | 3,7 | 1,22 | финишный подъём к седловине |
 
-![План этапа: дорога раскрашена по высоте (синий — 10 м, красный — 143 м), голубая полоса — река, кружки — мосты](england_stage_plan.png)
+![План этапа: дорога раскрашена по высоте (синий — 10 м, красный — 143 м), голубая полоса — река, кружки — мосты](previews/england_stage_plan.png)
 
 ## Река и мосты
 
@@ -106,15 +106,17 @@
 | `shaders/river_water.gdshader` | вода PS1: рябь, пена у берега, блики фар |
 | `scenes/props/{bridge_small,bridge_large,river_bank_rock,dry_stone_wall}.tscn` | британские пропсы |
 
-Пересобрать всё одной командой:
+Пересобрать всё одной командой (план `docs/previews/england_stage_plan.png` обновится автоматически):
 
 ```bash
 python3 tools/author_england_stage.py
-python3 tools/plot_stage_plan.py data/tracks/stage_england.tres docs/england_stage_plan.png
+python3 tools/plot_stage_plan.py        # пересобрать планы всех трасс с road_curve в docs/previews/
 ```
 
-`tools/plot_stage_plan.py` рисует карту «вид сверху» по тем же ресурсам, что
-читает игра: план удобно проверять глазами, не запуская Godot.
+`tools/plot_stage_plan.py` рисует карту «вид сверху» в `docs/previews/` по тем
+же ресурсам, что читает игра: план удобно проверять глазами, не запуская Godot.
+При сохранении или пересборке трассы в редакторе Godot план обновляется тем же
+способом автоматически (`RallyStagePlanPreview`).
 
 Инструмент уважает правки из редактора: `uid://` ресурсов читается из
 существующих файлов (Godot при пересохранении выдаёт свои), а сцена этапа
