@@ -1880,9 +1880,19 @@ func reset_to_spawn() -> void:
 		if provided is Transform3D:
 			target = provided
 	global_transform = target
+	force_update_transform()
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
+	constant_force = Vector3.ZERO
+	constant_torque = Vector3.ZERO
 	sleeping = false
+	if is_inside_tree():
+		var body_rid: RID = get_rid()
+		if body_rid.is_valid():
+			PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_TRANSFORM, target)
+			PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, Vector3.ZERO)
+			PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, Vector3.ZERO)
+			PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_SLEEPING, false)
 	previous_global_position = global_position
 	_feel_previous_velocity = Vector3.ZERO
 	local_velocity = Vector3.ZERO

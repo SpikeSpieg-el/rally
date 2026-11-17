@@ -62,6 +62,7 @@ var _holding_car: bool = false
 var _saved_freeze: bool = false
 var _saved_velocity := Vector3.ZERO
 var _saved_angular_velocity := Vector3.ZERO
+var _hold_release_physics_frame: int = 0
 # Set false before initialize() to exercise the single-threaded Web path.
 var allow_worker: bool = true
 var _terrain_sampler: Node3D = null
@@ -363,15 +364,65 @@ func _retire_one() -> bool:
 		return true
 	return false
 
-func is_area_ready(centre_pos: Vector3) -> bool:
-	if stage == null or stage.network == null:
+func _has_tile_collider(tile_node: Node) -> bool:
+	if not is_instance_valid(tile_node) or tile_node.is_queued_for_deletion() or not tile_node.is_inside_tree():
 		return false
+	for child in tile_node.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+			return true
+	return false
+
+
+func _has_road_collider(road_node: Node) -> bool:
+	if not is_instance_valid(road_node) or road_node.is_queued_for_deletion() or not road_node.is_inside_tree():
+		return false
+	var surface := road_node.get_node_or_null("RoadSurface") as StaticBody3D
+	if surface == null or surface.is_queued_for_deletion() or not surface.is_inside_tree():
+		return false
+	for child in surface.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+			return true
+	return false
+
+
+func is_area_ready(centre_pos: Vector3, margin: float = 16.0) -> bool:
+	if _stopping or stage == null or stage.network == null or stage.track == null:
+		return false
+	var min_tile := _tile_key(centre_pos - Vector3(margin, 0.0, margin))
+	var max_tile := _tile_key(centre_pos + Vector3(margin, 0.0, margin))
+	for tz in range(min_tile.y, max_tile.y + 1):
+		for tx in range(min_tile.x, max_tile.x + 1):
+			var key := Vector2i(tx, tz)
+			if not tiles.has(key) or not _has_tile_collider(tiles[key]):
+				return false
 	var distance: float = stage.network.distance_to_road(centre_pos.x, centre_pos.z)
 	var along: float = stage.network.along_road(centre_pos.x, centre_pos.z)
-	var road_id: int = floori(along / ROAD_LENGTH)
-	road_id = mini(road_id, ceili(stage.network.total_length / ROAD_LENGTH) - 1)
-	var needs_road: bool = distance <= stage.track.half_width_at(along) + stage.track.road_shoulder + 2.0
-	return tiles.has(_tile_key(centre_pos)) and (not needs_road or roads.has(road_id))
+	var total: float = stage.network.total_length
+	var corridor: float = stage.track.half_width_at(along) + stage.track.road_shoulder + 6.0
+	if distance <= corridor and total > 0.0:
+		var max_id: int = maxi(0, ceili(total / ROAD_LENGTH) - 1)
+		var min_along: float = clampf(along - margin, 0.0, total)
+		var max_along: float = clampf(along + margin, 0.0, total)
+		var id_start: int = mini(floori(min_along / ROAD_LENGTH), max_id)
+		var id_end: int = mini(floori(max_along / ROAD_LENGTH), max_id)
+		for road_id in range(id_start, id_end + 1):
+			if not roads.has(road_id) or not _has_road_collider(roads[road_id]):
+				return false
+	return true
+
+
+func reset_for_restart(start_pos_local: Vector3) -> void:
+	_holding_car = false
+	_saved_freeze = false
+	_saved_velocity = Vector3.ZERO
+	_saved_angular_velocity = Vector3.ZERO
+	_hold_release_physics_frame = 0
+	_refresh_clock = 0.0
+	if not _stopping and not _busy and is_inside_tree():
+		_last_position = start_pos_local
+		_request(start_pos_local, LOAD_RADIUS)
+	else:
+		_last_position = Vector3(INF, INF, INF)
 
 
 func prepare_for_restart(start_pos_local: Vector3) -> void:
@@ -382,6 +433,7 @@ func prepare_for_restart(start_pos_local: Vector3) -> void:
 	_saved_freeze = false
 	_saved_velocity = Vector3.ZERO
 	_saved_angular_velocity = Vector3.ZERO
+	_hold_release_physics_frame = 0
 	_refresh_clock = 0.0
 	_last_position = start_pos_local
 	while _busy:
@@ -390,6 +442,7 @@ func prepare_for_restart(start_pos_local: Vector3) -> void:
 			return
 		await _clock.tick
 	_request(start_pos_local, LOAD_RADIUS)
+	var retried_request := false
 	while not is_area_ready(start_pos_local):
 		if _stopping or _clock == null:
 			_restarting_focus = false
@@ -403,6 +456,10 @@ func prepare_for_restart(start_pos_local: Vector3) -> void:
 				next_idx = i
 				break
 		if next_idx < 0:
+			if not retried_request:
+				retried_request = true
+				_request(start_pos_local, LOAD_RADIUS)
+				continue
 			break
 		_jobs_since_retire = 0
 		await _run_job(next_idx)
@@ -411,11 +468,23 @@ func prepare_for_restart(start_pos_local: Vector3) -> void:
 			return
 		if not is_area_ready(start_pos_local):
 			await _clock.tick
+	# Новые StaticBody3D (Terrain и RoadSurface) добавляются внутри StreamClock._process;
+	# даём JoltPhysics3D два физических шага на регистрацию коллайдеров до разморозки машины.
+	var tree := get_tree()
+	if tree != null and is_inside_tree():
+		await tree.physics_frame
+		if _stopping or not is_inside_tree():
+			_restarting_focus = false
+			return
+		await tree.physics_frame
+		if _stopping or not is_inside_tree():
+			_restarting_focus = false
+			return
 	_restarting_focus = false
 
 
 func _process(delta: float) -> void:
-	if _priming or _stopping or _restarting_focus or stage == null or not stage._stage_live or stage.car == null or stage.is_paused:
+	if _priming or _stopping or _restarting_focus or stage == null or not stage._stage_live or stage.car == null or stage.is_paused or bool(stage.get("_restarting")):
 		return
 	# Road/tile data is stage-local; this node itself remains stationary.
 	var car_pos: Vector3 = stage.to_local(stage.car.global_position)
@@ -432,19 +501,29 @@ func _process(delta: float) -> void:
 	var needs_road: bool = distance <= stage.track.half_width_at(along) + stage.track.road_shoulder + 2.0
 	# Off-road teleports only need ground: the nearest road may be kilometres
 	# away and outside the streamed radius, so requiring it would freeze forever.
-	var safe: bool = tiles.has(_tile_key(car_pos)) and (not needs_road or roads.has(road_id))
+	var safe: bool = tiles.has(_tile_key(car_pos)) and (not needs_road or roads.has(road_id)) and is_area_ready(car_pos, 6.0)
+	if not safe and not _busy and _refresh_clock > 0.1:
+		_refresh_clock = 0.0
+		_request(car_pos)
 	# Teleports/resets must never drop the car through a chunk still loading.
-	if not safe and not _holding_car:
-		_saved_freeze = stage.car.freeze
-		_saved_velocity = stage.car.linear_velocity
-		_saved_angular_velocity = stage.car.angular_velocity
-		stage.car.freeze = true
-		_holding_car = true
-	elif safe and _holding_car:
-		stage.car.freeze = _saved_freeze
-		stage.car.linear_velocity = _saved_velocity
-		stage.car.angular_velocity = _saved_angular_velocity
-		_holding_car = false
+	if not safe:
+		if not _holding_car:
+			_saved_freeze = stage.car.freeze
+			_saved_velocity = stage.car.linear_velocity
+			_saved_angular_velocity = stage.car.angular_velocity
+			stage.car.freeze = true
+			_holding_car = true
+		_hold_release_physics_frame = 0
+	elif _holding_car:
+		var frame: int = int(Engine.get_physics_frames())
+		if _hold_release_physics_frame == 0:
+			_hold_release_physics_frame = frame + 2
+		if frame >= _hold_release_physics_frame:
+			stage.car.freeze = _saved_freeze
+			stage.car.linear_velocity = _saved_velocity
+			stage.car.angular_velocity = _saved_angular_velocity
+			_holding_car = false
+			_hold_release_physics_frame = 0
 	if not _busy:
 		# Keep building collision-critical geometry even while a long scenery
 		# coroutine is yielding. Only one decoration job runs at a time.
