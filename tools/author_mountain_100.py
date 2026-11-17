@@ -6,6 +6,7 @@ terrain builder bounded. Curves have monotone elevation handles.
 from pathlib import Path
 import math
 import random
+import plot_stage_plan
 import road_profile
 import route_kit as kit
 
@@ -68,6 +69,9 @@ def build():
         controls = [(x * ratio, z * ratio, y * ratio) for x, z, y in controls]
         kit.write_curve(controls, str(OUT))
     print(f'{len(controls)} controls; length before final correction {length:.2f} m')
+    track_path = ROOT / 'data/tracks/stage_mountain_100.tres'
+    if track_path.exists():
+        plot_stage_plan.build_stage_plan(track_path)
 
 
 if __name__ == '__main__':

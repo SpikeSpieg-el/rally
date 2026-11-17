@@ -33,6 +33,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import plot_stage_plan  # noqa: E402
 import route_kit as kit  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -556,6 +557,7 @@ def main():
     print("  файлы          data/tracks/stage_testpad{,_route}.tres, scenes/rally_stage_testpad.tscn")
     if not ok:
         raise SystemExit("ПРОВЕРКА НЕ ПРОШЛА: правь параметры полигона")
+    plot_stage_plan.build_stage_plan(TRACK_PATH)
 
 
 if __name__ == "__main__":

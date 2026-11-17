@@ -22,6 +22,7 @@ const SectionType = preload("res://scripts/data/rally_route_section.gd")
 const PropLibraryType = preload("res://scripts/data/rally_prop_library.gd")
 const PropType = preload("res://scripts/data/rally_prop.gd")
 const Analysis = preload("res://scripts/track/route_analysis.gd")
+const PlanPreview = preload("res://scripts/track/stage_plan_preview.gd")
 const ViewType = preload("res://addons/rally_track_studio/studio_view.gd")
 const Modes = preload("res://addons/rally_track_studio/studio_modes.gd")
 
@@ -2685,6 +2686,21 @@ func save_now() -> void:
 	_save_resource(curve)
 	_save_resource(track)
 	_save_resource(spawn)
+	if settings == null or settings.auto_export_plan_png:
+		export_plan_preview()
+
+
+func export_plan_preview() -> String:
+	if track == null or not is_instance_valid(track):
+		return ""
+	if track.road_curve == null:
+		return ""
+	var preview_dir: String = settings.plan_preview_dir if settings != null else PlanPreview.DEFAULT_PREVIEWS_DIR
+	var preview_width: int = settings.plan_preview_width if settings != null else PlanPreview.DEFAULT_WIDTH_PX
+	var fallback_stem: String = ""
+	if scene_root != null and not scene_root.scene_file_path.is_empty():
+		fallback_stem = scene_root.scene_file_path.get_file().get_basename()
+	return PlanPreview.export_for_track(track, preview_dir, preview_width, "", fallback_stem)
 
 
 func _save_resources() -> void:

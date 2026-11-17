@@ -8,12 +8,14 @@
 
 Запуск:  python3 tools/make_routes.py
 """
+import os
 import sys
 
-sys.path.insert(0, "/home/user/rally/tools")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plot_stage_plan
 import route_kit as kit
 
-ROOT = "/home/user/rally"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def serpentine(levels, radius, traverse, climbs):
@@ -297,6 +299,10 @@ def main():
         all_ok = all_ok and ok
     if not all_ok:
         raise SystemExit("ПРОВЕРКА НЕ ПРОШЛА")
+    for name in ROUTES:
+        track_path = os.path.join(ROOT, "data/tracks/stage_%s.tres" % name)
+        if os.path.exists(track_path):
+            plot_stage_plan.build_stage_plan(track_path)
     print("\nвсе трассы записаны и проверены")
 
 

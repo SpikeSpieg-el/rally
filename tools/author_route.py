@@ -10,9 +10,11 @@ profile, then writes a Godot Curve3D resource (data/tracks/stage_forest_route.tr
 Edit SEGS below (or edit the curve by hand in Godot) and run:
     python3 tools/author_route.py
 """
+import os
 import sys
 
-sys.path.insert(0, "/home/user/rally/tools")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plot_stage_plan
 import route_kit as kit
 
 # kind: "s" straight   (length, climb)
@@ -94,6 +96,9 @@ def main():
     kit.render(pts, "/tmp/route_forest.png")
     if not ok:
         raise SystemExit("ПРОВЕРКА НЕ ПРОШЛА: правь SEGS или параметры kit")
+    track_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data/tracks/stage_forest.tres")
+    if os.path.exists(track_path):
+        plot_stage_plan.build_stage_plan(track_path)
     print("written " + OUT_CURVE)
 
 
