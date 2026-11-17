@@ -1,8 +1,25 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://c84gh3prahk0l"]
 
-[ext_resource type="Script" path="res://scripts/effects/rally_ghost_look.gd" id="1_ghost"]
+[ext_resource type="Script" uid="uid://cfoj540u36qe" path="res://scripts/effects/rally_ghost_look.gd" id="1_ghost"]
 
-[node name="Ghost" type="Node3D"]
+[node name="Ghost" type="Node3D" unique_id=699560266]
 editor_description = "Единственный пульт призрака лучшего проезда и расчёта живой дельты времени. Правка здесь задаёт вид, огни, затухание и след во всех заездах."
 script = ExtResource("1_ghost")
-look = 2
+look = 0
+preview_in_editor = true
+opacity = 0.15000000000000002
+wheel_opacity_scale = 0.1
+fresnel_power = 3.7
+rim_intensity = 1.25
+emission_strength = 0.35
+scanline_strength = 0.8
+scanline_density = 65.0
+scanline_speed = -2.0
+pulse_speed = 0.0
+shading_contrast = 0.5
+livery_tint_strength = 0.9
+headlights_night_only = false
+trail_length_m = 4.0
+trail_dual_offset_x = 0.33999999999999997
+trail_opacity = 0.31
+trail_min_speed_kmh = 37.0

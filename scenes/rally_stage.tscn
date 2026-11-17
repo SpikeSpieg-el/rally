@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://wm1brqrr6p8v" path="res://scenes/rally_car.tscn" id="2_car"]
 [ext_resource type="Resource" uid="uid://ddy67ekslqf3h" path="res://data/rally_game_config.tres" id="2_way4p"]
 [ext_resource type="Shader" uid="uid://ia6yuyaoeeqq" path="res://shaders/forest_ground.gdshader" id="3_6y0e7"]
+[ext_resource type="Resource" uid="uid://b7vnrvvmjm6mv" path="res://data/tracks/stage_forest.tres" id="3_v5wy2"]
 [ext_resource type="Curve3D" uid="uid://cnkrnb4gwuihg" path="res://data/tracks/stage_forest_route.tres" id="4_route"]
 [ext_resource type="Texture2D" uid="uid://bci7my2yjh4da" path="res://textures/environment/forest_floor.png" id="5_qj60p"]
 [ext_resource type="Resource" uid="uid://csy3ssx2uxglk" path="res://data/setups/11_gravel.tres" id="6_fxige"]
@@ -22,7 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://dmg673mvw0nmj" path="res://scenes/effects/retro_screen.tscn" id="retro_screen"]
 [ext_resource type="PackedScene" path="res://scenes/effects/visual_effects.tscn" id="visual_effects"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_v5wy2"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yokjg"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("3_6y0e7")
@@ -63,7 +64,7 @@ shader_parameter/snow_specular = 0.1
 shader_parameter/wet_specular = 0.42
 shader_parameter/dry_specular = 0.16
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_aj5do"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v5wy2"]
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("7_4d4ml")
@@ -113,7 +114,7 @@ shader_parameter/texture_detail_strength = 1.0
 shader_parameter/puddle_roughness = 0.18
 shader_parameter/puddle_mix = 0.35
 
-[sub_resource type="Resource" id="Resource_pbyqm"]
+[sub_resource type="Resource" id="Resource_aj5do"]
 script = ExtResource("9_h4p6t")
 preview_in_editor = false
 show_debug_info = true
@@ -127,12 +128,12 @@ road_roughness = 0.96
 road_loose_relief = 0.5
 road_detail_strength = 0.08
 road_track_strength = 0.06
-ground_material = SubResource("ShaderMaterial_v5wy2")
-road_material = SubResource("ShaderMaterial_aj5do")
+ground_material = SubResource("ShaderMaterial_yokjg")
+road_material = SubResource("ShaderMaterial_v5wy2")
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gxar1"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_v58wt"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pbyqm"]
 resource_local_to_scene = true
 shader = ExtResource("19_fvvtf")
 shader_parameter/retro_strength = 0.65
@@ -151,7 +152,8 @@ shader_parameter/speed_stretch_gain = 1.0
 [node name="RallyStage" type="Node3D" unique_id=651009656]
 script = ExtResource("1_stage")
 game_config = ExtResource("2_way4p")
-settings = SubResource("Resource_pbyqm")
+track_override = ExtResource("3_v5wy2")
+settings = SubResource("Resource_aj5do")
 legacy_effects_imported = true
 spawn_layout = ExtResource("10_xfxr1")
 fx_profile = ExtResource("11_1v6xi")
@@ -198,7 +200,7 @@ setup_override = ExtResource("6_fxige")
 
 [node name="SpeedShaderRect" parent="HUD" unique_id=1844040114 instance=ExtResource("retro_screen")]
 editor_description = "Ретро-экран: готовый вид выбирается здесь, материал сохраняется в сцене."
-material = SubResource("ShaderMaterial_v58wt")
+material = SubResource("ShaderMaterial_pbyqm")
 look = 0
 
 [node name="RallyHUD" parent="HUD" unique_id=1407303526 instance=ExtResource("hud_layout")]
