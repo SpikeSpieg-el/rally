@@ -5249,6 +5249,7 @@ func _restart_streamed_async(spawn_xform: Transform3D, spawn_local: Vector3) -> 
 		pause_panel.visible = false
 	if results_panel != null:
 		results_panel.visible = false
+	car.process_mode = Node.PROCESS_MODE_DISABLED
 	car.freeze = true
 	car.spawn_transform = spawn_xform
 	if car.has_method("restart_at_spawn"):
@@ -5259,15 +5260,17 @@ func _restart_streamed_async(spawn_xform: Transform3D, spawn_local: Vector3) -> 
 	if not is_inside_tree() or not is_instance_valid(car):
 		_restarting = false
 		return
-	_apply_instant_restart(spawn_xform)
+	await _apply_instant_restart(spawn_xform)
 
 
 func _apply_instant_restart(spawn_xform: Transform3D) -> void:
-	_restarting = false
+	_restarting = true
 	_marathon_transitioning = false
 	is_paused = false
 	if get_tree() != null:
 		get_tree().paused = false
+	if world_streamer != null and world_streamer.has_method("reset_for_restart"):
+		world_streamer.reset_for_restart(spawn_xform.origin)
 	if input_settings != null and input_settings.visible:
 		input_settings.close()
 	if pause_panel != null:
@@ -5321,8 +5324,11 @@ func _apply_instant_restart(spawn_xform: Transform3D) -> void:
 	if car != null:
 		var precipitation := _precipitation_levels()
 		car.set_precipitation(precipitation.x, precipitation.y)
+		# Телепортируем замороженную машину, как при холодном старте в _ready(),
+		# и держим её статичной два физических шага до полной синхронизации Jolt.
+		car.process_mode = Node.PROCESS_MODE_DISABLED
+		car.freeze = true
 		car.spawn_transform = spawn_xform
-		car.freeze = false
 		if car.has_method("restart_at_spawn"):
 			car.restart_at_spawn()
 		else:
@@ -5353,6 +5359,19 @@ func _apply_instant_restart(spawn_xform: Transform3D) -> void:
 	if is_inside_tree():
 		get_viewport().gui_release_focus()
 	_update_hud()
+	if car != null:
+		if is_inside_tree() and get_tree() != null and not Engine.is_editor_hint():
+			await get_tree().physics_frame
+			if not is_inside_tree() or not is_instance_valid(car):
+				_restarting = false
+				return
+			await get_tree().physics_frame
+			if not is_inside_tree() or not is_instance_valid(car):
+				_restarting = false
+				return
+		car.freeze = false
+		car.process_mode = Node.PROCESS_MODE_PAUSABLE
+	_restarting = false
 
 
 func _on_restart_pressed() -> void:

@@ -121,10 +121,101 @@ class CarAndSubsystemResetHelpersTest(unittest.TestCase):
         self.assertIn("func reset_person() -> void:", read("scripts/track/spectator_person.gd"))
         self.assertIn("func reset_crowd() -> void:", read("scripts/track/spectator_crowd.gd"))
         self.assertIn("remove_child(_rig)", read("scripts/effects/rally_ghost_look.gd"))
-        self.assertIn("func is_area_ready(centre_pos: Vector3) -> bool:", read("scripts/world_streamer.gd"))
+        self.assertIn("func is_area_ready(centre_pos: Vector3, margin: float = 16.0) -> bool:", read("scripts/world_streamer.gd"))
         self.assertIn("func prepare_for_restart(start_pos_local: Vector3) -> void:", read("scripts/world_streamer.gd"))
         self.assertIn("_ready_queue.is_empty()", function(read("scripts/arcade/arcade_terrain.gd"), "func prime(center_pos: Vector3) -> void:"))
         self.assertIn("_refresh_wanted(center)", function(read("scripts/arcade/arcade_streamer.gd"), "func prime(behind: float, ahead_chunks: int) -> void:"))
+
+
+class RestartPhysicsAndStreamingSafetyTest(unittest.TestCase):
+    def test_world_streamer_checks_footprint_colliders_and_waits_physics_frames(self):
+        ws = read("scripts/world_streamer.gd")
+        ready_fn = function(ws, "func is_area_ready(centre_pos: Vector3, margin: float = 16.0) -> bool:")
+        self.assertIn("_has_tile_collider(", ready_fn)
+        self.assertIn("_has_road_collider(", ready_fn)
+        self.assertIn("for tz in range(", ready_fn)
+        self.assertIn("for road_id in range(", ready_fn)
+
+        tile_col_fn = function(ws, "func _has_tile_collider(tile_node: Node) -> bool:")
+        self.assertIn("is_queued_for_deletion()", tile_col_fn)
+        self.assertIn("is_inside_tree()", tile_col_fn)
+        self.assertIn("CollisionShape3D", tile_col_fn)
+
+        road_col_fn = function(ws, "func _has_road_collider(road_node: Node) -> bool:")
+        self.assertIn('"RoadSurface"', road_col_fn)
+        self.assertIn("is_queued_for_deletion()", road_col_fn)
+        self.assertIn("CollisionShape3D", road_col_fn)
+
+        prep_fn = function(ws, "func prepare_for_restart(start_pos_local: Vector3) -> void:")
+        self.assertGreaterEqual(prep_fn.count("await tree.physics_frame"), 2)
+        self.assertLess(prep_fn.index("await tree.physics_frame"), prep_fn.rindex("_restarting_focus = false"))
+
+        reset_fn = function(ws, "func reset_for_restart(start_pos_local: Vector3) -> void:")
+        for required in (
+            "_holding_car = false",
+            "_saved_freeze = false",
+            "_saved_velocity = Vector3.ZERO",
+            "_saved_angular_velocity = Vector3.ZERO",
+            "_hold_release_physics_frame = 0",
+        ):
+            self.assertIn(required, reset_fn)
+
+        proc_fn = function(ws, "func _process(delta: float) -> void:")
+        self.assertIn('bool(stage.get("_restarting"))', proc_fn)
+        self.assertIn("_hold_release_physics_frame", proc_fn)
+
+    def test_rally_stage_keeps_car_frozen_through_teleport_and_physics_sync(self):
+        stage = read("scripts/rally_stage.gd")
+        async_fn = function(stage, "func _restart_streamed_async(spawn_xform: Transform3D, spawn_local: Vector3) -> void:")
+        self.assertIn("car.process_mode = Node.PROCESS_MODE_DISABLED", async_fn)
+        self.assertIn("car.freeze = true", async_fn)
+        self.assertIn("await _apply_instant_restart(spawn_xform)", async_fn)
+
+        apply_fn = function(stage, "func _apply_instant_restart(spawn_xform: Transform3D) -> void:")
+        self.assertIn("world_streamer.reset_for_restart(spawn_xform.origin)", apply_fn)
+        self.assertIn("car.freeze = true", apply_fn)
+        self.assertIn("car.process_mode = Node.PROCESS_MODE_DISABLED", apply_fn)
+        self.assertGreaterEqual(apply_fn.count("await get_tree().physics_frame"), 2)
+        self.assertLess(apply_fn.index("car.freeze = true"), apply_fn.index("car.restart_at_spawn()"))
+        self.assertLess(apply_fn.index("car.restart_at_spawn()"), apply_fn.index("await get_tree().physics_frame"))
+        self.assertLess(apply_fn.rindex("await get_tree().physics_frame"), apply_fn.index("car.freeze = false"))
+        self.assertLess(apply_fn.rindex("await get_tree().physics_frame"), apply_fn.index("car.process_mode = Node.PROCESS_MODE_PAUSABLE"))
+
+    def test_arcade_terrain_repairs_missing_colliders_and_stage_syncs_physics(self):
+        terrain = read("scripts/arcade/arcade_terrain.gd")
+        prime_fn = function(terrain, "func prime(center_pos: Vector3) -> void:")
+        self.assertIn("_ensure_tile_collider(", prime_fn)
+        self.assertIn("_ensure_nearby_colliders()", prime_fn)
+
+        wanted_fn = function(terrain, "func _refresh_wanted(center_tile: Vector2i) -> void:")
+        self.assertIn("_ensure_nearby_colliders()", wanted_fn)
+
+        arcade = read("scripts/arcade/arcade_stage.gd")
+        can_fn = function(arcade, "func can_restart_in_place() -> bool:")
+        self.assertIn("not _restarting", can_fn)
+
+        restart_fn = function(arcade, "func restart_in_place() -> void:")
+        self.assertGreaterEqual(restart_fn.count("await get_tree().physics_frame"), 2)
+        self.assertLess(restart_fn.index("car.freeze = true"), restart_fn.index("car.restart_at_spawn()"))
+        self.assertLess(restart_fn.index("car.restart_at_spawn()"), restart_fn.index("await get_tree().physics_frame"))
+        self.assertLess(restart_fn.rindex("await get_tree().physics_frame"), restart_fn.index("car.freeze = false"))
+        self.assertLess(restart_fn.rindex("await get_tree().physics_frame"), restart_fn.index("car.process_mode = Node.PROCESS_MODE_PAUSABLE"))
+
+    def test_rally_car_reset_syncs_physics_server_before_wheel_raycast(self):
+        car = read("scripts/rally_car.gd")
+        reset_fn = function(car, "func reset_to_spawn() -> void:")
+        for required in (
+            "force_update_transform()",
+            "constant_force = Vector3.ZERO",
+            "constant_torque = Vector3.ZERO",
+            "PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_TRANSFORM, target)",
+            "PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, Vector3.ZERO)",
+            "PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, Vector3.ZERO)",
+            "PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_SLEEPING, false)",
+        ):
+            self.assertIn(required, reset_fn)
+        self.assertLess(reset_fn.index("force_update_transform()"), reset_fn.index("wheel.force_raycast_update()"))
+        self.assertLess(reset_fn.index("PhysicsServer3D.body_set_state"), reset_fn.index("wheel.force_raycast_update()"))
 
 
 if __name__ == "__main__":

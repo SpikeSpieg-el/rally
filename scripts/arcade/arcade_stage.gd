@@ -90,6 +90,7 @@ var _query_half: float = 0.0
 var _lateral_cache: float = 0.0
 var _hud_clock: float = 0.0
 var _is_paused: bool = false
+var _restarting: bool = false
 
 var _alert_text: String = ""
 var _alert_color := Color(1.0, 0.8, 0.2, 1.0)
@@ -201,7 +202,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if car == null or _streamer == null:
+	if car == null or _streamer == null or _restarting:
 		return
 	if _is_paused or (_rules != null and _rules.run_ended):
 		return
@@ -234,7 +235,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _is_paused or car == null:
+	if _is_paused or _restarting or car == null:
 		return
 	if _rules != null and _rules.run_ended:
 		return
@@ -1119,12 +1120,13 @@ func _on_resume_pressed() -> void:
 
 
 func can_restart_in_place() -> bool:
-	return car != null and is_instance_valid(car) and network != null and _streamer != null and _terrain != null
+	return not _restarting and car != null and is_instance_valid(car) and network != null and _streamer != null and _terrain != null
 
 
 func restart_in_place() -> void:
 	if not can_restart_in_place():
 		return
+	_restarting = true
 	_is_paused = false
 	if get_tree() != null:
 		get_tree().paused = false
@@ -1136,6 +1138,10 @@ func restart_in_place() -> void:
 		_pause_panel.visible = false
 	if _results_panel != null:
 		_results_panel.visible = false
+
+	if car != null:
+		car.process_mode = Node.PROCESS_MODE_DISABLED
+		car.freeze = true
 
 	_elapsed_time = 0.0
 	_max_along = 0.0
@@ -1155,8 +1161,9 @@ func restart_in_place() -> void:
 	_last_along = spawn_d
 	var spawn_xform: Transform3D = _spawn_transform()
 
-	_terrain.sync_road_to(StreamerType.LOOKAHEAD * StreamerType.CHUNK_LENGTH + StreamerType.CHUNK_LENGTH)
-	_terrain.prime(spawn_xform.origin)
+	if _terrain != null:
+		_terrain.sync_road_to(StreamerType.LOOKAHEAD * StreamerType.CHUNK_LENGTH + StreamerType.CHUNK_LENGTH)
+		_terrain.prime(spawn_xform.origin)
 	var behind: float = StreamerType.KEEP_BEHIND * StreamerType.CHUNK_LENGTH + 1.0
 	_streamer.focus(0.0)
 	_streamer.prime(behind, StreamerType.LOOKAHEAD)
@@ -1173,8 +1180,6 @@ func restart_in_place() -> void:
 		controller.call("stop_driving_feedback")
 
 	if car != null:
-		car.process_mode = Node.PROCESS_MODE_PAUSABLE
-		car.freeze = false
 		car.spawn_transform = spawn_xform
 		if car.has_method("restart_at_spawn"):
 			car.restart_at_spawn()
@@ -1193,9 +1198,24 @@ func restart_in_place() -> void:
 	if is_inside_tree():
 		get_viewport().gui_release_focus()
 	_update_hud()
+	if car != null:
+		if is_inside_tree() and get_tree() != null and not Engine.is_editor_hint():
+			await get_tree().physics_frame
+			if not is_inside_tree() or not is_instance_valid(car):
+				_restarting = false
+				return
+			await get_tree().physics_frame
+			if not is_inside_tree() or not is_instance_valid(car):
+				_restarting = false
+				return
+		car.freeze = false
+		car.process_mode = Node.PROCESS_MODE_PAUSABLE
+	_restarting = false
 
 
 func _on_restart_pressed() -> void:
+	if _restarting:
+		return
 	var game: Node = get_node_or_null("/root/RallyGame")
 	if game != null and game.has_method("restart_race"):
 		game.call("restart_race")

@@ -345,11 +345,14 @@ func prime(center_pos: Vector3) -> void:
 	while not _pending.is_empty():
 		var key: Vector2i = _pending.pop_front()
 		if _tiles.has(key):
+			if _tile_within_collision_range(key):
+				_ensure_tile_collider(_tiles[key] as Node3D)
 			continue
 		if _prepared.has(key):
 			_finish_tile(key)
 		else:
 			_build_tile(key)
+	_ensure_nearby_colliders()
 
 
 func focus(center_pos: Vector3) -> void:
@@ -358,6 +361,38 @@ func focus(center_pos: Vector3) -> void:
 	if center_tile != _last_center_tile:
 		_last_center_tile = center_tile
 		_refresh_wanted(center_tile)
+
+
+func _tile_within_collision_range(key: Vector2i) -> bool:
+	var tile_cx: float = (float(key.x) + 0.5) * TILE_SIZE
+	var tile_cz: float = (float(key.y) + 0.5) * TILE_SIZE
+	return Vector2(tile_cx - _focus_pos.x, tile_cz - _focus_pos.z).length() <= COLLISION_RADIUS + TILE_SIZE
+
+
+func _ensure_tile_collider(tile_root: Node3D) -> void:
+	if not is_instance_valid(tile_root) or tile_root.is_queued_for_deletion():
+		return
+	if tile_root.get_node_or_null("TerrainBody") != null:
+		return
+	var visual := tile_root.get_node_or_null("Mesh") as MeshInstance3D
+	if visual == null or visual.mesh == null:
+		return
+	var body := StaticBody3D.new()
+	body.name = "TerrainBody"
+	body.add_to_group("Grass")
+	var shape := visual.mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	var col := CollisionShape3D.new()
+	col.shape = shape
+	body.add_child(col)
+	tile_root.add_child(body)
+
+
+func _ensure_nearby_colliders() -> void:
+	for existing_key in _tiles.keys():
+		var k: Vector2i = existing_key as Vector2i
+		if _tile_within_collision_range(k):
+			_ensure_tile_collider(_tiles[existing_key] as Node3D)
 
 
 func _process(_delta: float) -> void:
@@ -408,6 +443,8 @@ func _refresh_wanted(center_tile: Vector2i) -> void:
 			_tiles.erase(existing_key)
 			if is_instance_valid(tile_node):
 				tile_node.queue_free()
+
+	_ensure_nearby_colliders()
 
 	queue_list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["dist"]) < float(b["dist"]))
 	_pending.clear()
@@ -543,20 +580,8 @@ func _finish_tile(key: Vector2i) -> void:
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	tile_root.add_child(visual)
 
-	var dist_to_car: float = Vector2(
-		origin_x + TILE_SIZE * 0.5 - _focus_pos.x,
-		origin_z + TILE_SIZE * 0.5 - _focus_pos.z
-	).length()
-	if dist_to_car <= COLLISION_RADIUS + TILE_SIZE:
-		var body := StaticBody3D.new()
-		body.name = "TerrainBody"
-		body.add_to_group("Grass")
-		var shape := mesh.create_trimesh_shape()
-		shape.backface_collision = true
-		var col := CollisionShape3D.new()
-		col.shape = shape
-		body.add_child(col)
-		tile_root.add_child(body)
+	if _tile_within_collision_range(key):
+		_ensure_tile_collider(tile_root)
 
 	add_child(tile_root)
 	_tiles[key] = tile_root
