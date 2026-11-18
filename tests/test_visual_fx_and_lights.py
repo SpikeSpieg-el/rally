@@ -202,15 +202,46 @@ class EmissionAndTaillightsTest(unittest.TestCase):
             else:
                 self.assertEqual(lenses, 2, f"{scene_path}: линзы стоп-сигналов должны быть парой")
 
-        # Rear GravelParticles spawned behind Lancer's rear bumper; headlights stay intact.
-        lancer = _read("scenes/rally_car.tscn")
-        gravel_block = _extract_block(lancer, '[node name="GravelParticles" type="GPUParticles3D"')
-        gravel_transform = re.search(r"Transform3D\(([^)]+)\)", gravel_block)
-        self.assertIsNotNone(gravel_transform)
-        nums = [float(x.strip()) for x in gravel_transform.group(1).split(",")]
-        self.assertLessEqual(nums[11], -2.0)
-        self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="low poly lance evo"', lancer)
-        self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="low poly lance evo"', lancer)
+            # Фары: у Lancer они внутри модели, у Golf и Subaru — на корне сцены.
+            # SpotLight3D светит вдоль своего -Z, поэтому мировой базис отрицательный.
+            for light_name in ("HeadlightL", "HeadlightR"):
+                found = _nodes(scene, light_name, "SpotLight3D")
+                self.assertEqual(len(found), 1,
+                                 f"{scene_path}: узел {light_name} (SpotLight3D) должен быть ровно один")
+                if len(found) != 1:
+                    continue
+                _, block, parent = found[0]
+                self.assertIn(parent, (".", model_root),
+                              f"{scene_path}: {light_name} должен висеть на корне сцены или на модели")
+                local = _basis(block)
+                self.assertIsNotNone(local, f"{scene_path}: у {light_name} нет Transform3D")
+                if local is None:
+                    continue
+                base = model_basis if parent == model_root else _IDENTITY_BASIS
+                world = _compose(base, local)
+                self.assertLessEqual(world[8], -0.9,
+                                     f"{scene_path}: {light_name} должен светить вперёд")
+                # Тени дают только фары: у стоп-сигналов они съедают кадр впустую.
+                self.assertIn("shadow_enabled = true", block,
+                              f"{scene_path}: {light_name} должен отбрасывать тени")
+
+            # Эмиттер гравия из-под задних колёс: позади кузова, на корне сцены.
+            # У Lancer он у самого бампера (z = -2.42), у Golf и Subaru ближе к
+            # середине (z = -1.50) — главное, что не внутри кузова.
+            gravel_found = _nodes(scene, "GravelParticles", "GPUParticles3D")
+            self.assertEqual(len(gravel_found), 1,
+                             f"{scene_path}: узел GravelParticles должен быть ровно один")
+            if len(gravel_found) == 1:
+                _, gravel_block, gravel_parent = gravel_found[0]
+                self.assertEqual(gravel_parent, ".",
+                                 f"{scene_path}: GravelParticles belongs on the scene root")
+                gravel_transform = re.search(r"Transform3D\(([^)]+)\)", gravel_block)
+                self.assertIsNotNone(gravel_transform,
+                                     f"{scene_path}: у GravelParticles нет Transform3D")
+                if gravel_transform is not None:
+                    nums = [float(x.strip()) for x in gravel_transform.group(1).split(",")]
+                    self.assertLessEqual(nums[11], -1.0,
+                                         f"{scene_path}: гравий должен лететь позади кузова")
 
         visuals = _read("scripts/car_visual_customization.gd")
         self.assertIn('car.find_child(node_name, true, false)', visuals)

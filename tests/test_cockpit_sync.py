@@ -11,14 +11,27 @@ def read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding="utf-8")
 
 
+def car_scenes() -> list[str]:
+    """Все игровые сцены машин: список не должен жить в тесте."""
+    scenes = sorted(scene.relative_to(ROOT).as_posix()
+                    for scene in (ROOT / "scenes").glob("rally_car*.tscn"))
+    assert scenes, "в scenes/ нет сцен машин rally_car*.tscn"
+    return scenes
+
+
 class CockpitSyncAndHudVisibilityTest(unittest.TestCase):
-    def test_cockpit_uses_external_script_in_both_scenes(self):
+    def test_cockpit_uses_external_script_in_every_car_scene(self):
+        """Кабина одна на все машины: внешний скрипт, без встроенного GDScript.
+
+        Список сцен берётся из `scenes/rally_car*.tscn`, поэтому четвёртая
+        машина со встроенной копией кабины не пройдёт проверку.
+        """
         self.assertTrue((ROOT / "scripts/ui/rally_cockpit.gd").is_file())
         self.assertTrue((ROOT / "scripts/ui/rally_cockpit.gd.uid").is_file())
         self.assertTrue((ROOT / "tests/cockpit_sync.gd").is_file())
         self.assertTrue((ROOT / "tests/cockpit_sync.gd.uid").is_file())
 
-        for scene_rel in ("scenes/rally_car.tscn", "scenes/rally_cockpit.tscn.tscn"):
+        for scene_rel in car_scenes() + ["scenes/rally_cockpit.tscn.tscn"]:
             tscn = read(scene_rel)
             self.assertNotIn('id="GDScript_cockpit"', tscn, f"{scene_rel} не должен содержать встроенный GDScript_cockpit")
             self.assertNotIn('"engine_rpm"', tscn, f"{scene_rel} не должен ссылаться на несуществующее поле engine_rpm")
