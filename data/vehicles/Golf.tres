@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="RallyVehicle" format=3 uid="uid://ch3wx22kun04j"]
+
+[ext_resource type="Script" uid="uid://14v5g2inqnbr" path="res://scripts/data/rally_vehicle.gd" id="1_d5bgr"]
+
+[resource]
+script = ExtResource("1_d5bgr")
+id = "Golf"
+display_name = "Golf"
+setup_ids = Array[String](["subaru_sti_stock"])
+race_scene = "res://scenes/rally_car2.tscn"
+engine_dir = "res://audio/engine/subaru/"
+engine_rpm_grid = Array[int]([800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765, 1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910, 4235, 4585, 4965, 5375, 5820, 6300, 6800])
+engine_events_dir = "res://audio/vehicle/subaru/"
+engine_trim_db = -1.5
+engine_event_pitch = 0.9
