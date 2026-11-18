@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://tnlm4t2eyv2o"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "golf_snow"
+display_name = "GOLF · СНЕГ"
+description = "Снежная настройка: почти передний привод, строгая антипробуксовка, узкие шины и мягкая подвеска. Атмосферный VR6 тянет ровно и без рывка — на льду это важнее пиковой мощности."
+engine_name = "VR6 3.2 · АТМО"
+max_torque = 300.0
+max_rpm = 6200.0
+idle_rpm = 800.0
+torque_shape = 2
+turbo = false
+final_drive = 4.35
+gear_ratios = Array[float]([3.3, 2.08, 1.48, 1.11, 0.89, 0.74])
+traction_control_max_slip = 0.45
+vehicle_mass = 1450.0
+front_weight_distribution = 0.59
+center_of_gravity_height_offset = -0.1
+coefficient_of_drag = 0.36
+frontal_area = 2.05
+awd_front_torque = 0.66
+front_spring_length = 0.38
+rear_spring_length = 0.4
+front_damping_ratio = 0.4
+rear_damping_ratio = 0.46
+rolling_resistance_scale = 1.15
+tire_width = 195.0
+grip_scale = 0.85

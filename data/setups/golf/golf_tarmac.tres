@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://ltsz7n1xoy4k"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "golf_tarmac"
+display_name = "GOLF · АСФАЛЬТ"
+description = "Асфальтовая настройка: жёсткая подвеска, толстые стабилизаторы, широкие шины и длинная главная пара. Момент на передней оси убавлен, чтобы тяжёлый VR6 не толкал нос наружу в середине поворота."
+engine_name = "VR6 3.2 · АТМО"
+max_torque = 340.0
+max_rpm = 6600.0
+idle_rpm = 750.0
+torque_shape = 2
+turbo = false
+final_drive = 3.5
+gear_ratios = Array[float]([3.3, 2.08, 1.48, 1.11, 0.89, 0.74])
+traction_control_max_slip = 0.55
+vehicle_mass = 1440.0
+front_weight_distribution = 0.57
+center_of_gravity_height_offset = -0.13
+coefficient_of_drag = 0.32
+frontal_area = 2.0
+awd_front_torque = 0.52
+front_arb_ratio = 0.22
+rear_arb_ratio = 0.18
+front_damping_ratio = 0.62
+rear_damping_ratio = 0.66
+brake_force_multiplier = 1.08
+front_brake_bias = 0.62
+tire_width = 245.0
+grip_scale = 1.08

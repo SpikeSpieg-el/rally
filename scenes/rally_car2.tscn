@@ -1017,6 +1017,7 @@ script = ExtResource("1_ggxr1")
 feel = ExtResource("2_nx6sy")
 fx = ExtResource("3_4ms5t")
 blood_stains_scene = ExtResource("4_nx6sy")
+body_model_path = NodePath("Volkswagen Golf R32 Mk4")
 front_left_wheel = NodePath("Wheel_FL")
 front_right_wheel = NodePath("Wheel_FR")
 rear_left_wheel = NodePath("Wheel_RL")
@@ -1160,13 +1161,13 @@ spot_attenuation = 1.1
 spot_angle = 56.0
 spot_angle_attenuation = 0.85
 
-[node name="Volkswagen Golf R32 Mk4" type="Node3D" parent="." unique_id=730418577 groups=["rally_body_fx", "rally_body_paint"]]
+[node name="Volkswagen Golf R32 Mk4" type="Node3D" parent="." unique_id=730418577]
 transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 0.026996374, -4.656613e-10, 0.17852867)
 
-[node name="Body" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4" unique_id=1004110440]
+[node name="Body" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4" unique_id=1004110440 groups=["rally_body_fx", "rally_body_paint"]]
 mesh = SubResource("ArrayMesh_4pjc4")
 
-[node name="Details" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4" unique_id=2131893443]
+[node name="Details" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4" unique_id=2131893443 groups=["rally_body_fx"]]
 mesh = SubResource("ArrayMesh_0cwao")
 
 [node name="RallyCockpit" type="Node3D" parent="Volkswagen Golf R32 Mk4" unique_id=2059755821]

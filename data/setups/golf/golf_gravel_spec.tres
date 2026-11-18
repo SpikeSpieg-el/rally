@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://10ckm08d69m21"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "golf_gravel_spec"
+display_name = "GOLF · ГРАВИЙ SPEC"
+description = "Спец-гравий: максимум момента, короткая главная пара и длинный ход подвески под грунтовые прямые. Тяжелее в поворотах, но быстрее на разгоне — ставка на выход из медленных связок."
+engine_name = "VR6 3.2 · АТМО SPEC"
+max_torque = 350.0
+max_rpm = 6700.0
+idle_rpm = 750.0
+torque_shape = 2
+turbo = false
+final_drive = 3.95
+gear_ratios = Array[float]([3.3, 2.08, 1.48, 1.11, 0.89, 0.74])
+traction_control_max_slip = 0.75
+vehicle_mass = 1470.0
+front_weight_distribution = 0.58
+center_of_gravity_height_offset = -0.1
+coefficient_of_drag = 0.36
+frontal_area = 2.05
+awd_front_torque = 0.6
+front_spring_length = 0.34
+rear_spring_length = 0.36
+bump_damp_multiplier = 0.9
+tire_width = 215.0
+grip_scale = 0.95

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="RallyCarSetup" format=3 uid="uid://1h5dzgt46ar18"]
+
+[ext_resource type="Script" uid="uid://djworbseh465x" path="res://scripts/data/rally_car_setup.gd" id="1_xg43i"]
+
+[resource]
+script = ExtResource("1_xg43i")
+id = "golf_r32_stock"
+display_name = "GOLF R32 · СТОК"
+description = "Стоковый VR6 3.2: атмосферная тяга растёт ровно до самой отсечки, шестиступенчатый ряд 02M и 4MOTION с передним акцентом. Тяжёлый хэтчбек: без турбо-рывка, зато момент не проваливается на верхах."
+engine_name = "VR6 3.2 · АТМО"
+max_torque = 330.0
+max_rpm = 6500.0
+idle_rpm = 750.0
+torque_shape = 2
+turbo = false
+final_drive = 3.7
+gear_ratios = Array[float]([3.3, 2.08, 1.48, 1.11, 0.89, 0.74])
+traction_control_max_slip = 0.6
+vehicle_mass = 1450.0
+front_weight_distribution = 0.58
+center_of_gravity_height_offset = -0.12
+coefficient_of_drag = 0.34
+frontal_area = 2.05
+awd_front_torque = 0.58
+tire_width = 225.0
+grip_scale = 1.0

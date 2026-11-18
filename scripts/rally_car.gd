@@ -766,8 +766,9 @@ func _apply_visual_setup() -> void:
 	if model != null and align_model_to_wheels:
 		model.position.y = front_tire_radius - f().model_body_ground_clearance - f().model_wheel_center_y + f().model_height_offset
 	if active_setup != null:
-		if not livery_textures.is_empty():
-			CarVisuals.apply_body(model, active_setup, livery_textures)
+		# Покраска нужна и машине без собственных ливрей (Golf R32): у неё тон
+		# и покрытие ложатся на заводскую краску кузова (см. apply_body).
+		CarVisuals.apply_body(model, active_setup, livery_textures)
 		CarVisuals.apply_headlights(self, active_setup)
 	elif not livery_textures.is_empty():
 		CarVisuals.ensure_body_material(model)
@@ -788,15 +789,15 @@ func _setup_brake_lights() -> void:
 	_body_mesh = CarVisuals.body_mesh(_body_model) if not livery_textures.is_empty() else null
 	if not livery_textures.is_empty():
 		CarVisuals.ensure_body_material(_body_model)
-	_taillight_l = _body_model.get_node_or_null("TaillightL") as SpotLight3D
-	_taillight_r = _body_model.get_node_or_null("TaillightR") as SpotLight3D
-	_taillight_glow = _body_model.get_node_or_null("TaillightGlow") as OmniLight3D
+	_taillight_l = _brake_node("TaillightL") as SpotLight3D
+	_taillight_r = _brake_node("TaillightR") as SpotLight3D
+	_taillight_glow = _brake_node("TaillightGlow") as OmniLight3D
 	for lens_name in ["TaillightLensL", "TaillightLensR"]:
-		var lens := _body_model.get_node_or_null(lens_name) as MeshInstance3D
+		var lens := _brake_node(lens_name) as MeshInstance3D
 		var lens_mat := _prepare_taillight_lens(lens)
 		if lens_mat != null:
 			_taillight_lens_materials.append(lens_mat)
-	_center_brake_light = _body_model.get_node_or_null("CenterBrakeLight") as MeshInstance3D
+	_center_brake_light = _brake_node("CenterBrakeLight") as MeshInstance3D
 	if _center_brake_light != null:
 		var source_mat: Material = _center_brake_light.material_override
 		if source_mat == null and _center_brake_light.mesh != null and _center_brake_light.mesh.get_surface_count() > 0:
@@ -805,6 +806,16 @@ func _setup_brake_lights() -> void:
 			_center_brake_mat = (source_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 			_center_brake_light.material_override = _center_brake_mat
 	_apply_brake_light_energy()
+
+
+## Узел стоп-сигналов: сначала в корне внешней модели, затем где угодно в машине.
+## Свет ставят по-разному: у Lancer он вложен в модель, у Subaru и Golf висит на
+## корне сцены, — а гаснуть и загораться должен у всех одинаково.
+func _brake_node(node_name: String) -> Node:
+	var in_model: Node = _body_model.get_node_or_null(node_name) if _body_model != null else null
+	if in_model != null:
+		return in_model
+	return find_child(node_name, true, false)
 
 
 func _prepare_taillight_lens(lens: MeshInstance3D) -> StandardMaterial3D:

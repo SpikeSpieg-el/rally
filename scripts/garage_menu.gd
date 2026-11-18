@@ -483,6 +483,11 @@ func _refresh() -> void:
 	for label in livery_labels:
 		livery_choice.add_item(label)
 	livery_choice.disabled = _livery_textures().is_empty()
+	# У машины без ливрей (Golf) пункт остаётся, но объясняет, почему он не нажимается.
+	livery_choice.tooltip_text = (
+		"У этой машины нет ливрей: кузов красится цветом из пресета."
+		if livery_choice.disabled else "Ливрея кузова из списка выбранной машины."
+	)
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing
