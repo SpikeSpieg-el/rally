@@ -15,6 +15,10 @@ const CAR_SCENE_PREFIX := "rally_car"
 const VEHICLES_DIR := "res://data/vehicles/"
 ## Метка кузова на корне сцены машины: её ищут покраска и эффекты грязи/крови.
 const BODY_META := "car_body_mesh"
+## Метка витрины: имена мешей колёс этой машины. Гараж крутит их на стенде.
+const WHEEL_META := "car_wheel_meshes"
+## Крепления подвески: одинаковы у всех машин игры, в отличие от имён мешей.
+const WHEEL_MOUNTS := ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]
 ## Узлы физики и интерьера: в витрину гаража не попадают.
 const PREVIEW_SKIP := ["RallyCockpit", "Cameras"]
 const DEFAULT_MAX_RPM := 7800.0
@@ -287,7 +291,26 @@ static func _build_preview(car: Node3D) -> Node3D:
 	var body_name := String(car.get_meta(BODY_META, ""))
 	if not body_name.is_empty():
 		preview.set_meta(BODY_META, body_name)
+	preview.set_meta(WHEEL_META, wheel_mesh_names(car))
 	return preview
+
+
+## Имена мешей колёс в сцене машины: ищем по креплениям подвески, а не по имени
+## модели. Subaru и Golf сегодня ездят на колёсах Lancer (Mitsubishi_Wheel_*),
+## но новая машина может привезти свои — тогда витрина всё равно их закрутит.
+static func wheel_mesh_names(car: Node3D) -> Array[String]:
+	var names: Array[String] = []
+	if car == null:
+		return names
+	for mount_name in WHEEL_MOUNTS:
+		var mount := car.get_node_or_null(NodePath(String(mount_name)))
+		if mount == null:
+			continue
+		for mesh in mount.find_children("*", "MeshInstance3D", true, false):
+			var mesh_name := String((mesh as Node).name)
+			if not mesh_name.is_empty() and not names.has(mesh_name):
+				names.append(mesh_name)
+	return names
 
 
 ## Меш входит в витрину, если не спрятан и не лежит внутри узла физики/интерьера.

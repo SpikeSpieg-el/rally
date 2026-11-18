@@ -42,7 +42,8 @@ var _rows: Dictionary = {}
 var _fields: Dictionary = {}
 ## Исходный basis каждого колеса на витрине (колёса всех моделей машин).
 var _wheel_rest: Dictionary = {}
-## Колёса стандартной сцены витрины (кузов Lancer): имена только для неё.
+## Колёса стандартной сцены витрины (кузов Lancer): запасной список, когда у
+## машины нет своей модели и имена неоткуда взять (см. CarModels.WHEEL_META).
 const SCENE_WHEEL_NAMES := ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]
 var _model_default_y: float = 0.0
 ## Кузова машин, у которых есть своя модель: id → узел на витрине.
@@ -326,8 +327,10 @@ func _vehicle_model(id: String) -> Node3D:
 	model.position = Vector3.ZERO
 	model.visible = false
 	_vehicle_models[id] = model
-	# Колёса обеих игровых сцен называются одинаково (Mitsubishi_Wheel_*).
-	_track_wheels(model, SCENE_WHEEL_NAMES)
+	# Имена колёс берём из самой машины: список сцены витрины — только запасной
+	# вариант для кузова без своей модели.
+	var wheel_names: Array = model.get_meta(CarModels.WHEEL_META, [])
+	_track_wheels(model, wheel_names if not wheel_names.is_empty() else SCENE_WHEEL_NAMES)
 	return model
 
 

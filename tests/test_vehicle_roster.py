@@ -343,6 +343,32 @@ class VehicleRosterTest(unittest.TestCase):
         self.assertIn("config.vehicle_ids()", garage,
                       "список машин гаража берётся из конфига, а не из имён сцен")
 
+    def test_vitrine_wheels_come_from_the_car_scene(self):
+        """Колёса на витрине ищутся по креплениям подвески, а не по имени модели.
+
+        Subaru и Golf сегодня ездят на мешах Lancer (``Mitsubishi_Wheel_*``),
+        поэтому захардкоженный список имён работал. Четвёртая машина со своими
+        колёсами осталась бы на витрине неподвижной.
+        """
+        models = read("scripts/car_models.gd")
+        self.assertIn('const WHEEL_META := "car_wheel_meshes"', models)
+        self.assertIn("static func wheel_mesh_names(car: Node3D) -> Array[String]:", models)
+        self.assertIn("for mount_name in WHEEL_MOUNTS:", models,
+                      "имена колёс берутся из креплений Wheel_FL/FR/RL/RR")
+        self.assertIn("preview.set_meta(WHEEL_META, wheel_mesh_names(car))", models)
+        garage = read("scripts/garage_menu.gd")
+        self.assertIn("model.get_meta(CarModels.WHEEL_META, [])", garage,
+                      "гараж крутит колёса той машины, которую показывает")
+        self.assertIn("_track_wheels(model, wheel_names if not wheel_names.is_empty()"
+                      " else SCENE_WHEEL_NAMES)", garage,
+                      "список имён сцены витрины остался запасным вариантом")
+        # Крепления подвески во всех сценах машин на месте: по ним ищем колёса.
+        for scene in car_scenes():
+            text = read(scene)
+            for mount in ("Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"):
+                self.assertIn(f'[node name="{mount}"', text,
+                              f"{scene}: нет крепления подвески {mount}")
+
 
 if __name__ == "__main__":
     unittest.main()
