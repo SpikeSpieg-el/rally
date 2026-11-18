@@ -9,6 +9,14 @@
 Запуск:
     python3 tools/audio_qc.py                 # метрики по всем лупам + спектрограммы
     python3 tools/audio_qc.py --preview 3000  # разбор одного лупа
+    python3 tools/audio_qc.py --dir audio/engine/golf   # банк VR6 (6 цилиндров)
+
+Ожидаемый основной тон зависит от числа цилиндров: у четырёхтактного мотора
+вспышки идут rpm/60 * N/2, то есть rpm/30 для рядной четвёрки и rpm/20 для
+шестицилиндрового VR6. Поэтому `--cylinders` (по умолчанию определяется по
+имени папки банка) напрямую влияет на «ошибку тона» и контраст гармоник:
+если мерить VR6 четвёрочной сеткой, инструмент ищет гармоники на треть ниже
+настоящих и показывает мнимый брак.
 """
 from __future__ import annotations
 
@@ -28,6 +36,26 @@ except Exception:  # pragma: no cover
 
 DEFAULT_AUDIO_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "audio", "engine")
+
+# Число цилиндров по имени папки банка: базовая и subaru — четвёрки,
+# golf — атмосферный VR6. Используется, только если --cylinders не задан.
+BANK_CYLINDERS = {
+    "": 4,
+    "engine": 4,
+    "subaru": 4,
+    "golf": 6,
+}
+
+
+def cylinders_for_dir(directory: str) -> int:
+    """Сколько цилиндров у мотора, чей банк лежит в `directory`."""
+    name = os.path.basename(os.path.normpath(directory))
+    return BANK_CYLINDERS.get(name, 4)
+
+
+def firing_frequency(rpm: float, cylinders: int) -> float:
+    """Частота вспышек четырёхтактного мотора: rpm/60 * N/2."""
+    return rpm / 60.0 * cylinders * 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -224,18 +252,38 @@ def seam_spectral_jump(x: np.ndarray, sr: int) -> float:
     return float(np.abs(pa - pb).sum() / n)
 
 
-def analyze(path: str) -> dict:
+def rpm_from_name(name: str) -> int:
+    """Обороты из имени лупа: engine_3164_full.wav -> 3164."""
+    for part in os.path.basename(name).replace(".wav", "").split("_"):
+        if part.isdigit() and len(part) == 4:
+            return int(part)
+    return 0
+
+
+def f0_from_name(name: str, cylinders: int) -> float:
+    """Ожидаемая частота вспышек для лупа с таким именем."""
+    rpm = rpm_from_name(name)
+    return firing_frequency(rpm, cylinders) if rpm else 0.0
+
+
+def pick_spectrogram_files(files: list) -> list:
+    """Низ, середина и верх банка — три картинки для быстрой проверки тембра."""
+    ordered = sorted((f for f in files if rpm_from_name(f) > 0), key=rpm_from_name)
+    if len(ordered) <= 3:
+        return ordered
+    return [ordered[0], ordered[len(ordered) // 2], ordered[-1]]
+
+
+def analyze(path: str, cylinders: int = 4) -> dict:
     x, sr = read_wav(path)
     name = os.path.basename(path)
-    rpm = None
+    rpm = rpm_from_name(name)
     load = None
-    parts = name.replace(".wav", "").split("_")
-    for p in parts:
-        if p.isdigit() and len(p) == 4:
-            rpm = int(p)
+    for p in name.replace(".wav", "").split("_"):
         if p in ("light", "full"):
             load = p
-    expected = (rpm / 30.0) if rpm else 0.0
+    # Ожидаемый тон — частота вспышек: у четвёрки rpm/30, у VR6 rpm/20.
+    expected = firing_frequency(rpm, cylinders) if rpm else 0.0
     f0 = dominant_fundamental(x, sr, expect=expected)
     return {
         "name": name,
@@ -293,7 +341,8 @@ def spectrogram_png(path: str, out_path: str, title: str = "", f0: float = 0.0) 
     plt.close(fig)
 
 
-def spectrogram_compare(paths: list, out_path: str, title: str = "") -> None:
+def spectrogram_compare(paths: list, out_path: str, title: str = "",
+                        cylinders: int = 4) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -303,11 +352,7 @@ def spectrogram_compare(paths: list, out_path: str, title: str = "") -> None:
         axes = [axes]
     for ax, p in zip(axes, paths):
         x, sr = read_wav(p)
-        f0 = 0.0
-        for part in os.path.basename(p).replace(".wav", "").split("_"):
-            if part.isdigit() and len(part) == 4:
-                f0 = int(part) / 30.0
-        _draw_spectrogram(ax, x, sr, os.path.basename(p), f0)
+        _draw_spectrogram(ax, x, sr, os.path.basename(p), f0_from_name(p, cylinders))
     axes[-1].set_xlabel("время, с")
     fig.suptitle(title or "", fontsize=11)
     fig.tight_layout()
@@ -322,10 +367,17 @@ def main() -> int:
                     help="разобрать один луп по оборотам (например 3000)")
     ap.add_argument("--png", default=None, help="куда сохранить спектрограмму")
     ap.add_argument("--out-dir", default=None, help="папка для PNG")
+    ap.add_argument("--cylinders", type=int, default=None,
+                    help="число цилиндров мотора (по умолчанию — по папке банка)")
     args = ap.parse_args()
 
     if not os.path.isdir(args.dir):
         print("НЕТ ПАПКИ: %s" % args.dir)
+        return 1
+
+    cylinders = args.cylinders if args.cylinders else cylinders_for_dir(args.dir)
+    if cylinders < 1:
+        print("Число цилиндров должно быть положительным")
         return 1
 
     files = sorted(f for f in os.listdir(args.dir) if f.endswith(".wav"))
@@ -340,8 +392,8 @@ def main() -> int:
             return 1
         for m in match:
             path = os.path.join(args.dir, m)
-            res = analyze(path)
-            print("== %s" % res["name"])
+            res = analyze(path, cylinders)
+            print("== %s (%d цилиндров)" % (res["name"], cylinders))
             print("  длительность      : %.3f с  (%d Гц)" % (res["duration"], res["sr"]))
             print("  RMS / пик         : %.4f / %.4f" % (res["rms"], res["peak"]))
             print("  основной тон      : %.2f Гц (ожидалось %.2f, ошибка %.1f%%)"
@@ -359,11 +411,13 @@ def main() -> int:
                 print("  спектрограмма     : %s" % args.png)
         return 0
 
+    print("Банк: %s (%d цилиндров, ожидаемый тон = rpm/60 * %d/2)"
+          % (args.dir, cylinders, cylinders))
     print("%-28s %7s %7s %7s %7s %8s %7s" %
           ("файл", "f0 Гц", "центр", "контр", "гарм.", "стык", "стик/естеств"))
     worst = []
     for f in files:
-        res = analyze(os.path.join(args.dir, f))
+        res = analyze(os.path.join(args.dir, f), cylinders)
         print("%-28s %7.2f %7.0f %7.1f %7.3f %8.4f %7.2f" %
               (res["name"], res["f0"], res["centroid"], res["contrast"],
                res["tonal"], res["seam"], res["seam_ratio"]))
@@ -381,12 +435,16 @@ def main() -> int:
 
     if args.out_dir:
         os.makedirs(args.out_dir, exist_ok=True)
-        for name in ("engine_0900_light.wav", "engine_3000_full.wav",
-                     "engine_7600_full.wav"):
+        # Три характерные точки банка: низ, середина и отсечка. Имена берутся
+        # из фактического содержимого папки, поэтому работает и для Mitsubishi
+        # (900/3000/7600), и для Subaru, и для VR6 с его сеткой 750-6500.
+        picks = pick_spectrogram_files(files)
+        for name in picks:
             p = os.path.join(args.dir, name)
             if os.path.exists(p):
                 spectrogram_png(p, os.path.join(args.out_dir,
-                                               name.replace(".wav", ".png")))
+                                                name.replace(".wav", ".png")),
+                                f0=f0_from_name(name, cylinders))
         print("Спектрограммы: %s" % args.out_dir)
     return 0
 
