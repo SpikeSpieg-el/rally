@@ -156,6 +156,8 @@ shader_parameter/wet_darken = 0.62
 shader_parameter/dry_specular = 0.22
 shader_parameter/texture_gain = 1.25
 shader_parameter/texture_base = 0.65
+shader_parameter/gravel_texture_warp = 0.0
+shader_parameter/texture_detail_strength = 1.0
 shader_parameter/puddle_roughness = 0.18
 shader_parameter/puddle_mix = 0.8
 
@@ -238,9 +240,11 @@ gamepad_rumble_enabled = false
 script = ExtResource("driver_script")
 recording = SubResource("Resource_p32q8")
 allow_user_recording_fallback = false
-target_speed = 67.0
+target_speed = 80.0
 lookahead = 13.0
-steering_gain = 2.8
+steering_gain = 5.8
+max_throttle = 0.9
+reset_distance = 65.0
 
 [node name="Cinematography" type="Node3D" parent="." unique_id=166779671]
 script = ExtResource("director_script")
