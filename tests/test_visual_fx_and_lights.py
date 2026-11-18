@@ -23,6 +23,42 @@ def _parse_float(block: str, key: str, default: float | None = None) -> float | 
     return float(m.group(1)) if m else default
 
 
+_IDENTITY_BASIS = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+
+
+def _car_scenes() -> list[str]:
+    """Все игровые сцены машин: список не должен жить в тесте."""
+    scenes = sorted(scene.relative_to(ROOT).as_posix()
+                    for scene in (ROOT / "scenes").glob("rally_car*.tscn"))
+    assert scenes, "в scenes/ нет сцен машин rally_car*.tscn"
+    return scenes
+
+
+def _nodes(scene: str, name: str, node_type: str) -> list[tuple[str, str, str]]:
+    """Узлы сцены с этим именем и типом: [(заголовок, блок, родитель)]."""
+    pattern = rf'\[node name="{re.escape(name)}" type="{re.escape(node_type)}" parent="([^"]*)"[^\n]*\]'
+    return [(m.group(0), _extract_block(scene, m.group(0)), m.group(1))
+            for m in re.finditer(pattern, scene)]
+
+
+def _basis(block: str) -> list[float] | None:
+    """Девять чисел базиса из Transform3D блока (или None, если трансформа нет)."""
+    m = re.search(r"Transform3D\(([^)]+)\)", block)
+    if not m:
+        return None
+    nums = [float(x.strip()) for x in m.group(1).split(",")]
+    return nums[:9] if len(nums) >= 9 else None
+
+
+def _compose(parent_basis, local_basis) -> list[float]:
+    """Базис узла в системе координат сцены: parent * local."""
+    return [
+        sum(parent_basis[row * 3 + k] * local_basis[k * 3 + col] for k in range(3))
+        for row in range(3)
+        for col in range(3)
+    ]
+
+
 class DustAndDebrisTest(unittest.TestCase):
     def test_dust_fx_uses_soft_for_bayer_and_rich_ramps(self):
         src = _read("scripts/effects/rally_dust_fx.gd")
@@ -99,59 +135,79 @@ class EmissionAndTaillightsTest(unittest.TestCase):
         self.assertIn("emission_operator = 1", showroom_mat)
         self.assertIn("emission_texture = ExtResource(", showroom_mat)
 
-    def test_brake_lights_are_configured_for_both_car_models(self):
-        car_scenes = (
-            ("scenes/rally_car.tscn", "low poly lance evo"),
-            ("scenes/rally_car2.tscn", "Subaru Impreza Coupe WRX Type R STi2"),
-        )
-        for scene_path, model_root in car_scenes:
+    def test_brake_lights_are_configured_for_every_car_model(self):
+        """Задние фонари есть у каждой машины, где бы модель их ни повесила.
+
+        Сцены машин устроены по-разному: у Lancer фонари лежат внутри узла
+        модели, у Golf и Subaru пятнашки TaillightL/R висят на корне сцены
+        (parent="."), а линзы и центральный стоп-сигнал — внутри модели.
+        Поэтому родитель ищется по сцене, а направление луча считается через
+        фактическую цепочку: тот же порядок, каким rally_car.gd ищет узлы
+        (сначала в модели, затем find_child по всему дереву).
+        """
+        scenes = _car_scenes()
+        for scene_path in scenes:
             scene = _read(scene_path)
-            model_block = _extract_block(scene, f'[node name="{model_root}"')
-            model_match = re.search(r"Transform3D\(([^)]+)\)", model_block)
-            self.assertIsNotNone(model_match, f"{model_root} must have an explicit model transform")
-            model_nums = [float(x.strip()) for x in model_match.group(1).split(",")]
-            model_basis = model_nums[:9]
-            for node_name, node_type in [
+            model = re.search(r'body_model_path = NodePath\("([^"]+)"\)', scene)
+            self.assertIsNotNone(model, f"{scene_path}: нет body_model_path")
+            model_root = model.group(1)
+            model_basis = _basis(_extract_block(scene, f'[node name="{model_root}"'))
+            self.assertIsNotNone(model_basis,
+                                 f"{scene_path}: у модели {model_root} нет явного трансформа")
+
+            # Узлы, которые читает _setup_brake_lights(). TaillightGlow здесь
+            # нет: ни одна сцена его не содержит, и рантайм живёт с null.
+            # Линзы стоп-сигналов есть не у всех: у Lancer вместо них светится
+            # материал кузова, поэтому они проверяются отдельно.
+            required = (
                 ("TaillightL", "SpotLight3D"),
                 ("TaillightR", "SpotLight3D"),
                 ("CenterBrakeLight", "MeshInstance3D"),
-            ]:
-                header = f'[node name="{node_name}" type="{node_type}" parent="{model_root}"'
-                block = _extract_block(scene, header)
-                self.assertTrue(block, f"{header} missing in {scene_path}")
-                self.assertNotIn("shadow_enabled = true", block)
+            )
+            for node_name, node_type in required:
+                found = _nodes(scene, node_name, node_type)
+                self.assertEqual(len(found), 1,
+                                 f"{scene_path}: узел {node_name} ({node_type}) должен быть ровно один")
+                if len(found) != 1:
+                    continue
+                _, block, parent = found[0]
+                self.assertIn(parent, (".", model_root),
+                              f"{scene_path}: {node_name} должен висеть на корне сцены или на модели")
+                local = _basis(block)
+                self.assertIsNotNone(local, f"{scene_path}: у {node_name} нет Transform3D")
+                if node_type != "SpotLight3D" or local is None:
+                    continue
+                # Тени у стоп-сигналов не нужны: они едят кадр и не видны ночью.
+                self.assertNotIn("shadow_enabled = true", block, f"{scene_path}: {node_name}")
+                # SpotLight3D светит вдоль своего -Z: луч должен смотреть назад.
+                base = model_basis if parent == model_root else _IDENTITY_BASIS
+                world = _compose(base, local)
+                self.assertGreater(world[8], 0.9,
+                                   f"{scene_path}: {node_name} должен светить назад")
 
-            # Godot spotlights emit along -Z; these scene nodes face the rear (-Z).
-            for spot_name in ("TaillightL", "TaillightR"):
-                block = _extract_block(
-                    scene, f'[node name="{spot_name}" type="SpotLight3D" parent="{model_root}"'
-                )
-                m = re.search(r"Transform3D\(([^)]+)\)", block)
-                self.assertIsNotNone(m, f"Missing Transform3D on {spot_name} in {scene_path}")
-                nums = [float(x.strip()) for x in m.group(1).split(",")]
-                self.assertEqual(len(nums), 12)
-                local_basis = nums[:9]
-                world_basis = [
-                    sum(model_basis[row * 3 + k] * local_basis[k * 3 + col] for k in range(3))
-                    for row in range(3)
-                    for col in range(3)
-                ]
-                self.assertGreater(world_basis[8], 0.9, f"{spot_name} beam must point toward -Z")
-
-        lancer = _read("scenes/rally_car.tscn")
-        subaru = _read("scenes/rally_car2.tscn")
-        model_root = "Subaru Impreza Coupe WRX Type R STi2"
-        for lens_name in ("TaillightLensL", "TaillightLensR"):
-            header = f'[node name="{lens_name}" type="MeshInstance3D" parent="{model_root}"'
-            self.assertTrue(_extract_block(subaru, header), f"{header} missing in scenes/rally_car2.tscn")
-        glow_header = f'[node name="TaillightGlow" type="OmniLight3D" parent="{model_root}"'
-        self.assertTrue(_extract_block(subaru, glow_header), f"{glow_header} missing in scenes/rally_car2.tscn")
+            lenses = 0
+            for lens_name in ("TaillightLensL", "TaillightLensR"):
+                found = _nodes(scene, lens_name, "MeshInstance3D")
+                if not found:
+                    continue
+                lenses += 1
+                self.assertEqual(len(found), 1, f"{scene_path}: {lens_name} должен быть один")
+                _, _, parent = found[0]
+                self.assertIn(parent, (".", model_root),
+                              f"{scene_path}: {lens_name} должен висеть на корне сцены или на модели")
+            if lenses == 0:
+                self.assertIn("emission_enabled = true", scene,
+                              f"{scene_path}: нет ни линз стоп-сигналов, ни светящегося кузова — "
+                              "торможение не будет видно")
+            else:
+                self.assertEqual(lenses, 2, f"{scene_path}: линзы стоп-сигналов должны быть парой")
 
         # Rear GravelParticles spawned behind Lancer's rear bumper; headlights stay intact.
+        lancer = _read("scenes/rally_car.tscn")
         gravel_block = _extract_block(lancer, '[node name="GravelParticles" type="GPUParticles3D"')
-        m = re.search(r"Transform3D\(([^)]+)\)", gravel_block)
-        self.assertIsNotNone(m)
-        nums = [float(x.strip()) for x in m.group(1).split(",")]
+        gravel_transform = re.search(r"Transform3D\(([^)]+)\)", gravel_block)
+        self.assertIsNotNone(gravel_transform)
+        nums = [float(x.strip()) for x in gravel_transform.group(1).split(",")]
         self.assertLessEqual(nums[11], -2.0)
         self.assertIn('[node name="HeadlightL" type="SpotLight3D" parent="low poly lance evo"', lancer)
         self.assertIn('[node name="HeadlightR" type="SpotLight3D" parent="low poly lance evo"', lancer)

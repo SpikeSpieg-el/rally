@@ -4,7 +4,8 @@ extends SceneTree
 const Game = preload("res://scripts/game_state.gd")
 const Garage = preload("res://scenes/garage_menu.tscn")
 const Config = preload("res://data/rally_game_config.tres")
-const Subaru = preload("res://scenes/rally_car2.tscn")
+const Subaru = preload("res://scenes/rally_car3.tscn")
+const Golf = preload("res://scenes/rally_car2.tscn")
 const Visuals = preload("res://scripts/car_visual_customization.gd")
 
 var failures := 0
@@ -35,7 +36,8 @@ func _run() -> void:
 	check(garage._livery_labels().size() == 3, "у Mitsubishi три исходные ливреи")
 	garage.select_vehicle("subaru")
 	var preview: Node3D = garage._vehicle_models.get("subaru")
-	check(garage._livery_labels() == ["Заводская"], "у Subaru только её исходная текстура")
+	check(garage._livery_labels() == ["Заводская", "Тёмный", "Синий иташа", "Тёмный иташа"],
+		"у Subaru четыре своих ливреи из её сцены")
 	# Четыре тестовых текстуры имитируют расширенный список в сцене машины.
 	var textures: Array[Texture2D] = [
 		load("res://Subaru Impreza Coupe WRX Type R STi_suba1.png"),
@@ -71,6 +73,46 @@ func _run() -> void:
 	car.apply_setup(restored)
 	check((body.material_override as StandardMaterial3D).albedo_texture == textures[0], "неизвестный индекс возвращает первую ливрею")
 	car.free()
+	# Golf R32: своих ливрей нет, поэтому в гараже одна «заводская» краска, а тон
+	# кузова ложится на поверхность кузова, не перекрывая стёкла и фонари.
+	garage.select_vehicle("golf")
+	check(garage._livery_textures().is_empty(), "у Golf нет текстур ливрей")
+	check(garage._livery_labels() == ["Заводская"], "у Golf единственная краска — заводская")
+	garage._refresh()
+	var livery_choice: OptionButton = garage._controls["livery"] as OptionButton
+	check(livery_choice != null and livery_choice.item_count == 1,
+		"в списке ливрей Golf один пункт")
+	check(livery_choice != null and livery_choice.disabled,
+		"выбор ливреи у Golf недоступен: выбирать нечего")
+	check(livery_choice != null and not livery_choice.tooltip_text.is_empty(),
+		"недоступный выбор ливреи объясняется подсказкой")
+	var golf_preview: Node3D = garage._vehicle_models.get("golf")
+	var preview_paint := Visuals.body_mesh(golf_preview)
+	check(preview_paint != null, "кузов Golf помечен группой покраски")
+	if preview_paint != null and preview_paint.mesh != null:
+		var factory := preview_paint.mesh.surface_get_material(0) as StandardMaterial3D
+		var painted := preview_paint.get_surface_override_material(0) as StandardMaterial3D
+		check(factory != null and painted != null and painted.albedo_color == factory.albedo_color,
+			"нейтральный тон оставляет заводскую краску Golf")
+	var golf_car = Golf.instantiate()
+	golf_car.mouse_look_enabled = false
+	golf_car.freeze = true
+	root.add_child(golf_car)
+	var tint := RallyCarSetup.new()
+	tint.body_color = Color(0.75, 0.1, 0.15)
+	tint.paint_finish = 1
+	Visuals.apply_body(golf_car._find_body_model(), tint, [])
+	var golf_paint := Visuals.body_mesh(golf_car._find_body_model())
+	var golf_surface: StandardMaterial3D = null
+	if golf_paint != null:
+		golf_surface = golf_paint.get_surface_override_material(0) as StandardMaterial3D
+	check(golf_surface != null and golf_surface.albedo_color == tint.body_color,
+		"выбранный тон красит кузов Golf")
+	check(golf_surface != null and is_equal_approx(golf_surface.roughness, 0.18),
+		"покрытие «Глянец» работает и без ливрей")
+	check(golf_paint != null and golf_paint.material_override == null,
+		"стёкла и фонари Golf остаются со своими материалами")
+	golf_car.free()
 	garage.select_vehicle("mitsubishi")
 	check(garage._livery_labels().size() == 3 and garage._livery_labels()[0] == "Ралли · красная", "переключение машины не смешивает ливреи")
 	garage.free()

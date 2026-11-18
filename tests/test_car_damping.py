@@ -12,8 +12,12 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Сцены, у которых корень — само тело RallyCar.
-CAR_SCENES = ("scenes/rally_car.tscn", "scenes/rally_car2.tscn")
+# Сцены, у которых корень — само тело RallyCar: их список не хардкодим, иначе
+# новая машина (rally_car3, rally_car4, …) выпадала бы из проверки.
+CAR_SCENES = tuple(sorted(
+    scene.relative_to(ROOT).as_posix()
+    for scene in (ROOT / "scenes").glob("rally_car*.tscn")
+))
 # RigidBody3D.DAMP_MODE_REPLACE: собственное значение тела заменяет проектное.
 DAMP_MODE_REPLACE = "1"
 

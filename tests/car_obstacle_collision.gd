@@ -1,7 +1,7 @@
 # godot --headless --path . --fixed-fps 120 --script res://tests/car_obstacle_collision.gd
 extends SceneTree
 
-const CARS := [preload("res://scenes/rally_car.tscn"), preload("res://scenes/rally_car2.tscn")]
+const CarModels = preload("res://scripts/car_models.gd")
 const SETUP := preload("res://data/setups/11_gravel.tres")
 const Placement = preload("res://scripts/data/rally_guardrail_placement.gd")
 var failures: Array[String] = []
@@ -55,7 +55,15 @@ func _run() -> void:
 	ray.force_raycast_update()
 	check(ray.is_colliding() and ray.get_collider() == ground, "колёсный луч проходит сквозь забор к грунту")
 	ray.queue_free()
-	for scene in CARS:
+	# Все машины реестра, а не два захардкоженных пути: новая сцена попадает
+	# в проверку сама, как только её описали в data/vehicles/.
+	# Настройка одна на всех: сравниваем поведение кузова, а не характер машины.
+	for path in CarModels.car_scene_paths():
+		var scene: PackedScene = load(path)
+		check(scene != null, "сцена машины читается: " + path)
+		if scene == null:
+			continue
+		var label: String = path.get_file()
 		var car = scene.instantiate()
 		car.setup_override = SETUP
 		car.mouse_look_enabled = false
@@ -63,8 +71,8 @@ func _run() -> void:
 		world.add_child(car)
 		for i in range(240):
 			await physics_frame
-		check(car.continuous_cd and (car.collision_mask & 2) != 0, "CCD и столкновение кузова с препятствиями")
-		check(car.get_wheel_contact_count() >= 3, "подвеска стоит на грунте")
+		check(car.continuous_cd and (car.collision_mask & 2) != 0, "CCD и столкновение кузова с препятствиями: " + label)
+		check(car.get_wheel_contact_count() >= 3, "подвеска стоит на грунте: " + label)
 		var base_y: float = car.global_position.y
 		car.sleeping = false
 		car.linear_velocity = Vector3(0, 0, 35)
@@ -77,15 +85,15 @@ func _run() -> void:
 			max_z = maxf(max_z, car.global_position.z)
 			max_y = maxf(max_y, car.global_position.y)
 			min_z_velocity = minf(min_z_velocity, car.linear_velocity.z)
-		check(max_z < 10.2, "кузов не проходит сквозь тонкую секцию/стык: %.2f" % max_z)
-		check(max_y - base_y < 1.4, "удар не должен запускать машину через забор: %.2f" % (max_y - base_y))
-		check(min_z_velocity > -10.0, "удар не должен резко отбрасывать машину назад: %.2f" % min_z_velocity)
+		check(max_z < 10.2, "кузов не проходит сквозь тонкую секцию/стык: %.2f (%s)" % [max_z, label])
+		check(max_y - base_y < 1.4, "удар не должен запускать машину через забор: %.2f (%s)" % [max_y - base_y, label])
+		check(min_z_velocity > -10.0, "удар не должен резко отбрасывать машину назад: %.2f (%s)" % [min_z_velocity, label])
 		# Возможность отъехать от барьера, без скрытого ограничения скорости.
 		car.linear_velocity = Vector3(0, 0, -5)
 		var start_z: float = car.global_position.z
 		for i in range(60):
 			await physics_frame
-		check(car.global_position.z < start_z - 0.2, "после удара можно отъехать назад")
+		check(car.global_position.z < start_z - 0.2, "после удара можно отъехать назад: " + label)
 		# Косой удар: ограничение по нормали не должно запрещать скольжение.
 		car.spawn_transform = Transform3D(Basis.IDENTITY, Vector3(-10, 0.3, 0))
 		car.reset_to_spawn()
@@ -96,15 +104,15 @@ func _run() -> void:
 		for i in range(130):
 			await physics_frame
 			oblique_max_z = maxf(oblique_max_z, car.global_position.z)
-		check(oblique_max_z < 10.2, "косой удар не проходит сквозь забор")
-		check(car.global_position.x > -8.0, "машина сохраняет движение вдоль забора")
+		check(oblique_max_z < 10.2, "косой удар не проходит сквозь забор: " + label)
+		check(car.global_position.x > -8.0, "машина сохраняет движение вдоль забора: " + label)
 		# Вне столкновения вертикальная скорость не обрезается.
 		car.spawn_transform = Transform3D(Basis.IDENTITY, Vector3(0, 15, 0))
 		car.reset_to_spawn()
 		car.linear_velocity = Vector3(0, 4, 0)
 		await physics_frame
 		await physics_frame
-		check(car.linear_velocity.y > 3.0, "свободный прыжок сохраняется")
+		check(car.linear_velocity.y > 3.0, "свободный прыжок сохраняется: " + label)
 		car.queue_free()
 		await process_frame
 	world.queue_free()

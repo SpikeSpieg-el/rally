@@ -1,6 +1,6 @@
 # godot --headless --path . --script res://tests/ghost_racer.gd
 ## Контракты системы призрака и живой дельты HUD:
-## сериализация RGHOST01, интерполяция, вдоль-трассовая дельта, клон машин (Evo/Subaru),
+## сериализация RGHOST01, интерполяция, вдоль-трассовая дельта, клон каждой машины реестра,
 ## переключение голограмма/ливрея, скрытие в кабине и настройки паузы.
 extends SceneTree
 
@@ -10,6 +10,7 @@ const GhostLookScene = preload("res://scenes/effects/ghost_racer.tscn")
 const GhostLookScript = preload("res://scripts/effects/rally_ghost_look.gd")
 const HudScene = preload("res://scenes/ui/rally_hud.tscn")
 const HudStyle = preload("res://scripts/data/rally_hud_style.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 
 var _failures: int = 0
 
@@ -99,7 +100,9 @@ func _test_ghost_look_presets_and_preferences() -> void:
 func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 	var g := GhostLookScene.instantiate() as GhostLookScript
 	var stage_stub := Node3D.new()
-	for scene_path in ["res://scenes/rally_car.tscn", "res://scenes/rally_car2.tscn"]:
+	# Каждая машина реестра, включая ту, у которой нет ливрей: призрак обязан
+	# собраться и покраситься в любом случае.
+	for scene_path in CarModels.car_scene_paths():
 		var rig := GhostCarRig.new()
 		_check(rig.build_from_scene_path(scene_path), "GhostCarRig должен собраться из %s" % scene_path)
 		_check(rig.get_child_count() > 0, "GhostCarRig должен склонировать кузов/колёса из %s" % scene_path)
