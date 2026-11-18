@@ -88,43 +88,55 @@ jobs:
             tail -n 60 /tmp/import.log
           }
           failed=0
-          {
-            echo "### Проверки машин"
-            echo ""
-            echo "| проверка | итог |"
-            echo "| --- | --- |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          started_at=0
+          sum() {
+            printf "%s\n" "$@" >> "$GITHUB_STEP_SUMMARY"
+          }
+          note() {
+            echo "::notice::$1"
+          }
+          sum '### Проверки машин' '' '| проверка | итог | секунды |'
+          sum '| --- | --- | --- |'
           run_py() {
             echo "::group::$1"
-            if timeout --kill-after=20s 300s python3 -m unittest "$1"; then
-              echo "OK: $1"
-              echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+            echo "=== $1 ($(date -u +%H:%M:%S)) ==="
+            started_at=$SECONDS
+            log="/tmp/$(echo "$1" | tr "/." "__").log"
+            if timeout --kill-after=20s 300s python3 -m unittest "$1" >"$log" 2>&1; then
+              note "$1: OK за $((SECONDS - started_at)) с"
+              sum "| $1 | ✅ | $((SECONDS - started_at)) |"
             else
-              echo "::error::python-проверка $1 провалилась (код $?)"
-              echo "| $1 | ❌ |" >> "$GITHUB_STEP_SUMMARY"
+              code=$?
+              echo "::error::python-проверка $1 провалилась (код $code)"
+              sum "| $1 | ❌ код $code | $((SECONDS - started_at)) |"
               failed=$((failed + 1))
             fi
+            tail -n 40 "$log"
             echo "::endgroup::"
           }
           run_gd() {
             local limit="$1"; shift
             echo "::group::$1"
             echo "=== $1 ($(date -u +%H:%M:%S)) ==="
+            started_at=$SECONDS
+            log="/tmp/$(echo "$1" | tr "/." "__").log"
             if timeout --kill-after=30s "$limit" "$godot" --headless --path . \
-                --fixed-fps 120 --script "res://$1"; then
-              echo "OK: $1"
-              echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+                --fixed-fps 120 --script "res://$1" >"$log" 2>&1; then
+              note "$1: OK за $((SECONDS - started_at)) с"
+              sum "| $1 | ✅ | $((SECONDS - started_at)) |"
             else
               code=$?
               if [ "$code" = 124 ] || [ "$code" = 137 ]; then
                 echo "::error::проверка $1 не завершилась за $limit — подвисла"
-                echo "| $1 | ⏳ не завершилась за $limit |" >> "$GITHUB_STEP_SUMMARY"
+                sum "| $1 | ⏳ подвисла ($limit) | $((SECONDS - started_at)) |"
               else
                 echo "::error::проверка $1 провалилась (код $code)"
-                echo "| $1 | ❌ код $code |" >> "$GITHUB_STEP_SUMMARY"
+                sum "| $1 | ❌ код $code | $((SECONDS - started_at)) |"
               fi
               failed=$((failed + 1))
+              echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
+            tail -n 80 "$log"
             echo "::endgroup::"
           }
           run_py tests.test_vehicle_roster
@@ -133,6 +145,7 @@ jobs:
           run_gd 180s tests/car_liveries.gd
           run_gd 180s tests/car_body_fx.gd
           run_gd 600s tests/engine_audio.gd
+          sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"
           exit "$failed"
 
@@ -162,37 +175,62 @@ jobs:
             tail -n 60 /tmp/import.log
           }
           failed=0
-          {
-            echo "### Проверки машин"
-            echo ""
-            echo "| проверка | итог |"
-            echo "| --- | --- |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          started_at=0
+          sum() {
+            printf "%s\n" "$@" >> "$GITHUB_STEP_SUMMARY"
+          }
+          note() {
+            echo "::notice::$1"
+          }
+          sum '### Проверки машин' '' '| проверка | итог | секунды |'
+          sum '| --- | --- | --- |'
+          run_py() {
+            echo "::group::$1"
+            echo "=== $1 ($(date -u +%H:%M:%S)) ==="
+            started_at=$SECONDS
+            log="/tmp/$(echo "$1" | tr "/." "__").log"
+            if timeout --kill-after=20s 300s python3 -m unittest "$1" >"$log" 2>&1; then
+              note "$1: OK за $((SECONDS - started_at)) с"
+              sum "| $1 | ✅ | $((SECONDS - started_at)) |"
+            else
+              code=$?
+              echo "::error::python-проверка $1 провалилась (код $code)"
+              sum "| $1 | ❌ код $code | $((SECONDS - started_at)) |"
+              failed=$((failed + 1))
+            fi
+            tail -n 40 "$log"
+            echo "::endgroup::"
+          }
           run_gd() {
             local limit="$1"; shift
             echo "::group::$1"
             echo "=== $1 ($(date -u +%H:%M:%S)) ==="
+            started_at=$SECONDS
+            log="/tmp/$(echo "$1" | tr "/." "__").log"
             if timeout --kill-after=30s "$limit" "$godot" --headless --path . \
-                --fixed-fps 120 --script "res://$1"; then
-              echo "OK: $1"
-              echo "| $1 | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+                --fixed-fps 120 --script "res://$1" >"$log" 2>&1; then
+              note "$1: OK за $((SECONDS - started_at)) с"
+              sum "| $1 | ✅ | $((SECONDS - started_at)) |"
             else
               code=$?
               if [ "$code" = 124 ] || [ "$code" = 137 ]; then
                 echo "::error::проверка $1 не завершилась за $limit — подвисла"
-                echo "| $1 | ⏳ не завершилась за $limit |" >> "$GITHUB_STEP_SUMMARY"
+                sum "| $1 | ⏳ подвисла ($limit) | $((SECONDS - started_at)) |"
               else
                 echo "::error::проверка $1 провалилась (код $code)"
-                echo "| $1 | ❌ код $code |" >> "$GITHUB_STEP_SUMMARY"
+                sum "| $1 | ❌ код $code | $((SECONDS - started_at)) |"
               fi
               failed=$((failed + 1))
+              echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
+            tail -n 80 "$log"
             echo "::endgroup::"
           }
           run_gd 300s tests/ghost_racer.gd
           run_gd 900s tests/car_obstacle_collision.gd
           run_gd 900s tests/subaru_drive.gd
           run_gd 1200s tests/top_speed.gd
+          sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"
           exit "$failed"
 
