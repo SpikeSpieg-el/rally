@@ -336,6 +336,7 @@ roughness = 0.55
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2gh62"]
 resource_name = "Glass_Tinted.003"
+blend_mode = 1
 cull_mode = 2
 albedo_color = Color(0.12835404, 0.15170372, 0.18281268, 1)
 metallic = 0.15
@@ -781,7 +782,7 @@ height = 1.45
 material = SubResource("Mat_Cage")
 top_radius = 0.036
 bottom_radius = 0.036
-height = 0.92
+height = 1.1201563
 
 [sub_resource type="StandardMaterial3D" id="Mat_CagePadding"]
 albedo_color = Color(0.08, 0.08, 0.09, 1)
@@ -1208,7 +1209,11 @@ material_override = ExtResource("8_endy0")
 mesh = SubResource("BoxMesh_g3enx")
 
 [node name="RoofPanel" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1744562805]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.013620557, 0.6889701, -0.35)
+transform = Transform3D(1, 0, 0, 0, 1.0000013, 0, 0, 0, 1, 0.013620555, 0.6889701, -1.4232781)
+mesh = SubResource("BoxMesh_lrbqw")
+
+[node name="RoofPanel3" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1002766420]
+transform = Transform3D(1, 0, 0, 0, 1.0000013, 0, 0, 0, 1, 0.013620555, 0.13896501, -1.6793265)
 mesh = SubResource("BoxMesh_lrbqw")
 
 [node name="WindshieldSunstrip" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1449441599]
@@ -1254,7 +1259,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0, -0.44)
 mesh = SubResource("CylinderMesh_qdsbq")
 
 [node name="APillarL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=1910928291]
-transform = Transform3D(1, 0, 0, 0, 0.54082984, 0.84113204, 0, -0.84113204, 0.54082984, 0.74, 0.38, 0.62)
+transform = Transform3D(1, 0, 0, 0, 0.54083043, 0.8411473, 0, -0.84113204, 0.54082984, 0.7400002, 0.43412507, 0.53582114)
 mesh = SubResource("CylinderMesh_1c6pd")
 
 [node name="APillarPaddingL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage/APillarL" unique_id=1979272844]
@@ -1262,7 +1267,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
 mesh = SubResource("CylinderMesh_t4p4v")
 
 [node name="APillarR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=172688777]
-transform = Transform3D(1, 0, 0, 0, 0.54082984, 0.84113204, 0, -0.84113204, 0.54082984, -0.74, 0.38, 0.62)
+transform = Transform3D(1, 0, 0, 0, 0.5408299, 0.8411321, 0, -0.84113204, 0.54082984, -0.69685894, 0.38, 0.62000006)
 mesh = SubResource("CylinderMesh_1c6pd")
 
 [node name="APillarPaddingR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage/APillarR" unique_id=1239707367]
@@ -1274,7 +1279,7 @@ transform = Transform3D(0.9999581, 0.009141767, 0.00027762773, 0, -0.03035516, 0
 mesh = SubResource("CylinderMesh_01i06")
 
 [node name="RoofBarR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=794665485]
-transform = Transform3D(0.99959457, -0.028458415, -0.0008642579, 0, -0.03035516, 0.99953926, -0.02847154, -0.99913406, -0.030342855, -0.7, 0.7099999, -0.35)
+transform = Transform3D(0.9995945, -0.028458415, -0.000864258, 0, -0.030355161, 0.9995393, -0.02847154, -0.99913406, -0.030342855, -0.6664254, 0.7099999, -0.35)
 mesh = SubResource("CylinderMesh_01i06")
 
 [node name="WindshieldTopCrossbar" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=1305162747]
@@ -1583,7 +1588,7 @@ transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.965
 mesh = SubResource("BoxMesh_4buis")
 
 [node name="WindshieldWipers" parent="Volkswagen Golf R32 Mk4" unique_id=453340048 instance=ExtResource("wipers")]
-transform = Transform3D(0.8183639, 0, 0, 0, 0.5009483, 0.58375233, 0, -0.58375233, 0.5009483, -0.2507151, 0.9351444, 0.8112977)
+transform = Transform3D(0.8183639, 0, 0, 0, 0.5009483, 0.58375233, 0, -0.58375233, 0.5009483, -0.22302625, 0.933243, 0.8758716)
 
 [node name="TaillightLensL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4" unique_id=2123834644]
 transform = Transform3D(1.0597812, 0, 0, 0, 1.1615385, 0, 0, 0, 1.0846155, 0.5894738, 0.7936529, -1.9491221)
