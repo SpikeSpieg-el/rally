@@ -101,7 +101,11 @@ func _test_ghost_look_presets_and_preferences() -> void:
 		"пресет NEON_PACER задаёт яркий неоново-зелёный цвет")
 	g.look = GhostLookScript.GhostLook.TRANSPARENT_RIVAL
 	_check(g.preserve_livery_texture and g.livery_tint_strength > 0.05, "пресет TRANSPARENT_RIVAL сохраняет текстуру ливрей")
+	print("[ghost-racer-dbg] перед opacity: look=%d in_tree=%s applying=%s" % [
+		int(g.look), str(g.is_inside_tree()), str(g.get("_applying_preset"))])
 	g.opacity = 0.61
+	print("[ghost-racer-dbg] после opacity=%.2f: look=%d (CUSTOM=%d)" % [
+		g.opacity, int(g.look), int(GhostLookScript.GhostLook.CUSTOM)])
 	_check(g.look == GhostLookScript.GhostLook.CUSTOM, "ручная правка поля переводит look в CUSTOM")
 	g.apply_user_preferences({"ghost_enabled": false, "delta_enabled": false, "opacity": 0.25, "reference_mode": 2})
 	_check(not g.effective_enabled() and not g.effective_delta_enabled(), "user prefs отключают рендер призрака/дельту")
