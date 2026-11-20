@@ -92,10 +92,15 @@ func _test_recording_math_and_io() -> void:
 func _test_ghost_look_presets_and_preferences() -> void:
 	var g := GhostLookScene.instantiate() as GhostLookScript
 	_check(g != null, "scenes/effects/ghost_racer.tscn должен инстанцироваться как RallyGhostLook")
+	# Переход пресета в CUSTOM помечается только у узла в дереве (_mark_custom),
+	# поэтому внешность проверяем на живом узле, как в заезде, а не на голом экземпляре.
+	root.add_child(g)
 	g.look = GhostLookScript.GhostLook.NEON_PACER
-	_check(g.ghost_color.r > 0.8 and g.ghost_color.b < 0.4, "пресет NEON_PACER задаёт янтарно-неоновый цвет")
+	# Пейсер светится яркой зеленью: зелёный канал максимален и доминирует над синим.
+	_check(g.ghost_color.g > 0.9 and g.ghost_color.g > g.ghost_color.b,
+		"пресет NEON_PACER задаёт яркий неоново-зелёный цвет")
 	g.look = GhostLookScript.GhostLook.TRANSPARENT_RIVAL
-	_check(g.preserve_livery_texture and g.livery_tint_strength > 0.05, "пресет TRANSPARENT_RIVAL сохраняет текстуру ливреи")
+	_check(g.preserve_livery_texture and g.livery_tint_strength > 0.05, "пресет TRANSPARENT_RIVAL сохраняет текстуру ливрей")
 	g.opacity = 0.61
 	_check(g.look == GhostLookScript.GhostLook.CUSTOM, "ручная правка поля переводит look в CUSTOM")
 	g.apply_user_preferences({"ghost_enabled": false, "delta_enabled": false, "opacity": 0.25, "reference_mode": 2})
@@ -104,6 +109,7 @@ func _test_ghost_look_presets_and_preferences() -> void:
 	_check(is_equal_approx(g.opacity, 0.61), "scene @export opacity не мутирует от pause-настроек")
 	g.clear_user_preferences()
 	_check(is_equal_approx(g.effective_opacity(), 0.61), "clear_user_preferences возвращает экспорт сцены")
+	root.remove_child(g)
 	g.free()
 
 
