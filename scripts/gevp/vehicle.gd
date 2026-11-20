@@ -350,6 +350,9 @@ const GEVPWheel = preload("res://scripts/gevp/wheel.gd")
 const ANGULAR_VELOCITY_TO_RPM := 60.0 / TAU
 ## Обороты, на которые нормирован motor_brake (Н·м на 1000 об/мин).
 const MOTOR_BRAKE_REFERENCE_RPM := 1000.0
+## Пол скорости (м/с) для расчёта темпа руления: ниже него руль крутится с
+## фиксированной максимальной скоростью, а не «щёлкает» в упор на месте.
+const STEERING_SPEED_FLOOR_MPS := 2.0
 
 var wheel_array : Array[GEVPWheel] = []
 var axles : Array[Axle] = []
@@ -694,12 +697,16 @@ func process_steering(delta : float) -> void:
 	var steer_assist_engaged := false
 	var steering_slip := get_max_steering_slip_angle()
 	
-	## Adjust steering speed based on vehicle speed and max steering angle
-	var steer_speed_correction := steering_speed / (speed * steering_speed_decay) / max_steering_angle
-	
+	## Adjust steering speed based on vehicle speed and max steering angle.
+	## Пол скорости: без него при speed → 0 коррекция уходила в бесконечность и
+	## руль мгновенно «щёлкал» в упор на месте/на парковке. Ниже ~2 м/ч руль
+	## крутится с фиксированной максимальной скоростью, как на реальной машине.
+	var steer_speed := maxf(speed, STEERING_SPEED_FLOOR_MPS)
+	var steer_speed_correction := steering_speed / (steer_speed * steering_speed_decay) / max_steering_angle
+
 	## If the steering input is opposite the current steering, apply countersteering speed instead
 	if signf(steering_input) != signf(steering_amount):
-		steer_speed_correction = countersteer_speed / (speed * steering_speed_decay)
+		steer_speed_correction = countersteer_speed / (steer_speed * steering_speed_decay)
 	
 	## Check steering slip threshold and reduce steering amount if crossed.
 	if absf(steering_slip) > steering_slip_assist:
@@ -782,14 +789,17 @@ func process_motor(delta : float) -> void:
 		_process_manual_motor(delta)
 		return
 	var drag_torque := motor_rpm * motor_drag
+	# torque_output — момент от сгорания за вычетом торможения двигателем.
+	# Внутреннее сопротивление мотора (drag_torque) вычитается ОДИН раз — ниже,
+	# при интегрировании оборотов. Раньше оно вычиталось и здесь, и там, из-за
+	# чего эффективные потери удваивались (~60 Н·м на отсечке вместо ~30) и мотор
+	# терял тягу в верхах и медленнее раскручивался.
 	torque_output = get_torque_at_rpm(motor_rpm) * throttle_amount
-	## Adjust torque based on throttle input, clutch input, and motor drag
-	torque_output -= drag_torque * (1.0 + (clutch_amount * (1.0 - throttle_amount)))
 	torque_output -= get_engine_brake_torque(throttle_amount)
-	
+
 	# Отсечка совпадает с max_rpm из сетапа/HUD, без скрытых +10%.
 	torque_output = _limit_motor_torque(torque_output, delta)
-	var new_rpm := motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * torque_output / motor_moment
+	var new_rpm := motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment
 	if new_rpm <= idle_rpm:
 		torque_output = 0.0
 
@@ -825,8 +835,8 @@ func _process_manual_motor(delta: float) -> void:
 	var drag_torque := motor_rpm * motor_drag
 	var idle_assist := clampf((idle_rpm * 1.04 - motor_rpm) / maxf(idle_rpm * 0.35, 1.0), 0.0, 1.0) * 0.12
 	var effective_throttle := maxf(throttle_amount, idle_assist)
+	# Как и в автоматическом моторе: drag вычитается один раз — при интегрировании.
 	torque_output = get_torque_at_rpm(motor_rpm) * effective_throttle
-	torque_output -= drag_torque * (1.0 + clutch_amount * (1.0 - effective_throttle))
 	torque_output -= get_engine_brake_torque(effective_throttle)
 	torque_output = _limit_motor_torque(torque_output, delta)
 	motor_rpm = maxf(motor_rpm + ANGULAR_VELOCITY_TO_RPM * delta * (torque_output - drag_torque) / motor_moment, 0.0)
@@ -1128,6 +1138,10 @@ func complete_shift() -> void:
 	## Called when it is time to complete a shift in progress
 	if current_gear == -1:
 		brake_amount = 0.0
+	# Перегазовка при понижении: requested_gear = current_gear + count, для
+	# дауншифта count = -1, поэтому requested_gear < current_gear верно и матч
+	# срабатывает. Обороты мотора подтягиваются к оборотам целевой передачи,
+	# чтобы сцепление не дёргало трансмиссию.
 	if not manual_clutch_control and requested_gear > 0 and requested_gear < current_gear:
 		var wheel_spin := speed / average_drive_wheel_radius
 		var requested_gear_rpm := gear_ratios[requested_gear - 1] * final_drive * wheel_spin * ANGULAR_VELOCITY_TO_RPM

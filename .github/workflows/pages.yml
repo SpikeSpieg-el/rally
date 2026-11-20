@@ -6,7 +6,7 @@ on:
       - main
       - arena/04a18e75-rally
       - arena/351d2d6e-rally
-      - arena/a46c3d2b-rally
+      - arena/f3672196-rally
   workflow_dispatch:
 
 permissions:
@@ -233,6 +233,7 @@ jobs:
           run_gd 300s tests/ghost_racer.gd
           run_gd 900s tests/car_obstacle_collision.gd
           run_gd 900s tests/subaru_drive.gd
+          run_gd 300s tests/car_stationary_slip.gd
           run_gd 1200s tests/top_speed.gd
           sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"
