@@ -136,7 +136,9 @@ jobs:
               failed=$((failed + 1))
               echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
-            tail -n 80 "$log"
+            echo "--- сводка $1 ---"
+            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:" "$log" | head -n 25 || true
+            tail -n 60 "$log"
             echo "::endgroup::"
           }
           run_py tests.test_vehicle_roster
@@ -223,7 +225,9 @@ jobs:
               failed=$((failed + 1))
               echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
-            tail -n 80 "$log"
+            echo "--- сводка $1 ---"
+            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:" "$log" | head -n 25 || true
+            tail -n 60 "$log"
             echo "::endgroup::"
           }
           run_gd 300s tests/ghost_racer.gd

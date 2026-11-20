@@ -96,6 +96,45 @@ def car_scenes() -> list[str]:
     return scenes
 
 
+# Жадно до последней «]» строки: в groups=["…"] встречаются скобки, и робкий
+# шаблон «до первой ]» обрезал бы заголовок посередине списка групп.
+_NODE_HEADER_RE = re.compile(r'^\[node .*\]$', re.MULTILINE)
+_ATTR_RE = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _scene_nodes(scene_text: str) -> list[dict[str, str]]:
+    """Узлы сцены: {имя, тип, parent} из заголовков [node …].
+
+    Порядок атрибутов произвольный; безкавычные поля (unique_id, groups) не
+    нужны, поэтому берём только пары ключ="значение".
+    """
+    nodes: list[dict[str, str]] = []
+    for match in _NODE_HEADER_RE.finditer(scene_text):
+        nodes.append(dict(_ATTR_RE.findall(match.group(0))))
+    return nodes
+
+
+def _rim_meshes(scene_text: str, mount: str, holder: str) -> list[str]:
+    """Катящиеся обода внутри держателя колеса у заданного крепления подвески.
+
+    Крепления подвески висят прямо на корне, поэтому родитель держателя всегда
+    равен ``<крепление>/<держатель>`` без префикса. Рядом с ободом в том же
+    держателе стоит плоскость тормозного диска (Plane_*); обод отличаем по
+    подстроке «wheel» в имени — тот же признак, что и в CarModels.wheel_mesh_names.
+    """
+    parent_path = mount + "/" + holder
+    rims: list[str] = []
+    for node in _scene_nodes(scene_text):
+        if node.get("type") != "MeshInstance3D":
+            continue
+        if node.get("parent", "") != parent_path:
+            continue
+        name = node.get("name", "")
+        if "wheel" in name.lower():
+            rims.append(name)
+    return rims
+
+
 def vehicles() -> dict[str, dict]:
     """Все ресурсы машин из data/vehicles/: {id: поля}."""
     uids = scene_uids()
@@ -362,12 +401,22 @@ class VehicleRosterTest(unittest.TestCase):
         self.assertIn("_track_wheels(model, wheel_names if not wheel_names.is_empty()"
                       " else SCENE_WHEEL_NAMES)", garage,
                       "список имён сцены витрины остался запасным вариантом")
-        # Крепления подвески во всех сценах машин на месте: по ним ищем колёса.
+        # Крепления подвески во всех сценах машин на месте, а в держателе
+        # WheelVisual каждого угла ровно один обод. Рядом с креплением может
+        # висеть плоскость тормозного диска, но колесо на витрине — одно:
+        # иначе garage насчитает восемь колёс вместо четырёх.
         for scene in car_scenes():
             text = read(scene)
+            rims_total = 0
             for mount in ("Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"):
                 self.assertIn(f'[node name="{mount}"', text,
                               f"{scene}: нет крепления подвески {mount}")
+                rims = _rim_meshes(text, mount, "WheelVisual")
+                self.assertEqual(len(rims), 1,
+                                 f"{scene}: в WheelVisual у {mount} один обод, найдено {rims}")
+                rims_total += len(rims)
+            self.assertEqual(rims_total, 4,
+                             f"{scene}: на машину четыре колеса витрины, найдено {rims_total}")
 
 
 if __name__ == "__main__":

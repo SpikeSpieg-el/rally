@@ -298,6 +298,15 @@ static func _build_preview(car: Node3D) -> Node3D:
 ## Имена мешей колёс в сцене машины: ищем по креплениям подвески, а не по имени
 ## модели. Subaru и Golf сегодня ездят на колёсах Lancer (Mitsubishi_Wheel_*),
 ## но новая машина может привезти свои — тогда витрина всё равно их закрутит.
+## Обод лежит в держателе WheelVisual рядом с плоскостью тормозного диска;
+## крутим только обод, поэтому среди мешей держателя берём тот, в чьём имени
+## есть «wheel». Без фильтра на витрине оказалось бы восемь «колёс» вместо
+## четырёх и диски крутились бы вместе с ободами.
+const WHEEL_VISUAL_HOLDER := "WheelVisual"
+## Подстрока имени катящегося обода: тормозные диски зовутся Plane_* и стоят рядом.
+const RIM_NAME_HINT := "wheel"
+
+
 static func wheel_mesh_names(car: Node3D) -> Array[String]:
 	var names: Array[String] = []
 	if car == null:
@@ -306,8 +315,13 @@ static func wheel_mesh_names(car: Node3D) -> Array[String]:
 		var mount := car.get_node_or_null(NodePath(String(mount_name)))
 		if mount == null:
 			continue
-		for mesh in mount.find_children("*", "MeshInstance3D", true, false):
+		var holder := mount.find_child(WHEEL_VISUAL_HOLDER, true, false)
+		if holder == null:
+			continue
+		for mesh in holder.find_children("*", "MeshInstance3D", true, false):
 			var mesh_name := String((mesh as Node).name)
+			if mesh_name.to_lower().find(RIM_NAME_HINT) < 0:
+				continue
 			if not mesh_name.is_empty() and not names.has(mesh_name):
 				names.append(mesh_name)
 	return names
