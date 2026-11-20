@@ -202,10 +202,12 @@ func _run() -> void:
 	root.add_child(game)
 
 	var config := Config.duplicate(true) as RallyGameConfig
+	var tested: Array[String] = []
 	for vehicle_resource in config.vehicles:
 		var data := vehicle_resource as RallyVehicle
 		if data == null:
 			continue
+		tested.append(data.id)
 		game.race_vehicle_id = data.id
 		var world := _make_world()
 		var scene := load(CarModels.scene_path(data.race_scene)) as PackedScene
@@ -251,6 +253,10 @@ func _run() -> void:
 			check(float(stats["max_offset_m"]) >= MIN_DENT_M * 0.5,
 				"Lancer: вмятина видна — вершина ушла на %.3f м" % float(stats["max_offset_m"]))
 			var centroid: Vector3 = stats["centroid_local"]
+			# Сводка уходит в лог проверки: видно, что удар действительно
+			# оставил вмятину спереди, а не «прошёл молча».
+			print("Lancer: вмятина %.3f м, сдвинуто вершин %d, центр вмятин %.2f/%.2f/%.2f"
+				% [depth, int(stats["moved_vertices"]), centroid.x, centroid.y, centroid.z])
 			check(centroid.z > 0.0,
 				"Lancer: удар передом мнёт переднюю часть кузова (центр вмятин z=%.2f)" % centroid.z)
 			check(_only_panels_replaced(meshes_before),
@@ -286,6 +292,12 @@ func _run() -> void:
 
 	root.remove_child(game)
 	game.queue_free()
+
+	# Пустой цикл по реестру означал бы «проверок не было, всё хорошо»: ловим.
+	check(tested.has(DAMAGE_ID), "Lancer обязан попасть в проверку реестра")
+	check(tested.size() == config.vehicles.size(),
+		"реестр перебран целиком: %d из %d машин (%s)"
+		% [tested.size(), config.vehicles.size(), ", ".join(tested)])
 
 	if failures.is_empty():
 		print("PASS: вмятины только от удара и только на Lancer, физика и здоровье не задеты")
