@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="RallyVehicle" format=3 uid="uid://ch3wx22kun04j"]
+
+[ext_resource type="Script" uid="uid://14v5g2inqnbr" path="res://scripts/data/rally_vehicle.gd" id="1_vehicle"]
+
+[resource]
+script = ExtResource("1_vehicle")
+id = "golf"
+display_name = "VOLKSWAGEN GOLF R32 Mk4"
+setup_ids = Array[String](["golf_r32_stock", "golf_gravel", "golf_snow", "golf_tarmac", "golf_gravel_spec"])
+race_scene = "res://scenes/rally_car2.tscn"
+engine_dir = "res://audio/engine/golf/"
+engine_rpm_grid = Array[int]([750, 812, 880, 953, 1033, 1119, 1212, 1313, 1422, 1541, 1669, 1808, 1958, 2121, 2298, 2489, 2697, 2921, 3164, 3428, 3713, 4023, 4357, 4720, 5113, 5539, 6000, 6500])
+engine_events_dir = "res://audio/vehicle/golf/"
+engine_trim_db = -1.0
+engine_event_pitch = 0.95

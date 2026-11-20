@@ -93,7 +93,7 @@ Speed`). Поля вкладок создаются при запуске из �
 
 ### Гараж и настройка машины
 
-После выбора трассы нажмите **ДАЛЕЕ · МАШИНА**. В гараже доступны десять готовых пресетов с разными моторами и настройками.
+После выбора трассы нажмите **ДАЛЕЕ · МАШИНА**. В гараже доступны готовые пресеты выбранной машины — десять у Lancer и по пять у Subaru и Golf.
 Их характеристики показаны на прокручиваемых вкладках; готовые пресеты
 нельзя редактировать. Чтобы настроить машину, нажмите **СОЗДАТЬ СВОЙ НА
 ОСНОВЕ ЭТОГО**, задайте имя и измените параметры:
@@ -355,13 +355,17 @@ Godot-декали (`Decal`) — лужи, мокрые и рыхлые пятн
 Погода и настройки покрытия продолжают влиять на общее сцепление. Сами полосы
 рисуются декалями (см. раздел выше).
 
-Моторы (меню, блок «КОНФИГУРАЦИЯ»):
+Моторы (меню, блок «КОНФИГУРАЦИЯ»). Список принадлежит выбранной машине —
+ниже три пресета Lancer из десяти:
 
 | Пресет | Мотор | Характер |
 |---|---|---|
 | **2.0 TURBO · СТОК** | 4G63T, 470 Н·м, 7600 об/мин | длинные передачи, мягкая подвеска, AWD |
 | **2.0 TURBO · ГРУППА A** | 4G63T, 620 Н·м, 8200 об/мин | короткий ряд, злая подвеска, 620 Н·м на любой передаче |
 | **2.4 АТМО · РЕВУЩИЙ** | 4G64, 430 Н·м, 9000 об/мин | RWD, лёгкий кузов, весь момент в верхах |
+
+У Subaru свои пять пресетов (EJ25, 2.5 TURBO, `data/setups/subaru/`), у Golf —
+свои пять (атмосферный VR6 3.2 без турбо-рывка, `data/setups/golf/`).
 
 Погода и характер трассы выбираются там же и действуют на **любую** из четырёх
 трасс: сцепление, ширина полотна, кочки, туман, свет и осадки пересчитываются
@@ -372,7 +376,10 @@ scenes/rally_stage.tscn              ← ГЛАВНАЯ сцена: дорога
 scenes/props/*.tscn                  ← библиотека ассетов (17 пропсов, все с текстурами)
 data/stage/default_prop_library.tres ← что и с каким весом расставлять вдоль трассы
 data/tracks/*.tres                   ← настройки трасс (4 шт.) и осевые линии
-data/setups/*.tres                   ← десять готовых пресетов мотора (сетапы машины)
+data/setups/**/*.tres                ← 20 пресетов реестра (10 Lancer, 5 Subaru, 5 Golf)
+								  и 11_gravel.tres — общий сетап для тестов
+data/vehicles/*.tres                 ← реестр машин: сцена, пресеты, банк звука
+data/rally_game_config.tres          ← конфиг: массив vehicles и все 20 пресетов
 data/weather/*.tres                  ← семь погодных пресетов
 data/profiles/*.tres                 ← четыре характера трассы (гравий/грязь/асфальт/снег)
 scripts/data/rally_weather_config.gd ← ресурс погоды (инспектор)
@@ -389,8 +396,11 @@ data/stage/road_decals/*.tres        ← пятна по видам покрыт
 scripts/data/rally_road_decal_spec.gd    ← одно пятно: цвета, шум, размеры, шероховатость
 scripts/data/rally_road_decal_profile.gd ← наборы пятен на гравий/грязь/асфальт/снег
 scripts/track_generator.gd           ← генератор «Живой ленты» (сид → Curve3D)
-audio/engine/*.wav                   ← лупы двигателя (58 шт., сгенерированы моделью)
+audio/engine/*.wav                   ← лупы 4G63T (58 шт., сгенерированы моделью)
+audio/engine/subaru/*.wav            ← лупы боксера EJ25 (56 шт.)
+audio/engine/golf/*.wav              ← лупы атмосферного VR6 3.2 (56 шт.)
 audio/vehicle/*.wav                  ← гравий, ветер, хлопки, сброс турбины, старт
+audio/vehicle/subaru|golf/*.wav      ← те же события для своих машин (у Golf только старт и переключение)
 audio/music/*.ogg                    ← музыка (100 треков, OGG Vorbis)
 tools/engine_audio_model.py          ← физическая модель звука ДВС (Python)
 tools/render_engine_audio.py         ← запекание всех звуковых ассетов
@@ -440,12 +450,21 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 
 ### Выбор автомобиля
 
-В гараже над витриной можно выбрать Mitsubishi Lancer Evolution или Subaru Impreza WRX STI. Выбор сохраняется между запусками и применяется при старте и повторе заезда.
+В гараже над витриной можно выбрать Mitsubishi Lancer Evolution, Subaru Impreza WRX STI или Volkswagen Golf R32 Mk4. Выбор сохраняется между запусками и применяется при старте и повторе заезда.
+
+| Машина | Сцена | Мотор | Пресеты | Звук |
+|---|---|---|---|---|
+| Lancer Evolution | `scenes/rally_car.tscn` | 4G63T, 2.0 TURBO | 10 | `audio/engine/`, `audio/vehicle/` |
+| Impreza WRX STi | `scenes/rally_car3.tscn` | EJ25, 2.5 TURBO | 5 | `audio/engine/subaru/`, `audio/vehicle/subaru/` |
+| Golf R32 Mk4 | `scenes/rally_car2.tscn` | VR6 3.2, АТМО | 5 | `audio/engine/golf/`, `audio/vehicle/golf/` |
+
+У каждой машины свой список пресетов, своя сетка оборотов и свой банк звука;
+у Golf ливрей нет — только заводская краска и цвет из пресета.
 
 Машина — это игровая сцена `scenes/rally_car*.tscn`: кузов, колёса и кабина
 в ней. Новая сцена (копия существующей) сама появляется в гараже и едет в
-заезде, код править не нужно. Необязательный ресурс `data/vehicles/<id>.tres`
-задаёт звук, пресеты и название.
+заезде, код править не нужно. Ресурс `data/vehicles/<id>.tres` задаёт звук,
+пресеты и название и имеет приоритет над автоматической регистрацией.
 
 * **сцена** — `race_scene`: игровая сцена машины, её гараж и заезд используют;
 * **пресеты** — `setup_ids`: id сетапов из `all_setups` в
@@ -454,7 +473,8 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
   отдельно для каждой;
 * **звук** — `engine_dir`, `engine_rpm_grid`, `engine_events_dir`,
   `engine_trim_db` и `engine_event_pitch`. У Impreza свой банк
-  (`audio/engine/subaru/`, `audio/vehicle/subaru/`), у Lancer — общий.
+  (`audio/engine/subaru/`, `audio/vehicle/subaru/`), у Golf — свой
+  (`audio/engine/golf/`, `audio/vehicle/golf/`), у Lancer — общий.
   Подробности — [`docs/ENGINE_AUDIO_RU.md`](docs/ENGINE_AUDIO_RU.md);
 * **салон** — сценой не управляется: его делает автор модели машины.
   Приборка Lancer живёт в `scenes/rally_cockpit.tscn.tscn`.
@@ -469,7 +489,7 @@ tools/bake_stage_scene.py            ← пересобрать ассеты в 
 
 1. Открыть `project.godot` в Godot 4.7+ (проект использует формат сцены 4.7).
 2. **F5** — меню. Дождаться первого импорта.
-3. Выбрать трассу, погоду и характер полотна → **ДАЛЕЕ · МАШИНА**. В гараже выбрать конфигурацию Lancer Evo, настроить её и нажать **НА СТАРТ**.
+3. Выбрать трассу, погоду и характер полотна → **ДАЛЕЕ · МАШИНА**. В гараже выбрать машину и конфигурацию, настроить её и нажать **НА СТАРТ**.
    У «Живой ленты» тут же можно нажать **ПЕРЕГЕНЕРИРОВАТЬ**: сид сохранится,
    и трассу можно будет вернуть по номеру.
 4. **F6** на `scenes/rally_stage.tscn` — тот же заезд без меню.
@@ -634,8 +654,9 @@ Bluetooth может не поддерживать подсветку, по USB 
 `fog_density` и `star_intensity`. При плохой производительности отключите там
 `volumetric_fog` и/или `screen_space_ao`; объёмный туман и SSAO требуют Forward+.
 Фары задаются узлами `HeadlightL` и `HeadlightR`: у Lancer они вложены в
-`low poly lance evo`, у Subaru расположены на корне сцены. Яркость, дальность,
-угол и тени редактируются как свойства `SpotLight3D`.
+`low poly lance evo`, у Subaru и Golf расположены на корне сцены. Код ищет их
+по имени и в корне модели тоже, поэтому перенос узла не ломает свет. Яркость,
+дальность, угол и тени редактируются как свойства `SpotLight3D`.
 
 `data/tracks/night_environment.tres` задаёт ночной фон предпросмотра в редакторе.
 В **игре** параметры окружения заново берутся из ресурса трассы, поэтому
@@ -1391,7 +1412,21 @@ godot --headless --path . --script res://tests/car_customization.gd
 godot --headless --path . --script res://tests/garage_menu_flow.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/car_custom_drive.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/custom_stage_smoke.gd
+godot --headless --path . --script res://tests/subaru_presets.gd
+godot --headless --path . --script res://tests/golf_presets.gd
+godot --headless --path . --script res://tests/car_liveries.gd
+godot --headless --path . --script res://tests/car_body_fx.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/car_obstacle_collision.gd
+
+# То же без Godot: реестр машин, пресеты, банк звука и геометрия сцен
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 tools/check_project.py
 ```
+
+Проверки машин перебирают реестр (`data/rally_game_config.tres` →
+`data/vehicles/*.tres`), поэтому четвёртая машина попадает в них без правки
+тестов. `tests/test_vehicle_roster.py` повторяет часть контрактов на чистом
+Python — его можно гонять и там, где движка нет.
 
 Проверки без окна не заменяют визуальный заезд в Forward+: объёмный туман,
 яркость и качество теней нужно оценивать с рабочим графическим рендерером.

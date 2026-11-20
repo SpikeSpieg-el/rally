@@ -40,9 +40,12 @@ var _sliders: Dictionary = {}
 var _values: Dictionary = {}
 var _rows: Dictionary = {}
 var _fields: Dictionary = {}
-## Исходный basis каждого колеса на витрине (колёса всех моделей машин).
-var _wheel_rest: Dictionary = {}
-## Колёса стандартной сцены витрины (кузов Lancer): имена только для неё.
+## Метка витрины: список словарей {node, rest} — колёса одной модели и их
+## исходный basis. Каждой модели кладутся свои колёса, чтобы крутить и красить
+## только видимую машину, а не все кузова сразу.
+const WHEELS_META := "vitrine_wheels"
+## Колёса стандартной сцены витрины (кузов Lancer): запасной список, когда у
+## машины нет своей модели и имена неоткуда взять (см. CarModels.WHEEL_META).
 const SCENE_WHEEL_NAMES := ["Mitsubishi_Wheel_Ft_L", "Mitsubishi_Wheel_Ft_R", "Mitsubishi_Wheel_Bk_L", "Mitsubishi_Wheel_Bk_R"]
 var _model_default_y: float = 0.0
 ## Кузова машин, у которых есть своя модель: id → узел на витрине.
@@ -326,17 +329,30 @@ func _vehicle_model(id: String) -> Node3D:
 	model.position = Vector3.ZERO
 	model.visible = false
 	_vehicle_models[id] = model
-	# Колёса обеих игровых сцен называются одинаково (Mitsubishi_Wheel_*).
-	_track_wheels(model, SCENE_WHEEL_NAMES)
+	# Имена колёс берём из самой машины: список сцены витрины — только запасной
+	# вариант для кузова без своей модели.
+	var wheel_names: Array = model.get_meta(CarModels.WHEEL_META, [])
+	_track_wheels(model, wheel_names if not wheel_names.is_empty() else SCENE_WHEEL_NAMES)
 	return model
 
 
 ## Запоминает колёса модели по именам из ресурса машины; отсутствующие пропускает.
+## Колёса кладутся в метку самой модели (WHEELS_META), поэтому витрина крутит и
+## красит только видимую машину, а не все загруженные кузова сразу.
 func _track_wheels(model: Node3D, names: Array) -> void:
+	var wheels: Array[Dictionary] = []
 	for wheel_name in names:
 		var wheel := model.find_child(String(wheel_name), true, false) as Node3D
-		if wheel != null and not _wheel_rest.has(wheel):
-			_wheel_rest[wheel] = wheel.basis
+		if wheel != null:
+			wheels.append({"node": wheel, "rest": wheel.basis})
+	model.set_meta(WHEELS_META, wheels)
+
+
+## Колёса одной модели витрины, запомненные в её метке WHEELS_META.
+func _model_wheels(model: Node3D) -> Array[Dictionary]:
+	if model == null or not model.has_meta(WHEELS_META):
+		return []
+	return model.get_meta(WHEELS_META) as Array[Dictionary]
 
 
 func _vehicle_title(id: String) -> String:
@@ -483,6 +499,11 @@ func _refresh() -> void:
 	for label in livery_labels:
 		livery_choice.add_item(label)
 	livery_choice.disabled = _livery_textures().is_empty()
+	# У машины без ливрей (Golf) пункт остаётся, но объясняет, почему он не нажимается.
+	livery_choice.tooltip_text = (
+		"У этой машины нет ливрей: кузов красится цветом из пресета."
+		if livery_choice.disabled else "Ливрея кузова из списка выбранной машины."
+	)
 	_name_input.visible = _editing
 	_save.visible = _editing
 	_reset.visible = _editing
@@ -554,12 +575,16 @@ func _update_preview() -> void:
 		return
 	_model.position.y = _model_default_y + setup.tire_radius - layout().garage_reference_tire_radius
 	# Краска идёт на видимую модель: витрину выбранной машины или кузов сцены.
-	CarVisuals.apply_body(_vehicle_models.get(_vehicle_id, _model) as Node3D, setup, _livery_textures())
+	var active_model := _vehicle_models.get(_vehicle_id, _model) as Node3D
+	CarVisuals.apply_body(active_model, setup, _livery_textures())
 	var wheel_scale: Vector3 = CarVisuals.wheel_scale(setup.tire_radius, setup.tire_width)
-	for wheel: Node3D in _wheel_rest.keys():
-		if not is_instance_valid(wheel):
+	# Колёса берём из самой видимой модели: их список она запомнила при загрузке.
+	for entry: Dictionary in _model_wheels(active_model):
+		var wheel := entry.get("node") as Node3D
+		var rest := entry.get("rest") as Basis
+		if wheel == null or not is_instance_valid(wheel):
 			continue
-		wheel.basis = (_wheel_rest[wheel] as Basis).scaled(wheel_scale)
+		wheel.basis = rest.scaled(wheel_scale)
 		if wheel is MeshInstance3D:
 			CarVisuals.apply_wheel(wheel as MeshInstance3D, setup)
 		for mesh in wheel.find_children("*", "MeshInstance3D", true, false):

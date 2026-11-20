@@ -1,16 +1,24 @@
 ## Машины игры: реестр и витрина гаража.
 ##
-## Машина — это игровая сцена res://scenes/rally_car*.tscn. Новая сцена
-## подхватывается сама: при загрузке игры для неё создаётся машина с базовыми
-## пресетами. Свой ресурс (data/vehicles/*.tres) нужен только для звука,
-## пресетов и имени — он находится по полю race_scene.
+## Машина — это игровая сцена res://scenes/rally_car*.tscn. В гараже каждая
+## сцена встречается ровно один раз: её «занимает» ресурс машины
+## (data/vehicles/*.tres) — из списка конфига или просто лежащий в папке.
+## Только если ресурса нет вовсе, реестр создаёт машину сам, с именем файла и
+## базовыми пресетами. Ресурс задаёт звук, пресеты и имя; ищется он по полю
+## race_scene, которое может быть записано и как res:// путь, и как uid://.
 extends RefCounted
 
 const CONFIG_PATH := "res://data/rally_game_config.tres"
 const SCENES_DIR := "res://scenes/"
 const CAR_SCENE_PREFIX := "rally_car"
+## Папка ресурсов машин: их подхватывает реестр, даже если конфиг их не перечисляет.
+const VEHICLES_DIR := "res://data/vehicles/"
 ## Метка кузова на корне сцены машины: её ищут покраска и эффекты грязи/крови.
 const BODY_META := "car_body_mesh"
+## Метка витрины: имена мешей колёс этой машины. Гараж крутит их на стенде.
+const WHEEL_META := "car_wheel_meshes"
+## Крепления подвески: одинаковы у всех машин игры, в отличие от имён мешей.
+const WHEEL_MOUNTS := ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"]
 ## Узлы физики и интерьера: в витрину гаража не попадают.
 const PREVIEW_SKIP := ["RallyCockpit", "Cameras"]
 const DEFAULT_MAX_RPM := 7800.0
@@ -91,9 +99,22 @@ static func vehicle(vehicle_id: String) -> RallyVehicle:
 
 
 ## Игровая сцена машины по id — её заезд ставит на место машины трассы.
+## Поле race_scene ресурс хранит как res:// путь или как uid:// (так пишет
+## инспектор Godot 4.7): наружу всегда отдаём настоящий путь.
 static func race_scene_path(vehicle_id: String) -> String:
 	var data: RallyVehicle = vehicle(vehicle_id)
-	return data.race_scene if data != null else ""
+	return scene_path(data.race_scene) if data != null else ""
+
+
+## Путь сцены из значения race_scene: uid:// раскрывается в res://.
+static func scene_path(value: String) -> String:
+	if not value.begins_with("uid://"):
+		return value
+	var uid := ResourceUID.text_to_id(value)
+	if not ResourceUID.has_id(uid):
+		return value
+	var resolved := ResourceUID.get_id_path(uid)
+	return resolved if not resolved.is_empty() else value
 
 
 static func _game_config() -> RallyGameConfig:
@@ -134,6 +155,20 @@ static func sync_registry(config: RallyGameConfig) -> void:
 	for path in car_scene_paths():
 		if _has_scene(config, path):
 			continue
+		# Ресурс машины для этой сцены лежит в data/vehicles/, но в конфиг его
+		# не добавили. Берём готовый ресурс: иначе в гараже появилась бы лишняя
+		# машина с именем файла (rally_car2 → «RALLY CAR2») рядом с настоящей.
+		var on_disk := _vehicle_on_disk(path)
+		if on_disk != null:
+			if config.has_vehicle(on_disk.id):
+				push_warning("Машина %s: id %s уже занят, ресурс %s пропущен" % [
+					path, on_disk.id, on_disk.resource_path,
+				])
+				continue
+			config.vehicles.append(on_disk)
+			if on_disk.setups(config).is_empty():
+				push_warning("Машина %s: ни один пресет из setup_ids не найден в конфиге" % on_disk.id)
+			continue
 		var id := path.get_file().get_basename()
 		if config.has_vehicle(id):
 			push_warning("Машина %s: id %s уже занят, сцена пропущена" % [path, id])
@@ -152,12 +187,37 @@ static func sync_registry(config: RallyGameConfig) -> void:
 		config.vehicles.append(vehicle)
 
 
+## Занята ли сцена другой машиной реестра. Сравниваем по настоящему пути: поле
+## race_scene может хранить uid:// той же сцены, и тогда одна машина попала бы
+## в гараж дважды — своим ресурсом и автоматически созданным.
 static func _has_scene(config: RallyGameConfig, path: String) -> bool:
 	for resource in config.vehicles:
 		var candidate := resource as RallyVehicle
-		if candidate != null and candidate.race_scene == path:
+		if candidate != null and scene_path(candidate.race_scene) == path:
 			return true
 	return false
+
+
+## Ресурс машины из data/vehicles/, чей race_scene указывает на эту сцену.
+## Так новая машина появляется в гараже одним файлом ресурса, без правки конфига.
+static func _vehicle_on_disk(path: String) -> RallyVehicle:
+	var dir := DirAccess.open(VEHICLES_DIR)
+	if dir == null:
+		return null
+	var files := dir.get_files()
+	files.sort()
+	for file in files:
+		# В экспорте ресурсы могут лежать как .tres.remap — имя то же.
+		var name := file.trim_suffix(".remap")
+		if not name.ends_with(".tres"):
+			continue
+		var resource_path := VEHICLES_DIR + name
+		if not ResourceLoader.exists(resource_path):
+			continue
+		var candidate := load(resource_path) as RallyVehicle
+		if candidate != null and scene_path(candidate.race_scene) == path:
+			return candidate
+	return null
 
 
 static func _make_setup(vehicle: RallyVehicle, preset: Dictionary) -> RallyCarSetup:
@@ -231,7 +291,40 @@ static func _build_preview(car: Node3D) -> Node3D:
 	var body_name := String(car.get_meta(BODY_META, ""))
 	if not body_name.is_empty():
 		preview.set_meta(BODY_META, body_name)
+	preview.set_meta(WHEEL_META, wheel_mesh_names(car))
 	return preview
+
+
+## Имена мешей колёс в сцене машины: ищем по креплениям подвески, а не по имени
+## модели. Subaru и Golf сегодня ездят на колёсах Lancer (Mitsubishi_Wheel_*),
+## но новая машина может привезти свои — тогда витрина всё равно их закрутит.
+## Обод лежит в держателе WheelVisual рядом с плоскостью тормозного диска;
+## крутим только обод, поэтому среди мешей держателя берём тот, в чьём имени
+## есть «wheel». Без фильтра на витрине оказалось бы восемь «колёс» вместо
+## четырёх и диски крутились бы вместе с ободами.
+const WHEEL_VISUAL_HOLDER := "WheelVisual"
+## Подстрока имени катящегося обода: тормозные диски зовутся Plane_* и стоят рядом.
+const RIM_NAME_HINT := "wheel"
+
+
+static func wheel_mesh_names(car: Node3D) -> Array[String]:
+	var names: Array[String] = []
+	if car == null:
+		return names
+	for mount_name in WHEEL_MOUNTS:
+		var mount := car.get_node_or_null(NodePath(String(mount_name)))
+		if mount == null:
+			continue
+		var holder := mount.find_child(WHEEL_VISUAL_HOLDER, true, false)
+		if holder == null:
+			continue
+		for mesh in holder.find_children("*", "MeshInstance3D", true, false):
+			var mesh_name := String((mesh as Node).name)
+			if mesh_name.to_lower().find(RIM_NAME_HINT) < 0:
+				continue
+			if not mesh_name.is_empty() and not names.has(mesh_name):
+				names.append(mesh_name)
+	return names
 
 
 ## Меш входит в витрину, если не спрятан и не лежит внутри узла физики/интерьера.

@@ -588,6 +588,11 @@ func reset_trail() -> void:
 func _update_trail(speed_kmh: float, params: Dictionary) -> void:
 	if _trail_mesh == null or _trail_holder == null:
 		return
+	# Точки следа строятся от глобальной позы; вне дерева get_global_transform()
+	# печатает ошибку скрипта и рвёт вызвавшую корутину. Без мировых координат
+	# след просто не копим — в настоящем заезде риг всегда висит на дереве.
+	if not is_inside_tree():
+		return
 	var enabled_trail: bool = bool(params.get("trail_enabled", true))
 	if not enabled_trail or not visible:
 		if not _trail_history.is_empty():

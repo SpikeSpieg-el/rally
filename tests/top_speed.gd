@@ -9,22 +9,28 @@
 # предел скорости задавали мотор, передачи и аэродинамика из сетапа.
 extends SceneTree
 
-const CarScene = preload("res://scenes/rally_car.tscn")
+const Config = preload("res://data/rally_game_config.tres")
+const CarModels = preload("res://scripts/car_models.gd")
+## Опорный пресет: нужен там, где важна не машина, а свойства тела (демпфирование,
+## сравнение с возросшим Cx). На физику кузова выбор пресета не влияет.
 const StockSetup = preload("res://data/setups/engine_stock.tres")
-## Обе сцены с корнем RallyCar: тело из первой едет в игре, вторая — кузов Subaru.
-const CAR_SCENES: Array[String] = ["res://scenes/rally_car.tscn", "res://scenes/rally_car2.tscn"]
-## Сток обеих машин и скорость, которую он обязан набрать за RUN_SECONDS с места.
-## Со скрытым демпфированием их потолок был 141 и 115 км/ч на любой дистанции.
-const RUNS: Array[Dictionary] = [
-	{"setup": "res://data/setups/engine_stock.tres", "min_kmh": 180.0},
-	{"setup": "res://data/setups/subaru/subaru_sti.tres", "min_kmh": 150.0},
-]
+## Заезд на стоковом пресете каждой машины реестра: своя сцена, свой мотор и
+## скорость, которую он обязан набрать за RUN_SECONDS с места. Со скрытым
+## демпфированием потолок был 141 и 115 км/ч на любой дистанции, поэтому пороги
+## лежат выше этих значений — иначе тест перестал бы ловить саму регрессию.
+const MIN_KMH := {
+	"mitsubishi": 180.0,
+	"subaru": 150.0,
+	"golf": 150.0,
+}
+## Порог для машины, которую добавят позже: тоже выше потолка с демпфированием.
+const MIN_KMH_DEFAULT := 145.0
 const PHYSICS_FPS := 120
 const SETTLE_STEPS := 240
 const RUN_SECONDS := 20.0
 ## Допуск на «нулевое» демпфирование кузова, 1/с.
 const DAMP_EPSILON := 0.001
-## Во сколько раз третий заезд увеличивает Cx·S и сколько км/ч он обязан потерять.
+## Во сколько раз контрольный заезд увеличивает Cx·S и сколько км/ч он обязан потерять.
 const DRAG_FACTOR := 3.0
 const DRAG_MIN_LOSS_KMH := 15.0
 
@@ -85,9 +91,9 @@ func _total_linear_damp(scene_path: String) -> float:
 
 
 ## Полный газ с места по прямой на автомате.
-func _full_throttle(setup: RallyCarSetup) -> Dictionary:
+func _full_throttle(scene: PackedScene, setup: RallyCarSetup) -> Dictionary:
 	var world := _make_world()
-	var car := _spawn(world, CarScene, setup)
+	var car := _spawn(world, scene, setup)
 	await _steps(SETTLE_STEPS)
 	var result := {
 		"cda": car.coefficient_of_drag * car.frontal_area,
@@ -116,27 +122,51 @@ func _run() -> void:
 	if game != null:
 		game.set("transmission_index", RallyCarSetup.Transmission.AUTOMATIC)
 
-	for scene_path in CAR_SCENES:
+	for scene_path in CarModels.car_scene_paths():
 		var damp: float = await _total_linear_damp(scene_path)
 		check(damp < DAMP_EPSILON, "%s: движок не должен тормозить кузов демпфированием (сейчас %.3f 1/с)" % [scene_path.get_file(), damp])
 
+	# Стоковый пресет каждой машины реестра едет на её собственной сцене.
+	var config := Config.duplicate(true) as RallyGameConfig
+	CarModels.sync_registry(config)
 	var stock_peak := 0.0
-	for run in RUNS:
-		var setup := (load(run["setup"]) as RallyCarSetup).duplicate(true) as RallyCarSetup
-		var result: Dictionary = await _full_throttle(setup)
-		if run["setup"] == StockSetup.resource_path:
+	var reference_scene: PackedScene = null
+	for resource in config.vehicles:
+		var data := resource as RallyVehicle
+		if data == null:
+			continue
+		var scene_path := CarModels.scene_path(data.race_scene)
+		var scene: PackedScene = null
+		if not scene_path.is_empty():
+			scene = load(scene_path) as PackedScene
+		check(scene != null, "%s: сцена машины читается (%s)" % [data.id, scene_path])
+		var setup := config.get_setup(0, data.id) as RallyCarSetup
+		check(setup != null, "%s: у машины должен быть стоковый пресет" % data.id)
+		if scene == null or setup == null:
+			continue
+		setup = setup.duplicate(true) as RallyCarSetup
+		if data.id == "mitsubishi":
+			reference_scene = scene
+		var min_kmh: float = float(MIN_KMH.get(data.id, MIN_KMH_DEFAULT))
+		var result: Dictionary = await _full_throttle(scene, setup)
+		if data.id == "mitsubishi":
 			stock_peak = result["peak"]
 		check(is_equal_approx(result["cda"], setup.coefficient_of_drag * setup.frontal_area), "%s: аэродинамика кузова берётся из сетапа" % setup.id)
-		check(result["peak"] >= run["min_kmh"], "%s: за %.0f с набирает %.0f км/ч, нужно не меньше %.0f" % [setup.id, RUN_SECONDS, result["peak"], run["min_kmh"]])
-		print("%s: 0–100 за %.2f с, за %.0f с — %.1f км/ч на %d-й передаче, Cx·S %.2f м², увод с прямой %.1f м" % [
-			setup.id, result["to_100"], RUN_SECONDS, result["peak"], result["gear"], result["cda"], result["drift"],
+		check(result["peak"] >= min_kmh, "%s (%s): за %.0f с набирает %.0f км/ч, нужно не меньше %.0f" % [setup.id, data.id, RUN_SECONDS, result["peak"], min_kmh])
+		print("%s (%s): 0–100 за %.2f с, за %.0f с — %.1f км/ч на %d-й передаче, Cx·S %.2f м², увод с прямой %.1f м" % [
+			setup.id, data.id, result["to_100"], RUN_SECONDS, result["peak"], result["gear"], result["cda"], result["drift"],
 		])
 
 	# Тот же сток с увеличенным Cx·S: скорость ограничивает именно воздух.
+	check(reference_scene != null, "в реестре должна остаться Mitsubishi — с ней сравнивается заезд с большим Cx")
+	if reference_scene == null:
+		print("Top speed: %d failures" % failures.size())
+		quit(1)
+		return
 	var draggy := StockSetup.duplicate(true) as RallyCarSetup
 	draggy.coefficient_of_drag *= DRAG_FACTOR
-	var slow: Dictionary = await _full_throttle(draggy)
-	check(stock_peak > 0.0, "в RUNS должен быть стоковый сетап — с ним сравнивается заезд с большим Cx")
+	var slow: Dictionary = await _full_throttle(reference_scene, draggy)
+	check(stock_peak > 0.0, "стоковый заезд должен пройти — с ним сравнивается заезд с большим Cx")
 	check(slow["peak"] <= stock_peak - DRAG_MIN_LOSS_KMH, "Cx ×%.0f должен отнимать не меньше %.0f км/ч: %.1f против %.1f" % [DRAG_FACTOR, DRAG_MIN_LOSS_KMH, slow["peak"], stock_peak])
 	print("Сток с Cx ×%.0f (Cx·S %.2f м²): за %.0f с — %.1f км/ч" % [DRAG_FACTOR, slow["cda"], RUN_SECONDS, slow["peak"]])
 

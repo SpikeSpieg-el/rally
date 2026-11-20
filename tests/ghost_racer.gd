@@ -1,6 +1,6 @@
 # godot --headless --path . --script res://tests/ghost_racer.gd
 ## Контракты системы призрака и живой дельты HUD:
-## сериализация RGHOST01, интерполяция, вдоль-трассовая дельта, клон машин (Evo/Subaru),
+## сериализация RGHOST01, интерполяция, вдоль-трассовая дельта, клон каждой машины реестра,
 ## переключение голограмма/ливрея, скрытие в кабине и настройки паузы.
 extends SceneTree
 
@@ -10,6 +10,7 @@ const GhostLookScene = preload("res://scenes/effects/ghost_racer.tscn")
 const GhostLookScript = preload("res://scripts/effects/rally_ghost_look.gd")
 const HudScene = preload("res://scenes/ui/rally_hud.tscn")
 const HudStyle = preload("res://scripts/data/rally_hud_style.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 
 var _failures: int = 0
 
@@ -21,14 +22,31 @@ func _check(cond: bool, msg: String) -> void:
 
 
 func _initialize() -> void:
-	_test_recording_math_and_io()
-	_test_ghost_look_presets_and_preferences()
-	_test_ghost_car_rig_cloning_and_livery_toggle()
-	_test_delta_panel_cockpit_and_pixel_style()
-	_test_ghost_settings_persistence()
+	# Тело откладывается на первый кадр, как у остальных проверок сцены: прямо в
+	# _initialize() корень ещё не готов принимать узлы (is_inside_tree() == false),
+	# а сеттеры внешности помечают CUSTOM только у живого узла в дереве.
+	call_deferred("_run_all")
+
+
+func _run_all() -> void:
+	_run_section("запись и математика дельты", _test_recording_math_and_io)
+	_run_section("пресеты внешности и настройки", _test_ghost_look_presets_and_preferences)
+	_run_section("клонирование машин и ливрея", _test_ghost_car_rig_cloning_and_livery_toggle)
+	_run_section("дельта-панель и пиксельный стиль", _test_delta_panel_cockpit_and_pixel_style)
+	_run_section("сохранение настроек призрака", _test_ghost_settings_persistence)
 	if _failures == 0:
 		print("PASS: система призрака, клонирование машин, живая дельта HUD и настройки паузы")
+	else:
+		printerr("[ghost-racer] всего провалов: %d" % _failures)
 	quit(0 if _failures == 0 else 1)
+
+
+## Печатает число провалов до и после раздела: когда полный лог не прочесть,
+## по этим строкам сразу видно, какой раздел сыплется.
+func _run_section(title: String, body: Callable) -> void:
+	var before := _failures
+	body.call()
+	print("[ghost-racer] %s: провалов +%d (всего %d)" % [title, _failures - before, _failures])
 
 
 func _test_recording_math_and_io() -> void:
@@ -81,10 +99,15 @@ func _test_recording_math_and_io() -> void:
 func _test_ghost_look_presets_and_preferences() -> void:
 	var g := GhostLookScene.instantiate() as GhostLookScript
 	_check(g != null, "scenes/effects/ghost_racer.tscn должен инстанцироваться как RallyGhostLook")
+	# Переход пресета в CUSTOM помечается только у узла в дереве (_mark_custom),
+	# поэтому внешность проверяем на живом узле, как в заезде, а не на голом экземпляре.
+	root.add_child(g)
 	g.look = GhostLookScript.GhostLook.NEON_PACER
-	_check(g.ghost_color.r > 0.8 and g.ghost_color.b < 0.4, "пресет NEON_PACER задаёт янтарно-неоновый цвет")
+	# Пейсер светится яркой зеленью: зелёный канал максимален и доминирует над синим.
+	_check(g.ghost_color.g > 0.9 and g.ghost_color.g > g.ghost_color.b,
+		"пресет NEON_PACER задаёт яркий неоново-зелёный цвет")
 	g.look = GhostLookScript.GhostLook.TRANSPARENT_RIVAL
-	_check(g.preserve_livery_texture and g.livery_tint_strength > 0.05, "пресет TRANSPARENT_RIVAL сохраняет текстуру ливреи")
+	_check(g.preserve_livery_texture and g.livery_tint_strength > 0.05, "пресет TRANSPARENT_RIVAL сохраняет текстуру ливрей")
 	g.opacity = 0.61
 	_check(g.look == GhostLookScript.GhostLook.CUSTOM, "ручная правка поля переводит look в CUSTOM")
 	g.apply_user_preferences({"ghost_enabled": false, "delta_enabled": false, "opacity": 0.25, "reference_mode": 2})
@@ -93,13 +116,17 @@ func _test_ghost_look_presets_and_preferences() -> void:
 	_check(is_equal_approx(g.opacity, 0.61), "scene @export opacity не мутирует от pause-настроек")
 	g.clear_user_preferences()
 	_check(is_equal_approx(g.effective_opacity(), 0.61), "clear_user_preferences возвращает экспорт сцены")
+	root.remove_child(g)
 	g.free()
 
 
 func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 	var g := GhostLookScene.instantiate() as GhostLookScript
 	var stage_stub := Node3D.new()
-	for scene_path in ["res://scenes/rally_car.tscn", "res://scenes/rally_car2.tscn"]:
+	# Каждая машина реестра, включая ту, у которой нет ливрей: призрак обязан
+	# собраться и покраситься в любом случае.
+	root.add_child(stage_stub)
+	for scene_path in CarModels.car_scene_paths():
 		var rig := GhostCarRig.new()
 		_check(rig.build_from_scene_path(scene_path), "GhostCarRig должен собраться из %s" % scene_path)
 		_check(rig.get_child_count() > 0, "GhostCarRig должен склонировать кузов/колёса из %s" % scene_path)
@@ -107,13 +134,17 @@ func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 		for node in rig.find_children("*", "", true, false):
 			if node is CollisionObject3D or node is CollisionShape3D:
 				has_collision = true
-			_check(node.owner == null, "склонированные узлы призрака должны иметь owner == null")
+				_check(node.owner == null, "склонированные узлы призрака должны иметь owner == null")
 		_check(not has_collision, "в призраке не должно быть коллизий")
 
 		g.look = GhostLookScript.GhostLook.HOLOGRAM
 		rig.apply_look_params(g._build_params_dict())
 		g.look = GhostLookScript.GhostLook.TRANSPARENT_RIVAL
 		rig.apply_look_params(g._build_params_dict())
+		# Обновление позы читает global_transform: вне дерева оно возвращает
+		# нулевую матрицу и печатает ошибку скрипта, поэтому риг на время
+		# обновления висит на дереве, как в настоящем заезде.
+		stage_stub.add_child(rig)
 		rig.update_pose_and_fx(
 			0.016,
 			{"valid": true, "pos": Vector3.ZERO, "quat": Quaternion.IDENTITY, "speed_mps": 20.0, "steer": 0.15, "brake": 0.8},
@@ -121,7 +152,9 @@ func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 			g._build_params_dict(),
 			true
 		)
+		stage_stub.remove_child(rig)
 		rig.free()
+	root.remove_child(stage_stub)
 	stage_stub.free()
 	g.free()
 

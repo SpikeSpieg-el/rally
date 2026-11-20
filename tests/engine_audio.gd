@@ -3,21 +3,22 @@
 extends SceneTree
 
 const EngineSoundScript = preload("res://scripts/engine_sound.gd")
-const CarScene = preload("res://scenes/rally_car.tscn")
+const CarModels = preload("res://scripts/car_models.gd")
 const CONFIG_PATH := "res://data/rally_game_config.tres"
 
-const ENGINE_DIR := "res://audio/engine/"
-const VEHICLE_DIR := "res://audio/vehicle/"
 const EXPECTED_RATE := 32000
 ## Длительность лупа должна быть целым числом периодов вспышек (rpm/30),
 ## иначе на стыке будет слышен щелчок.
 const MIN_LOOP_SECONDS := 0.9
 const MAX_LOOP_SECONDS := 1.2
-## Одиночные звуки (хлопки, сброс турбины, переключение, запуск): их нельзя
-## зацикливать, иначе получится непрерывный треск.
-const ONESHOT_NAMES := ["bov_01.wav", "bov_02.wav", "bov_03.wav", "shift.wav",
-	"start.wav", "pop_01.wav", "pop_02.wav", "pop_03.wav", "pop_04.wav",
-	"pop_05.wav", "pop_06.wav"]
+## Одиночные звуки: их нельзя зацикливать, иначе получится непрерывный треск.
+## Переключение и запуск нужны любой машине, хлопки и сброс турбины — только
+## той, у которой есть турбо-пресет (у атмосферника их неоткуда взять).
+const ONESHOT_ALWAYS := ["shift.wav", "start.wav"]
+const ONESHOT_TURBO := ["bov_01.wav", "bov_02.wav", "bov_03.wav", "pop_01.wav",
+	"pop_02.wav", "pop_03.wav", "pop_04.wav", "pop_05.wav", "pop_06.wav"]
+## Общие шумы дороги и ветра: всегда из папки первой машины.
+const SHARED_NAMES := ["gravel_road.wav", "wind.wav"]
 
 var failures: Array[String] = []
 
@@ -25,6 +26,81 @@ var failures: Array[String] = []
 ## Реестр машин: откуда звук берёт папку лупов, сетку оборотов и события.
 func _vehicle_config() -> RallyGameConfig:
 	return load(CONFIG_PATH) as RallyGameConfig
+
+
+## Есть ли у машины хотя бы один турбо-пресет: только тогда движок играет
+## blow-off и хлопки в выхлопе, а значит и файлы должны лежать в её папке.
+func _has_turbo_setup(config: RallyGameConfig, vehicle_id: String) -> bool:
+	if config == null:
+		return false
+	for resource in config.setups_for(vehicle_id):
+		var setup := resource as RallyCarSetup
+		if setup != null and setup.turbo:
+			return true
+	return false
+
+
+## Лупы одного банка: частота, моно, длина в целых периодах, smpl и .import.
+func _check_loops(loops_dir: String, grid: Array, label: String) -> void:
+	for rpm in grid:
+		for bank in ["light", "full"]:
+			var path: String = "%sengine_%04d_%s.wav" % [loops_dir, int(rpm), str(bank)]
+			_check(FileAccess.file_exists(path), "нет лупа " + path)
+			_check(FileAccess.file_exists(path + ".import"), "нет .import для " + path)
+			if not FileAccess.file_exists(path):
+				continue
+			var header: Dictionary = _read_wav_header(path)
+			_check(int(header["rate"]) == EXPECTED_RATE,
+				"частота дискретизации в %s должна быть %d" % [path, EXPECTED_RATE])
+			_check(int(header["channels"]) == 1, "%s должен быть моно" % path)
+			var seconds: float = float(header["frames"]) / float(maxi(1, int(header["rate"])))
+			_check(seconds >= MIN_LOOP_SECONDS and seconds <= MAX_LOOP_SECONDS,
+				"длительность лупа %s вне диапазона: %.2f с" % [path, seconds])
+			_check(bool(header["has_smpl"]),
+				"в %s нет блока smpl, луп не будет бесшовным" % path)
+			# Точки зацикливания в .import должны совпадать с длиной файла.
+			var import_text: String = _read_text(path + ".import")
+			_check(import_text.contains("edit/loop_mode=2"),
+				"%s должен импортироваться как луп (edit/loop_mode=2)" % path)
+			_check(import_text.contains("edit/loop_end=%d" % int(header["frames"])),
+				"в .import для %s неверная точка конца лупа" % path)
+	# Сетка в коде и файлы на диске совпадают: лишних лупов нет.
+	var dir: DirAccess = DirAccess.open(loops_dir)
+	_check(dir != null, "нет папки с лупами " + loops_dir)
+	if dir == null:
+		return
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".wav"):
+			continue
+		var parts: PackedStringArray = file_name.get_basename().split("_")
+		_check(parts.size() == 3, "%s: неожиданное имя файла %s" % [label, file_name])
+		if parts.size() != 3:
+			continue
+		_check(grid.has(int(parts[1])),
+			"%s: файл %s не соответствует сетке оборотов" % [label, file_name])
+
+
+## Какие одиночные звуки нужны машине: хлопки и blow-off играет только мотор
+## с турбиной, а у атмосферника их нет ни в пресетах, ни на диске.
+func _one_shot_names(turbo: bool) -> Array:
+	if turbo:
+		return ONESHOT_ALWAYS + ONESHOT_TURBO
+	return ONESHOT_ALWAYS.duplicate()
+
+
+## Одиночные звуки одного банка: без smpl и без зацикливания в .import.
+func _check_one_shots(events_dir: String, names: Array, label: String) -> void:
+	for name in names:
+		var path: String = events_dir + str(name)
+		_check(FileAccess.file_exists(path), "%s: нет звука %s" % [label, path])
+		if not FileAccess.file_exists(path):
+			continue
+		var header: Dictionary = _read_wav_header(path)
+		_check(not bool(header["has_smpl"]),
+			"в %s не должно быть блока smpl: это одиночный звук" % path)
+		var import_text: String = _read_text(path + ".import")
+		_check(import_text.contains("edit/loop_mode=1"),
+			"%s должен импортироваться без зацикливания (edit/loop_mode=1)" % path)
 
 
 func _initialize() -> void:
@@ -82,115 +158,61 @@ func _run() -> void:
 	var grid: Array = sound.RPM_GRID
 	_check(grid.size() >= 10, "сетка оборотов должна быть непустой")
 
-	# 1. Для каждой точки сетки есть оба режима нагрузки.
-	for rpm in grid:
-		for bank in ["light", "full"]:
-			var path: String = "%sengine_%04d_%s.wav" % [ENGINE_DIR, int(rpm), str(bank)]
-			_check(FileAccess.file_exists(path), "нет лупа " + path)
-			_check(FileAccess.file_exists(path + ".import"),
-				"нет .import для " + path)
-			if not FileAccess.file_exists(path):
-				continue
-			var header: Dictionary = _read_wav_header(path)
-			_check(int(header["rate"]) == EXPECTED_RATE,
-				"частота дискретизации в %s должна быть %d" % [path, EXPECTED_RATE])
-			_check(int(header["channels"]) == 1, "%s должен быть моно" % path)
-			var seconds: float = float(header["frames"]) / float(maxi(1, int(header["rate"])))
-			_check(seconds >= MIN_LOOP_SECONDS and seconds <= MAX_LOOP_SECONDS,
-				"длительность лупа %s вне диапазона: %.2f с" % [path, seconds])
-			_check(bool(header["has_smpl"]),
-				"в %s нет блока smpl, луп не будет бесшовным" % path)
-			# Точки зацикливания в .import должны совпадать с длиной файла.
-			var import_text: String = _read_text(path + ".import")
-			_check(import_text.contains("edit/loop_mode=2"),
-				"%s должен импортироваться как луп (edit/loop_mode=2)" % path)
-			_check(import_text.contains("edit/loop_end=%d" % int(header["frames"])),
-				"в .import для %s неверная точка конца лупа" % path)
-
-	# 2. На диске нет лишних лупов: сетка в коде и в файлах совпадают.
-	var dir: DirAccess = DirAccess.open(ENGINE_DIR)
-	_check(dir != null, "нет папки с лупами")
-	if dir != null:
-		for file_name in dir.get_files():
-			if not file_name.ends_with(".wav"):
-				continue
-			var stem: String = file_name.get_basename()
-			var parts: PackedStringArray = stem.split("_")
-			_check(parts.size() == 3, "неожиданное имя файла " + file_name)
-			if parts.size() != 3:
-				continue
-			_check(grid.has(int(parts[1])),
-				"файл %s не соответствует сетке оборотов" % file_name)
-
-	# 2b. Второй мотор игры — Subaru EJ25. Свой банк лупов и свои одиночные
-	#     звуки: боксер не должен звучать голосом Mitsubishi. Всё это описано
-	#     в ресурсе машины data/vehicles/subaru.tres, а не в константах кода.
-	var subaru: RallyVehicle = _vehicle_config().vehicle("subaru")
-	_check(subaru != null, "в реестре машин есть Subaru")
-	var subaru_grid: Array = subaru.rpm_grid(sound.RPM_GRID) if subaru != null else []
-	_check(subaru_grid.size() >= 10, "у Subaru своя сетка оборотов")
-	_check(subaru != null and subaru.loops_dir(sound.ENGINE_DIR) != sound.ENGINE_DIR,
-		"лупы Subaru лежат отдельно")
-	_check(subaru != null and subaru.events_dir(sound.VEHICLE_DIR) != sound.VEHICLE_DIR,
-		"одиночные звуки Subaru лежат отдельно")
-	_check(not subaru_grid.is_empty() and int(subaru_grid[subaru_grid.size() - 1]) == 6800,
-		"отсечка EJ25 — 6800 об/мин")
-	var subaru_loops: String = subaru.loops_dir(sound.ENGINE_DIR) if subaru != null else ""
-	for rpm in subaru_grid:
-		for bank in ["light", "full"]:
-			var subaru_path: String = "%sengine_%04d_%s.wav" % [subaru_loops, int(rpm), str(bank)]
-			_check(FileAccess.file_exists(subaru_path), "нет лупа " + subaru_path)
-			_check(FileAccess.file_exists(subaru_path + ".import"),
-				"нет .import для " + subaru_path)
-			if not FileAccess.file_exists(subaru_path):
-				continue
-			var subaru_header: Dictionary = _read_wav_header(subaru_path)
-			_check(int(subaru_header["rate"]) == EXPECTED_RATE,
-				"частота дискретизации в %s должна быть %d" % [subaru_path, EXPECTED_RATE])
-			_check(int(subaru_header["channels"]) == 1, "%s должен быть моно" % subaru_path)
-			_check(bool(subaru_header["has_smpl"]),
-				"в %s нет блока smpl, луп не будет бесшовным" % subaru_path)
-			var subaru_import: String = _read_text(subaru_path + ".import")
-			_check(subaru_import.contains("edit/loop_mode=2"),
-				"%s должен импортироваться как луп" % subaru_path)
-
-	# 3. Звуки машины на месте.
-	for name in ["gravel_road.wav", "wind.wav", "shift.wav", "start.wav"]:
-		_check(FileAccess.file_exists(VEHICLE_DIR + name),
-			"нет звука машины " + name)
-	for i in range(3):
-		_check(FileAccess.file_exists(VEHICLE_DIR + "bov_%02d.wav" % (i + 1)),
-			"нет звука сброса турбины bov_%02d.wav" % (i + 1))
-	for i in range(6):
-		_check(FileAccess.file_exists(VEHICLE_DIR + "pop_%02d.wav" % (i + 1)),
-			"нет хлопка pop_%02d.wav" % (i + 1))
-
-	# 3b. Одиночные звуки боксера: тот же контракт, отдельные файлы.
-	var subaru_events: String = subaru.events_dir(sound.VEHICLE_DIR) if subaru != null else ""
-	for name in ONESHOT_NAMES:
-		var subaru_event: String = subaru_events + str(name)
-		_check(FileAccess.file_exists(subaru_event), "нет звука Subaru " + subaru_event)
-		if not FileAccess.file_exists(subaru_event):
+	# 1–4. Банк каждой машины реестра: свои лупы, своя сетка оборотов и свои
+	#      одиночные звуки. Пути и сетка берутся из data/vehicles/*.tres, а не
+	#      из констант кода, поэтому новая машина проверяется сама.
+	var config := _vehicle_config()
+	_check(config != null, "реестр машин должен читаться")
+	if config == null:
+		config = RallyGameConfig.new()
+	var roster := config.vehicles
+	_check(roster.size() >= 3, "в реестре должно быть не меньше трёх машин: %d" % roster.size())
+	for resource in roster:
+		var data := resource as RallyVehicle
+		if data == null:
 			continue
-		var subaru_event_header: Dictionary = _read_wav_header(subaru_event)
-		_check(not bool(subaru_event_header["has_smpl"]),
-			"в %s не должно быть блока smpl: это одиночный звук" % subaru_event)
-		var subaru_event_import: String = _read_text(subaru_event + ".import")
-		_check(subaru_event_import.contains("edit/loop_mode=1"),
-			"%s должен импортироваться без зацикливания" % subaru_event)
+		var label: String = data.id
+		var loops_dir: String = data.loops_dir(sound.ENGINE_DIR)
+		var events_dir: String = data.events_dir(sound.VEHICLE_DIR)
+		var own_grid: Array = data.rpm_grid(sound.RPM_GRID)
+		_check(not loops_dir.is_empty(), "%s: не указана папка лупов" % label)
+		_check(not events_dir.is_empty(), "%s: не указана папка одиночных звуков" % label)
+		_check(own_grid.size() >= 10, "%s: сетка оборотов должна быть непустой" % label)
+		# Сетка возрастает, а шаг между точками укладывается в предел питч-коррекции.
+		for i in range(own_grid.size() - 1):
+			_check(int(own_grid[i]) < int(own_grid[i + 1]),
+				"%s: сетка оборотов должна возрастать" % label)
+			var low: float = float(own_grid[i])
+			var high: float = float(own_grid[i + 1])
+			var middle: float = sqrt(low * high)
+			_check(absf(middle - low) / middle <= 0.055,
+				"%s: питч-коррекция не укладывается в предел между %d и %d об/мин"
+				% [label, int(low), int(high)])
+		# Отсечка сетки совпадает с отсечкой стокового пресета этой машины.
+		var stock := config.get_setup(0, data.id) as RallyCarSetup
+		_check(stock != null, "%s: у машины должен быть стоковый пресет" % label)
+		if stock != null and not own_grid.is_empty():
+			_check(int(own_grid[own_grid.size() - 1]) <= int(stock.max_rpm),
+				"%s: последний луп (%d) не должен быть выше отсечки (%d)"
+				% [label, int(own_grid[own_grid.size() - 1]), int(stock.max_rpm)])
+			_check(int(own_grid[0]) <= int(stock.idle_rpm),
+				"%s: первый луп (%d) должен покрывать холостые (%d)"
+				% [label, int(own_grid[0]), int(stock.idle_rpm)])
+		_check_loops(loops_dir, own_grid, label)
+		# Хлопки и blow-off нужны только машине с турбо-пресетом.
+		var turbo: bool = _has_turbo_setup(config, data.id)
+		var names: Array = _one_shot_names(turbo)
+		_check_one_shots(events_dir, names, label)
+		if not turbo:
+			for extra in ONESHOT_TURBO:
+				_check(not FileAccess.file_exists(events_dir + str(extra)),
+					"%s: у машины без турбо-пресетов не должно быть %s" % [label, str(extra)])
 
-	# 4. Одиночные звуки не зациклены: иначе хлопок в выхлопе превращается
-	#    в непрерывный треск.
-	for name in ONESHOT_NAMES:
-		var path: String = VEHICLE_DIR + str(name)
-		if not FileAccess.file_exists(path):
-			continue
-		var header: Dictionary = _read_wav_header(path)
-		_check(not bool(header["has_smpl"]),
-			"в %s не должно быть блока smpl: это одиночный звук" % path)
-		var import_text: String = _read_text(path + ".import")
-		_check(import_text.contains("edit/loop_mode=1"),
-			"%s должен импортироваться без зацикливания (edit/loop_mode=1)" % path)
+	# 4a. Общие шумы дороги и ветра лежат в папке первой машины: движок берёт
+	#     их оттуда независимо от выбранного автомобиля.
+	for name in SHARED_NAMES:
+		_check(FileAccess.file_exists(sound.VEHICLE_DIR + str(name)),
+			"нет общего звука " + str(name))
 
 	# 5. Логика выбора лупа.
 	_check(sound._grid_index(0.0) == 0, "на нулевых оборотах берётся первый луп")
@@ -290,14 +312,21 @@ func _run() -> void:
 	_check(bus_text.contains("bus/2/name = &\"Vehicle\""),
 		"звуки машины должны идти через отдельную шину Vehicle")
 
-	# 10. Машина содержит узел звука с нужным скриптом.
-	var car: Node = CarScene.instantiate()
-	var audio_node: Node = car.get_node_or_null("EngineAudio")
-	_check(audio_node != null, "в сцене машины должен быть узел EngineAudio")
-	if audio_node != null:
-		_check(audio_node.get_script() == EngineSoundScript,
-			"узел EngineAudio должен использовать скрипт звука")
-	car.free()
+	# 10. Узел звука есть в сцене каждой машины реестра.
+	for scene_path in CarModels.car_scene_paths():
+		var car_scene := load(scene_path) as PackedScene
+		_check(car_scene != null, "сцена машины читается: " + scene_path)
+		if car_scene == null:
+			continue
+		var car: Node = car_scene.instantiate()
+		var audio_node: Node = car.get_node_or_null("EngineAudio")
+		_check(audio_node != null,
+			"в сцене %s должен быть узел EngineAudio" % scene_path.get_file())
+		if audio_node != null:
+			_check(audio_node.get_script() == EngineSoundScript,
+				"узел EngineAudio в %s должен использовать скрипт звука"
+				% scene_path.get_file())
+		car.free()
 
 	# 11. Предел сцепления: слой россыпи от скольжения и темпра покрытий.
 	var gravel_t: Dictionary = EngineSoundScript.surface_timbre("gravel")

@@ -57,15 +57,30 @@ def _compose_transform(
     return basis, origin
 
 
+def _car_scenes() -> list[str]:
+    """Все игровые сцены машин: их список не должен жить в тестах."""
+    scenes = sorted((ROOT / "scenes").glob("rally_car*.tscn"))
+    assert scenes, "в scenes/ нет сцен машин rally_car*.tscn"
+    return [scene.relative_to(ROOT).as_posix() for scene in scenes]
+
+
+def _model_root(tscn: str) -> str:
+    """Имя узла модели кузова: сцена хранит его в body_model_path на корне.
+
+    Так тест не привязан к именам моделей — у каждой машины своё
+    («low poly lance evo», «Volkswagen Golf R32 Mk4», …).
+    """
+    m = re.search(r'body_model_path\s*=\s*NodePath\("([^"]+)"\)', tscn)
+    if not m:
+        raise AssertionError("В сцене нет body_model_path: имя узла кузова неизвестно")
+    return m.group(1)
+
+
 def _wipers_in_car(tscn: str) -> tuple[list[float], tuple[float, float, float]]:
-    for model_name in ("low poly lance evo", "Subaru Impreza Coupe WRX Type R STi2"):
-        try:
-            model_basis, model_origin = _extract_node_transform(tscn, model_name, ".")
-        except AssertionError:
-            continue
-        wipers_basis, wipers_origin = _extract_node_transform(tscn, "WindshieldWipers", model_name)
-        return _compose_transform(model_basis, model_origin, wipers_basis, wipers_origin)
-    raise AssertionError("Не удалось найти корень модели и вложенный узел WindshieldWipers")
+    model_name = _model_root(tscn)
+    model_basis, model_origin = _extract_node_transform(tscn, model_name, ".")
+    wipers_basis, wipers_origin = _extract_node_transform(tscn, "WindshieldWipers", model_name)
+    return _compose_transform(model_basis, model_origin, wipers_basis, wipers_origin)
 
 
 class WiperSceneTest(unittest.TestCase):
@@ -105,14 +120,10 @@ class WiperSceneTest(unittest.TestCase):
         self.assertNotIn("set_viewing", car)
 
     def test_car_installs_wipers_independent_of_camera(self):
-        model_roots = {
-            "scenes/rally_car.tscn": "low poly lance evo",
-            "scenes/rally_car2.tscn": "Subaru Impreza Coupe WRX Type R STi2",
-        }
-        for scene, model_root in model_roots.items():
+        for scene in _car_scenes():
             text = read(scene)
             self.assertIn("windshield_wipers.tscn", text, scene)
-            self.assertIn(f'name="WindshieldWipers" parent="{model_root}"', text, scene)
+            self.assertIn(f'name="WindshieldWipers" parent="{_model_root(text)}"', text, scene)
             self.assertNotIn('name="Wipers"', text, f"{scene} не должен содержать старый дубликат Wipers")
         car = read("scripts/rally_car.gd")
         for token in (
@@ -175,7 +186,7 @@ class WiperSceneTest(unittest.TestCase):
         depth = float(depth_match.group(1))
         half_w, half_h = 1.46 / 2.0, 0.84 / 2.0
 
-        for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
+        for scene in _car_scenes():
             tscn = read(scene)
             basis, origin = _wipers_in_car(tscn)
             center_x = max(-0.45, min(0.45, -origin[0]))
@@ -219,7 +230,7 @@ class WiperSceneTest(unittest.TestCase):
                 shader_ang = math.atan2(-dx, dy)
                 self.assertAlmostEqual(shader_ang, expected_rad, places=5)
 
-        for scene in ("scenes/rally_car.tscn", "scenes/rally_car2.tscn"):
+        for scene in _car_scenes():
             tscn = read(scene)
             _, cam_pos = _extract_node_transform(tscn, "CamCockpit", "Cameras")
             w_basis, w_pos = _wipers_in_car(tscn)

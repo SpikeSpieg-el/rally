@@ -2,6 +2,7 @@
 extends SceneTree
 
 const Effects = preload("res://scripts/surface_effects.gd")
+const CarModels = preload("res://scripts/car_models.gd")
 var failures := 0
 
 func check(ok: bool, message: String) -> void:
@@ -13,7 +14,9 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	for path in ["res://scenes/rally_car.tscn", "res://scenes/rally_car2.tscn"]:
+	# Все машины реестра: список сцен берём у самой игры, а не хардкодим,
+	# иначе новая машина (rally_car3, rally_car4, …) осталась бы без проверки.
+	for path in CarModels.car_scene_paths():
 		var car = load(path).instantiate()
 		car.mouse_look_enabled = false
 		root.add_child(car)

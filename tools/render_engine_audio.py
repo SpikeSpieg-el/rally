@@ -10,18 +10,23 @@
         («light» — сброс газа/холостые, «full» — полный газ), сетка по оборотам;
   audio/engine/subaru/engine_<об/мин>_<режим>.wav — те же режимы для оппозитного
         Subaru EJ25: другой порядок вспышек, длинный «плоский» выпуск, свой тембр;
+  audio/engine/golf/engine_<об/мин>_<режим>.wav   — атмосферный VW VR6 3.2
+        (Golf R32): шесть цилиндров, rpm/20 вместо rpm/30, без турбины;
   audio/vehicle/gravel_road.wav               — шорох гравия под колёсами (луп);
   audio/vehicle/wind.wav                      — шум ветра (луп);
   audio/vehicle/bov_*.wav                     — сброс давления турбины;
   audio/vehicle/pop_*.wav                     — хлопки на сбросе газа;
   audio/vehicle/shift.wav                     — переключение передачи;
-  audio/vehicle/start.wav                     — запуск двигателя.
+  audio/vehicle/start.wav                     — запуск двигателя;
+  audio/vehicle/golf/*.wav                    — запуск и переключение VR6
+        (сброса турбины и хлопков у атмосферника нет).
 
 Запуск:
     python3 tools/render_engine_audio.py                 # всё
     python3 tools/render_engine_audio.py --rpm-grid 900 1250 1600
     python3 tools/render_engine_audio.py --only vehicle
     python3 tools/render_engine_audio.py --only subaru     # только банк Subaru
+    python3 tools/render_engine_audio.py --only golf       # только банк VR6
 """
 from __future__ import annotations
 
@@ -64,6 +69,17 @@ RPM_GRID = [900, 970, 1050, 1130, 1220, 1320, 1430, 1540, 1670, 1800, 1940,
 SUBARU_RPM_GRID = [800, 865, 935, 1010, 1095, 1185, 1285, 1390, 1505, 1630, 1765,
                    1910, 2070, 2240, 2425, 2625, 2845, 3080, 3335, 3610, 3910,
                    4235, 4585, 4965, 5375, 5820, 6300, 6800]
+# Третий мотор игры — атмосферный VW VR6 3.2 (Golf R32 Mk4). Банк живёт в
+# своей подпапке: холостые 750 и отсечка 6500, шаг сетки тот же ~8 %.
+GOLF_DIR = os.path.join(ENGINE_DIR, "golf")
+# События VR6 тоже свои: запуск и переключение. Сброса турбины и хлопков у
+# атмосферника нет, поэтому bov_* и pop_* в эту папку не запекаются.
+GOLF_VEHICLE_DIR = os.path.join(VEHICLE_DIR, "golf")
+# Сетка должна совпадать с engine_rpm_grid в data/vehicles/golf.tres — именно
+# оттуда рантайм берёт обороты лупов.
+GOLF_RPM_GRID = [750, 812, 880, 953, 1033, 1119, 1212, 1313, 1422, 1541, 1669,
+                 1808, 1958, 2121, 2298, 2489, 2697, 2921, 3164, 3428, 3713,
+                 4023, 4357, 4720, 5113, 5539, 6000, 6500]
 LOOP_SECONDS = 1.0
 
 
@@ -163,6 +179,22 @@ def render_bank(rpm: int, load: float, seed: int,
         # Подчёркиваем низ: у оппозита «утробный» кузовной резонанс.
         params.exhaust_gain = 1.10
         params.intake_gain = 0.85
+    elif engine == "golf":
+        # Атмосферный VR6 3.2: шесть цилиндров, порядок 1-2-3-4-5-6, без турбины.
+        params.spec = m.vw_vr6()
+        # Шесть цилиндров держат холостые ровнее четвёрки — «лоп» почти нет.
+        params.idle_lope = 0.006
+        # Выпуск короче субаровского, верх срезаем позже: VR6 звонче на верхах.
+        params.muffler_hz = 4900.0
+        params.muffler_hz_load = 2450.0
+        # 24 клапана и цепной привод ГРМ: механизм слышнее, чем у боксера.
+        params.valvetrain_level = 0.190
+        params.valvetrain_gain = 0.95
+        # Турбины нет — слой свиста молчит (max_boost_bar = 0 дублирует это).
+        params.turbo_gain = 0.0
+        # Индукция у атмосферника — второй голос мотора после выхлопа.
+        params.exhaust_gain = 1.0
+        params.intake_gain = 1.05
     else:
         params.spec = m.EngineSpec()
     if load < 0.5:
@@ -172,6 +204,11 @@ def render_bank(rpm: int, load: float, seed: int,
         params.overrun = 1.0
         params.idle_lope = max(params.idle_lope, 0.011)
         params.valvetrain_level = min(params.valvetrain_level, 0.150)
+        if engine == "golf":
+            # Ровные холостые шести цилиндров: перебор «лопа» не нужен, а хлопки
+            # у атмосферника тихие и редкие.
+            params.idle_lope = min(params.idle_lope, 0.008)
+            params.overrun = 0.5
     else:
         params.overrun = 0.0
         params.idle_lope = min(params.idle_lope, 0.003)
@@ -323,28 +360,38 @@ def engine_start(seed: int = 67, seconds: float = 1.6,
 
     У боксера неровная прокрутка (цилиндры в два ряда) и «утробный» первый
     выстрел, поэтому стартер крутится с биением, а вспышки идут по своей
-    сетке оборотов Subaru.
+    сетке оборотов Subaru. У VR6 шесть цилиндров: стартер тянет ровнее,
+    а первые вспышки идут выше по тону (rpm/20 против rpm/30).
     """
     n = int(seconds * SR)
     rng = np.random.default_rng(seed)  # noqa: F841 (сид для воспроизводимости)
     out = np.zeros(n)
     is_boxer = engine == "subaru"
-    spec = m.SUBARU_EJ25 if is_boxer else m.EngineSpec()
+    is_vr6 = engine == "golf"
+    if is_boxer:
+        spec = m.SUBARU_EJ25
+    elif is_vr6:
+        spec = m.VW_VR6_32
+    else:
+        spec = m.EngineSpec()
     idle_rpm = spec.idle_rpm
-    lope = 0.024 if is_boxer else 0.014
+    lope = 0.024 if is_boxer else (0.010 if is_vr6 else 0.014)
     rumble_hz = 32.0 if is_boxer else 0.0
+    crank_gain = 240.0 if is_boxer else (250.0 if is_vr6 else 260.0)
+    crank_level = 0.42 if is_boxer else (0.38 if is_vr6 else 0.35)
+    fire_level = 0.9 if is_boxer else (0.85 if is_vr6 else 0.8)
 
     # Вой стартера: нарастающий писк с пульсацией.
     t = np.arange(n) / SR
     crank = np.zeros(n)
     for i in range(n):
-        crank_rpm = 200.0 + (240.0 if is_boxer else 260.0) * min(1.0, t[i] / 0.55)
+        crank_rpm = 200.0 + crank_gain * min(1.0, t[i] / 0.55)
         wobble = 1.0 + (0.18 * math.sin(2.0 * math.pi * rumble_hz * t[i] / 4.0)
                         if is_boxer else 0.0)
         crank[i] = (math.sin(2.0 * math.pi * crank_rpm / 30.0 * t[i])
                     * (0.25 + 0.55 * min(1.0, t[i] / 0.6)) * wobble)
     crank *= (t < 0.75).astype(np.float64)
-    out += crank * (0.42 if is_boxer else 0.35)
+    out += crank * crank_level
 
     # Старт: вспышки на холостых.
     params = m.RenderParams(sr=SR, duration=0.8, seed=seed)
@@ -356,8 +403,82 @@ def engine_start(seed: int = 67, seconds: float = 1.6,
     loop = m.normalize(loop)
     start = int(0.62 * SR)
     seg = min(loop.size, n - start)
-    out[start:start + seg] += loop[:seg] * (0.9 if is_boxer else 0.8)
+    out[start:start + seg] += loop[:seg] * fire_level
     return m.normalize(out)
+
+
+# ---------------------------------------------------------------------------
+# Голоса одиночных звуков по моторам
+# ---------------------------------------------------------------------------
+
+# У каждого мотора своя «механика»: у боксера глуше и длиннее, у рядной
+# четвёрки звонче и резче. VR6 — посередине по тембру, но без турбины, поэтому
+# у него нет ни сброса давления, ни хлопков: `bov_seeds` пустой и `pops = 0`.
+# Сиды намеренно разные: одинаковый сид дал бы одинаковые файлы, и машины
+# зазвучали бы как клоны.
+VEHICLE_PROFILES = {
+    "mitsubishi": {
+        "bov_seeds": (31, 32, 33),
+        "bov_center": (2600.0, 3400.0),
+        "bov_decay": 0.16,
+        "bov_click": 900.0,
+        "bov_fall": 0.985,
+        "pops": 6,
+        "pop_seed": 41,
+        "pop_band": (600.0, 1800.0),
+        "pop_thump": (150.0, 320.0),
+        "pop_tail": 0.16,
+        "shift_seed": 53,
+        "shift_band": (1800.0, 3200.0),
+        "shift_thud": (110.0, 190.0),
+        "shift_thud_gain": 0.5,
+        "shift_decay": 0.035,
+        "start_seed": 67,
+        # Базовая папка audio/vehicle/ хранит общие лупы дороги и ветра.
+        "shared_loops": True,
+    },
+    "subaru": {
+        "bov_seeds": (231, 232, 233),
+        "bov_center": (1750.0, 2350.0),
+        "bov_decay": 0.21,
+        "bov_click": 620.0,
+        "bov_fall": 0.978,
+        "pops": 6,
+        "pop_seed": 241,
+        "pop_band": (420.0, 1250.0),
+        "pop_thump": (105.0, 240.0),
+        "pop_tail": 0.24,
+        "shift_seed": 253,
+        "shift_band": (1150.0, 2300.0),
+        "shift_thud": (85.0, 150.0),
+        "shift_thud_gain": 0.72,
+        "shift_decay": 0.05,
+        "start_seed": 267,
+        "shared_loops": False,
+    },
+    "golf": {
+        # Атмосферник: сброса турбины нет.
+        "bov_seeds": (),
+        "bov_center": (1900.0, 2700.0),
+        "bov_decay": 0.18,
+        "bov_click": 760.0,
+        "bov_fall": 0.982,
+        # Хлопков на сбросе газа у атмосферного VR6 тоже нет.
+        "pops": 0,
+        "pop_seed": 341,
+        "pop_band": (520.0, 1500.0),
+        "pop_thump": (130.0, 280.0),
+        "pop_tail": 0.20,
+        # Короткоходная кулиса VR6: лязг суше и выше, чем у боксера.
+        "shift_seed": 353,
+        "shift_band": (1500.0, 2700.0),
+        "shift_thud": (95.0, 170.0),
+        "shift_thud_gain": 0.6,
+        "shift_decay": 0.042,
+        "start_seed": 367,
+        "shared_loops": False,
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -372,40 +493,38 @@ def build_vehicle(engine: str = "mitsubishi",
     Третий элемент — луп ли это. Одиночные звуки (хлопки, сброс турбины,
     переключение передачи, запуск) зацикливать нельзя: Godot читает блок
     smpl при импорте, и такой звук потом повторялся бы бесконечно.
+
+    У атмосферного VR6 (Golf) нет ни турбины, ни хлопков: bov_* и pop_* в его
+    папку не запекаются, рантайм их и не ищет — `engine_sound.gd` играет
+    хлопок только при `turbo = true` в активном сетапе и спокойно живёт с
+    пустыми списками. Остаются переключение и запуск.
     """
     written = []
-    is_boxer = engine == "subaru"
-    jobs = [
-        ("bov_01.wav", blow_off(seed=231 if is_boxer else 31,
-                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
-                                decay=0.21 if is_boxer else 0.16,
-                                click_hz=620.0 if is_boxer else 900.0,
-                                fall=0.978 if is_boxer else 0.985), False),
-        ("bov_02.wav", blow_off(seed=232 if is_boxer else 32,
-                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
-                                decay=0.21 if is_boxer else 0.16,
-                                click_hz=620.0 if is_boxer else 900.0,
-                                fall=0.978 if is_boxer else 0.985), False),
-        ("bov_03.wav", blow_off(seed=233 if is_boxer else 33,
-                                center_hz=(1750.0, 2350.0) if is_boxer else (2600.0, 3400.0),
-                                decay=0.21 if is_boxer else 0.16,
-                                click_hz=620.0 if is_boxer else 900.0,
-                                fall=0.978 if is_boxer else 0.985), False),
-        ("shift.wav", gear_shift(seed=253 if is_boxer else 53,
-                                 band_hz=(1150.0, 2300.0) if is_boxer else (1800.0, 3200.0),
-                                 thud_hz=(85.0, 150.0) if is_boxer else (110.0, 190.0),
-                                 thud_gain=0.72 if is_boxer else 0.5,
-                                 body_decay=0.05 if is_boxer else 0.035), False),
-        ("start.wav", engine_start(seed=267 if is_boxer else 67, engine=engine), False),
-    ]
-    for i in range(6):
+    profile = VEHICLE_PROFILES[engine]
+    jobs = []
+    for i, seed in enumerate(profile["bov_seeds"]):
+        jobs.append(("bov_%02d.wav" % (i + 1),
+                     blow_off(seed=seed,
+                              center_hz=profile["bov_center"],
+                              decay=profile["bov_decay"],
+                              click_hz=profile["bov_click"],
+                              fall=profile["bov_fall"]), False))
+    for i in range(profile["pops"]):
         jobs.append(("pop_%02d.wav" % (i + 1),
-                     pop(seed=(241 if is_boxer else 41) + i,
-                         band_hz=(420.0, 1250.0) if is_boxer else (600.0, 1800.0),
-                         thump_hz=(105.0, 240.0) if is_boxer else (150.0, 320.0),
-                         tail=0.24 if is_boxer else 0.16), False))
-    if not is_boxer:
-        # Шум дороги и ветра не принадлежат мотору — они общие для обеих машин.
+                     pop(seed=profile["pop_seed"] + i,
+                         band_hz=profile["pop_band"],
+                         thump_hz=profile["pop_thump"],
+                         tail=profile["pop_tail"]), False))
+    jobs.append(("shift.wav", gear_shift(seed=profile["shift_seed"],
+                                        band_hz=profile["shift_band"],
+                                        thud_hz=profile["shift_thud"],
+                                        thud_gain=profile["shift_thud_gain"],
+                                        body_decay=profile["shift_decay"]), False))
+    jobs.append(("start.wav", engine_start(seed=profile["start_seed"],
+                                           engine=engine), False))
+    if profile["shared_loops"]:
+        # Шум дороги и ветра не принадлежат мотору: они общие для всех машин,
+        # лежат в базовой audio/vehicle/ и туда же их грузит engine_sound.gd.
         jobs = [("gravel_road.wav", gravel_road(), True),
                 ("wind.wav", wind(), True)] + jobs
     for name, data, loop in jobs:
@@ -420,7 +539,7 @@ def build_vehicle(engine: str = "mitsubishi",
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rpm-grid", type=int, nargs="*", default=RPM_GRID)
-    ap.add_argument("--only", choices=["engine", "subaru", "vehicle"],
+    ap.add_argument("--only", choices=["engine", "subaru", "golf", "vehicle"],
                     default=None)
     args = ap.parse_args()
 
@@ -430,11 +549,16 @@ def main() -> int:
     if args.only in (None, "subaru"):
         print("Лупы двигателя Subaru EJ25 (боксер):")
         build_engine_bank(SUBARU_RPM_GRID, engine="subaru", directory=SUBARU_DIR)
+    if args.only in (None, "golf"):
+        print("Лупы двигателя VW VR6 3.2 (Golf R32):")
+        build_engine_bank(GOLF_RPM_GRID, engine="golf", directory=GOLF_DIR)
     if args.only in (None, "vehicle"):
         print("Звуки машины Mitsubishi:")
         build_vehicle()
         print("Звуки машины Subaru:")
         build_vehicle(engine="subaru", directory=SUBARU_VEHICLE_DIR)
+        print("Звуки машины Volkswagen (VR6, атмосферник):")
+        build_vehicle(engine="golf", directory=GOLF_VEHICLE_DIR)
     return 0
 
 
