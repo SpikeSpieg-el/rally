@@ -729,7 +729,7 @@ size = Vector3(1.88, 0.95, 0.05)
 
 [sub_resource type="BoxMesh" id="BoxMesh_g3enx"]
 material = SubResource("Mat_Carbon")
-size = Vector3(0.04, 0.62, 1.85)
+size = Vector3(0.04, 0.9543164, 2.3071046)
 
 [sub_resource type="BoxMesh" id="BoxMesh_lrbqw"]
 material = SubResource("Mat_Carbon")
@@ -804,7 +804,7 @@ height = 1.25
 material = SubResource("Mat_Cage")
 top_radius = 0.035
 bottom_radius = 0.035
-height = 1.44
+height = 1.1889112
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1q44a"]
 material = SubResource("Mat_Cage")
@@ -826,7 +826,7 @@ height = 0.82
 
 [sub_resource type="BoxMesh" id="BoxMesh_guu0v"]
 material = ExtResource("8_endy0")
-size = Vector3(1.68, 0.28, 0.46)
+size = Vector3(1.7317235, 0.28, 0.46)
 
 [sub_resource type="BoxMesh" id="BoxMesh_ol8rh"]
 material = ExtResource("8_endy0")
@@ -1199,12 +1199,12 @@ material_override = ExtResource("8_endy0")
 mesh = SubResource("BoxMesh_otq8r")
 
 [node name="DoorCardL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1863779372]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.91, -0.38, 0.05)
+transform = Transform3D(1, 0, 0, 0, 1.0000013, 0, 0, 0, 1, 0.91, -0.33558285, 0.13120116)
 material_override = ExtResource("8_endy0")
 mesh = SubResource("BoxMesh_g3enx")
 
 [node name="DoorCardR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1068125291]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.91, -0.38, 0.05)
+transform = Transform3D(1, 0, 0, 0, 1.0000013, 0, 0, 0, 1, -0.91, -0.32639682, 0.19735114)
 material_override = ExtResource("8_endy0")
 mesh = SubResource("BoxMesh_g3enx")
 
@@ -1217,7 +1217,7 @@ transform = Transform3D(1, 0, 0, 0, 1.0000013, 0, 0, 0, 1, 0.013620555, 0.138965
 mesh = SubResource("BoxMesh_lrbqw")
 
 [node name="WindshieldSunstrip" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1449441599]
-transform = Transform3D(1, 0, 0, 0, 0.81915206, -0.57357645, 0, 0.57357645, 0.81915206, 0.006800537, 0.7181634, 0.42516002)
+transform = Transform3D(1, 0, 0, 0, 0.8191522, -0.57357657, 0, 0.57357645, 0.81915206, 0.0068005375, 0.7886847, 0.40947485)
 mesh = SubResource("BoxMesh_m6y4r")
 
 [node name="RearviewMirror" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=1379972433]
@@ -1259,7 +1259,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0, -0.44)
 mesh = SubResource("CylinderMesh_qdsbq")
 
 [node name="APillarL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=1910928291]
-transform = Transform3D(1, 0, 0, 0, 0.54083043, 0.8411473, 0, -0.84113204, 0.54082984, 0.7400002, 0.43412507, 0.53582114)
+transform = Transform3D(0.97547925, -0.18512547, 0.119031675, 0.044974595, 0.6970854, 0.7155923, -0.21544667, -0.69267696, 0.6883208, 0.7764947, 0.4223106, 0.70197064)
 mesh = SubResource("CylinderMesh_1c6pd")
 
 [node name="APillarPaddingL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage/APillarL" unique_id=1979272844]
@@ -1267,7 +1267,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
 mesh = SubResource("CylinderMesh_t4p4v")
 
 [node name="APillarR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=172688777]
-transform = Transform3D(1, 0, 0, 0, 0.5408299, 0.8411321, 0, -0.84113204, 0.54082984, -0.69685894, 0.38, 0.62000006)
+transform = Transform3D(0.98174554, 0.15998283, -0.10286554, -7.594681e-09, 0.5408302, 0.8411324, 0.19019943, -0.82577753, 0.5309573, -0.69685894, 0.5023391, 0.6828065)
 mesh = SubResource("CylinderMesh_1c6pd")
 
 [node name="APillarPaddingR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage/APillarR" unique_id=1239707367]
@@ -1275,15 +1275,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
 mesh = SubResource("CylinderMesh_t4p4v")
 
 [node name="RoofBarL" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=826109102]
-transform = Transform3D(0.9999581, 0.009141767, 0.00027762773, 0, -0.03035516, 0.99953926, 0.0091459835, -0.9994974, -0.030353889, 0.7, 0.7099999, -0.35)
+transform = Transform3D(0.99995804, 0.009141767, 0.00027762773, 0, -0.030355161, 0.9995393, 0.0091459835, -0.9994974, -0.030353889, 0.70000005, 0.7824371, -0.35)
 mesh = SubResource("CylinderMesh_01i06")
 
 [node name="RoofBarR" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=794665485]
-transform = Transform3D(0.9995945, -0.028458415, -0.000864258, 0, -0.030355161, 0.9995393, -0.02847154, -0.99913406, -0.030342855, -0.6664254, 0.7099999, -0.35)
+transform = Transform3D(0.9995945, -0.028458415, -0.00086425804, 0, -0.030355163, 0.9995394, -0.02847154, -0.99913406, -0.030342855, -0.6664254, 0.7824371, -0.35)
 mesh = SubResource("CylinderMesh_01i06")
 
 [node name="WindshieldTopCrossbar" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=1305162747]
-transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -9.004027e-06, 0.6901506, 0.28002676)
+transform = Transform3D(-4.371139e-08, -1, 0, 1.0000013, -4.3711424e-08, 0, 0, 0, 1, 0.04795248, 0.80247796, 0.28002673)
 mesh = SubResource("CylinderMesh_eweht")
 
 [node name="BPillarTopCrossbar" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/RollCage" unique_id=1192709926]
@@ -1329,7 +1329,7 @@ mesh = SubResource("CylinderMesh_08tv5")
 [node name="Dashboard" type="Node3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit" unique_id=705800651]
 
 [node name="DashMainBlock" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/Dashboard" unique_id=1532703379]
-transform = Transform3D(1, 0, 0, 0, 0.9848077, -0.17364818, 0, 0.17364818, 0.9848077, 0, 0.120000005, 0.95256543)
+transform = Transform3D(1, 0, 0, 0, 0.9848154, -0.17364848, 0, 0.17364818, 0.9848077, 0.0258618, 0.11999977, 0.95256543)
 mesh = SubResource("BoxMesh_guu0v")
 
 [node name="InstrumentHood" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/Dashboard" unique_id=562280157]
