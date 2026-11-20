@@ -7,8 +7,9 @@
 ## вмятина деформирует уже погнутый металл.
 ##
 ## Компонент НЕ трогает здоровье, урон, счёт и физику — только геометрию мешей.
-## Он ничего не знает о конкретной машине: родитель решает, кому его ставить
-## (сейчас — только Lancer, система сдаётся на пробу).
+## Он ничего не знает о конкретной машине: родитель решает, кому его ставить.
+## Все числа — в ресурсе RallyDamageVisualConfig
+## (data/car/default_damage_visual.tres), который правится в инспекторе.
 ##
 ## Деформируются панели из группы rally_body_fx: это внешние кузовные меши.
 ## Интерьер, каркас безопасности, колёса и стёкла салона не помечены группой и
@@ -24,14 +25,10 @@ const SURFACE_PADDING := 0.7
 ## пересчёта нормалей, ни попадания в статистику.
 const EPSILON_M := 0.002
 
-## Общий запас глубины вмятин на кузов, метры. Дальше металл «исчерпан» и новые
-## удары его уже не меняют — защита от превращения машины в бесформенную кашу.
-var dent_budget_m := 1.1
-
-## Общая громкость деформации: 1.0 — подобрано под аркадный вид, 0.0 — выключено.
-var dent_scale := 1.0
-
-var enabled := true
+## Настройка вмятин: пороги, форма, запас глубины и список машин. Подставляется
+## родителем из сцены или ресурса по умолчанию; без него берутся значения
+## по умолчанию того же класса.
+var config: RallyDamageVisualConfig = null
 
 var _space: Node3D = null
 var _panels: Array[Dictionary] = []
@@ -41,12 +38,14 @@ var _impact_count := 0
 
 ## Собрать деформируемые панели кузова.
 ## model — корень визуальной модели (body_model_path машины),
-## space — узел, в чьих локальных координатах приходят точки удара (машина).
+## space — узел, в чьих локальных координатах приходят точки удара (машина),
+## cfg — настройка деформации (null — значения по умолчанию).
 ## Повторный вызов пересобирает панели с нуля (например, после смены модели).
-func setup(model: Node3D, space: Node3D = null) -> void:
+func setup(model: Node3D, space: Node3D = null, cfg: RallyDamageVisualConfig = null) -> void:
 	_clear_panels()
 	_total_dent_m = 0.0
 	_impact_count = 0
+	config = cfg
 	_space = space if space != null else get_parent() as Node3D
 	if model == null or _space == null:
 		return
@@ -64,30 +63,41 @@ func setup(model: Node3D, space: Node3D = null) -> void:
 		})
 
 
+## Настройка вмятин — никогда не null.
+func cfg() -> RallyDamageVisualConfig:
+	if config == null:
+		config = RallyDamageVisualConfig.new()
+	return config
+
+
 ## Принять удар и помять кузов.
 ## point — точка контакта в локальных координатах машины (space),
 ## push_dir — куда вдавливается металл (от препятствия внутрь кузова),
 ## dv — потеря скорости в ударе, м/с: задаёт глубину и радиус вмятины.
 func apply_impact(point: Vector3, push_dir: Vector3, dv: float) -> void:
-	if not enabled or dent_scale <= 0.0 or _panels.is_empty() or dv <= 0.0:
+	var tuning := cfg()
+	if not tuning.enabled or tuning.dent_scale <= 0.0 or _panels.is_empty() or dv <= 0.0:
 		return
-	if _total_dent_m >= dent_budget_m:
+	if _total_dent_m >= tuning.dent_budget_m:
 		return
 	_impact_count += 1
-	var budget_left := dent_budget_m - _total_dent_m
+	var budget_left := tuning.dent_budget_m - _total_dent_m
 	# Глубина и радиус растут с силой удара, но упираются в остаток запаса кузова.
-	var depth := minf(clampf(dv * 0.012, 0.02, 0.16) * dent_scale, budget_left)
+	var depth := minf(
+		clampf(dv * tuning.depth_per_dv_m, tuning.depth_min_m, tuning.depth_max_m) * tuning.dent_scale,
+		budget_left)
 	if depth <= EPSILON_M:
 		return
-	var radius := clampf(0.32 + dv * 0.024, 0.32, 0.62)
+	var radius := clampf(tuning.radius_base_m + dv * tuning.radius_per_dv_m,
+		tuning.radius_base_m, tuning.radius_max_m)
 	var push := push_dir.normalized()
 	if push == Vector3.ZERO:
 		return
 	var dented := _dent_at(point, push, radius, depth)
-	if dented <= 0.0:
+	if dented <= 0.0 and tuning.retry_radius_scale > 1.0:
 		# У низкополигональной панели вершины могут оказаться дальше радиуса
-		# удара: пробуем один раз шире, иначе лёгкое касание не оставит следа.
-		dented = _dent_at(point, push, radius * 2.0, depth)
+		# удара: пробуем шире, иначе лёгкое касание не оставит следа.
+		dented = _dent_at(point, push, radius * tuning.retry_radius_scale, depth)
 	if dented > 0.0:
 		_total_dent_m += dented
 
@@ -196,6 +206,7 @@ func _dent_panel(panel: Dictionary, point_space: Vector3, push_space: Vector3, r
 	var inst := panel["inst"] as MeshInstance3D
 	if inst == null or not is_instance_valid(inst):
 		return 0.0
+	var tuning := cfg()
 	var mesh_from_space := _space_from_mesh(inst)
 	var space_from_mesh := mesh_from_space.affine_inverse()
 	var point_local: Vector3 = space_from_mesh * point_space
@@ -236,14 +247,14 @@ func _dent_panel(panel: Dictionary, point_space: Vector3, push_space: Vector3, r
 			bowl *= bowl
 			var rim_t := clampf((t - 0.55) / 0.45, 0.0, 1.0)
 			var rim := sin(PI * rim_t)
-			var disp := depth_local * (bowl - 0.30 * rim)
+			var disp := depth_local * (bowl - tuning.rim_bulge * rim)
 			if absf(disp) * scale_local < EPSILON_M:
 				continue
 			# Случайное жевание: складки поперёк направления удара сильнее,
 			# вдоль — слабее, плюс мелкий шум. Это и есть «аркадность».
-			var crumple := _rand_unit() * (absf(disp) * 0.38)
+			var crumple := _rand_unit() * (absf(disp) * tuning.crumple_amount)
 			crumple -= push_local * crumple.dot(push_local)
-			var jitter := _rand_unit() * (depth_local * 0.10)
+			var jitter := _rand_unit() * (depth_local * tuning.jitter_amount)
 			verts[i] = v + push_local * disp + crumple + jitter
 			moved[i] = 1
 			deepest = maxf(deepest, absf(disp))

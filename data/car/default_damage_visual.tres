@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="RallyDamageVisualConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_damage_visual_config.gd" id="1_damage"]
+
+[resource]
+script = ExtResource("1_damage")
+enabled = true
+vehicle_ids = Array[String](["mitsubishi"])
+dent_scale = 1.0
+dent_budget_m = 1.1
+min_dv_mps = 2.2
+cooldown_sec = 0.25
+ground_normal_y = 0.55
+max_contacts = 8
+depth_per_dv_m = 0.012
+depth_min_m = 0.02
+depth_max_m = 0.16
+radius_base_m = 0.32
+radius_per_dv_m = 0.024
+radius_max_m = 0.62
+rim_bulge = 0.3
+crumple_amount = 0.38
+jitter_amount = 0.1
+retry_radius_scale = 2.0

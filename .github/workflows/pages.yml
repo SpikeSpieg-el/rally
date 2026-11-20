@@ -6,7 +6,7 @@ on:
       - main
       - arena/04a18e75-rally
       - arena/351d2d6e-rally
-      - arena/c06d3b9d-rally
+      - arena/db507a4d-rally
   workflow_dispatch:
 
 permissions:
