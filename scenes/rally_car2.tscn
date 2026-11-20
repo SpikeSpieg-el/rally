@@ -325,8 +325,8 @@ shadow_mesh = SubResource("ArrayMesh_yfqfh")
 resource_name = "R32_Blue_Pearl.003"
 cull_mode = 2
 albedo_color = Color(0.12835404, 0.32272613, 0.6799757, 1)
-metallic = 0.75
-roughness = 0.22
+metallic_specular = 0.07
+roughness = 0.21
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_je54d"]
 resource_name = "Black_Trim.003"
@@ -1107,10 +1107,10 @@ script = ExtResource("6_vsvcn")
 [node name="Cameras" type="Node3D" parent="." unique_id=847335730]
 
 [node name="CamCockpit" type="Marker3D" parent="Cameras" unique_id=1326820797]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.4188418, 1.5751749, 0.043697685)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.4250302, 1.5617472, 0.043697685)
 
 [node name="CamHood" type="Marker3D" parent="Cameras" unique_id=384432594]
-transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0, 1.2834859, 1.7174213)
+transform = Transform3D(-1, 4.369318e-09, -8.731352e-08, 0, 0.99875027, 0.04997917, 8.742278e-08, 0.04997917, -0.99875027, 0.02483654, 1.2338133, 1.7174213)
 
 [node name="CamChase" type="Marker3D" parent="Cameras" unique_id=1159103674]
 transform = Transform3D(-1, 1.0465573e-08, -8.679409e-08, 0, 0.99280864, 0.119712204, 8.742278e-08, 0.119712204, -0.99280864, 0, 3.1315637, -7.107724)
