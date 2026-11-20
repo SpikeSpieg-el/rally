@@ -6,7 +6,7 @@ on:
       - main
       - arena/04a18e75-rally
       - arena/351d2d6e-rally
-      - arena/f3672196-rally
+      - arena/c06d3b9d-rally
   workflow_dispatch:
 
 permissions:
@@ -142,6 +142,7 @@ jobs:
             echo "::endgroup::"
           }
           run_py tests.test_vehicle_roster
+          run_py tests.test_car_damage_visual
           run_gd 180s tests/golf_presets.gd
           run_gd 180s tests/subaru_presets.gd
           run_gd 180s tests/car_liveries.gd
@@ -234,6 +235,7 @@ jobs:
           run_gd 900s tests/car_obstacle_collision.gd
           run_gd 900s tests/subaru_drive.gd
           run_gd 300s tests/car_stationary_slip.gd
+          run_gd 600s tests/car_damage_visual.gd
           run_gd 1200s tests/top_speed.gd
           sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"

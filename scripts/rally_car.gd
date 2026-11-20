@@ -45,6 +45,24 @@ const BASE_MOTOR_BRAKE: float = 5.0
 ## Опорное ускорение для перегрузок: замена «g» без магических чисел.
 const FEEL_GRAVITY: float = 9.81
 
+## Визуальные повреждения кузова (вмятины от ударов) — пробный запуск системы:
+## включены только на Lancer. Здоровье, урон и физика от них не меняются.
+const DAMAGE_VISUAL_IDS := ["mitsubishi"]
+## Потеря скорости за кадр, с которой удар считается достойным вмятины, м/с.
+## Заметно ниже порога урона аркады (crash_min_dv_mps = 4.6): кузов мнётся
+## раньше, чем тают HP, — иначе лёгкие касания выглядели бы безнаказанными.
+const DAMAGE_VISUAL_MIN_DV_MPS := 2.2
+## Пауза между вмятинами, с: длинная царапина вдоль забора даёт серию заломов,
+## а не сотни вмятин за один кадр контакта.
+const DAMAGE_VISUAL_COOLDOWN_SEC := 0.25
+## Контакт с вертикальной составляющей нормали больше этой величины считаем
+## грунтом, поребриком или крышей: такие касания кузов не мнут (приземление
+## после прыжка и езда по кочкам должны оставаться без вмятин).
+const DAMAGE_VISUAL_GROUND_NORMAL_Y := 0.55
+## Сколько контактов записывать физике. Нужны contact_monitor и ненулевой
+## max_contacts_reported, иначе список контактов пуст и ловить нечего.
+const DAMAGE_VISUAL_MAX_CONTACTS := 8
+
 @export_group("Кинематограф / запись")
 ## Для отдельной сцены меню: входные действия берутся у указанного узла,
 ## физика подвески и двигателя остаётся той же, что в настоящем заезде.
@@ -235,6 +253,11 @@ const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
 const BloodFxType = preload("res://scripts/effects/rally_blood_fx.gd")
 var surface_effects: SurfaceEffectsType = null
 var blood_fx: BloodFxType = null
+## Визуальные вмятины кузова. Ставится только на машины из DAMAGE_VISUAL_IDS
+## (сейчас — Lancer); у остальных остаётся null, и их кузов не меняется вовсе.
+var damage_visual: CarDamageVisual = null
+var _damage_prev_velocity := Vector3.ZERO
+var _damage_cooldown := 0.0
 var precipitation_rain: float = 0.0
 var precipitation_snow: float = 0.0
 var reset_provider: Callable = Callable()
@@ -276,6 +299,9 @@ func _ready() -> void:
 	requested_gear = current_gear
 	_setup_gravel_particles()
 	_apply_visual_setup()
+	# После покраски: компонент запоминает материалы поверхностей кузова такими,
+	# какими их оставила ливрея, и не мешает смене краски позже.
+	_install_damage_visual()
 	_setup_brake_lights()
 	surface_effects = SurfaceEffectsType.new()
 	surface_effects.fx = fx_config()
@@ -369,6 +395,82 @@ func _model_aabb_center_y(model: Node3D) -> float:
 	if max_y <= min_y:
 		return f().model_wheel_center_y + f().camera_pivot_clearance
 	return (min_y + max_y) * 0.5
+
+
+## Поставить компонент визуальных вмятин. Ставится только машинам из
+## DAMAGE_VISUAL_IDS (сейчас Lancer — систему сдаём на пробу) и только в
+## настоящем заезде: в кинематографической витрине кузов не бьётся.
+func _install_damage_visual() -> void:
+	if damage_visual != null or cinematic_mode:
+		return
+	if not DAMAGE_VISUAL_IDS.has(vehicle_id):
+		return
+	var model: Node3D = _find_body_model()
+	if model == null:
+		return
+	# Физика не отдаёт контакты, пока их запись не включена. На поведение машины
+	# это не влияет — solver и так считает столкновения, — но даёт точку удара.
+	contact_monitor = true
+	max_contacts_reported = DAMAGE_VISUAL_MAX_CONTACTS
+	damage_visual = CarDamageVisual.new()
+	damage_visual.name = "DamageVisual"
+	add_child(damage_visual)
+	damage_visual.setup(model, self)
+	if damage_visual.panel_count() == 0:
+		# Кузовных панелей с группой rally_body_fx нет: деформировать нечего,
+		# возвращаем всё как было.
+		damage_visual.queue_free()
+		damage_visual = null
+		contact_monitor = false
+		max_contacts_reported = 0
+	_damage_prev_velocity = linear_velocity
+
+
+## Шаг физики. Сигнатура без типа возврата — ровно как у предка (Vehicle),
+## иначе GDScript не примет переопределение.
+func _integrate_forces(state : PhysicsDirectBodyState3D):
+	super._integrate_forces(state)
+	if damage_visual != null:
+		_update_damage_visual(state)
+
+
+## Найти настоящий удар — не грунт и не крышу — и помять кузов в точке контакта.
+## Силу и направление берём из скорости, потерянной кузовом за кадр: та же
+## величина, по которой аркада начисляет урон. Здоровье здесь не меняется.
+func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
+	var velocity: Vector3 = state.linear_velocity
+	var lost: Vector3 = _damage_prev_velocity - velocity
+	_damage_prev_velocity = velocity
+	_damage_cooldown = maxf(0.0, _damage_cooldown - get_physics_process_delta_time())
+	if _damage_cooldown > 0.0 or lost.length() < DAMAGE_VISUAL_MIN_DV_MPS:
+		return
+	# Берём контакт, чья нормаль сильнее всего совпадает с направлением потери
+	# скорости: это и есть виновник удара. Знак нормали нарочно не важен — берём
+	# модуль, а грунт и крышу отсекаем по вертикальной составляющей, поэтому
+	# приземление после прыжка и езда по кочкам кузов не мнут.
+	var lost_dir := lost.normalized()
+	var best := -1
+	var best_alignment := 0.0
+	for i in range(state.get_contact_count()):
+		var normal: Vector3 = state.get_contact_local_normal(i)
+		if absf(normal.y) > DAMAGE_VISUAL_GROUND_NORMAL_Y:
+			continue
+		var alignment: float = absf(normal.dot(lost_dir))
+		if alignment > best_alignment:
+			best_alignment = alignment
+			best = i
+	if best < 0 or best_alignment <= 0.0:
+		return
+	_damage_cooldown = DAMAGE_VISUAL_COOLDOWN_SEC
+	# Точка контакта приходит в мировых координатах, а вмятину строим в системе
+	# машины. Пересчитываем по трансформу из состояния физики: он точен именно
+	# на этом шаге, в отличие от global_transform узла.
+	var car_xform: Transform3D = state.transform
+	var point_local: Vector3 = car_xform.affine_inverse() * state.get_contact_local_position(best)
+	# Металл мнётся туда, куда ушла скорость: удар передом продавливает нос
+	# назад, удар сзади — заднюю панель вперёд.
+	var push_local: Vector3 = car_xform.basis.inverse() * (-lost_dir)
+	damage_visual.apply_impact(point_local, push_local, lost.length())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1906,6 +2008,9 @@ func reset_to_spawn() -> void:
 			PhysicsServer3D.body_set_state(body_rid, PhysicsServer3D.BODY_STATE_SLEEPING, false)
 	previous_global_position = global_position
 	_feel_previous_velocity = Vector3.ZERO
+	# Скорость обнулена телепортом, а не ударом: иначе следующий кадр физики
+	# увидел бы «потерю» всей скорости и помял бы кузов на ровном месте.
+	_damage_prev_velocity = Vector3.ZERO
 	local_velocity = Vector3.ZERO
 	speed = 0.0
 	speed_mps = 0.0
