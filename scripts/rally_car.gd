@@ -12,6 +12,9 @@ enum DrivetrainMode { AWD, RWD, FWD }
 # Геометрия импортированной модели (центр колеса, клиренс кузова) живёт в
 # RallyCarFeelConfig — data/car/default_car_feel.tres — и правится в инспекторе.
 const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
+# Визуальные вмятины кузова: порог удара, форма и список машин — в ресурсе,
+# чтобы править их в инспекторе, а не в коде.
+const DEFAULT_DAMAGE_VISUAL_PATH := "res://data/car/default_damage_visual.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
@@ -45,24 +48,6 @@ const BASE_MOTOR_BRAKE: float = 5.0
 ## Опорное ускорение для перегрузок: замена «g» без магических чисел.
 const FEEL_GRAVITY: float = 9.81
 
-## Визуальные повреждения кузова (вмятины от ударов) — пробный запуск системы:
-## включены только на Lancer. Здоровье, урон и физика от них не меняются.
-const DAMAGE_VISUAL_IDS := ["mitsubishi"]
-## Потеря скорости за кадр, с которой удар считается достойным вмятины, м/с.
-## Заметно ниже порога урона аркады (crash_min_dv_mps = 4.6): кузов мнётся
-## раньше, чем тают HP, — иначе лёгкие касания выглядели бы безнаказанными.
-const DAMAGE_VISUAL_MIN_DV_MPS := 2.2
-## Пауза между вмятинами, с: длинная царапина вдоль забора даёт серию заломов,
-## а не сотни вмятин за один кадр контакта.
-const DAMAGE_VISUAL_COOLDOWN_SEC := 0.25
-## Контакт с вертикальной составляющей нормали больше этой величины считаем
-## грунтом, поребриком или крышей: такие касания кузов не мнут (приземление
-## после прыжка и езда по кочкам должны оставаться без вмятин).
-const DAMAGE_VISUAL_GROUND_NORMAL_Y := 0.55
-## Сколько контактов записывать физике. Нужны contact_monitor и ненулевой
-## max_contacts_reported, иначе список контактов пуст и ловить нечего.
-const DAMAGE_VISUAL_MAX_CONTACTS := 8
-
 @export_group("Кинематограф / запись")
 ## Для отдельной сцены меню: входные действия берутся у указанного узла,
 ## физика подвески и двигателя остаётся той же, что в настоящем заезде.
@@ -74,6 +59,10 @@ const DAMAGE_VISUAL_MAX_CONTACTS := 8
 @export var feel: FeelConfigType = null
 ## Профиль эффектов (пыль, грязь, брызги). Пусто — res://data/stage/default_fx_profile.tres.
 @export var fx: RallyFxProfile = null
+## Визуальные вмятины кузова: порог удара, глубина, радиус, запас деформации
+## и список машин. Пусто — res://data/car/default_damage_visual.tres.
+## На здоровье, урон и физику эти поля не влияют.
+@export var damage_visual_config: RallyDamageVisualConfig = null
 ## Пятна крови на кузове. Пусто — res://scenes/effects/blood_stains.tscn.
 @export var blood_stains_scene: PackedScene
 
@@ -253,8 +242,9 @@ const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
 const BloodFxType = preload("res://scripts/effects/rally_blood_fx.gd")
 var surface_effects: SurfaceEffectsType = null
 var blood_fx: BloodFxType = null
-## Визуальные вмятины кузова. Ставится только на машины из DAMAGE_VISUAL_IDS
-## (сейчас — Lancer); у остальных остаётся null, и их кузов не меняется вовсе.
+## Визуальные вмятины кузова. Ставится только на машины из списка vehicle_ids
+## настройки damage_config() (сейчас — Lancer); у остальных остаётся null,
+## и их кузов не меняется вовсе.
 var damage_visual: CarDamageVisual = null
 var _damage_prev_velocity := Vector3.ZERO
 var _damage_cooldown := 0.0
@@ -397,13 +387,14 @@ func _model_aabb_center_y(model: Node3D) -> float:
 	return (min_y + max_y) * 0.5
 
 
-## Поставить компонент визуальных вмятин. Ставится только машинам из
-## DAMAGE_VISUAL_IDS (сейчас Lancer — систему сдаём на пробу) и только в
+## Поставить компонент визуальных вмятин. Ставится только машинам из списка
+## vehicle_ids настройки (сейчас Lancer — систему сдаём на пробу) и только в
 ## настоящем заезде: в кинематографической витрине кузов не бьётся.
 func _install_damage_visual() -> void:
 	if damage_visual != null or cinematic_mode:
 		return
-	if not DAMAGE_VISUAL_IDS.has(vehicle_id):
+	var tuning := damage_config()
+	if not tuning.enabled or not tuning.vehicle_ids.has(vehicle_id):
 		return
 	var model: Node3D = _find_body_model()
 	if model == null:
@@ -411,11 +402,11 @@ func _install_damage_visual() -> void:
 	# Физика не отдаёт контакты, пока их запись не включена. На поведение машины
 	# это не влияет — solver и так считает столкновения, — но даёт точку удара.
 	contact_monitor = true
-	max_contacts_reported = DAMAGE_VISUAL_MAX_CONTACTS
+	max_contacts_reported = tuning.max_contacts
 	damage_visual = CarDamageVisual.new()
 	damage_visual.name = "DamageVisual"
 	add_child(damage_visual)
-	damage_visual.setup(model, self)
+	damage_visual.setup(model, self, tuning)
 	if damage_visual.panel_count() == 0:
 		# Кузовных панелей с группой rally_body_fx нет: деформировать нечего,
 		# возвращаем всё как было.
@@ -438,11 +429,12 @@ func _integrate_forces(state : PhysicsDirectBodyState3D):
 ## Силу и направление берём из скорости, потерянной кузовом за кадр: та же
 ## величина, по которой аркада начисляет урон. Здоровье здесь не меняется.
 func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
+	var tuning := damage_config()
 	var velocity: Vector3 = state.linear_velocity
 	var lost: Vector3 = _damage_prev_velocity - velocity
 	_damage_prev_velocity = velocity
 	_damage_cooldown = maxf(0.0, _damage_cooldown - get_physics_process_delta_time())
-	if _damage_cooldown > 0.0 or lost.length() < DAMAGE_VISUAL_MIN_DV_MPS:
+	if _damage_cooldown > 0.0 or lost.length() < tuning.min_dv_mps:
 		return
 	# Берём контакт, чья нормаль сильнее всего совпадает с направлением потери
 	# скорости: это и есть виновник удара. Знак нормали нарочно не важен — берём
@@ -453,7 +445,7 @@ func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
 	var best_alignment := 0.0
 	for i in range(state.get_contact_count()):
 		var normal: Vector3 = state.get_contact_local_normal(i)
-		if absf(normal.y) > DAMAGE_VISUAL_GROUND_NORMAL_Y:
+		if absf(normal.y) > tuning.ground_normal_y:
 			continue
 		var alignment: float = absf(normal.dot(lost_dir))
 		if alignment > best_alignment:
@@ -461,7 +453,7 @@ func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
 			best = i
 	if best < 0 or best_alignment <= 0.0:
 		return
-	_damage_cooldown = DAMAGE_VISUAL_COOLDOWN_SEC
+	_damage_cooldown = tuning.cooldown_sec
 	# Точка контакта приходит в мировых координатах, а вмятину строим в системе
 	# машины. Пересчитываем по трансформу из состояния физики: он точен именно
 	# на этом шаге, в отличие от global_transform узла.
@@ -539,6 +531,17 @@ func fx_config() -> RallyFxProfile:
 		if fx == null:
 			fx = RallyFxProfile.new()
 	return fx
+
+
+## Настройка визуальных вмятин (никогда null): поле сцены, иначе ресурс по
+## умолчанию из data/car/. Правится в инспекторе, на урон и физику не влияет.
+func damage_config() -> RallyDamageVisualConfig:
+	if damage_visual_config == null:
+		if ResourceLoader.exists(DEFAULT_DAMAGE_VISUAL_PATH):
+			damage_visual_config = ResourceLoader.load(DEFAULT_DAMAGE_VISUAL_PATH) as RallyDamageVisualConfig
+		if damage_visual_config == null:
+			damage_visual_config = RallyDamageVisualConfig.new()
+	return damage_visual_config
 
 
 func _make_blood_fx() -> BloodFxType:

@@ -1533,7 +1533,15 @@ godot --headless --path . --script res://tests/tire_marks.gd
 Система сдана на пробу **только на Mitsubishi Lancer Evolution**: у Subaru и
 Golf R32 компонент не ставится, и запись контактов физики у них не включается.
 
-Подробности, настройка и порядок включения на другой машине —
+Все числа деформации — в ресурсе `data/car/default_damage_visual.tres`
+(`RallyDamageVisualConfig`): порог удара, пауза между вмятинами, глубина,
+радиус, вспученный край, складки металла, запас деформации на кузов и список
+машин. Правится в инспекторе — либо у корня `RallyCar` в сцене машины (поле
+`damage_visual_config`, группа «Инспектор: ощущение машины»), либо в самом
+ресурсе через FileSystem. В коде констант настройки нет, на урон и физику
+поля не влияют.
+
+Подробности и порядок включения на другой машине —
 [`docs/CAR_DAMAGE_VISUAL_RU.md`](docs/CAR_DAMAGE_VISUAL_RU.md). Проверка:
 `godot --headless --path . --fixed-fps 120 --script res://tests/car_damage_visual.gd`.
 

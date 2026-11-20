@@ -192,6 +192,63 @@ func _crash_into_wall(car: RallyCar, reference: PackedVector3Array) -> Dictionar
 	return {"track": track, "max_diff": max_diff, "depth": _dent_depth(car)}
 
 
+## Поле `damage_visual_config` у корня RallyCar — то самое место, где настройка
+## правится в инспекторе. Проверяем, что поле действительно управляет системой:
+## с выключенным ресурсом компонент не ставится вовсе, а потолок глубины из
+## ресурса ограничивает вмятину.
+func _check_scene_field(game: GameStub) -> void:
+	game.race_vehicle_id = DAMAGE_ID
+	var scene_path := CarModels.race_scene_path(DAMAGE_ID)
+	check(not scene_path.is_empty(), "Lancer есть в реестре машин")
+	if scene_path.is_empty():
+		return
+	var scene := load(scene_path) as PackedScene
+	check(scene != null, "сцена Lancer открывается: " + scene_path)
+	if scene == null:
+		return
+
+	# Выключенная настройка: компонента нет, значит и вмятин быть не может —
+	# удар здесь не нужен.
+	var off_world := _make_world()
+	var off_config := RallyDamageVisualConfig.new()
+	off_config.enabled = false
+	var off_car := scene.instantiate() as RallyCar
+	off_car.setup_override = SETUP
+	off_car.mouse_look_enabled = false
+	off_car.damage_visual_config = off_config
+	off_car.position = Vector3(0.0, 0.3, 0.0)
+	off_world.add_child(off_car)
+	await _steps(SETTLE_FRAMES)
+	check(off_car.damage_visual == null,
+		"Lancer: с выключенным ресурсом настройки компонент не ставится")
+	check(not off_car.contact_monitor,
+		"Lancer: с выключенной настройкой запись контактов не включается")
+	off_car.queue_free()
+	off_world.queue_free()
+	await _steps(2)
+
+	# Своя настройка из поля сцены: потолок глубины 5 см вместо 16 см.
+	var soft_world := _make_world()
+	var soft_config := RallyDamageVisualConfig.new()
+	soft_config.depth_min_m = 0.05
+	soft_config.depth_max_m = 0.05
+	var soft_car := scene.instantiate() as RallyCar
+	soft_car.setup_override = SETUP
+	soft_car.mouse_look_enabled = false
+	soft_car.damage_visual_config = soft_config
+	soft_car.position = Vector3(0.0, 0.3, 0.0)
+	soft_world.add_child(soft_car)
+	await _steps(SETTLE_FRAMES)
+	check(soft_car.damage_visual != null, "Lancer: ресурс настройки из сцены подхватился")
+	var soft_run := await _crash_into_wall(soft_car, PackedVector3Array())
+	var soft_depth := float(soft_run["depth"])
+	check(soft_depth > 0.0 and soft_depth <= 0.05 + 0.0005,
+		"Lancer: глубина вмятины берётся из ресурса (%.3f м ≤ 0.05)" % soft_depth)
+	soft_car.queue_free()
+	soft_world.queue_free()
+	await _steps(2)
+
+
 func _run() -> void:
 	var old_game := root.get_node_or_null("RallyGame")
 	if old_game != null:
@@ -274,13 +331,18 @@ func _run() -> void:
 			var cleared: Dictionary = car.damage_visual.deformation_stats()
 			check(car.damage_visual.total_dent_depth() == 0.0 and int(cleared["moved_vertices"]) == 0,
 				"Lancer: clear_damage возвращает исходную геометрию")
-			car.damage_visual.enabled = false
+			# Ресурс настройки общий для всех машин, поэтому выключаем вмятины
+			# в его копии: заодно проверяем, что настройка действительно рулит.
+			var shared_config: RallyDamageVisualConfig = car.damage_visual.config
+			var off_config := shared_config.duplicate() as RallyDamageVisualConfig
+			off_config.enabled = false
+			car.damage_visual.config = off_config
 			var clean := await _crash_into_wall(car, second["track"])
 			check(float(clean["max_diff"]) <= MAX_PHYSICS_DIFF_M,
 				"Lancer: траектория удара не зависит от вмятин (расхождение %.4f м ≤ %.2f)"
 				% [float(clean["max_diff"]), MAX_PHYSICS_DIFF_M])
 			check(float(clean["depth"]) == 0.0, "Lancer: с выключенным компонентом вмятин нет")
-			car.damage_visual.enabled = true
+			car.damage_visual.config = shared_config
 		else:
 			check(_meshes_untouched(meshes_before), "%s: после удара кузов остался прежним" % data.id)
 			check(_geometry_same(geometry_before, _snapshot_geometry(car)),
@@ -289,6 +351,8 @@ func _run() -> void:
 		car.queue_free()
 		world.queue_free()
 		await _steps(2)
+
+	await _check_scene_field(game)
 
 	root.remove_child(game)
 	game.queue_free()
