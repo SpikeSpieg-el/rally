@@ -233,6 +233,7 @@ jobs:
           run_gd 300s tests/ghost_racer.gd
           run_gd 900s tests/car_obstacle_collision.gd
           run_gd 900s tests/subaru_drive.gd
+          run_gd 300s tests/car_stationary_slip.gd
           run_gd 1200s tests/top_speed.gd
           sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"

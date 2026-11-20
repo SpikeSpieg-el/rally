@@ -1973,6 +1973,7 @@ func reset_to_spawn() -> void:
 		wheel.max_spring_length = wheel.spring_length
 		wheel.previous_compression = 0.0
 		wheel.local_velocity = Vector3.ZERO
+		wheel._raw_local_velocity = Vector3.ZERO
 		wheel.previous_velocity = Vector3.ZERO
 		wheel.previous_global_position = wheel.global_position
 		wheel.abs_enable_time = 0.0
@@ -2036,9 +2037,12 @@ func restart_at_spawn() -> void:
 
 
 func get_average_tire_slip() -> float:
+	# Скольжение одного колеса — наибольшая из осей (боковая/продольная), а не их
+	# сумма: модель шины не складывает их в общий бюджет, поэтому сумма завышала
+	# телеметрию вдвое и бар заноса показывал «100%» там, где скольжение ≈ 0.5.
 	var total_slip: float = 0.0
 	for wheel: WheelType in wheel_array:
-		total_slip += absf(wheel.slip_vector.x) + absf(wheel.slip_vector.y)
+		total_slip += maxf(absf(wheel.slip_vector.x), absf(wheel.slip_vector.y))
 	return total_slip / float(maxi(1, wheel_array.size()))
 
 

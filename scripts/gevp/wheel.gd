@@ -55,6 +55,14 @@ var applied_torque := 0.0
 var local_velocity := Vector3.ZERO
 var previous_velocity := Vector3.ZERO
 var previous_global_position := Vector3.ZERO
+## Скорость пятна контакта считается конечной разностью позиции колеса, поэтому
+## на стоящей машине физический дрожжевой сдвиг (гравитация + пружина + CCD +
+## неровный грунт) превращался в заметную «скорость» и давал фантомный занос.
+## Сглаживаем её по времени — тем же приёмом, что уже применён к скорости кузова
+## в Vehicle._physics_process(). Стоячая дрожь знакопеременна и усредняется к
+## нулю, а реальное движение (постоянное по направлению) сохраняется.
+var local_velocity_smoothing := 20.0
+var _raw_local_velocity := Vector3.ZERO
 var force_vector := Vector2.ZERO
 var slip_vector := Vector2.ZERO
 var previous_compression := 0.0
@@ -169,7 +177,11 @@ func process_forces(opposite_compression : float, braking : bool, delta : float)
 	force_raycast_update()
 	surface_kind = ""
 	previous_velocity = local_velocity
-	local_velocity = (global_position - previous_global_position) / delta * global_transform.basis
+	_raw_local_velocity = (global_position - previous_global_position) / delta * global_transform.basis
+	# Низкочастотный фильтр: дрожжевая составляющая гасится, направленное движение
+	# проходит. При стоянке raw-скорость знакопеременна и её среднее ≈ 0.
+	var smoothing_rate := clampf(local_velocity_smoothing * delta, 0.0, 1.0)
+	local_velocity = local_velocity.lerp(_raw_local_velocity, smoothing_rate)
 	previous_global_position = global_position
 	
 	## Determine the surface the tire is on. Uses node groups
