@@ -175,9 +175,13 @@ func _run() -> void:
 		_check(game.setup_count() == 10, "свой пресет Golf не попадает в список Mitsubishi")
 		game.select_vehicle("subaru")
 		_check(game.setup_count() == 5, "свой пресет Golf не попадает в список Subaru")
+	# Пути чистки читаются до free(): доступ к свойству освобождённого объекта —
+	# ошибка скрипта, после которой SceneTree не вызывает quit() и проверка висит.
+	var cleanup_conditions: String = ProjectSettings.globalize_path(game.conditions_path)
+	var cleanup_records: String = ProjectSettings.globalize_path(game.records_path)
 	game.free()
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(game.conditions_path))
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(game.records_path))
+	DirAccess.remove_absolute(cleanup_conditions)
+	DirAccess.remove_absolute(cleanup_records)
 	sound.free()
 
 	if failures.is_empty():

@@ -102,6 +102,7 @@ func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 	var stage_stub := Node3D.new()
 	# Каждая машина реестра, включая ту, у которой нет ливрей: призрак обязан
 	# собраться и покраситься в любом случае.
+	root.add_child(stage_stub)
 	for scene_path in CarModels.car_scene_paths():
 		var rig := GhostCarRig.new()
 		_check(rig.build_from_scene_path(scene_path), "GhostCarRig должен собраться из %s" % scene_path)
@@ -110,13 +111,17 @@ func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 		for node in rig.find_children("*", "", true, false):
 			if node is CollisionObject3D or node is CollisionShape3D:
 				has_collision = true
-			_check(node.owner == null, "склонированные узлы призрака должны иметь owner == null")
+				_check(node.owner == null, "склонированные узлы призрака должны иметь owner == null")
 		_check(not has_collision, "в призраке не должно быть коллизий")
 
 		g.look = GhostLookScript.GhostLook.HOLOGRAM
 		rig.apply_look_params(g._build_params_dict())
 		g.look = GhostLookScript.GhostLook.TRANSPARENT_RIVAL
 		rig.apply_look_params(g._build_params_dict())
+		# Обновление позы читает global_transform: вне дерева оно возвращает
+		# нулевую матрицу и печатает ошибку скрипта, поэтому риг на время
+		# обновления висит на дереве, как в настоящем заезде.
+		stage_stub.add_child(rig)
 		rig.update_pose_and_fx(
 			0.016,
 			{"valid": true, "pos": Vector3.ZERO, "quat": Quaternion.IDENTITY, "speed_mps": 20.0, "steer": 0.15, "brake": 0.8},
@@ -124,7 +129,9 @@ func _test_ghost_car_rig_cloning_and_livery_toggle() -> void:
 			g._build_params_dict(),
 			true
 		)
+		stage_stub.remove_child(rig)
 		rig.free()
+	root.remove_child(stage_stub)
 	stage_stub.free()
 	g.free()
 

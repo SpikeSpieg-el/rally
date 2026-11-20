@@ -56,22 +56,31 @@ func _run() -> void:
 	garage.select_vehicle("subaru")
 	var preview: Node3D = garage._vehicle_models.get("subaru")
 	check(game.vehicle_id == "subaru" and preview != null and preview.visible and not garage._model.visible, "Subaru выбирается и показывается в гараже")
-	# Колёса витрины берём из самого гаража: он запоминает их по именам из сцены
-	# машины (CarModels.WHEEL_META), а тесту важно, что они нашлись и видны.
-	var vitrine_wheels := 0
-	for wheel in garage._wheel_rest:
-		if not preview.is_ancestor_of(wheel as Node):
-			continue
-		vitrine_wheels += 1
-		check((wheel as Node3D).visible, "колесо Subaru видно в гараже")
-	check(vitrine_wheels == WHEEL_MOUNTS.size(),
-		"на витрине Subaru четыре колеса, найдено %d" % vitrine_wheels)
+	# Колёса витрины берутся из самой видимой модели: гараж кладёт их список в
+	# метку кузова (Garage.WHEELS_META). В этом списке обязаны быть ровно четыре
+	# колеса текущей машины, а не колёса всех загруженных кузовов разом.
+	var vitrine_wheels: Array = garage._model_wheels(preview)
+	check(vitrine_wheels.size() == WHEEL_MOUNTS.size(),
+		"на витрине Subaru четыре колеса, найдено %d" % vitrine_wheels.size())
+	for entry in vitrine_wheels:
+		var wheel: Node3D = null
+		if entry is Dictionary:
+			wheel = entry.get("node") as Node3D
+		check(wheel != null and preview.is_ancestor_of(wheel) and wheel.visible,
+			"колесо Subaru видно в гараже")
 	game.load_conditions()
 	game.vehicle_id = "mitsubishi"
 	game._restore_saved_selection()
 	check(game.vehicle_id == "subaru", "выбор машины сохраняется между сеансами")
 	garage.select_vehicle("mitsubishi")
-	check(game.vehicle_id == "mitsubishi" and garage._model.visible and not preview.visible, "можно вернуться к Mitsubishi")
+	check(game.vehicle_id == "mitsubishi",
+		"выбор возвращается к Mitsubishi (id=%s)" % game.vehicle_id)
+	var mitsu_preview: Node3D = garage._vehicle_models.get("mitsubishi") as Node3D
+	check(garage._vehicle_models.has("mitsubishi"),
+		"у Mitsubishi своя модель витрины (загружена при открытии гаража)")
+	check(mitsu_preview != null and mitsu_preview.visible,
+		"витрина показывает кузов Mitsubishi")
+	check(not preview.visible, "кузов Subaru скрыт после смены машины")
 	garage.select_vehicle("subaru")
 	game._race_uses_selected_setup = true
 	garage.free()
