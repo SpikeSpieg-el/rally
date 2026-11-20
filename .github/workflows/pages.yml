@@ -137,7 +137,7 @@ jobs:
               echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
             echo "--- сводка $1 ---"
-            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:" "$log" | head -n 25 || true
+            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:|\[ghost-racer\]|итого" "$log" | head -n 30 || true
             tail -n 60 "$log"
             echo "::endgroup::"
           }
@@ -226,7 +226,7 @@ jobs:
               echo "::error::LOG_BASE64 $1: $(tail -c 2400 "$log" | base64 -w 0)"
             fi
             echo "--- сводка $1 ---"
-            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:" "$log" | head -n 25 || true
+            grep -aE "FAIL:|PASS:|^OK|SCRIPT ERROR|^ERROR:|\[ghost-racer\]|итого" "$log" | head -n 30 || true
             tail -n 60 "$log"
             echo "::endgroup::"
           }

@@ -22,14 +22,24 @@ func _check(cond: bool, msg: String) -> void:
 
 
 func _initialize() -> void:
-	_test_recording_math_and_io()
-	_test_ghost_look_presets_and_preferences()
-	_test_ghost_car_rig_cloning_and_livery_toggle()
-	_test_delta_panel_cockpit_and_pixel_style()
-	_test_ghost_settings_persistence()
+	_run_section("запись и математика дельты", _test_recording_math_and_io)
+	_run_section("пресеты внешности и настройки", _test_ghost_look_presets_and_preferences)
+	_run_section("клонирование машин и ливрея", _test_ghost_car_rig_cloning_and_livery_toggle)
+	_run_section("дельта-панель и пиксельный стиль", _test_delta_panel_cockpit_and_pixel_style)
+	_run_section("сохранение настроек призрака", _test_ghost_settings_persistence)
 	if _failures == 0:
 		print("PASS: система призрака, клонирование машин, живая дельта HUD и настройки паузы")
+	else:
+		printerr("[ghost-racer] всего провалов: %d" % _failures)
 	quit(0 if _failures == 0 else 1)
+
+
+## Печатает число провалов до и после раздела: когда полный лог не прочесть,
+## по этим строкам сразу видно, какой раздел сыплется.
+func _run_section(title: String, body: Callable) -> void:
+	var before := _failures
+	body.call()
+	print("[ghost-racer] %s: провалов +%d (всего %d)" % [title, _failures - before, _failures])
 
 
 func _test_recording_math_and_io() -> void:
