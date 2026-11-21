@@ -1,73 +1,8 @@
-[gd_resource type="Resource" script_class="RallyImpactFxConfig" format=3]
+[gd_resource type="Resource" script_class="RallyImpactFxConfig" format=3 uid="uid://bp8f1jn1j221w"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_impact_fx_config.gd" id="1_impact"]
+[ext_resource type="Script" uid="uid://deaw6ba7xyop6" path="res://scripts/data/rally_impact_fx_config.gd" id="1_impact"]
 
 [resource]
 script = ExtResource("1_impact")
-enabled = true
-vehicle_ids = Array[String]([])
-min_dv_mps = 1.6
-full_dv_mps = 16.0
-cooldown_sec = 0.12
-scrape_min_speed_mps = 3.0
-scrape_full_speed_mps = 22.0
-shake_enabled = true
-shake_trauma_per_dv = 0.075
-shake_decay = 1.6
-shake_offset_m = 0.22
-shake_angle_deg = 3.2
-shake_frequency_hz = 22.0
-inside_shake_scale = 0.7
-kick_m = 0.45
-kick_return = 7.0
-fov_punch_deg = 6.0
-scrape_shake = 0.18
-rumble_enabled = true
-rumble_weak = 0.55
-rumble_strong = 1.0
-rumble_duration = 0.28
-rumble_scrape = 0.35
-sparks_enabled = true
-sparks_amount = 90
-sparks_min_ratio = 0.2
-sparks_lifetime = 0.55
-sparks_speed_min = 3.5
-sparks_speed_max = 11.0
-sparks_spread_deg = 60.0
-sparks_gravity = 1.0
-sparks_size = Vector2(0.018, 0.16)
-sparks_color = Color(1.0, 0.72, 0.32, 1)
-sparks_energy = 4.0
-scrape_sparks_per_sec = 220.0
-debris_enabled = true
-debris_min_dv_mps = 4.5
-debris_amount = 22
-debris_lifetime = 1.3
-debris_size_m = 0.06
-debris_speed_min = 2.0
-debris_speed_max = 6.5
-debris_use_paint_color = true
-debris_color = Color(0.55, 0.56, 0.6, 1)
-glass_enabled = true
-glass_min_dv_mps = 9.0
-glass_amount = 26
-glass_color = Color(0.82, 0.92, 1.0, 0.85)
-dust_enabled = true
-dust_amount = 10
-dust_size_m = 0.55
-dust_lifetime = 1.1
-dust_color = Color(0.62, 0.58, 0.52, 0.55)
-sound_enabled = true
-impact_sounds = Array[AudioStream]([])
-heavy_impact_sounds = Array[AudioStream]([])
-heavy_dv_mps = 9.0
-impact_volume_min_db = -12.0
-impact_volume_max_db = 3.0
-pitch_jitter = 0.12
-scrape_sound = null
-scrape_volume_db = -5.0
-sound_unit_size = 8.0
-hitstop_enabled = false
-hitstop_min_dv_mps = 14.0
-hitstop_time_scale = 0.3
-hitstop_duration_sec = 0.07
+shake_angle_deg = 2.2
+shake_frequency_hz = 5.0

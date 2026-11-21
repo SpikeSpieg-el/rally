@@ -4,6 +4,9 @@
 
 [resource]
 script = ExtResource("1_damage")
-mark_strength_per_dv = 0.06999999999999999
+mark_strength_per_dv = 0.04
 mark_radius_scale = 0.6
+mark_soot = 0.15
+scrape_min_speed_mps = 5.5
+scrape_growth_per_sec = 3.4
 scratch_frequency = 50.0
