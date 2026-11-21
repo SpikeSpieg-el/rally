@@ -139,6 +139,20 @@ func _geometry_same(before: Dictionary, after: Dictionary) -> bool:
 	return true
 
 
+## Поверхностей столько же, вершин не меньше: сгущение сетки только добавляет.
+func _surfaces_kept(before: Dictionary, after: Dictionary) -> bool:
+	if before.size() != after.size():
+		return false
+	for node in before:
+		if not after.has(node):
+			return false
+		var was: Array = before[node]
+		var now: Array = after[node]
+		if int(now[0]) != int(was[0]) or int(now[1]) < int(was[1]):
+			return false
+	return true
+
+
 ## Ни один меш не заменён.
 func _meshes_untouched(before: Dictionary) -> bool:
 	for node in before:
@@ -223,13 +237,18 @@ func _check_scene_field(game: GameStub) -> void:
 	off_car.setup_override = SETUP
 	off_car.mouse_look_enabled = false
 	off_car.damage_visual_config = off_config
+	# Эффектам удара контакты тоже нужны, поэтому выключаем и их.
+	var off_fx := RallyImpactFxConfig.new()
+	off_fx.enabled = false
+	off_car.impact_fx_config = off_fx
 	off_car.position = Vector3(0.0, 0.3, 0.0)
 	off_world.add_child(off_car)
 	await _steps(SETTLE_FRAMES)
 	check(off_car.damage_visual == null,
 		"Lancer: с выключенным ресурсом настройки компонент не ставится")
+	check(off_car.impact_fx == null, "Lancer: с выключенными эффектами удара их узла нет")
 	check(not off_car.contact_monitor,
-		"Lancer: с выключенной настройкой запись контактов не включается")
+		"Lancer: с выключенными вмятинами и эффектами запись контактов не включается")
 	off_car.queue_free()
 	off_world.queue_free()
 	await _steps(2)
@@ -347,10 +366,16 @@ func _run() -> void:
 			"%s: удар показан эффектами (камера, искры, звук)" % data.id)
 		check(_only_panels_replaced(meshes_before),
 			"%s: деформированы только панели rally_body_fx, интерьер и колёса целы" % data.id)
-		check(_geometry_same(geometry_before, _snapshot_geometry(car)),
-			"%s: удар двигает вершины, а не меняет их число" % data.id)
+		# Перед первым ударом сетка панелей один раз сгущается (вершин
+		# становится больше, поверхностей — столько же), а дальше удары
+		# только двигают вершины.
+		var geometry_dented := _snapshot_geometry(car)
+		check(_surfaces_kept(geometry_before, geometry_dented),
+			"%s: сгущение сетки сохраняет поверхности и не теряет вершин" % data.id)
 
 		var second := await _crash_into_wall(car, PackedVector3Array())
+		check(_geometry_same(geometry_dented, _snapshot_geometry(car)),
+			"%s: удар двигает вершины, а не меняет их число" % data.id)
 		check(float(second["depth"]) > depth + 0.0005,
 			"%s: вмятины накапливаются (%.3f → %.3f м)" % [data.id, depth, float(second["depth"])])
 		# Сброс на трассу (R) кузов не чинит — это не ремонт.
