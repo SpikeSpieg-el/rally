@@ -1388,6 +1388,7 @@ python3 -m unittest tests.test_snow_grip tests.test_road_decals
 | Слишком скользко | снег + снежная целина перемножают сцепление (≈0.36 от базы); выберите сухую погоду или гравий |
 | Кнопка сида не видна | она есть только у процедурной трассы **ЖИВАЯ ЛЕНТА** |
 | «Перегенерировал» вернуло старую карту | это один и тот же сид после перезапуска — введите новый номер в поле сида или нажмите F8 |
+| Выбрал «Живую ленту», а этап выглядит ночным лесом | исправлено: заезд из меню едет трассу из списка, `track_override` сцены действует только при прямом запуске (F6) |
 
 Документация по машине и подвеске — `RALLY_SETUP_RU.md`.
 
@@ -1407,6 +1408,8 @@ godot --headless --path . --fixed-fps 120 --script res://tests/engine_audio.gd
 godot --headless --path . --fixed-fps 120 --script res://tests/conditions_smoke.gd
 godot --headless --path . --script res://tests/ps1_style.gd
 godot --headless --path . --script res://tests/live_marathon.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/live_track_selection.gd
+godot --headless --path . --fixed-fps 120 --script res://tests/menu_track_focus.gd
 godot --headless --path . --script res://tests/garage_smoke.gd
 godot --headless --path . --script res://tests/car_customization.gd
 godot --headless --path . --script res://tests/garage_menu_flow.gd

@@ -588,6 +588,14 @@ func get_race_setup_override() -> CarSetupType:
 	return current_setup as CarSetupType
 
 
+## Заезд запущен из меню. Сцена этапа в этом случае не подменяет выбранную
+## трассу своим `track_override`: иначе «Живая лента» ехала бы по ночному
+## лесу, потому что делит с ним общую сцену. Прямой запуск сцены (F6) флаг
+## не поднимает — там `track_override` остаётся главным.
+func is_menu_race() -> bool:
+	return _race_uses_selected_setup
+
+
 ## Есть ли тест-полигон в конфиге: от этого зависит кнопка главного экрана.
 func has_test_polygon() -> bool:
 	return config != null and config.test_track != null

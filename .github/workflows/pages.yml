@@ -143,10 +143,14 @@ jobs:
           }
           run_py tests.test_vehicle_roster
           run_py tests.test_car_damage_visual
+          run_py tests.test_live_track_selection
+          run_py tests.test_menu_track_focus
           run_gd 180s tests/golf_presets.gd
           run_gd 180s tests/subaru_presets.gd
           run_gd 180s tests/car_liveries.gd
           run_gd 180s tests/car_body_fx.gd
+          run_gd 180s tests/live_track_selection.gd
+          run_gd 180s tests/menu_track_focus.gd
           run_gd 600s tests/engine_audio.gd
           sum "" "_Провалено проверок: ${failed}_"
           echo "Провалено проверок: $failed"

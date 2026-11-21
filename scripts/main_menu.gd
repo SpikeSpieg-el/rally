@@ -208,6 +208,11 @@ func _restore_selection() -> void:
 
 
 func _build_buttons() -> void:
+	# Списки пересобираются при каждом выборе (selection_changed), и старые
+	# кнопки уходят в queue_free. Запоминаем, на какой кнопке стоял фокус,
+	# иначе клавиатура/геймпад теряют его после первого же переключения.
+	var focused_track := _focused_index(track_buttons)
+	var focused_setup := _focused_index(setup_buttons)
 	if track_list != null:
 		for child in track_list.get_children():
 			child.queue_free()
@@ -248,6 +253,18 @@ func _build_buttons() -> void:
 			button.pressed.connect(_on_setup_pressed.bind(i))
 			setup_list.add_child(button)
 			setup_buttons.append(button)
+	if focused_track >= 0 and focused_track < track_buttons.size():
+		track_buttons[focused_track].grab_focus()
+	elif focused_setup >= 0 and focused_setup < setup_buttons.size():
+		setup_buttons[focused_setup].grab_focus()
+
+
+## Индекс кнопки списка, на которой сейчас стоит фокус (-1, если ни на одной).
+func _focused_index(buttons: Array[Button]) -> int:
+	for i in range(buttons.size()):
+		if is_instance_valid(buttons[i]) and buttons[i].has_focus():
+			return i
+	return -1
 
 
 ## Кнопка-«чип» для погоды, профиля и сида: мышью и с клавиатуры

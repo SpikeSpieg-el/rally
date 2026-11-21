@@ -233,13 +233,30 @@ func _dent_panel(panel: Dictionary, point_space: Vector3, push_space: Vector3, r
 		moved.resize(verts.size())
 		var r2 := radius_local * radius_local
 		var deepest := 0.0
+		# У низкополигональной панели вершины стоят редко, и ближайшая к точке
+		# удара может оказаться далеко от центра. Тогда профиль, посчитанный от
+		# точки удара, давал бы у вершины лишь малую долю заданной глубины —
+		# вмятина выходила в разы мельче настройки и была не видна. Поэтому
+		# воронку привязываем к ближайшей вершине: она получает полную глубину,
+		# а кромка остаётся на заданном радиусе.
+		var nearest := 1.0
+		var has_neighbour := false
+		for i in range(verts.size()):
+			var dist2 := (verts[i] - point_local).length_squared()
+			if dist2 > r2:
+				continue
+			nearest = minf(nearest, sqrt(dist2) / radius_local)
+			has_neighbour = true
+		if not has_neighbour:
+			continue
+		var span := maxf(1.0 - nearest, 0.0001)
 		for i in range(verts.size()):
 			var v: Vector3 = verts[i]
 			var offset: Vector3 = v - point_local
 			var dist2 := offset.length_squared()
 			if dist2 > r2:
 				continue
-			var t := sqrt(dist2) / radius_local
+			var t := clampf((sqrt(dist2) / radius_local - nearest) / span, 0.0, 1.0)
 			# Профиль вмятины: глубокая воронка в центре и вспученный край, как
 			# на настоящем погнутом листе. На самой кромке оба слагаемых нулевые —
 			# переход к нетронутому металлу плавный, без ступеньки.

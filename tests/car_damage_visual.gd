@@ -303,11 +303,20 @@ func _run() -> void:
 		if is_damage_car and car.damage_visual != null:
 			var depth := float(first["depth"])
 			var stats: Dictionary = car.damage_visual.deformation_stats()
+			var tuning: RallyDamageVisualConfig = car.damage_visual.config
 			check(depth >= MIN_DENT_M,
 				"Lancer: после удара о стену кузов помят (%.3f м ≥ %.3f)" % [depth, MIN_DENT_M])
+			# У низкополигонального кузова вершины стоят редко: раньше профиль
+			# считался от точки удара, и ближайшая вершина получала лишь малую
+			# долю заданной глубины — вмятина выходила в разы мельче настройки и
+			# терялась на глаз. Сильный удар обязан выбирать хотя бы половину
+			# потолка глубины из ресурса.
+			check(depth >= tuning.depth_max_m * 0.5,
+				"Lancer: сильный удар даёт вмятину не меньше половины настроенной глубины (%.3f м ≥ %.3f)"
+				% [depth, tuning.depth_max_m * 0.5])
 			check(int(stats["moved_vertices"]) > 0,
 				"Lancer: вершины кузова сдвинуты (%d шт.)" % int(stats["moved_vertices"]))
-			check(float(stats["max_offset_m"]) >= MIN_DENT_M * 0.5,
+			check(float(stats["max_offset_m"]) >= depth * 0.5,
 				"Lancer: вмятина видна — вершина ушла на %.3f м" % float(stats["max_offset_m"]))
 			var centroid: Vector3 = stats["centroid_local"]
 			# Сводка уходит в лог проверки: видно, что удар действительно

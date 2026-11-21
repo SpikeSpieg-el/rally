@@ -299,7 +299,10 @@ func _enter_tree() -> void:
 			selected_setup = car_setup_override
 		if selected_setup != null:
 			game.set("current_setup", selected_setup)
-		if track_override != null:
+		# Трассу из сцены навязываем только прямому запуску (F6). Заезд из меню
+		# обязан ехать то, что выбрано в списке: «Живая лента» использует эту же
+		# сцену, и её track_override (ночной лес) иначе подменял выбор.
+		if track_override != null and not _game_starts_from_menu(game):
 			game.set("current_track", track_override)
 	var stage_car := get_node_or_null("RallyCar") as CarType
 	if stage_car != null and selected_setup != null:
@@ -681,6 +684,11 @@ func _snap_children(root: Node3D) -> int:
 	return total
 
 
+## Заезд пришёл из меню: сцена не диктует трассу, побеждает выбор в списке.
+func _game_starts_from_menu(game: Node) -> bool:
+	return game != null and game.has_method("is_menu_race") and bool(game.call("is_menu_race"))
+
+
 func _resolve_track() -> void:
 	var game: Node = null if Engine.is_editor_hint() else get_node_or_null("/root/RallyGame")
 	if game_config == null and game != null:
@@ -692,7 +700,7 @@ func _resolve_track() -> void:
 		if loaded_config is GameConfigType:
 			game_config = loaded_config
 	if Engine.is_editor_hint() or not _track_prepared:
-		if track_override != null:
+		if track_override != null and not _game_starts_from_menu(game):
 			track = track_override
 		elif game != null:
 			var current: Variant = game.get("current_track")

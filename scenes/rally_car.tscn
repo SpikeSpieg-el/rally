@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://hiopxvk8fkh3" path="res://scripts/gevp/wheel.gd" id="3_wheel"]
 [ext_resource type="PackedScene" uid="uid://cbleedstain01" path="res://scenes/effects/blood_stains.tscn" id="4_7x55j"]
 [ext_resource type="Texture2D" uid="uid://djleooflwneab" path="res://textures/brakes.png" id="4_finkb"]
+[ext_resource type="Script" uid="uid://bbapwk1voggu0" path="res://scripts/data/rally_damage_visual_config.gd" id="4_he3tm"]
 [ext_resource type="Texture2D" uid="uid://lv0o6m35yuf3" path="res://textures/wheelbump.png" id="5_rv3qr"]
 [ext_resource type="Texture2D" uid="uid://ce2gjyhr8dh68" path="res://textures/mitsubishi_glossy.png" id="7_gxar1"]
 [ext_resource type="Texture2D" uid="uid://f4k4po1d243b" path="res://textures/11.png" id="8_yojui"]
@@ -24,6 +25,10 @@
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
 friction = 0.15
+
+[sub_resource type="Resource" id="Resource_j3pel"]
+script = ExtResource("4_he3tm")
+metadata/_custom_type_script = "uid://bbapwk1voggu0"
 
 [sub_resource type="ConvexPolygonShape3D" id="ChassisShape"]
 points = PackedVector3Array(-1.05, 0.38, -2.36, 1.05, 0.38, -2.36, -1.05, 0.38, 2.65, 1.05, 0.38, 2.65, -1.16, 0.6, -2.48, 1.16, 0.6, -2.48, -1.13, 0.6, 2.84, 1.18, 0.6, 2.84, -1.16, 1.15, -2.48, 1.16, 1.15, -2.48, -1.025, 1.15, 2.84, 1.085, 1.03, 2.84, -0.805, 1.82, -1.05, 0.775, 1.82, -1.05, -0.71, 1.82, 0.625, 0.71, 1.82, 0.61)
@@ -924,6 +929,7 @@ linear_damp_mode = 1
 script = ExtResource("1_car")
 feel = ExtResource("2_25pl7")
 fx = ExtResource("3_he3tm")
+damage_visual_config = SubResource("Resource_j3pel")
 blood_stains_scene = ExtResource("4_7x55j")
 body_model_path = NodePath("low poly lance evo")
 livery_textures = Array[Texture2D]([ExtResource("livery_0"), ExtResource("livery_1"), ExtResource("livery_2")])
