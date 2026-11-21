@@ -213,9 +213,9 @@ class Builder:
 			var a := indices[t * 3]
 			var b := indices[t * 3 + 1]
 			var c := indices[t * 3 + 2]
-			var s0 := verts[a].distance_squared_to(verts[b]) > max2
-			var s1 := verts[b].distance_squared_to(verts[c]) > max2
-			var s2 := verts[c].distance_squared_to(verts[a]) > max2
+			var s0: bool = verts[a].distance_squared_to(verts[b]) > max2
+			var s1: bool = verts[b].distance_squared_to(verts[c]) > max2
+			var s2: bool = verts[c].distance_squared_to(verts[a]) > max2
 			var splits := int(s0) + int(s1) + int(s2)
 			if splits == 0:
 				out.append(a)

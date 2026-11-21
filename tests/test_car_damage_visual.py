@@ -260,7 +260,7 @@ class CarDamageVisualTest(unittest.TestCase):
         car = read(CAR)
         self.assertIn("@export var impact_fx_config: RallyImpactFxConfig = null", car)
         self.assertIn('const DEFAULT_IMPACT_FX_PATH := "res://%s"' % IMPACT_SETTINGS, car)
-        self.assertIn("ResourceLoader.load(DEFAULT_IMPACT_FX_PATH)", function_body(car, "impact_fx_config"))
+        self.assertIn("ResourceLoader.load(DEFAULT_IMPACT_FX_PATH)", function_body(car, "impact_config"))
         self.assertIn("impact_fx.apply_camera(", function_body(car, "_apply_camera_shake"))
         self.assertIn("impact_fx.restore_camera(", function_body(car, "_update_cameras"))
         restart = function_body(car, "restart_at_spawn")

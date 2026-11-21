@@ -310,16 +310,16 @@ func _update_scrape(delta: float, tuning: RallyImpactFxConfig) -> void:
 	_scrape_level = lerpf(_scrape_level, _scrape_target, 1.0 - exp(-response * delta))
 	if _scrape_level < 0.01 and _scrape_target <= 0.0:
 		_scrape_level = 0.0
-	var active := _scrape_level > 0.02 and tuning.enabled
+	var active: bool = _scrape_level > 0.02 and tuning.enabled
 	if _scrape_sparks != null:
-		var spark_on := active and tuning.sparks_enabled and tuning.scrape_sparks_per_sec > 0.0
+		var spark_on: bool = active and tuning.sparks_enabled and tuning.scrape_sparks_per_sec > 0.0
 		if spark_on:
 			_scrape_sparks.global_transform = Transform3D(_basis_y(_scrape_dir), _scrape_point)
 			_scrape_sparks.amount_ratio = clampf(_scrape_level, 0.05, 1.0)
 		if _scrape_sparks.emitting != spark_on:
 			_scrape_sparks.emitting = spark_on
 	if _scrape_player != null:
-		var sound_on := active and tuning.sound_enabled
+		var sound_on: bool = active and tuning.sound_enabled
 		if sound_on:
 			_scrape_player.global_position = _scrape_point
 			_scrape_player.volume_db = tuning.scrape_volume_db + linear_to_db(maxf(_scrape_level, 0.001))
@@ -532,9 +532,9 @@ func _make_player(node_name: String) -> AudioStreamPlayer3D:
 func _play_impact_sound(point: Vector3, dv: float, strength: float, tuning: RallyImpactFxConfig) -> void:
 	if _players.is_empty():
 		return
-	var heavy := dv >= tuning.heavy_dv_mps
+	var heavy: bool = dv >= tuning.heavy_dv_mps
 	var stream: AudioStream = null
-	var custom := tuning.heavy_impact_sounds if heavy and not tuning.heavy_impact_sounds.is_empty() \
+	var custom: Array[AudioStream] = tuning.heavy_impact_sounds if heavy and not tuning.heavy_impact_sounds.is_empty() \
 		else tuning.impact_sounds
 	if not custom.is_empty():
 		stream = custom[randi() % custom.size()]

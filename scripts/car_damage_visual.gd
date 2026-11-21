@@ -425,7 +425,7 @@ func _make_panel(mesh_inst: MeshInstance3D, tuning: RallyDamageVisualConfig) -> 
 		var offsets := PackedVector3Array()
 		offsets.resize(verts.size())
 		offsets.fill(Vector3.ZERO)
-		var triangles := mesh.surface_get_primitive_type(s) == Mesh.PRIMITIVE_TRIANGLES \
+		var triangles: bool = mesh.surface_get_primitive_type(s) == Mesh.PRIMITIVE_TRIANGLES \
 			and indices.size() >= 3
 		surfaces.append({
 			"primitive": mesh.surface_get_primitive_type(s),
@@ -654,7 +654,8 @@ func _refresh_normals(surf: Dictionary, moved: PackedInt32Array) -> void:
 	if has_tangents:
 		tangents = arrays[Mesh.ARRAY_TANGENT]
 		orig_tangents = surf["orig_tangents"]
-	for v in affected:
+	for key in affected:
+		var v: int = key
 		var base: Vector3 = orig_normals[v]
 		var sum := Vector3.ZERO
 		for k in range(adj_offsets[v], adj_offsets[v + 1]):
@@ -849,7 +850,7 @@ func _add_mark(pos: Vector3, push: Vector3, axis: Vector3, strength: float, radi
 ## Раздать следы overlay-слоям панелей. Слой грязи (SurfaceEffects) может
 ## появиться или смениться после setup() — поэтому сверяемся каждый кадр.
 func _sync_mark_materials(force: bool) -> void:
-	var has_marks := mark_count() > 0
+	var has_marks: bool = mark_count() > 0
 	var tuning := cfg()
 	for panel in _panels:
 		var inst := panel["inst"] as MeshInstance3D

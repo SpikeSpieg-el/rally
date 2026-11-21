@@ -402,9 +402,9 @@ func _install_damage_visual() -> void:
 	if damage_visual != null or impact_fx != null or cinematic_mode:
 		return
 	var tuning := damage_config()
-	var fx_tuning := impact_fx_config()
-	var wants_dents := tuning.enabled and tuning.applies_to(vehicle_id)
-	var wants_fx := fx_tuning.applies_to(vehicle_id)
+	var fx_tuning := impact_config()
+	var wants_dents: bool = tuning.enabled and tuning.applies_to(vehicle_id)
+	var wants_fx: bool = fx_tuning.applies_to(vehicle_id)
 	if not wants_dents and not wants_fx:
 		return
 	var model: Node3D = _find_body_model()
@@ -449,7 +449,7 @@ func _integrate_forces(state : PhysicsDirectBodyState3D):
 ## не меняется.
 func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
 	var tuning := damage_config()
-	var fx_tuning := impact_fx_config()
+	var fx_tuning := impact_config()
 	var step: float = state.step
 	var velocity: Vector3 = state.linear_velocity
 	var lost: Vector3 = _damage_prev_velocity - velocity
@@ -596,7 +596,7 @@ func fx_config() -> RallyFxProfile:
 
 ## Настройка эффектов удара (никогда null): поле сцены, иначе ресурс по
 ## умолчанию из data/car/.
-func impact_fx_config() -> RallyImpactFxConfig:
+func impact_config() -> RallyImpactFxConfig:
 	if impact_fx_config == null:
 		if ResourceLoader.exists(DEFAULT_IMPACT_FX_PATH):
 			impact_fx_config = ResourceLoader.load(DEFAULT_IMPACT_FX_PATH) as RallyImpactFxConfig
