@@ -67,11 +67,11 @@ jobs:
           grep -avE "^\s*$" /tmp/render.log | grep -aiE "error|shader|smoke|damage|impact|panels|marks|lab|at:" | head -150 > /tmp/out_render.txt || true
       - name: Engine test car_damage_visual
         run: |
-          timeout 900 /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --fixed-fps 120 --script res://tests/car_damage_visual.gd > /tmp/dmg.log 2>&1; echo "exit $?" > /tmp/out_dmg.txt
-          grep -aE "FAIL|PASS|SCRIPT ERROR|ERROR|at:|вмятина|failures" /tmp/dmg.log | head -150 >> /tmp/out_dmg.txt || true
+          timeout 900 /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --fixed-fps 120 --script res://tests/car_damage_visual.gd > /tmp/dmg.log 2>&1 && rc=0 || rc=$?; echo "exit $rc" > /tmp/out_dmg.txt
+          grep -avE "^\s*$" /tmp/dmg.log | tail -150 >> /tmp/out_dmg.txt || true
       - name: Engine test car_body_fx
         run: |
-          timeout 300 /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --fixed-fps 120 --script res://tests/car_body_fx.gd > /tmp/fx.log 2>&1; echo "exit $?" > /tmp/out_fx.txt
+          timeout 300 /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --fixed-fps 120 --script res://tests/car_body_fx.gd > /tmp/fx.log 2>&1 && rc=0 || rc=$?; echo "exit $rc" > /tmp/out_fx.txt
           grep -aE "FAIL|PASS|SCRIPT ERROR|ERROR|at:" /tmp/fx.log | head -60 >> /tmp/out_fx.txt || true
       - name: Report
         if: always()
