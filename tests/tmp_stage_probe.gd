@@ -1,7 +1,6 @@
 # Временный зонд: настоящая сцена этапа после сборки — разрушаемые пропсы и коллизии.
 extends SceneTree
 
-const Collision = preload("res://scripts/track/prop_collision.gd")
 
 
 func _initialize() -> void:
@@ -38,10 +37,10 @@ func _run() -> void:
 	var stats := {"managers": 0, "items": 0, "sensors": 0, "bodies": 0, "shapes": 0, "kinds": {}, "names": {}}
 	_walk(stage, stats)
 	print("PROBE managers=%d items=%d sensors=%d bodies=%d shapes=%d cached_shapes=%d" % [
-		stats["managers"], stats["items"], stats["sensors"], stats["bodies"], stats["shapes"], Collision.cached_shape_count()])
+		stats["managers"], stats["items"], stats["sensors"], stats["bodies"], stats["shapes"], (load("res://scripts/track/prop_collision.gd").cached_shape_count() if ResourceLoader.exists("res://scripts/track/prop_collision.gd") else -1)])
 	print("PROBE kinds=%s" % str(stats["kinds"]))
 	print("PROBE manager_names=%s" % str(stats["names"].keys()))
-	print("PROBE corner_fence_breakable=%s" % str(stage.s_props().by_id(stage.s_spawn().corner_fence_prop_id).breakable))
+	print("PROBE corner_fence_breakable=%s" % str(stage.s_props().by_id(stage.s_spawn().corner_fence_prop_id).get("breakable")))
 	stage.queue_free()
 	await process_frame
 	quit(0)

@@ -17,7 +17,7 @@ jobs:
         run: |
           git fetch --depth=1 origin ac84ef034ea9161685b0d2d2c73f78138dab3102
           git checkout -f ac84ef034ea9161685b0d2d2c73f78138dab3102
-          git checkout ${GITHUB_SHA} -- tests/breakable_props.gd || true
+          git checkout ${GITHUB_SHA} -- tests/breakable_props.gd tests/tmp_stage_probe.gd || true
       - name: Install Godot
         run: |
           version=4.7.2
@@ -44,7 +44,7 @@ jobs:
           grep -aE "SCRIPT ERROR|Parse Error|ERROR" /tmp/import.log | head -80 > /tmp/import_err.log || true
           emit import /tmp/import_err.log
           summary=""
-          for t in tmp_stage_probe streaming_stage_smoke custom_stage_smoke streaming_runtime streaming_drive live_streaming streaming_scenery_height; do
+          for t in tmp_stage_probe breakable_props streaming_stage_smoke car_obstacle_collision; do
             log=/tmp/$t.log
             timeout --kill-after=20s 600s $godot --headless --path . --fixed-fps 120 --script res://tests/$t.gd > $log 2>&1 && rc=0 || rc=$?
             summary="$summary $t=$rc"

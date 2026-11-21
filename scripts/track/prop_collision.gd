@@ -2,8 +2,8 @@
 ## ресурсы фигур и быстрая укладка прямо в физический сервер.
 ##
 ## Почему так, а не CollisionShape3D на каждое дерево:
-##   * фигура одного размера — один ресурс на всю сцену (кэш по размеру с
-##     шагом 2 см), а не тысяча одинаковых CylinderShape3D;
+##   * фигура одного размера — один ресурс на всю сцену (кэш по размеру:
+##     2 см у мелких, 4 % у крупных), а не тысяча одинаковых CylinderShape3D;
 ##   * фигуры кладутся в тело ячейки через PhysicsServer3D.body_add_shape —
 ##     без узла на каждую фигуру: сборка чанка не создаёт тысячи узлов, дерево
 ##     сцены остаётся лёгким, а физика видит ровно те же фигуры;
@@ -15,8 +15,12 @@ extends RefCounted
 
 ## Слой препятствий кузова: машина бьётся (маска 3), колёса не опираются.
 const OBSTACLE_LAYER := 2
-## Шаг округления размеров фигур в кэше, м.
+## Шаг округления малых размеров фигур в кэше, м.
 const SIZE_STEP := 0.02
+## Относительный шаг для размеров больше LINEAR_LIMIT (4 % — ошибка ±2 %).
+const SIZE_REL_STEP := 0.04
+## До этого размера сетка линейная: 0.5 м / 4 % = шаг 2 см — стыкуется.
+const LINEAR_LIMIT := 0.5
 
 enum Kind { BOX, CYLINDER, SPHERE, CAPSULE }
 
@@ -117,36 +121,59 @@ static func world_shapes(entries: Array, xform: Transform3D, grow: float = 0.0) 
 	return out
 
 
-## Общий ресурс фигуры нужного размера.
+## Общий ресурс фигуры нужного размера. Размеры округляются по
+## логарифмической сетке (шаг SIZE_REL_STEP, но не мельче SIZE_STEP): у
+## случайно отмасштабированных деревьев сотни размеров сводятся к десяткам
+## ресурсов, а ошибка формы не больше ±2 % (для ствола — миллиметры).
 static func shape_for(kind: int, size: Vector3) -> Shape3D:
-	var qx := maxi(1, roundi(size.x / SIZE_STEP))
-	var qy := maxi(1, roundi(size.y / SIZE_STEP))
-	var qz := maxi(1, roundi(size.z / SIZE_STEP))
+	var qx := _quantize(size.x)
+	var qy := _quantize(size.y)
+	var qz := _quantize(size.z)
 	var key := Vector4i(kind, qx, qy, qz)
 	if _shape_cache.has(key):
 		return _shape_cache[key]
+	var sx := _dequantize(qx)
+	var sy := _dequantize(qy)
+	var sz := _dequantize(qz)
 	var shape: Shape3D = null
 	match kind:
 		Kind.BOX:
 			var box := BoxShape3D.new()
-			box.size = Vector3(qx, qy, qz) * SIZE_STEP
+			box.size = Vector3(sx, sy, sz)
 			shape = box
 		Kind.CYLINDER:
 			var cylinder := CylinderShape3D.new()
-			cylinder.radius = qx * SIZE_STEP
-			cylinder.height = qy * SIZE_STEP
+			cylinder.radius = sx
+			cylinder.height = sy
 			shape = cylinder
 		Kind.CAPSULE:
 			var capsule := CapsuleShape3D.new()
-			capsule.radius = qx * SIZE_STEP
-			capsule.height = maxf(qy * SIZE_STEP, capsule.radius * 2.0)
+			capsule.radius = sx
+			capsule.height = maxf(sy, capsule.radius * 2.0)
 			shape = capsule
 		_:
 			var sphere := SphereShape3D.new()
-			sphere.radius = qx * SIZE_STEP
+			sphere.radius = sx
 			shape = sphere
 	_shape_cache[key] = shape
 	return shape
+
+
+## Номер ячейки размера: до LINEAR_LIMIT — линейно с шагом SIZE_STEP,
+## дальше — логарифмически с шагом SIZE_REL_STEP.
+static func _quantize(value: float) -> int:
+	var v := maxf(value, SIZE_STEP)
+	if v <= LINEAR_LIMIT:
+		return roundi(v / SIZE_STEP)
+	var linear_cells := roundi(LINEAR_LIMIT / SIZE_STEP)
+	return linear_cells + roundi(log(v / LINEAR_LIMIT) / log(1.0 + SIZE_REL_STEP))
+
+
+static func _dequantize(cell: int) -> float:
+	var linear_cells := roundi(LINEAR_LIMIT / SIZE_STEP)
+	if cell <= linear_cells:
+		return maxf(cell, 1) * SIZE_STEP
+	return LINEAR_LIMIT * pow(1.0 + SIZE_REL_STEP, cell - linear_cells)
 
 
 ## Сколько разных ресурсов фигур создано (для проверок и профилирования).
