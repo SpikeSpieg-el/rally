@@ -1,53 +1,9 @@
-[gd_resource type="Resource" script_class="RallyDamageVisualConfig" format=3]
+[gd_resource type="Resource" script_class="RallyDamageVisualConfig" format=3 uid="uid://dv886e3n1plov"]
 
-[ext_resource type="Script" path="res://scripts/data/rally_damage_visual_config.gd" id="1_damage"]
+[ext_resource type="Script" uid="uid://bbapwk1voggu0" path="res://scripts/data/rally_damage_visual_config.gd" id="1_damage"]
 
 [resource]
 script = ExtResource("1_damage")
-enabled = true
-vehicle_ids = Array[String]([])
-excluded_vehicle_ids = Array[String]([])
-dent_scale = 1.0
-dent_budget_m = 4.0
-min_dv_mps = 2.2
-cooldown_sec = 0.2
-ground_normal_y = 0.55
-roof_contact_height = 0.62
-use_contact_impulse = true
-max_contacts = 8
-subdivide_enabled = true
-subdivide_max_edge_m = 0.2
-subdivide_max_passes = 5
-subdivide_vertex_limit = 40000
-depth_per_dv_m = 0.016
-depth_min_m = 0.035
-depth_max_m = 0.30
-radius_base_m = 0.40
-radius_per_dv_m = 0.030
-radius_max_m = 0.95
-crush_depth_scale = 1.25
-max_strain = 0.55
-max_vertex_offset_m = 0.5
-rim_bulge = 0.18
-rim_width = 0.3
-buckle_amount = 0.24
-buckle_wavelength_m = 0.42
-crumple_amount = 0.22
-crumple_scale_m = 0.28
-surface_search_m = 0.8
-follow_attached_parts = true
-marks_enabled = true
-marks_max = 16
-mark_strength_per_dv = 0.11
-mark_strength_min = 0.35
-mark_radius_scale = 1.1
-mark_soot = 0.55
-scrape_min_speed_mps = 3.0
-scrape_growth_per_sec = 2.2
-scrape_radius_m = 0.22
-primer_color = Color(0.58, 0.58, 0.55, 1)
-metal_color = Color(0.78, 0.79, 0.81, 1)
-soot_color = Color(0.05, 0.045, 0.04, 1)
-metal_gloss = 0.7
-scratch_frequency = 70.0
-marks_opacity = 0.95
+mark_strength_per_dv = 0.06999999999999999
+mark_radius_scale = 0.6
+scratch_frequency = 50.0
