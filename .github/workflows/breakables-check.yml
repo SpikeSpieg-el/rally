@@ -44,11 +44,11 @@ jobs:
           grep -aE "SCRIPT ERROR|Parse Error|ERROR" /tmp/import.log | head -80 > /tmp/import_err.log || true
           emit import /tmp/import_err.log
           summary=""
-          for t in breakable_props car_obstacle_collision car_damage_visual stage_dressing scenery_generation guardrails prop_lod streamed_world stage_smoke streaming_stage_smoke custom_stage_smoke; do
+          for t in tmp_stage_probe streaming_stage_smoke custom_stage_smoke streaming_runtime streaming_drive live_streaming streaming_scenery_height; do
             log=/tmp/$t.log
             timeout --kill-after=20s 600s $godot --headless --path . --fixed-fps 120 --script res://tests/$t.gd > $log 2>&1 && rc=0 || rc=$?
             summary="$summary $t=$rc"
-            grep -aE "FAIL|SCRIPT ERROR|Parse Error|ERROR|failures|PASS|итого|OK" $log | grep -av "^PASS" | tail -n 120 > /tmp/${t}_short.log || true
+            grep -aE "PROBE|FAIL|SCRIPT ERROR|Parse Error|ERROR|failures|PASS|итого|OK" $log | grep -av "^PASS" | tail -n 120 > /tmp/${t}_short.log || true
             echo "rc=$rc" >> /tmp/${t}_short.log
             emit $t /tmp/${t}_short.log
           done
