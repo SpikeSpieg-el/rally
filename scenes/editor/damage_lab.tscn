@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://cdamagelab01rally"]
+
+[ext_resource type="Script" uid="uid://cdamagelab02rally" path="res://scripts/editor/damage_lab.gd" id="1_lab"]
+
+[sub_resource type="Environment" id="Environment_lab"]
+background_mode = 1
+background_color = Color(0.10, 0.11, 0.13, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.72, 0.78, 1)
+ambient_light_energy = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+albedo_color = Color(0.20, 0.19, 0.16, 1)
+roughness = 0.95
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+material = SubResource("Mat_ground")
+size = Vector2(30, 30)
+
+[node name="DamageLab" type="Node3D"]
+editor_description = "F6: лаборатория деформации кузова. Клик по кузову — вмятина, кнопки внизу — удары по зонам, R — ремонт, 1/2/3 — Lancer/Golf/Subaru. Настройка деформации — поле damage_config и data/car/default_damage_visual.tres, кузов — vehicle_index или custom_car_scene."
+script = ExtResource("1_lab")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lab")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.353, 0.353, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 4, 8, 6)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.93973505, 0.34190363, 0, -0.34190363, 0.93973505, 0, 2.9697375, 5.5565495)
+current = true
+fov = 55.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_ground")
+
+[node name="ModelRoot" type="Node3D" parent="."]
+
+[node name="Hint" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
+modulate = Color(0.92, 0.9, 0.82, 1)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "ЛКМ по кузову — вмятина
+Перетаскивание — камера, колесо — зум
+R — ремонт · 1/2/3 — кузов · Пробел — удар"
+font_size = 36
+outline_size = 6

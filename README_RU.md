@@ -1545,6 +1545,15 @@ Golf R32 компонент не ставится, и запись контак�
 [`docs/CAR_DAMAGE_VISUAL_RU.md`](docs/CAR_DAMAGE_VISUAL_RU.md). Проверка:
 `godot --headless --path . --fixed-fps 120 --script res://tests/car_damage_visual.gd`.
 
+Вмятины можно посмотреть без заезда — в лаборатории деформации
+(`scenes/editor/damage_lab.tscn`, F6): кузов стоит на месте, клик по кузову
+или кнопки по зонам (спереди, сзади, борта, капот, крыша) наносят удары,
+R — ремонт, 1/2/3 — Lancer/Golf/Subaru, а в поле `custom_car_scene`
+подставляется любой свой кузов. Настройка деформации — то же поле
+`damage_config` и тот же ресурс `data/car/default_damage_visual.tres`, что
+и в игре. Проверка: `godot --headless --path . --fixed-fps 120 --script
+res://tests/damage_lab.gd`.
+
 
 ### DualSense: вибрация и адаптивные триггеры
 
