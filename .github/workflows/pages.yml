@@ -143,6 +143,7 @@ jobs:
           }
           run_py tests.test_vehicle_roster
           run_py tests.test_car_damage_visual
+          run_py tests.test_deformation_lab
           run_py tests.test_live_track_selection
           run_py tests.test_menu_track_focus
           run_gd 180s tests/golf_presets.gd

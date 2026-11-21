@@ -45,7 +45,11 @@ uniform float snow_strength : hint_range(0.0, 3.0) = 1.0;
 uniform float body_alpha : hint_range(0.0, 1.0) = 0.92;
 uniform float body_spread : hint_range(0.2, 3.0) = 1.0;
 
+// Следы ударов (царапины, сколы, копоть) — в том же проходе, под грязью и кровью.
+#include "res://shaders/car_damage_marks.gdshaderinc"
+
 varying vec3 body_position;
+varying vec3 body_normal;
 
 float hash3(vec3 p) {
 	p += pattern_seed;
@@ -64,6 +68,7 @@ float noise3(vec3 p) {
 
 void vertex() {
 	body_position = (world_to_car * MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	body_normal = normalize((world_to_car * MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 float blood_coverage(vec3 pos) {
@@ -206,7 +211,11 @@ void fragment() {
 
 	float coverage_mask = max(mud, snow);
 	float blood = blood_coverage(body_position);
-	if (coverage_mask < 0.012 && blood < 0.03) { discard; }
+	vec3 damage_albedo;
+	float damage_rough;
+	float damage_spec;
+	float damage_alpha = damage_marks(body_position, normalize(body_normal), damage_albedo, damage_rough, damage_spec);
+	if (coverage_mask < 0.012 && blood < 0.03 && damage_alpha < 0.01) { discard; }
 	vec3 base_dirt = tint_weight > 0.0001 ? tint_sum / tint_weight : dirt_color;
 	vec3 dry = base_dirt * (0.85 + coarse * 0.3 + speckle * 0.18);
 	vec3 wet = mix(dry, dry * 0.42, clamp(damp, 0.0, 1.0));
@@ -220,6 +229,14 @@ void fragment() {
 	// непрозрачности тоже приходит из профиля покрытия.
 	float alpha_cap = alpha_weight > 0.0001 ? alpha_sum / alpha_weight : 1.0;
 	float dirt_alpha = clamp(coverage_mask * 2.1, 0.0, body_alpha * clamp(alpha_cap, 0.0, 1.0));
+	// Порядок слоёв: следы удара на краске, поверх — грязь, поверх — кровь.
+	// Без следов (damage_alpha = 0) формулы совпадают с прежними.
+	float dirt_over = dirt_alpha + damage_alpha * (1.0 - dirt_alpha);
+	float dirt_share = dirt_alpha / max(dirt_over, 0.001);
+	ALBEDO = mix(damage_albedo, ALBEDO, dirt_share);
+	ROUGHNESS = mix(damage_rough, ROUGHNESS, dirt_share);
+	SPECULAR = mix(damage_spec, SPECULAR, dirt_share);
+	dirt_alpha = dirt_over;
 	float combined_alpha = blood + dirt_alpha * (1.0 - blood);
 	float blood_mix = blood / max(combined_alpha, 0.001);
 	ALBEDO = mix(ALBEDO, blood_color * (0.55 + speckle * 0.28), blood_mix);
