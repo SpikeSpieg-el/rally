@@ -85,7 +85,7 @@ func _test() -> void:
 	# Новый мазок не должен накладываться на уже расставленные StudioProps.
 	studio._stroke_nodes = []
 	studio._stroke_points = PackedVector3Array()
-	studio._rebuild_existing_props_grid(2.0)
+	studio._rebuild_existing_props_grid()
 	assert(not studio._stroke_has_space(studio._existing_props_grid.values()[0][0], 2.0))
 	studio._existing_props_grid.clear()
 

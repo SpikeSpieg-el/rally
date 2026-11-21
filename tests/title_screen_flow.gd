@@ -60,9 +60,9 @@ func _run() -> void:
 	# Запись входа пользователя и чтение записи; никаких позиций в ней нет.
 	driver.mode = Driver.Mode.RECORD
 	driver.recording_path = "user://title_screen_flow_recording.tres"
-	var f9 := InputEventKey.new()
-	f9.keycode = KEY_F9
-	f9.pressed = true
+	var f7 := InputEventKey.new()
+	f7.keycode = KEY_F7
+	f7.pressed = true
 	driver._unhandled_key_input(f7)
 	check(driver._is_recording, "F7 начинает запись")
 	Input.action_press("throttle")
