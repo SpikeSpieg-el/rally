@@ -11,6 +11,10 @@ extends RefCounted
 const RoadType = preload("res://scripts/arcade/arcade_road.gd")
 const LegType = preload("res://scripts/data/rally_arcade_leg.gd")
 const DressingType = preload("res://scripts/track/stage_dressing.gd")
+const Collision = preload("res://scripts/track/prop_collision.gd")
+const BreakableProps = preload("res://scripts/track/breakable_props.gd")
+## Настройка разрушаемых изгородей, если сцена не передала свою (breakables).
+const BREAKABLES_PATH := "res://data/stage/default_breakables.tres"
 
 const PROP_PATHS := {
 	"pine": "res://scenes/props/pine_tree.tscn",
@@ -52,6 +56,11 @@ const FENCE_BAKED_WIDTH: float = 2.6
 
 var ps1_filter: bool = true
 var is_night: bool = false
+## Разрушаемые изгороди (обломки, щепки, потеря скорости). null —
+## res://data/stage/default_breakables.tres.
+var breakables: RallyBreakableConfig = null
+## Описания пропсов для форм коллизии и разрушения (по ключу PROP_PATHS).
+var _collision_props: Dictionary = {}
 
 var _mesh_cache: Dictionary = {}
 var _scene_cache: Dictionary = {}
@@ -226,14 +235,12 @@ func _place_forest_and_undergrowth(
 				(buckets[tree_kind]["xforms"] as Array[Transform3D]).append(xform)
 				(buckets[tree_kind]["colors"] as Array[Color]).append(Color(shade, shade, shade, 1.0))
 
-				if layer == 0 and lateral < 17.5 and collider_count < 64:
-					var trunk_shape := CylinderShape3D.new()
-					trunk_shape.radius = 0.45 * s
-					trunk_shape.height = 3.5 * s
-					var col := CollisionShape3D.new()
-					col.shape = trunk_shape
-					col.position = Vector3(world_pt.x, ground_y + 1.6 * s, world_pt.z)
-					collider_body.add_child(col)
+				if layer == 0 and lateral < 17.5 and collider_count < 160:
+					# Общий ресурс цилиндра на размер и фигура прямо в сервере:
+					# ни одного узла и ни одного нового Shape3D на дерево.
+					PhysicsServer3D.body_add_shape(collider_body.get_rid(),
+						Collision.shape_for(Collision.Kind.CYLINDER, Vector3(0.45 * s, 3.5 * s, 0.0)).get_rid(),
+						Transform3D(Basis.IDENTITY, Vector3(world_pt.x, ground_y + 1.6 * s, world_pt.z)))
 					collider_count += 1
 
 			# Валуны и камни (особенно на серпантине и крутых склонах).
@@ -251,14 +258,9 @@ func _place_forest_and_undergrowth(
 					var rshade: float = RoadType.roll_range(slot_seed, seed_value, 626, 0.80, 1.05)
 					(buckets[r_kind]["xforms"] as Array[Transform3D]).append(rxform)
 					(buckets[r_kind]["colors"] as Array[Color]).append(Color(rshade, rshade, rshade, 1.0))
-					if r_lat < 14.0 and collider_count < 64:
-						var rock_shape := SphereShape3D.new()
-						rock_shape.radius = 1.05 * rs
-						var rcol := CollisionShape3D.new()
-						rcol.shape = rock_shape
-						rcol.position = Vector3(r_pt.x, ry + 0.55 * rs, r_pt.z)
-						collider_body.add_child(rcol)
-						collider_count += 1
+					if r_lat < 14.0 and collider_count < 160:
+						# Форма камня — по габаритам его меша (как в спецучастке).
+						collider_count += Collision.add_instance(collider_body, _collision_entries(r_kind), rxform)
 
 			# Подлесок, кусты и трава вдоль обочины.
 			for u_i in range(2):
@@ -518,10 +520,12 @@ func _place_roadside_infra(
 
 	if not pole_xforms.is_empty():
 		_emit_multimesh(root, "PowerPoles", _baked_mesh("power_pole"), pole_xforms, [], TREE_RANGE)
+		_emit_colliders(root, "PowerPoles", pole_xforms, _collision_entries("power_pole"))
 	if not sign_xforms.is_empty():
 		_emit_multimesh(root, "RoadSigns", _baked_mesh("road_sign"), sign_xforms, [], SMALL_RANGE)
+		_emit_colliders(root, "RoadSigns", sign_xforms, _collision_entries("road_sign"))
 	if not fence_xforms.is_empty():
-		_emit_multimesh(root, "CountryFences", _baked_mesh("fence"), fence_xforms, [], SMALL_RANGE)
+		_emit_fences(root, "CountryFences", fence_xforms)
 
 
 # ----------------------------------------------------------- мосты и реки
@@ -738,11 +742,13 @@ func _place_villages(
 			ld += 32.0
 
 	if not fence_xforms.is_empty():
-		_emit_multimesh(root, "VillageFences", _baked_mesh("fence"), fence_xforms, [], SMALL_RANGE)
+		_emit_fences(root, "VillageFences", fence_xforms)
 	if not hay_xforms.is_empty():
 		_emit_multimesh(root, "VillageHay", _baked_mesh("hay_bale"), hay_xforms, [], SMALL_RANGE)
+		_emit_colliders(root, "VillageHay", hay_xforms, _collision_entries("hay_bale"))
 	if not car_xforms.is_empty():
 		_emit_multimesh(root, "VillageCars", _baked_mesh("parked_car"), car_xforms, [], SMALL_RANGE)
+		_emit_colliders(root, "VillageCars", car_xforms, _collision_entries("parked_car"))
 
 
 func _spawn_cottage(root: Node3D, house: Vector4, ground_y: float, seed_value: int, index: int) -> void:
@@ -899,6 +905,84 @@ func _emit_multimesh(
 	if vis_range <= SMALL_RANGE:
 		inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(inst)
+
+
+## Изгородь вдоль дороги: не прикована — от удара разлетается досками.
+## Если разрушение выключено — неподвижная коллизия из сцены забора.
+func _emit_fences(parent: Node3D, node_label: String, xforms: Array[Transform3D]) -> void:
+	var tuning := _breakables()
+	var prop := _collision_prop("fence")
+	var mesh := _baked_mesh("fence")
+	if not tuning.enabled or prop == null or mesh == null:
+		_emit_multimesh(parent, node_label, mesh, xforms, [], SMALL_RANGE)
+		_emit_colliders(parent, node_label, xforms, _collision_entries("fence"))
+		return
+	var manager := BreakableProps.new()
+	manager.name = node_label
+	manager.setup(tuning)
+	var kind: int = manager.add_kind(prop, mesh, SMALL_RANGE, false)
+	for xform in xforms:
+		manager.add_instance(kind, xform)
+	parent.add_child(manager)
+	manager.finalize()
+
+
+## Одно статическое тело на набор пропсов: фигуры кладутся прямо в
+## физический сервер (общие ресурсы, без узла на экземпляр).
+func _emit_colliders(parent: Node3D, node_label: String, xforms: Array[Transform3D], entries: Array) -> void:
+	if entries.is_empty() or xforms.is_empty():
+		return
+	var body: StaticBody3D = Collision.make_body(node_label + "Collision")
+	for xform in xforms:
+		Collision.add_instance(body, entries, xform)
+	parent.add_child(body)
+
+
+func _breakables() -> RallyBreakableConfig:
+	if breakables == null and ResourceLoader.exists(BREAKABLES_PATH):
+		breakables = ResourceLoader.load(BREAKABLES_PATH) as RallyBreakableConfig
+	if breakables == null:
+		breakables = RallyBreakableConfig.new()
+	return breakables
+
+
+## Фигуры коллизии пропса по ключу PROP_PATHS (в системе его сцены).
+func _collision_entries(key: String) -> Array:
+	return Collision.entries_for(_collision_prop(key))
+
+
+## Описание пропса для формы коллизии и разрушения. В аркаде нет библиотеки
+## пропсов, поэтому формы заданы здесь — те же, что в default_prop_library.
+func _collision_prop(key: String) -> RallyProp:
+	if _collision_props.has(key):
+		return _collision_props[key] as RallyProp
+	var scene := _load_scene(String(PROP_PATHS.get(key, "")))
+	if scene == null:
+		_collision_props[key] = null
+		return null
+	var prop := RallyProp.new()
+	prop.id = key
+	prop.scene = scene
+	prop.collider_shape = RallyProp.ColliderShape.BOX_FIT
+	match key:
+		"fence":
+			prop.collider_shape = RallyProp.ColliderShape.SCENE
+			prop.breakable = true
+			prop.break_mass_kg = 45.0
+			prop.splinter_color = Color(0.55, 0.4, 0.24, 1.0)
+		"power_pole":
+			prop.collider_shape = RallyProp.ColliderShape.CYLINDER
+			prop.collider_radius = 0.16
+			prop.collider_height = 8.0
+		"boulder":
+			prop.collider_shape = RallyProp.ColliderShape.CYLINDER_FIT
+			prop.collider_fit_scale = Vector3(0.82, 0.9, 0.82)
+		"moss_rock", "rock_cluster":
+			prop.collider_fit_scale = Vector3(0.8, 0.85, 0.8)
+		"parked_car":
+			prop.collider_fit_scale = Vector3(0.95, 0.95, 0.95)
+	_collision_props[key] = prop
+	return prop
 
 
 func _load_scene(path: String) -> PackedScene:

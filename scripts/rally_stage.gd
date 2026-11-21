@@ -93,6 +93,11 @@ const DEFAULT_SPAWN_PATH := "res://data/stage/default_spawn_layout.tres"
 const DEFAULT_FX_PATH := "res://data/stage/default_fx_profile.tres"
 const DEFAULT_SCENERY_PATH := "res://data/stage/default_scenery.tres"
 const DEFAULT_PROP_LIBRARY_PATH := "res://data/stage/default_prop_library.tres"
+const DEFAULT_BREAKABLES_PATH := "res://data/stage/default_breakables.tres"
+const PropCollision = preload("res://scripts/track/prop_collision.gd")
+const BreakableProps = preload("res://scripts/track/breakable_props.gd")
+## Чисел на одну коллизию пропса: вид, x, y, z, поворот, ширина, высота.
+const COLLIDER_STRIDE := 7
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -112,6 +117,17 @@ const DEFAULT_PROP_LIBRARY_PATH := "res://data/stage/default_prop_library.tres"
 @export var scenery: SceneryType = null
 ## Библиотека ассетов обстановки: какие сцены ставить и с какими правилами.
 @export var prop_library: PropLibraryType = null
+
+@export_group("Удары и разрушения (гонка)")
+## Эффекты удара машины в этой гонке: тряска и рывок камеры, искры, обломки,
+## звук, вибрация. Пусто — у каждой машины свои (поле impact_fx_config в её
+## сцене, по умолчанию res://data/car/default_impact_fx.tres).
+@export var impact_fx_override: RallyImpactFxConfig = null
+## Вмятины и следы на кузове в этой гонке. Пусто — настройка машины.
+@export var damage_visual_override: RallyDamageVisualConfig = null
+## Разрушаемые пропсы (дощатый забор, щиты, таблички, конусы): обломки, щепки,
+## треск, потеря скорости машиной. Пусто — res://data/stage/default_breakables.tres.
+@export var breakables: RallyBreakableConfig = null
 
 @export_group("Материалы (правятся прямо в сцене)")
 ## Материал земли. Пусто — создаётся из шейдера и настроек (рекомендуется).
@@ -447,6 +463,15 @@ func s_scenery() -> SceneryType:
 	if scenery == null:
 		_load_resources()
 	return scenery
+
+
+## Настройка разрушаемых пропсов (никогда null).
+func s_breakables() -> RallyBreakableConfig:
+	if breakables == null:
+		breakables = _load_resource(DEFAULT_BREAKABLES_PATH) as RallyBreakableConfig
+	if breakables == null:
+		breakables = RallyBreakableConfig.new()
+	return breakables
 
 
 ## Библиотека ассетов обстановки (никогда null).
@@ -2632,7 +2657,13 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 		grass_pools.append(grass_pool)
 	var buffer := SceneryBuffer.new()
 	buffer.limit = cfg.max_instances
+	# Коллизии крупных пропсов: по COLLIDER_STRIDE чисел на экземпляр (вид,
+	# позиция, поворот, масштаб) — форма берётся из библиотеки (PropCollision).
 	var trunks := PackedFloat32Array()
+	# Разрушаемые пропсы (заборы, щиты) — не в общий MultiMesh, а в свой узел
+	# с датчиками: [вид, трансформ, ловит ли машину].
+	var breakable_items: Array = []
+	var breakables_on: bool = s_breakables().enabled
 	# У каждого вида своя «последняя коллизия»: шаг у ели и у покрышек разный.
 	var last_collider := PackedFloat32Array()
 	last_collider.resize(kinds.size())
@@ -2717,29 +2748,38 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				var yaw: float = rng.randf_range(0.0, TAU) if prop.random_yaw else 0.0
 				if prop.align_to_road:
 					yaw = atan2(-dir.z, dir.x)
-				if not buffer.push(
-					prop_index,
-					point.x,
-					ground + prop.y_offset * size,
-					point.z,
-					yaw,
-					width,
-					height,
-					width,
-					_scenery_cell(point.x, point.z, cell_size),
-					SCENERY_CELL_SPAN
-				):
-					full = true
-					break
-				placement.reserve(point, radius)
-				if prop.has_collider() and lateral < corridor + prop.collider_max_offset:
-					if distance - last_collider[prop_index] > prop.collider_spacing:
+				if prop.breakable and breakables_on:
+					# Забор/щит, который можно снести: свой MultiMesh и датчик.
+					var reach: float = prop.collider_max_offset if prop.collider_max_offset > 0.0 else 12.0
+					breakable_items.append([prop, Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(width, height, width)),
+						Vector3(point.x, ground + prop.y_offset * size, point.z)), lateral < corridor + reach])
+					placement.reserve(point, radius)
+				else:
+					if not buffer.push(
+						prop_index,
+						point.x,
+						ground + prop.y_offset * size,
+						point.z,
+						yaw,
+						width,
+						height,
+						width,
+						_scenery_cell(point.x, point.z, cell_size),
+						SCENERY_CELL_SPAN
+					):
+						full = true
+						break
+					placement.reserve(point, radius)
+				if prop.has_collider() and lateral < corridor + prop.collider_max_offset and not (prop.breakable and breakables_on):
+					if prop.collider_spacing <= 0.0 or distance - last_collider[prop_index] > prop.collider_spacing:
 						last_collider[prop_index] = distance
+						trunks.append(float(kinds.find(prop)))
 						trunks.append(point.x)
+						trunks.append(ground + prop.y_offset * size)
 						trunks.append(point.z)
-						trunks.append(prop.collider_radius)
-						trunks.append(prop.collider_height)
-						trunks.append(ground + prop.collider_y_offset)
+						trunks.append(yaw)
+						trunks.append(width)
+						trunks.append(height)
 				# Спутник (трава, папоротник) не имеет физики и не пишет тень.
 				if not companion_indices.is_empty() and rng.randf() < prop.undergrowth_chance:
 					var ux: float = point.x + rng.randf_range(-cfg.undergrowth_spread, cfg.undergrowth_spread)
@@ -2848,7 +2888,9 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 		await stream_clock.tick
 		if not is_instance_valid(container) or not container.is_inside_tree():
 			return
-	await _add_prop_colliders(container, trunks, cell_size, streamed, stream_clock)
+	await _add_prop_colliders(container, trunks, kinds, cell_size, streamed, stream_clock)
+	if not breakable_items.is_empty() and is_instance_valid(container) and container.is_inside_tree():
+		_add_breakable_scenery(container, breakable_items)
 	if streamed:
 		await stream_clock.tick
 		if not is_instance_valid(container) or not container.is_inside_tree():
@@ -2964,38 +3006,61 @@ func _build_scenery_multimeshes(
 		parent.add_child(instance)
 
 
-## Физические стволы там, где вид это разрешил: по цилиндру на ствол, тела
-## сгруппированы по ячейкам, чтобы физика не держала тысячи отдельных узлов.
-func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, cell_size: float, streamed: bool = false, stream_clock = null) -> void:
+## Коллизии крупных пропсов там, где вид это разрешил. Форма — из
+## библиотеки (цилиндр ствола, фигуры сцены, коробка/цилиндр/сфера по
+## габаритам меша), с масштабом экземпляра. Фигуры одного размера — общий
+## ресурс, кладутся прямо в физический сервер: одно тело на ячейку и ни
+## одного узла на дерево, поэтому даже плотный лес собирается быстро.
+func _add_prop_colliders(parent: Node3D, trunks: PackedFloat32Array, kinds: Array[RallyProp], cell_size: float, streamed: bool = false, stream_clock = null) -> void:
 	if trunks.is_empty():
 		return
 	var bodies: Dictionary = {}
 	var slice_deadline: int = Time.get_ticks_usec() + STREAM_SLICE_USEC
-	# В плоском массиве стволов по пять чисел на ствол.
 	@warning_ignore("integer_division")
-	for i in range(trunks.size() / 5):
-		if streamed and Time.get_ticks_usec() >= slice_deadline:
+	for i in range(trunks.size() / COLLIDER_STRIDE):
+		if streamed and i % 16 == 15 and Time.get_ticks_usec() >= slice_deadline:
 			await stream_clock.tick
 			if not is_instance_valid(parent) or not parent.is_inside_tree():
 				return
 			slice_deadline = Time.get_ticks_usec() + STREAM_SLICE_USEC
-		var o: int = i * 5
-		var x: float = trunks[o]
-		var z: float = trunks[o + 1]
+		var o: int = i * COLLIDER_STRIDE
+		var kind: int = int(trunks[o])
+		if kind < 0 or kind >= kinds.size():
+			continue
+		var entries: Array = PropCollision.entries_for(kinds[kind])
+		if entries.is_empty():
+			continue
+		var x: float = trunks[o + 1]
+		var z: float = trunks[o + 3]
 		var key: int = _scenery_cell(x, z, cell_size)
 		if not bodies.has(key):
 			var body := StaticBody3D.new()
 			body.name = "Trunks_%d" % key
 			body.collision_layer = 2 # Препятствия кузова, но не опора подвески.
+			body.collision_mask = 0
 			parent.add_child(body)
 			bodies[key] = body
-		var shape := CylinderShape3D.new()
-		shape.radius = trunks[o + 2]
-		shape.height = trunks[o + 3]
-		var collider := CollisionShape3D.new()
-		collider.shape = shape
-		collider.position = Vector3(x, trunks[o + 4] + trunks[o + 3] * 0.5, z)
-		(bodies[key] as StaticBody3D).add_child(collider)
+		var xform := Transform3D(Basis(Vector3.UP, trunks[o + 4]) * Basis.from_scale(
+			Vector3(trunks[o + 5], trunks[o + 6], trunks[o + 5])), Vector3(x, trunks[o + 2], z))
+		PropCollision.add_instance(bodies[key] as StaticBody3D, entries, xform)
+
+
+## Разрушаемые пропсы случайной обстановки (дощатые заборы, щиты): один узел
+## BreakableProps на контейнер — MultiMesh на вид и датчики у дороги.
+func _add_breakable_scenery(container: Node3D, items: Array) -> void:
+	var manager := BreakableProps.new()
+	manager.name = "Breakables"
+	manager.setup(s_breakables())
+	var kind_of: Dictionary = {}
+	var cfg := s_settings()
+	for item in items:
+		var prop: RallyProp = item[0]
+		if not kind_of.has(prop):
+			var range_end: float = cfg.scenery_range_small if prop.small else cfg.scenery_range_large
+			kind_of[prop] = manager.add_kind(prop, _bake_prop_mesh(prop), range_end, not prop.small)
+		manager.add_instance(int(kind_of[prop]), item[1], bool(item[2]))
+	container.add_child(manager)
+	manager.finalize()
 
 
 ## Запечь сцену пропса в один ArrayMesh: по поверхности на каждый материал.
@@ -3270,7 +3335,48 @@ func _place_prop(container: Node3D, prop_id: String, pos: Vector3, yaw: float) -
 	node.position = pos
 	node.rotation.y = yaw
 	container.add_child(node)
+	if prop.breakable and s_breakables().enabled:
+		# Конус, табличка, щит: неподвижное тело из сцены убираем — пропс
+		# сносится целиком или на детали (датчик ловит машину).
+		_strip_static_bodies(node)
+		_dressing_breakables(container).add_node(prop, node)
+	elif prop.wants_placed_collider() and not _has_static_body(node):
+		# У сцены нет своего тела — форма из библиотеки (без узла на фигуру).
+		var body: StaticBody3D = PropCollision.make_body("PropCollision")
+		node.add_child(body)
+		PropCollision.add_instance(body, PropCollision.entries_for(prop), Transform3D.IDENTITY)
 	return node
+
+
+## Узел разрушаемых пропсов контейнера оформления (создаётся по требованию,
+## собирается сам в конце кадра).
+func _dressing_breakables(container: Node3D) -> BreakableProps:
+	var existing := container.get_node_or_null("Breakables") as BreakableProps
+	if existing != null:
+		return existing
+	var manager := BreakableProps.new()
+	manager.name = "Breakables"
+	manager.setup(s_breakables())
+	container.add_child(manager)
+	return manager
+
+
+func _has_static_body(node: Node) -> bool:
+	if node is StaticBody3D:
+		return true
+	for child in node.get_children():
+		if _has_static_body(child):
+			return true
+	return false
+
+
+func _strip_static_bodies(node: Node) -> void:
+	for child in node.get_children():
+		if child is StaticBody3D:
+			node.remove_child(child)
+			child.free()
+		else:
+			_strip_static_bodies(child)
 
 
 ## MultiMesh из ЗАПЕЧЁННОЙ сцены пропса (как весь остальной лес): сотни
@@ -3296,6 +3402,15 @@ func _dressing_multimesh(container: Node3D, mesh_name: String, prop_id: String, 
 	instance.multimesh = multimesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	container.add_child(instance)
+	# Камни, стенки берега, столбы ЛЭП: та же форма, что у пропса в
+	# библиотеке, одним телом на весь набор (без узла на экземпляр).
+	var entries: Array = PropCollision.entries_for(prop) if prop.wants_placed_collider() else []
+	if entries.is_empty():
+		return
+	var body: StaticBody3D = PropCollision.make_body(mesh_name + "Collision")
+	instance.add_child(body)
+	for i in range(transforms.size()):
+		PropCollision.add_instance(body, entries, transforms[i])
 
 
 ## Оформление спецучастка на отрезке трассы: дощатый забор на внешнем
@@ -3566,6 +3681,10 @@ func _dressing_corner_fence(
 	if (finish - start) / module > MAX_FENCE_SECTIONS:
 		return
 	var transforms: Array[Transform3D] = []
+	# Дощатый забор не прикован: секции — разрушаемые пропсы (датчик вместо
+	# твёрдой коробки), от удара разлетаются досками. Выключено в настройке
+	# разрушения или у пропса — прежние неподвижные коробки.
+	var breakable_fence: bool = prop.breakable and s_breakables().enabled
 	var body := StaticBody3D.new()
 	body.name = "FenceCollision"
 	# Невидимый барьер не оставляем, пока секции не собраны.
@@ -3600,7 +3719,7 @@ func _dressing_corner_fence(
 			d = next
 			continue
 		transforms.append(_fence_span_transform(a, b, module))
-		if cfg.corner_fence_collisions:
+		if cfg.corner_fence_collisions and not breakable_fence:
 			var shape := BoxShape3D.new()
 			shape.size = GuardrailPlacement.collision_size(a, b)
 			var collision := CollisionShape3D.new()
@@ -3611,6 +3730,17 @@ func _dressing_corner_fence(
 		d = next
 	if transforms.is_empty():
 		body.free()
+		return
+	if breakable_fence:
+		body.free()
+		var fence := BreakableProps.new()
+		fence.name = "CornerFence"
+		fence.setup(s_breakables())
+		var kind: int = fence.add_kind(prop, mesh, cfg.corner_fence_visibility_range)
+		for section in transforms:
+			fence.add_instance(kind, section, cfg.corner_fence_collisions)
+		container.add_child(fence)
+		fence.finalize()
 		return
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -4404,6 +4534,8 @@ func _configure_car() -> void:
 	# Фактически применённый машиной ресурс — единственный источник для
 	# HUD и этапа, включая сценический override при прямом запуске.
 	setup = car.active_setup
+	# Удары этой гонки: эффекты и вмятины из полей сцены этапа (если заданы).
+	car.apply_impact_settings(impact_fx_override, damage_visual_override)
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
 	var precipitation := _precipitation_levels()
 	car.set_precipitation(precipitation.x, precipitation.y)

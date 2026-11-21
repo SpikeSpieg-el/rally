@@ -90,7 +90,7 @@ size = Vector2(0.8, 1.5)
 placement_radius = 2.0
 undergrowth_chance = 0.6
 collider_max_offset = 24.0
-collider_spacing = 55.0
+collider_spacing = 0.0
 collider_radius = 0.4
 
 [sub_resource type="Resource" id="RallyProp_dead_tree"]
@@ -103,7 +103,7 @@ size = Vector2(0.7, 1.4)
 height_jitter = Vector2(0.9, 1.15)
 undergrowth_chance = 0.5
 collider_max_offset = 20.0
-collider_spacing = 70.0
+collider_spacing = 0.0
 collider_radius = 0.4
 collider_height = 8.0
 
@@ -190,6 +190,9 @@ category = 2
 min_offset = 9.0
 placement_radius = 2.0
 undergrowth_chance = 0.75
+collider_max_offset = 14.0
+collider_shape = 4
+collider_fit_scale = Vector3(0.82, 0.9, 0.82)
 
 [sub_resource type="Resource" id="RallyProp_rock_cluster"]
 script = ExtResource("2_prop")
@@ -204,6 +207,9 @@ category = 2
 min_offset = 9.0
 placement_radius = 2.2
 undergrowth_chance = 0.5
+collider_max_offset = 12.0
+collider_shape = 3
+collider_fit_scale = Vector3(0.8, 0.85, 0.8)
 
 [sub_resource type="Resource" id="RallyProp_dirt_mound"]
 script = ExtResource("2_prop")
@@ -229,6 +235,9 @@ size = Vector2(0.6, 1.25)
 placement_radius = 0.8
 small = true
 undergrowth_chance = 0.5
+collider_max_offset = 10.0
+collider_shape = 4
+collider_fit_scale = Vector3(0.85, 1, 0.85)
 
 [sub_resource type="Resource" id="RallyProp_log"]
 script = ExtResource("2_prop")
@@ -240,6 +249,9 @@ size = Vector2(0.7, 1.35)
 placement_radius = 1.6
 small = true
 undergrowth_chance = 0.5
+collider_max_offset = 10.0
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 0.9, 0.9)
 
 [sub_resource type="Resource" id="RallyProp_hay_bale"]
 script = ExtResource("2_prop")
@@ -255,9 +267,11 @@ placement_radius = 2.0
 max_offset = 42.0
 undergrowth_chance = 0.3
 collider_max_offset = 10.0
-collider_spacing = 90.0
+collider_spacing = 0.0
 collider_radius = 0.9
 collider_height = 1.8
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 1, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_tire_stack"]
 script = ExtResource("2_prop")
@@ -274,9 +288,11 @@ placement_radius = 1.2
 align_to_road = true
 max_offset = 7.0
 collider_max_offset = 7.0
-collider_spacing = 90.0
+collider_spacing = 0.0
 collider_radius = 0.5
 collider_height = 1.0
+collider_shape = 4
+collider_fit_scale = Vector3(0.95, 1, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_wooden_fence"]
 script = ExtResource("2_prop")
@@ -293,9 +309,13 @@ placement_radius = 1.6
 align_to_road = true
 max_offset = 7.0
 collider_max_offset = 7.0
-collider_spacing = 120.0
+collider_spacing = 0.0
 collider_radius = 1.3
 collider_height = 1.4
+collider_shape = 1
+breakable = true
+break_mass_kg = 45.0
+splinter_color = Color(0.55, 0.4, 0.24, 1)
 
 [sub_resource type="Resource" id="RallyProp_sandbag_barrier"]
 script = ExtResource("2_prop")
@@ -311,9 +331,11 @@ placement_radius = 1.6
 align_to_road = true
 max_offset = 7.0
 collider_max_offset = 7.0
-collider_spacing = 90.0
+collider_spacing = 0.0
 collider_radius = 0.7
 collider_height = 1.0
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 1, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_sponsor_banner"]
 script = ExtResource("2_prop")
@@ -331,9 +353,14 @@ placement_radius = 2.0
 align_to_road = true
 max_offset = 7.0
 collider_max_offset = 7.0
-collider_spacing = 150.0
+collider_spacing = 0.0
 collider_radius = 0.95
 collider_height = 2.0
+collider_shape = 3
+breakable = true
+break_mass_kg = 25.0
+break_into_parts = false
+splinter_color = Color(0.85, 0.85, 0.82, 1)
 
 [sub_resource type="Resource" id="RallyProp_juniper"]
 script = ExtResource("2_prop")
@@ -370,6 +397,9 @@ category = 1
 placement_radius = 0.8
 small = true
 biome_ids = Array[String](["forest"])
+collider_max_offset = 8.0
+collider_shape = 3
+collider_fit_scale = Vector3(0.8, 0.85, 0.8)
 
 [sub_resource type="Resource" id="RallyProp_mushroom_cluster"]
 script = ExtResource("2_prop")
@@ -419,6 +449,10 @@ scene = ExtResource("scene_braking_marker")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+breakable = true
+break_mass_kg = 12.0
+break_into_parts = false
 
 [sub_resource type="Resource" id="RallyProp_safety_net"]
 script = ExtResource("2_prop")
@@ -439,6 +473,8 @@ scene = ExtResource("scene_marshal_tent")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 1, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_light_tower"]
 script = ExtResource("2_prop")
@@ -448,6 +484,8 @@ scene = ExtResource("scene_light_tower")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 4
+collider_fit_scale = Vector3(0.6, 1, 0.6)
 
 [sub_resource type="Resource" id="RallyProp_generator"]
 script = ExtResource("2_prop")
@@ -457,6 +495,7 @@ scene = ExtResource("scene_generator")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
 
 [sub_resource type="Resource" id="RallyProp_parked_car"]
 script = ExtResource("2_prop")
@@ -466,6 +505,8 @@ scene = ExtResource("scene_parked_car")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 0.95, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_service_car"]
 script = ExtResource("2_prop")
@@ -475,6 +516,8 @@ scene = ExtResource("scene_service_car")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 0.95, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_broken_car"]
 script = ExtResource("2_prop")
@@ -484,6 +527,8 @@ scene = ExtResource("scene_broken_car")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 0.95, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_traffic_cone"]
 script = ExtResource("2_prop")
@@ -493,6 +538,11 @@ scene = ExtResource("scene_traffic_cone")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 4
+breakable = true
+break_mass_kg = 3.0
+break_into_parts = false
+splinter_color = Color(1, 0.45, 0.1, 1)
 
 [sub_resource type="Resource" id="RallyProp_finish_warning_sign"]
 script = ExtResource("2_prop")
@@ -502,6 +552,10 @@ scene = ExtResource("scene_finish_warning_sign")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+breakable = true
+break_mass_kg = 14.0
+break_into_parts = false
 
 [sub_resource type="Resource" id="RallyProp_stop_sign"]
 script = ExtResource("2_prop")
@@ -511,6 +565,10 @@ scene = ExtResource("scene_stop_sign")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+breakable = true
+break_mass_kg = 14.0
+break_into_parts = false
 
 [sub_resource type="Resource" id="RallyProp_warning_triangle"]
 script = ExtResource("2_prop")
@@ -520,6 +578,10 @@ scene = ExtResource("scene_warning_triangle")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+breakable = true
+break_mass_kg = 2.0
+break_into_parts = false
 
 [sub_resource type="Resource" id="RallyProp_forester_house"]
 script = ExtResource("2_prop")
@@ -529,6 +591,7 @@ scene = ExtResource("scene_forester_house")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
 
 [sub_resource type="Resource" id="RallyProp_gate_sign"]
 script = ExtResource("2_prop")
@@ -565,6 +628,9 @@ scene = ExtResource("scene_power_pole")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_max_offset = 1.0
+collider_radius = 0.16
+collider_height = 8.0
 
 [sub_resource type="Resource" id="RallyProp_mud_patch"]
 script = ExtResource("2_prop")
@@ -610,6 +676,8 @@ scene = ExtResource("scene_camper")
 weight = 0.0
 random_yaw = false
 category = 5
+collider_shape = 3
+collider_fit_scale = Vector3(0.95, 1, 0.95)
 
 [sub_resource type="Resource" id="RallyProp_camper_tent"]
 script = ExtResource("2_prop")
@@ -673,6 +741,8 @@ scene = ExtResource("scene_river_bank_rock")
 weight = 0.0
 random_yaw = false
 category = 2
+collider_shape = 3
+collider_fit_scale = Vector3(0.85, 0.9, 0.85)
 
 [sub_resource type="Resource" id="RallyProp_dry_stone_wall"]
 script = ExtResource("2_prop")
@@ -682,6 +752,7 @@ scene = ExtResource("scene_dry_stone_wall")
 weight = 0.0
 random_yaw = false
 category = 3
+collider_shape = 1
 
 [resource]
 script = ExtResource("1_lib")

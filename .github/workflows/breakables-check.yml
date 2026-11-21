@@ -1,0 +1,54 @@
+name: breakables-check (temporary)
+on:
+  push:
+    branches: [arena/e1ba6edd-rally]
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [head, base]
+    steps:
+      - uses: actions/checkout@v4
+      - name: base checkout
+        if: matrix.ref == 'base'
+        run: |
+          git fetch --depth=1 origin ac84ef034ea9161685b0d2d2c73f78138dab3102
+          git checkout -f ac84ef034ea9161685b0d2d2c73f78138dab3102
+          git checkout ${GITHUB_SHA} -- tests/breakable_props.gd || true
+      - name: Install Godot
+        run: |
+          version=4.7.2
+          base="https://github.com/godotengine/godot-builds/releases/download/${version}-stable"
+          curl -fL --retry 3 "$base/Godot_v${version}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v${version}-stable_linux.x86_64
+      - name: Run
+        shell: bash
+        run: |
+          godot=/tmp/godot/Godot_v4.7.2-stable_linux.x86_64
+          $godot --headless --editor --path . --import > /tmp/import.log 2>&1 || true
+          emit() {
+            local name="$1" file="$2"
+            local data; data=$(grep -av "^\s*$" "$file" | tail -c 60000 | gzip -9 | base64 -w 0)
+            local i=0
+            while [ -n "$data" ]; do
+              echo "::notice title=${{ matrix.ref }}-${name}-${i}::${data:0:3500}"
+              data="${data:3500}"
+              i=$((i+1))
+            done
+          }
+          grep -aE "SCRIPT ERROR|Parse Error|ERROR" /tmp/import.log | head -80 > /tmp/import_err.log || true
+          emit import /tmp/import_err.log
+          summary=""
+          for t in breakable_props car_obstacle_collision car_damage_visual stage_dressing scenery_generation guardrails prop_lod streamed_world stage_smoke streaming_stage_smoke custom_stage_smoke; do
+            log=/tmp/$t.log
+            timeout --kill-after=20s 600s $godot --headless --path . --fixed-fps 120 --script res://tests/$t.gd > $log 2>&1 && rc=0 || rc=$?
+            summary="$summary $t=$rc"
+            grep -aE "FAIL|SCRIPT ERROR|Parse Error|ERROR|failures|PASS|итого|OK" $log | grep -av "^PASS" | tail -n 120 > /tmp/${t}_short.log || true
+            echo "rc=$rc" >> /tmp/${t}_short.log
+            emit $t /tmp/${t}_short.log
+          done
+          echo "::notice title=${{ matrix.ref }}-summary::$summary"

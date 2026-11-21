@@ -55,6 +55,16 @@ const HUD_REFRESH: float = 0.08
 @export var arcade_settings: ArcadeSettingsType = null
 @export var car_setup_override: CarSetupType = null
 
+@export_group("Удары и разрушения (гонка)")
+## Эффекты удара машины в этом заезде. Пусто — настройка машины
+## (res://data/car/default_impact_fx.tres).
+@export var impact_fx_override: RallyImpactFxConfig = null
+## Вмятины и следы на кузове в этом заезде. Пусто — настройка машины.
+@export var damage_visual_override: RallyDamageVisualConfig = null
+## Изгороди, которые можно снести. Пусто — res://data/stage/default_breakables.tres.
+@export var breakables: RallyBreakableConfig = null
+@export_group("")
+
 var network: NetworkType = null
 var car = null
 var hud: HudType = null
@@ -653,6 +663,7 @@ func _build_world() -> void:
 	if use_scenery:
 		_scenery = SceneryType.new()
 		_scenery.configure(track.ps1_style and settings.scenery_ps1_filter, _is_night)
+		_scenery.breakables = breakables
 		_scenery.warm_up()
 	else:
 		_scenery = null
@@ -1389,6 +1400,8 @@ func _configure_car() -> void:
 		push_warning("RallyArcadeStage: узел RallyCar не найден.")
 		return
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
+	if car.has_method("apply_impact_settings"):
+		car.apply_impact_settings(impact_fx_override, damage_visual_override)
 	car.apply_track_grip(track.grip_scale, track.rolling_resistance_scale, track.offroad_grip)
 	car.spawn_transform = _spawn_transform()
 	car.reset_to_spawn()
