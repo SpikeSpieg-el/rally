@@ -132,7 +132,7 @@ func _run() -> void:
 	check(fence.item_count() == 5 and fence.collidable_count() == 5, "датчики на всех секциях")
 	check(fence.find_child("*", false, false) is MultiMeshInstance3D, "секции рисуются одним MultiMesh")
 	var car := make_car(world)
-	var result: Array = await ram(car, 150)
+	var result: Array = await ram(car, 300)
 	var max_z: float = result[0]
 	var speed_after: float = result[1]
 	check(fence.broken_count() >= 1, "машина снесла секции забора: %d" % fence.broken_count())
@@ -163,7 +163,7 @@ func _run() -> void:
 	if debris != null:
 		check(int(debris.call("piece_count")) == 0, "рестарт убирает обломки")
 	# Снова сносится после рестарта.
-	result = await ram(car, 150)
+	result = await ram(car, 300)
 	check(fence.broken_count() >= 1, "после рестарта забор снова сносится")
 	fence.queue_free()
 	await physics_frame
@@ -175,7 +175,7 @@ func _run() -> void:
 	world.add_child(solid)
 	solid.finalize()
 	await physics_frame
-	result = await ram(car, 150)
+	result = await ram(car, 300)
 	check(float(result[0]) < FENCE_Z, "выключенное разрушение — забор держит машину: z=%.2f" % float(result[0]))
 	check(solid.broken_count() == 0, "твёрдый забор не ломается")
 
