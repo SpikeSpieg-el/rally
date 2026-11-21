@@ -1,13 +1,41 @@
 [gd_scene format=3 uid="uid://dlab0001"]
 
-[ext_resource type="Script" uid="uid://f5cqqqrp7850" path="res://scripts/editor/deformation_lab.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/editor/deformation_lab.gd" id="1"]
 [ext_resource type="Resource" path="res://data/car/default_damage_visual.tres" id="2"]
+[ext_resource type="Resource" path="res://data/car/default_impact_fx.tres" id="3"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(40, 40)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.32, 0.31, 0.29, 1)
+roughness = 0.95
 
 [node name="DeformationLab" type="Node3D" unique_id=68941673]
 script = ExtResource("1")
+car_id = "mitsubishi"
+spawn_height = 0.0
+orbit_distance = 6.5
+orbit_min_distance = 2.0
+orbit_max_distance = 22.0
+orbit_pitch_deg = -18.0
+orbit_yaw_deg = 35.0
+orbit_sensitivity = 0.3
+orbit_target_height = 0.7
+impact_point_local = Vector3(0, 0.6, 2.4)
+impact_push_dir = Vector3(0, 0, -1)
+impact_speed_mps = 18.0
+scrape_speed_mps = 14.0
+show_impact_fx = true
 damage_config = ExtResource("2")
+impact_fx_config = ExtResource("3")
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=325637154]
+
+[node name="CameraOrbit" type="Camera3D" parent="." unique_id=1203987431]
+transform = Transform3D(0.819152, -0.17101, 0.547563, 0, 0.954240, 0.299041, -0.573576, -0.244224, 0.781998, 3.56, 2.71, 5.08)
+current = true
+fov = 55.0
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=495730537]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 6, 12, -4)
@@ -18,3 +46,13 @@ shadow_blur = 2.0
 transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, -4, 6, 4)
 light_color = Color(0.7, 0.75, 0.85, 1)
 light_energy = 0.35
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=1744210938]
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="Hint" type="Label3D" parent="." unique_id=902114655]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, -3)
+pixel_size = 0.004
+text = "ЛКМ — удар · Shift+ЛКМ — царапина · W — сетка · R — ремонт"
+modulate = Color(1, 0.85, 0.4, 1)

@@ -1,15 +1,17 @@
 # godot --headless --path . --fixed-fps 120 --script res://tests/car_damage_visual.gd
-# Визуальные повреждения кузова: вмятины появляются только от настоящего удара,
-# только на Lancer (систему сдаём на пробу) и не задевают ни остальные меши,
-# ни здоровье, ни физику. Езда по грунту и приземление после прыжка кузов не мнут,
-# а траектория удара с вмятинами и без них совпадает.
+# Повреждения кузова на ВСЕХ машинах реестра: вмятины появляются только от
+# настоящего удара, сетка при этом не рвётся и не выворачивается, на краске
+# остаются следы, срабатывают эффекты удара. Остальные меши, здоровье и физика
+# не задеты: езда по грунту и приземление после прыжка кузов не мнут, а
+# траектория удара с вмятинами и без них совпадает. Рестарт заезда чинит кузов,
+# сброс на трассу (R) — нет.
 extends SceneTree
 
 const Config = preload("res://data/rally_game_config.tres")
 const CarModels = preload("res://scripts/car_models.gd")
 const SETUP := preload("res://data/setups/11_gravel.tres")
 
-## Машина, на которой система включена. Остальные обязаны остаться нетронутыми.
+## Машина для проверки поля сцены (своя настройка из инспектора).
 const DAMAGE_ID := "mitsubishi"
 ## Кадров: усадка подвески, проезд без препятствий, падение с высоты, удар.
 const SETTLE_FRAMES := 120
@@ -23,6 +25,11 @@ const CRASH_SPEED := 25.0
 const MIN_DENT_M := 0.01
 ## Допустимое расхождение траектории удара с вмятинами и без них, метры.
 const MAX_PHYSICS_DIFF_M := 0.05
+## Доля вывернутых наизнанку треугольников после ударов: прежний подход
+## (случайный сдвиг каждой вершины) давал перекошенные клинья.
+const MAX_FLIPPED_RATIO := 0.01
+## Наибольший разрыв по швам сетки после ударов, метры: кузов не рвётся.
+const MAX_SEAM_GAP_M := 0.002
 
 var failures: Array[String] = []
 
@@ -227,11 +234,12 @@ func _check_scene_field(game: GameStub) -> void:
 	off_world.queue_free()
 	await _steps(2)
 
-	# Своя настройка из поля сцены: потолок глубины 5 см вместо 16 см.
+	# Своя настройка из поля сцены: запас глубины на весь кузов — 5 см.
 	var soft_world := _make_world()
 	var soft_config := RallyDamageVisualConfig.new()
 	soft_config.depth_min_m = 0.05
 	soft_config.depth_max_m = 0.05
+	soft_config.dent_budget_m = 0.05
 	var soft_car := scene.instantiate() as RallyCar
 	soft_car.setup_override = SETUP
 	soft_car.mouse_look_enabled = false
@@ -279,15 +287,16 @@ func _run() -> void:
 		world.add_child(car)
 		await _steps(SETTLE_FRAMES)
 
-		var is_damage_car := data.id == DAMAGE_ID
-		if is_damage_car:
-			check(car.damage_visual != null, "%s: компонент визуальных вмятин установлен" % data.id)
-			check(car.contact_monitor and car.max_contacts_reported > 0,
-				"%s: физика пишет контакты — иначе точку удара не взять" % data.id)
-		else:
-			check(car.damage_visual == null,
-				"%s: визуальные вмятины не ставим (проба только на Lancer)" % data.id)
-			check(not car.contact_monitor, "%s: запись контактов не включена" % data.id)
+		check(car.damage_visual != null, "%s: компонент визуальных вмятин установлен" % data.id)
+		check(car.impact_fx != null, "%s: эффекты удара установлены" % data.id)
+		check(car.contact_monitor and car.max_contacts_reported > 0,
+			"%s: физика пишет контакты — иначе точку удара не взять" % data.id)
+		if car.damage_visual == null:
+			car.queue_free()
+			world.queue_free()
+			await _steps(2)
+			continue
+		check(car.damage_visual.panel_count() > 0, "%s: кузовные панели найдены" % data.id)
 
 		var meshes_before := _snapshot_meshes(car)
 		var geometry_before := _snapshot_geometry(car)
@@ -298,64 +307,80 @@ func _run() -> void:
 			"%s: езда по грунту и приземление кузов не мнут (вмятина %.3f м)"
 			% [data.id, _dent_depth(car)])
 		check(_meshes_untouched(meshes_before), "%s: без удара геометрию кузова менять нельзя" % data.id)
+		check(car.damage_visual.mark_count() == 0, "%s: без удара следов на краске нет" % data.id)
 
 		var first := await _crash_into_wall(car, PackedVector3Array())
-		if is_damage_car and car.damage_visual != null:
-			var depth := float(first["depth"])
-			var stats: Dictionary = car.damage_visual.deformation_stats()
-			var tuning: RallyDamageVisualConfig = car.damage_visual.config
-			check(depth >= MIN_DENT_M,
-				"Lancer: после удара о стену кузов помят (%.3f м ≥ %.3f)" % [depth, MIN_DENT_M])
-			# У низкополигонального кузова вершины стоят редко: раньше профиль
-			# считался от точки удара, и ближайшая вершина получала лишь малую
-			# долю заданной глубины — вмятина выходила в разы мельче настройки и
-			# терялась на глаз. Сильный удар обязан выбирать хотя бы половину
-			# потолка глубины из ресурса.
-			check(depth >= tuning.depth_max_m * 0.5,
-				"Lancer: сильный удар даёт вмятину не меньше половины настроенной глубины (%.3f м ≥ %.3f)"
-				% [depth, tuning.depth_max_m * 0.5])
-			check(int(stats["moved_vertices"]) > 0,
-				"Lancer: вершины кузова сдвинуты (%d шт.)" % int(stats["moved_vertices"]))
-			check(float(stats["max_offset_m"]) >= depth * 0.5,
-				"Lancer: вмятина видна — вершина ушла на %.3f м" % float(stats["max_offset_m"]))
-			var centroid: Vector3 = stats["centroid_local"]
-			# Сводка уходит в лог проверки: видно, что удар действительно
-			# оставил вмятину спереди, а не «прошёл молча».
-			print("Lancer: вмятина %.3f м, сдвинуто вершин %d, центр вмятин %.2f/%.2f/%.2f"
-				% [depth, int(stats["moved_vertices"]), centroid.x, centroid.y, centroid.z])
-			check(centroid.z > 0.0,
-				"Lancer: удар передом мнёт переднюю часть кузова (центр вмятин z=%.2f)" % centroid.z)
-			check(_only_panels_replaced(meshes_before),
-				"Lancer: деформированы только панели rally_body_fx, интерьер и колёса целы")
-			check(_geometry_same(geometry_before, _snapshot_geometry(car)),
-				"Lancer: число поверхностей и вершин не изменилось")
+		var depth := float(first["depth"])
+		var stats: Dictionary = car.damage_visual.deformation_stats()
+		var tuning: RallyDamageVisualConfig = car.damage_visual.config
+		check(depth >= MIN_DENT_M,
+			"%s: после удара о стену кузов помят (%.3f м ≥ %.3f)" % [data.id, depth, MIN_DENT_M])
+		# Сильный удар обязан выбирать хотя бы половину потолка глубины из
+		# ресурса — иначе удар «не чувствуется» на глаз.
+		check(depth >= tuning.depth_max_m * 0.5,
+			"%s: сильный удар даёт вмятину не меньше половины настроенной глубины (%.3f м ≥ %.3f)"
+			% [data.id, depth, tuning.depth_max_m * 0.5])
+		check(int(stats["moved_vertices"]) > 0,
+			"%s: вершины кузова сдвинуты (%d шт.)" % [data.id, int(stats["moved_vertices"])])
+		check(float(stats["max_offset_m"]) >= MIN_DENT_M,
+			"%s: вмятина видна — вершина ушла на %.3f м" % [data.id, float(stats["max_offset_m"])])
+		var centroid: Vector3 = stats["centroid_local"]
+		var body_center: Vector3 = car.damage_visual.body_bounds().get_center()
+		var quality: Dictionary = car.damage_visual.triangle_stats()
+		var flipped_ratio := float(quality["flipped"]) / maxf(1.0, float(quality["triangles"]))
+		# Сводка уходит в лог проверки: видно, что удар действительно
+		# оставил вмятину спереди, а не «прошёл молча».
+		print("%s: вмятина %.3f м, сдвинуто вершин %d из %d, центр вмятин %.2f/%.2f/%.2f, вывернуто %d из %d, растяжение ×%.2f, шов %.4f м, следов %d"
+			% [data.id, depth, int(stats["moved_vertices"]), int(stats["vertices"]),
+			centroid.x, centroid.y, centroid.z, int(quality["flipped"]), int(quality["triangles"]),
+			float(quality["max_stretch"]), float(quality["seam_gap_m"]), car.damage_visual.mark_count()])
+		check(centroid.z > body_center.z,
+			"%s: удар передом мнёт переднюю часть кузова (центр вмятин z=%.2f > %.2f)"
+			% [data.id, centroid.z, body_center.z])
+		check(flipped_ratio <= MAX_FLIPPED_RATIO,
+			"%s: треугольники не выворачиваются (%d из %d)"
+			% [data.id, int(quality["flipped"]), int(quality["triangles"])])
+		check(float(quality["seam_gap_m"]) <= MAX_SEAM_GAP_M,
+			"%s: сетка не рвётся по швам (разрыв %.4f м)" % [data.id, float(quality["seam_gap_m"])])
+		check(car.damage_visual.mark_count() > 0, "%s: на краске остался след удара" % data.id)
+		check(car.impact_fx == null or car.impact_fx.impact_count() > 0,
+			"%s: удар показан эффектами (камера, искры, звук)" % data.id)
+		check(_only_panels_replaced(meshes_before),
+			"%s: деформированы только панели rally_body_fx, интерьер и колёса целы" % data.id)
+		check(_geometry_same(geometry_before, _snapshot_geometry(car)),
+			"%s: удар двигает вершины, а не меняет их число" % data.id)
 
-			var second := await _crash_into_wall(car, PackedVector3Array())
-			check(float(second["depth"]) > depth + 0.0005,
-				"Lancer: вмятины накапливаются (%.3f → %.3f м)" % [depth, float(second["depth"])])
+		var second := await _crash_into_wall(car, PackedVector3Array())
+		check(float(second["depth"]) > depth + 0.0005,
+			"%s: вмятины накапливаются (%.3f → %.3f м)" % [data.id, depth, float(second["depth"])])
+		# Сброс на трассу (R) кузов не чинит — это не ремонт.
+		var kept := _dent_depth(car)
+		car.reset_to_spawn()
+		await _steps(2)
+		check(_dent_depth(car) == kept, "%s: сброс на трассу оставляет вмятины" % data.id)
 
-			# Ремонт и проверка, что визуал не тянет за собой физику: тот же удар
-			# на целом кузове и с выключенным компонентом.
-			car.damage_visual.clear_damage()
-			var cleared: Dictionary = car.damage_visual.deformation_stats()
-			check(car.damage_visual.total_dent_depth() == 0.0 and int(cleared["moved_vertices"]) == 0,
-				"Lancer: clear_damage возвращает исходную геометрию")
-			# Ресурс настройки общий для всех машин, поэтому выключаем вмятины
-			# в его копии: заодно проверяем, что настройка действительно рулит.
-			var shared_config: RallyDamageVisualConfig = car.damage_visual.config
-			var off_config := shared_config.duplicate() as RallyDamageVisualConfig
-			off_config.enabled = false
-			car.damage_visual.config = off_config
-			var clean := await _crash_into_wall(car, second["track"])
-			check(float(clean["max_diff"]) <= MAX_PHYSICS_DIFF_M,
-				"Lancer: траектория удара не зависит от вмятин (расхождение %.4f м ≤ %.2f)"
-				% [float(clean["max_diff"]), MAX_PHYSICS_DIFF_M])
-			check(float(clean["depth"]) == 0.0, "Lancer: с выключенным компонентом вмятин нет")
-			car.damage_visual.config = shared_config
-		else:
-			check(_meshes_untouched(meshes_before), "%s: после удара кузов остался прежним" % data.id)
-			check(_geometry_same(geometry_before, _snapshot_geometry(car)),
-				"%s: геометрия кузова не изменилась" % data.id)
+		# Рестарт заезда — целая машина: вмятины и следы стёрты.
+		car.restart_at_spawn()
+		var cleared: Dictionary = car.damage_visual.deformation_stats()
+		check(car.damage_visual.total_dent_depth() == 0.0 and int(cleared["moved_vertices"]) == 0,
+			"%s: рестарт заезда возвращает исходную геометрию" % data.id)
+		check(car.damage_visual.mark_count() == 0, "%s: рестарт заезда стирает следы" % data.id)
+
+		# Визуал не тянет за собой физику: тот же удар на целом кузове и с
+		# выключенным компонентом. Ресурс настройки общий для всех машин,
+		# поэтому выключаем вмятины в его копии.
+		var shared_config: RallyDamageVisualConfig = car.damage_visual.config
+		var reference := await _crash_into_wall(car, PackedVector3Array())
+		car.restart_at_spawn()
+		var off_config := shared_config.duplicate() as RallyDamageVisualConfig
+		off_config.enabled = false
+		car.damage_visual.config = off_config
+		var clean := await _crash_into_wall(car, reference["track"])
+		check(float(clean["max_diff"]) <= MAX_PHYSICS_DIFF_M,
+			"%s: траектория удара не зависит от вмятин (расхождение %.4f м ≤ %.2f)"
+			% [data.id, float(clean["max_diff"]), MAX_PHYSICS_DIFF_M])
+		check(float(clean["depth"]) == 0.0, "%s: с выключенным компонентом вмятин нет" % data.id)
+		car.damage_visual.config = shared_config
 
 		car.queue_free()
 		world.queue_free()
@@ -367,12 +392,13 @@ func _run() -> void:
 	game.queue_free()
 
 	# Пустой цикл по реестру означал бы «проверок не было, всё хорошо»: ловим.
+	check(tested.size() >= 3, "в проверку попали все три машины (Lancer, Golf, Subaru)")
 	check(tested.has(DAMAGE_ID), "Lancer обязан попасть в проверку реестра")
 	check(tested.size() == config.vehicles.size(),
 		"реестр перебран целиком: %d из %d машин (%s)"
 		% [tested.size(), config.vehicles.size(), ", ".join(tested)])
 
 	if failures.is_empty():
-		print("PASS: вмятины только от удара и только на Lancer, физика и здоровье не задеты")
+		print("PASS: вмятины, следы и эффекты удара на всех машинах, сетка цела, физика не задета")
 	print("Car damage visual: %d failures" % failures.size())
 	quit(0 if failures.is_empty() else 1)

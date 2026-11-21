@@ -15,6 +15,8 @@ const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 # Визуальные вмятины кузова: порог удара, форма и список машин — в ресурсе,
 # чтобы править их в инспекторе, а не в коде.
 const DEFAULT_DAMAGE_VISUAL_PATH := "res://data/car/default_damage_visual.tres"
+# Эффекты удара (тряска камеры, искры, обломки, звук, вибрация) — тоже ресурсом.
+const DEFAULT_IMPACT_FX_PATH := "res://data/car/default_impact_fx.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
@@ -59,10 +61,13 @@ const FEEL_GRAVITY: float = 9.81
 @export var feel: FeelConfigType = null
 ## Профиль эффектов (пыль, грязь, брызги). Пусто — res://data/stage/default_fx_profile.tres.
 @export var fx: RallyFxProfile = null
-## Визуальные вмятины кузова: порог удара, глубина, радиус, запас деформации
-## и список машин. Пусто — res://data/car/default_damage_visual.tres.
+## Визуальные вмятины кузова и следы на краске: порог удара, глубина, радиус,
+## сгущение сетки, царапины. Пусто — res://data/car/default_damage_visual.tres.
 ## На здоровье, урон и физику эти поля не влияют.
 @export var damage_visual_config: RallyDamageVisualConfig = null
+## Эффекты удара: тряска и рывок камеры, искры, обломки, звук, вибрация.
+## Пусто — res://data/car/default_impact_fx.tres.
+@export var impact_fx_config: RallyImpactFxConfig = null
 ## Пятна крови на кузове. Пусто — res://scenes/effects/blood_stains.tscn.
 @export var blood_stains_scene: PackedScene
 
@@ -242,10 +247,12 @@ const SurfaceEffectsType = preload("res://scripts/surface_effects.gd")
 const BloodFxType = preload("res://scripts/effects/rally_blood_fx.gd")
 var surface_effects: SurfaceEffectsType = null
 var blood_fx: BloodFxType = null
-## Визуальные вмятины кузова. Ставится только на машины из списка vehicle_ids
-## настройки damage_config() (сейчас — Lancer); у остальных остаётся null,
-## и их кузов не меняется вовсе.
+## Визуальные вмятины и следы на кузове. Ставится любой машине, у которой есть
+## меши в группе rally_body_fx (список vehicle_ids настройки пуст — все машины);
+## в витрине и у исключённых машин остаётся null.
 var damage_visual: CarDamageVisual = null
+## Эффекты удара (камера, частицы, звук, вибрация). null — выключены.
+var impact_fx: CarImpactFx = null
 var _damage_prev_velocity := Vector3.ZERO
 var _damage_cooldown := 0.0
 var precipitation_rain: float = 0.0
@@ -387,33 +394,43 @@ func _model_aabb_center_y(model: Node3D) -> float:
 	return (min_y + max_y) * 0.5
 
 
-## Поставить компонент визуальных вмятин. Ставится только машинам из списка
-## vehicle_ids настройки (сейчас Lancer — систему сдаём на пробу) и только в
-## настоящем заезде: в кинематографической витрине кузов не бьётся.
+## Поставить компоненты повреждений: вмятины со следами на кузове и эффекты
+## удара. Работает на любой машине: вмятинам нужен только меш кузова в группе
+## rally_body_fx. Список машин и выключатели — в ресурсах настройки
+## (пустой vehicle_ids — все машины). В кинематографической витрине кузов не бьётся.
 func _install_damage_visual() -> void:
-	if damage_visual != null or cinematic_mode:
+	if damage_visual != null or impact_fx != null or cinematic_mode:
 		return
 	var tuning := damage_config()
-	if not tuning.enabled or not tuning.vehicle_ids.has(vehicle_id):
+	var fx_tuning := impact_fx_config()
+	var wants_dents := tuning.enabled and tuning.applies_to(vehicle_id)
+	var wants_fx := fx_tuning.applies_to(vehicle_id)
+	if not wants_dents and not wants_fx:
 		return
 	var model: Node3D = _find_body_model()
-	if model == null:
+	if wants_dents and model != null:
+		damage_visual = CarDamageVisual.new()
+		damage_visual.name = "DamageVisual"
+		add_child(damage_visual)
+		damage_visual.setup(model, self, tuning)
+		if damage_visual.panel_count() == 0:
+			# Кузовных панелей с группой rally_body_fx нет: мять нечего.
+			damage_visual.queue_free()
+			damage_visual = null
+	if wants_fx:
+		impact_fx = CarImpactFx.new()
+		impact_fx.name = "ImpactFx"
+		add_child(impact_fx)
+		impact_fx.setup(self, fx_tuning, _rumble)
+	if damage_visual == null and impact_fx == null:
+		# Возвращаем всё как было: у машины без повреждений физика прежняя.
+		contact_monitor = false
+		max_contacts_reported = 0
 		return
 	# Физика не отдаёт контакты, пока их запись не включена. На поведение машины
 	# это не влияет — solver и так считает столкновения, — но даёт точку удара.
 	contact_monitor = true
 	max_contacts_reported = tuning.max_contacts
-	damage_visual = CarDamageVisual.new()
-	damage_visual.name = "DamageVisual"
-	add_child(damage_visual)
-	damage_visual.setup(model, self, tuning)
-	if damage_visual.panel_count() == 0:
-		# Кузовных панелей с группой rally_body_fx нет: деформировать нечего,
-		# возвращаем всё как было.
-		damage_visual.queue_free()
-		damage_visual = null
-		contact_monitor = false
-		max_contacts_reported = 0
 	_damage_prev_velocity = linear_velocity
 
 
@@ -421,48 +438,92 @@ func _install_damage_visual() -> void:
 ## иначе GDScript не примет переопределение.
 func _integrate_forces(state : PhysicsDirectBodyState3D):
 	super._integrate_forces(state)
-	if damage_visual != null:
+	if damage_visual != null or impact_fx != null:
 		_update_damage_visual(state)
 
 
-## Найти настоящий удар — не грунт и не крышу — и помять кузов в точке контакта.
-## Силу и направление берём из скорости, потерянной кузовом за кадр: та же
-## величина, по которой аркада начисляет урон. Здоровье здесь не меняется.
+## Найти настоящий удар — не грунт под колёсами — и помять кузов в точке
+## контакта, показать эффекты удара или царапать краску при скольжении вдоль
+## препятствия. Сила удара — потеря скорости кузова за кадр (или импульс
+## контакта, если он больше). Здесь только картинка и звук: состояние машины
+## не меняется.
 func _update_damage_visual(state: PhysicsDirectBodyState3D) -> void:
 	var tuning := damage_config()
+	var fx_tuning := impact_fx_config()
+	var step: float = state.step
 	var velocity: Vector3 = state.linear_velocity
 	var lost: Vector3 = _damage_prev_velocity - velocity
 	_damage_prev_velocity = velocity
-	_damage_cooldown = maxf(0.0, _damage_cooldown - get_physics_process_delta_time())
-	if _damage_cooldown > 0.0 or lost.length() < tuning.min_dv_mps:
+	_damage_cooldown = maxf(0.0, _damage_cooldown - step)
+	var contacts: int = state.get_contact_count()
+	if contacts == 0:
 		return
-	# Берём контакт, чья нормаль сильнее всего совпадает с направлением потери
-	# скорости: это и есть виновник удара. Знак нормали нарочно не важен — берём
-	# модуль, а грунт и крышу отсекаем по вертикальной составляющей, поэтому
-	# приземление после прыжка и езда по кочкам кузов не мнут.
-	var lost_dir := lost.normalized()
-	var best := -1
-	var best_alignment := 0.0
-	for i in range(state.get_contact_count()):
-		var normal: Vector3 = state.get_contact_local_normal(i)
-		if absf(normal.y) > tuning.ground_normal_y:
-			continue
-		var alignment: float = absf(normal.dot(lost_dir))
-		if alignment > best_alignment:
-			best_alignment = alignment
-			best = i
-	if best < 0 or best_alignment <= 0.0:
-		return
-	_damage_cooldown = tuning.cooldown_sec
-	# Точка контакта приходит в мировых координатах, а вмятину строим в системе
-	# машины. Пересчитываем по трансформу из состояния физики: он точен именно
-	# на этом шаге, в отличие от global_transform узла.
 	var car_xform: Transform3D = state.transform
-	var point_local: Vector3 = car_xform.affine_inverse() * state.get_contact_local_position(best)
-	# Металл мнётся туда, куда ушла скорость: удар передом продавливает нос
-	# назад, удар сзади — заднюю панель вперёд.
-	var push_local: Vector3 = car_xform.basis.inverse() * (-lost_dir)
-	damage_visual.apply_impact(point_local, push_local, lost.length())
+	var to_car: Transform3D = car_xform.affine_inverse()
+	var lost_len: float = lost.length()
+	var lost_dir: Vector3 = lost / lost_len if lost_len > 0.0001 else Vector3.ZERO
+	var roof_y := INF
+	if damage_visual != null and tuning.roof_contact_height < 1.0:
+		var bounds: AABB = damage_visual.body_bounds()
+		roof_y = bounds.position.y + bounds.size.y * tuning.roof_contact_height
+	var inv_mass: float = state.inverse_mass
+	# Берём контакт, чья нормаль сильнее всего совпадает с направлением потери
+	# скорости (с поправкой на импульс): это и есть виновник удара. Грунт под
+	# днищем отсекаем по вертикальной составляющей нормали — приземления и
+	# кочки кузов не мнут, — но контакт выше линии крыши (машина на крыше или
+	# на боку) мнёт кузов при любой нормали.
+	var best := -1
+	var best_weight := 0.0
+	var best_into := Vector3.ZERO
+	var best_impulse_dv := 0.0
+	for i in range(contacts):
+		var normal: Vector3 = state.get_contact_local_normal(i)
+		var point_world: Vector3 = state.get_contact_local_position(i)
+		var high: bool = (to_car * point_world).y > roof_y
+		if absf(normal.y) > tuning.ground_normal_y and not high:
+			continue
+		# Нормаль разворачиваем внутрь кузова: от точки контакта к центру машины.
+		var into: Vector3 = normal
+		if into.dot(car_xform.origin - point_world) < 0.0:
+			into = -into
+		var impulse_dv := 0.0
+		if tuning.use_contact_impulse:
+			impulse_dv = state.get_contact_impulse(i).length() * inv_mass
+		var alignment: float = maxf(into.dot(-lost_dir), 0.0) if lost_len > 0.0001 else 0.0
+		var weight: float = alignment * lost_len + impulse_dv + 0.001
+		if weight > best_weight:
+			best_weight = weight
+			best = i
+			best_into = into
+			best_impulse_dv = impulse_dv
+	if best < 0:
+		return
+	var point_world: Vector3 = state.get_contact_local_position(best)
+	var dv: float = maxf(lost_len * maxf(best_into.dot(-lost_dir), 0.35), best_impulse_dv)
+	var tangent: Vector3 = velocity - best_into * velocity.dot(best_into)
+	var slide_speed: float = tangent.length()
+	var hit := false
+	if impact_fx != null and dv >= fx_tuning.min_dv_mps:
+		hit = impact_fx.impact(point_world, best_into, dv, velocity)
+	if damage_visual != null and _damage_cooldown <= 0.0 and dv >= tuning.min_dv_mps:
+		_damage_cooldown = tuning.cooldown_sec
+		hit = true
+		# Металл мнётся внутрь кузова по нормали контакта, с поправкой на то,
+		# куда ушла скорость: удар в угол сминает его наискось.
+		var push_world: Vector3 = best_into
+		if lost_len > 0.0001:
+			push_world = (best_into * 0.65 + (-lost_dir) * 0.35).normalized()
+		damage_visual.apply_impact(to_car * point_world, to_car.basis * push_world, dv,
+			to_car.basis * tangent)
+	if hit:
+		return
+	# Скольжение вдоль забора: царапина тянется по кузову, искры и скрежет.
+	if damage_visual != null and slide_speed >= tuning.scrape_min_speed_mps:
+		var intensity: float = clampf(slide_speed / (tuning.scrape_min_speed_mps * 4.0), 0.0, 1.0)
+		damage_visual.add_scrape(to_car * point_world, to_car.basis * best_into,
+			to_car.basis * tangent, intensity, step)
+	if impact_fx != null:
+		impact_fx.scrape(point_world, best_into, slide_speed, velocity)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -531,6 +592,17 @@ func fx_config() -> RallyFxProfile:
 		if fx == null:
 			fx = RallyFxProfile.new()
 	return fx
+
+
+## Настройка эффектов удара (никогда null): поле сцены, иначе ресурс по
+## умолчанию из data/car/.
+func impact_fx_config() -> RallyImpactFxConfig:
+	if impact_fx_config == null:
+		if ResourceLoader.exists(DEFAULT_IMPACT_FX_PATH):
+			impact_fx_config = ResourceLoader.load(DEFAULT_IMPACT_FX_PATH) as RallyImpactFxConfig
+		if impact_fx_config == null:
+			impact_fx_config = RallyImpactFxConfig.new()
+	return impact_fx_config
 
 
 ## Настройка визуальных вмятин (никогда null): поле сцены, иначе ресурс по
@@ -1388,6 +1460,9 @@ func _resolve_wipers() -> Node3D:
 func _update_cameras(delta: float) -> void:
 	if active_camera == null:
 		return
+	if impact_fx != null:
+		# Снять «удар» угла обзора прошлого кадра до сглаживания FOV.
+		impact_fx.restore_camera(active_camera)
 
 	mouse_idle_timer += delta
 	if mouse_auto_return_delay > 0.0 and mouse_idle_timer >= mouse_auto_return_delay:
@@ -1438,6 +1513,8 @@ func _update_cameras(delta: float) -> void:
 func _apply_camera_shake(delta: float) -> void:
 	if active_camera == null:
 		return
+	if impact_fx != null and delta > 0.0:
+		impact_fx.apply_camera(active_camera, camera_mode != CameraMode.CHASE_3RD)
 	var shake_scale: float = camera_feel_strength * f().speed_feel_strength
 	if shake_scale <= 0.001 or delta <= 0.0:
 		return
@@ -2132,6 +2209,12 @@ func restart_at_spawn() -> void:
 		surface_effects.call("clear_body_dirt")
 	if is_instance_valid(blood_fx) and blood_fx.has_method("clear_all"):
 		blood_fx.call("clear_all")
+	# Новый заезд — целая машина: вмятины, царапины и эффекты удара стираются.
+	# Сброс на трассу (R, reset_to_spawn) кузов не чинит.
+	if is_instance_valid(damage_visual):
+		damage_visual.clear_damage()
+	if is_instance_valid(impact_fx):
+		impact_fx.clear()
 	if wipers != null and wipers.has_method("reset_wipers"):
 		wipers.call("reset_wipers")
 	if is_instance_valid(tire_marks) and tire_marks.has_method("clear_marks"):
