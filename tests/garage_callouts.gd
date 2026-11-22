@@ -83,7 +83,7 @@ func _run() -> void:
 	check(garage._tabs.current_tab == 3, "в панели — настройки подвески")
 	check(not callouts.card("engine").visible, "остальные выноски прячутся")
 	check(
-		garage._cam_dist < start_distance * 0.8,
+		garage._cam_dist < start_distance * (1.0 + garage.focus_distance) * 0.5,
 		"камера подъезжает к части (%.2f → %.2f)" % [start_distance, garage._cam_dist]
 	)
 	check(callouts.anchor_points().has("suspension"), "линия к открытой части видна")
@@ -97,7 +97,10 @@ func _run() -> void:
 	await _frames(60)
 	check(not panel.visible and backs[0] == 0, "Esc закрывает панель и не уходит из гаража")
 	check(callouts.card("engine").visible, "после закрытия выноски возвращаются")
-	check(garage._cam_dist > start_distance * 0.9, "камера возвращается")
+	check(
+		garage._cam_dist > start_distance * (1.0 + garage.focus_distance) * 0.5,
+		"камера возвращается"
+	)
 	garage._unhandled_input(esc)
 	check(backs[0] == 1, "второй Esc — выход из гаража")
 
