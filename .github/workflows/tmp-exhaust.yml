@@ -26,7 +26,13 @@ jobs:
               echo "::notice title=${name}-${i}::${chunk}"; i=$((i+1)); done
           }
           emit import /tmp/import_err.log
-          for t in exhaust_flame engine_audio; do
+          sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri >/dev/null 2>&1
+          xvfb-run -a -s "-screen 0 1280x720x24" timeout 300 $godot --path . --rendering-driver opengl3 --script res://tests/tmp/flame_shot.gd >/tmp/shot.log 2>&1
+          echo "rc=$?" >> /tmp/shot.log
+          tail -30 /tmp/shot.log > /tmp/shot_s.log
+          emit shotlog /tmp/shot_s.log
+          for f in /tmp/shot_*.jpg; do emit "img$(basename $f .jpg)" "$f"; done
+          for t in skip; do
             timeout 600 $godot --headless --path . --fixed-fps 120 --script res://tests/$t.gd >/tmp/$t.log 2>&1
             echo "rc=$?" >> /tmp/$t.log
             grep -aE "FAIL|PASS|OK|SCRIPT ERROR|ERROR|exhaust|rc=|итого|at:" /tmp/$t.log | head -150 > /tmp/${t}_s.log
