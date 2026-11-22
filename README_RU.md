@@ -1129,7 +1129,7 @@ LOD применяется к процедурным `MultiMesh` и в заез�
 | `TireStack` | `tire_stack.tscn` | стопка покрышек |
 | `WoodenFence` | `wooden_fence.tscn` | дощатый забор |
 | `SandbagBarrier` | `sandbag_barrier.tscn` | мешки с песком |
-| `SponsorBanner` | `sponsor_banner.tscn` | рекламный щит |
+| `SponsorBanner` | `sponsor_banner.tscn` | ЖК-щит спонсора: баннеры из атласа сменяются по кругу ([подробно](docs/SPONSOR_BANNER_RU.md)) |
 | `Juniper` | `juniper.tscn` | можжевельник, лес |
 | `DryShrub` | `dry_shrub.tscn` | сухой куст, скалы |
 | `MossRock` | `moss_rock.tscn` | замшелый камень, лес |

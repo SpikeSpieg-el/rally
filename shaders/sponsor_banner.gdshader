@@ -37,7 +37,7 @@ varying float v_phase;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
-	v_phase = random_phase ? fract(sin(dot(origin.xz, vec2(12.9898, 78.233))) * 43758.5453) : 0.0;
+	v_phase = random_phase ? fract(sin(dot(origin, vec3(12.9898, 78.233, 37.719))) * 43758.5453) : 0.0;
 }
 
 vec3 banner_color(int index, vec2 uv) {
