@@ -36,7 +36,7 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @export_range(0.0, 30.0, 0.5, "suffix:с") var sway_resume_sec: float = 3.0
 ## Насколько камера подъезжает к выбранной части (доля исходной дистанции).
 ## Карточки выносок настраиваются на узле %Callouts (GarageCallouts).
-@export_range(0.2, 1.0, 0.01) var focus_distance: float = 0.6
+@export_range(0.2, 1.0, 0.01) var focus_distance: float = 0.72
 
 var config: RallyGameConfig
 var game: Node
@@ -799,7 +799,7 @@ func _update_camera_rig(delta: float) -> void:
 		var anchors := _callouts.part_anchors()
 		if anchors.has(_active_group):
 			var part: Vector3 = anchors[_active_group]
-			target = _cam_home_target.lerp(part, 0.7)
+			target = _cam_home_target.lerp(part, 0.55)
 		dist = _cam_home_dist * focus_distance
 		# Панель настроек справа: машина уходит в левую половину кадра.
 		var half_height := tan(deg_to_rad(_preview_camera.fov) * 0.5) * dist

@@ -17,7 +17,7 @@ func _frames(count: int) -> void:
 func _shot(index: int) -> void:
 	var img := root.get_texture().get_image()
 	img.resize(960, 540, Image.INTERPOLATE_BILINEAR)
-	img.save_jpg("/tmp/shot_%d.jpg" % index, 0.72)
+	img.save_jpg("/tmp/shots/shot_%d.jpg" % index, 0.72)
 
 
 func _run() -> void:
@@ -30,8 +30,13 @@ func _run() -> void:
 	await _frames(60)
 	_shot(0)
 	garage.open_group("engine")
-	await _frames(90)
+	await _frames(30)
 	_shot(1)
+	await _frames(90)
+	_shot(4)
+	garage.open_group("tires")
+	await _frames(120)
+	_shot(5)
 	garage.close_group()
 	garage.select_vehicle("subaru")
 	await _frames(90)

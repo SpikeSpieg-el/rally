@@ -36,7 +36,7 @@ const ANCHOR_META := "garage_anchor_data"
 @export_range(0.0, 200.0, 1.0) var elbow_length: float = 40.0
 ## Цвета: акцент (точки, подсветка) и спокойная линия.
 @export var accent: Color = Color(1.0, 0.58, 0.08, 1.0)
-@export var line_color: Color = Color(0.86, 0.9, 0.94, 0.55)
+@export var line_color: Color = Color(0.9, 0.93, 0.96, 0.8)
 
 ## Камера и вьюпорт витрины, модель и её колёса — задаёт гараж.
 var camera: Camera3D = null
