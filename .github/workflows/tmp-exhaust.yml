@@ -19,10 +19,10 @@ jobs:
           godot=/tmp/godot/Godot_v${version}-stable_linux.x86_64
           chmod +x $godot
           $godot --headless --editor --path . --import >/tmp/import.log 2>&1
-          grep -aE "ERROR|exhaust" /tmp/import.log | head -40 > /tmp/import_err.log
+          { wc -l /tmp/import.log; grep -aE "ERROR|exhaust" /tmp/import.log | head -40; tail -5 /tmp/import.log; } > /tmp/import_err.log
           emit() {
             local name="$1" file="$2" i=0
-            gzip -9c "$file" | base64 -w 0 | fold -w 3500 | while read -r chunk; do
+            gzip -9c "$file" | base64 -w 0 | fold -w 3500 | while read -r chunk || [ -n "$chunk" ]; do
               echo "::notice title=${name}-${i}::${chunk}"; i=$((i+1)); done
           }
           emit import /tmp/import_err.log
