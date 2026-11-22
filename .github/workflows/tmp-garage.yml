@@ -35,18 +35,16 @@ jobs:
           sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri >/dev/null 2>&1
           LP_NUM_THREADS=0 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 300 $godot --path . --rendering-driver opengl3 --resolution 1920x1080 --script res://tests/tmp/garage_shot.gd >/tmp/shot.log 2>&1
           echo "rc=$?" >> /tmp/shot.log
-          mkdir -p /tmp/gl && cp /tmp/shots/*.jpg /tmp/gl/
-          sudo apt-get install -y -qq mesa-vulkan-drivers >/dev/null 2>&1
-          xvfb-run -a -s "-screen 0 1920x1080x24" timeout 300 $godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tests/tmp/garage_shot.gd >/tmp/shotvk.log 2>&1
-          echo "rc=$?" >> /tmp/shotvk.log
-          cp /tmp/shots/shot_0.jpg /tmp/shots/shot_7.jpg; cp /tmp/shots/shot_4.jpg /tmp/shots/shot_8.jpg; cp /tmp/gl/*.jpg /tmp/shots/
+          cp /tmp/shots/shot_0.jpg /tmp/shots/shot_7.jpg
+          LP_NUM_THREADS=0 xvfb-run -a -s "-screen 0 1280x720x24" timeout 300 $godot --path . --rendering-driver opengl3 --resolution 1280x720 --script res://tests/tmp/garage_shot.gd >/tmp/shotvk.log 2>&1
+          cp /tmp/shots/shot_0.jpg /tmp/shots/shot_8.jpg
           grep -aE "diag|ERROR|rc=|Vulkan|OpenGL|llvmpipe|lavapipe" /tmp/shot.log /tmp/shotvk.log | awk '!seen[$0]++' | head -40 > /tmp/sl.log
           emit shotlog /tmp/sl.log
       - uses: actions/upload-artifact@v4
         with:
           name: shots
           path: /tmp/shots
-  img0:
+  img9:
     needs: engine
     runs-on: ubuntu-latest
     steps:
@@ -57,34 +55,8 @@ jobs:
       - name: emit
         shell: bash
         run: |
-          base64 -w 0 shots/shot_0.jpg | fold -w 3500 > c.txt; echo >> c.txt
-          n=0; while read -r c; do if [ -n "$c" ]; then echo "::notice title=img0-$n::$c"; fi; n=$((n+1)); done < c.txt
-  img4:
-    needs: engine
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: shots
-          path: shots
-      - name: emit
-        shell: bash
-        run: |
-          base64 -w 0 shots/shot_4.jpg | fold -w 3500 > c.txt; echo >> c.txt
-          n=0; while read -r c; do if [ -n "$c" ]; then echo "::notice title=img4-$n::$c"; fi; n=$((n+1)); done < c.txt
-  img6:
-    needs: engine
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: shots
-          path: shots
-      - name: emit
-        shell: bash
-        run: |
-          base64 -w 0 shots/shot_6.jpg | fold -w 3500 > c.txt; echo >> c.txt
-          n=0; while read -r c; do if [ -n "$c" ]; then echo "::notice title=img6-$n::$c"; fi; n=$((n+1)); done < c.txt
+          base64 -w 0 shots/shot_9.jpg | fold -w 3500 > c.txt; echo >> c.txt
+          n=0; while read -r c; do if [ -n "$c" ]; then echo "::notice title=img9-$n::$c"; fi; n=$((n+1)); done < c.txt
   img7:
     needs: engine
     runs-on: ubuntu-latest

@@ -24,6 +24,13 @@ func _shot(index: int) -> void:
 
 
 func _run() -> void:
+	var probe := ColorRect.new()
+	probe.color = Color(0.8, 0.1, 0.1)
+	probe.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(probe)
+	await _frames(10)
+	await _shot(9)
+	probe.queue_free()
 	var game = GameScript.new()
 	game.config = Config
 	root.add_child(game)
