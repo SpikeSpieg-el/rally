@@ -1,0 +1,334 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://low_poly_lance_evo.tscn" id="car_model"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="tire_stack"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/traffic_cone.tscn" id="traffic_cone"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/generator.tscn" id="generator"]
+
+[ext_resource type="PackedScene" path="res://scenes/props/sponsor_banner.tscn" id="sponsor_banner"]
+
+[sub_resource type="Environment" id="ShowroomEnvironment"]
+background_mode = 1
+background_color = Color(0.02, 0.026, 0.034, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.62, 0.72, 1)
+ambient_light_energy = 0.45
+tonemap_mode = 2
+ssr_enabled = true
+glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.08
+glow_hdr_threshold = 1.2
+fog_enabled = true
+fog_light_color = Color(0.05, 0.065, 0.085, 1)
+fog_density = 0.012
+
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+albedo_color = Color(0.105, 0.115, 0.125, 1)
+metallic = 0.15
+roughness = 0.32
+
+[sub_resource type="PlaneMesh" id="FloorMesh"]
+material = SubResource("FloorMaterial")
+size = Vector2(40, 40)
+
+[sub_resource type="StandardMaterial3D" id="LineMaterial"]
+albedo_color = Color(0.95, 0.68, 0.12, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="LineLongMesh"]
+material = SubResource("LineMaterial")
+size = Vector3(0.09, 0.006, 8.4)
+
+[sub_resource type="BoxMesh" id="LineShortMesh"]
+material = SubResource("LineMaterial")
+size = Vector3(6.6, 0.006, 0.09)
+
+[sub_resource type="StandardMaterial3D" id="WallMaterial"]
+albedo_color = Color(0.13, 0.15, 0.17, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="WallBackMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(26, 6, 0.3)
+
+[sub_resource type="BoxMesh" id="WallSideMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(0.3, 6, 26)
+
+[sub_resource type="StandardMaterial3D" id="WainscotMaterial"]
+albedo_color = Color(0.07, 0.08, 0.09, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="WainscotBackMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(26, 1.1, 0.34)
+
+[sub_resource type="BoxMesh" id="WainscotSideMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.34, 1.1, 26)
+
+[sub_resource type="StandardMaterial3D" id="StripeMaterial"]
+albedo_color = Color(1, 0.5, 0.06, 1)
+emission_enabled = true
+emission = Color(1, 0.42, 0.04, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="StripeBackMesh"]
+material = SubResource("StripeMaterial")
+size = Vector3(26, 0.12, 0.36)
+
+[sub_resource type="BoxMesh" id="StripeSideMesh"]
+material = SubResource("StripeMaterial")
+size = Vector3(0.36, 0.12, 26)
+
+[sub_resource type="StandardMaterial3D" id="LampMaterial"]
+albedo_color = Color(0.95, 0.97, 1, 1)
+emission_enabled = true
+emission = Color(0.9, 0.95, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="LampMesh"]
+material = SubResource("LampMaterial")
+size = Vector3(0.18, 0.06, 3.6)
+
+[sub_resource type="StandardMaterial3D" id="PlatformMaterial"]
+albedo_color = Color(0.16, 0.18, 0.2, 1)
+metallic = 0.6
+roughness = 0.35
+
+[sub_resource type="CylinderMesh" id="PlatformMesh"]
+material = SubResource("PlatformMaterial")
+top_radius = 3.1
+bottom_radius = 3.15
+height = 0.06
+radial_segments = 64
+
+[sub_resource type="StandardMaterial3D" id="RingMaterial"]
+albedo_color = Color(1, 0.55, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.45, 0.05, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+material = SubResource("RingMaterial")
+inner_radius = 3.08
+outer_radius = 3.14
+rings = 96
+ring_segments = 6
+
+[sub_resource type="StandardMaterial3D" id="ToolboxMaterial"]
+albedo_color = Color(0.62, 0.08, 0.06, 1)
+metallic = 0.4
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="ToolboxMesh"]
+material = SubResource("ToolboxMaterial")
+size = Vector3(1.4, 1.0, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="DrawerMaterial"]
+albedo_color = Color(0.75, 0.77, 0.8, 1)
+metallic = 0.8
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="DrawerMesh"]
+material = SubResource("DrawerMaterial")
+size = Vector3(1.2, 0.025, 0.02)
+
+[sub_resource type="StandardMaterial3D" id="BenchMaterial"]
+albedo_color = Color(0.22, 0.2, 0.17, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BenchTopMesh"]
+material = SubResource("BenchMaterial")
+size = Vector3(0.7, 0.08, 2.6)
+
+[sub_resource type="BoxMesh" id="BenchLegMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.06, 0.9, 0.06)
+
+[sub_resource type="BoxMesh" id="PegboardMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.04, 1.2, 2.6)
+
+[node name="Showroom" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("ShowroomEnvironment")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.95, -0.6, 0)
+light_color = Color(0.85, 0.9, 1, 1)
+light_energy = 0.55
+shadow_enabled = true
+
+[node name="TopLight" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 6.2, 0)
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 9.0
+shadow_enabled = true
+spot_range = 10.0
+spot_angle = 38.0
+spot_attenuation = 0.6
+
+[node name="WarmFill" type="OmniLight3D" parent="."]
+position = Vector3(-5.5, 2.4, -5.5)
+light_color = Color(1, 0.6, 0.25, 1)
+light_energy = 1.6
+omni_range = 7.0
+
+[node name="CoolRim" type="OmniLight3D" parent="."]
+position = Vector3(5, 3, -4.5)
+light_color = Color(0.55, 0.7, 1, 1)
+light_energy = 1.4
+omni_range = 8.0
+
+[node name="Room" type="Node3D" parent="."]
+
+[node name="Floor" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, -0.06, 0)
+mesh = SubResource("FloorMesh")
+
+[node name="BayLineLeft" type="MeshInstance3D" parent="Room"]
+position = Vector3(-3.3, -0.055, 0)
+mesh = SubResource("LineLongMesh")
+
+[node name="BayLineRight" type="MeshInstance3D" parent="Room"]
+position = Vector3(3.3, -0.055, 0)
+mesh = SubResource("LineLongMesh")
+
+[node name="BayLineBack" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, -0.055, -4.2)
+mesh = SubResource("LineShortMesh")
+
+[node name="BayLineFront" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, -0.055, 4.2)
+mesh = SubResource("LineShortMesh")
+
+[node name="WallBack" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, 2.94, -7.2)
+mesh = SubResource("WallBackMesh")
+
+[node name="WallSide" type="MeshInstance3D" parent="Room"]
+position = Vector3(-7.2, 2.94, 0)
+mesh = SubResource("WallSideMesh")
+
+[node name="WainscotBack" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, 0.49, -7.2)
+mesh = SubResource("WainscotBackMesh")
+
+[node name="WainscotSide" type="MeshInstance3D" parent="Room"]
+position = Vector3(-7.2, 0.49, 0)
+mesh = SubResource("WainscotSideMesh")
+
+[node name="StripeBack" type="MeshInstance3D" parent="Room"]
+position = Vector3(0, 1.1, -7.2)
+mesh = SubResource("StripeBackMesh")
+
+[node name="StripeSide" type="MeshInstance3D" parent="Room"]
+position = Vector3(-7.2, 1.1, 0)
+mesh = SubResource("StripeSideMesh")
+
+[node name="LampLeft" type="MeshInstance3D" parent="Room"]
+position = Vector3(-1.6, 5.2, 0)
+mesh = SubResource("LampMesh")
+
+[node name="LampRight" type="MeshInstance3D" parent="Room"]
+position = Vector3(1.6, 5.2, 0)
+mesh = SubResource("LampMesh")
+
+[node name="LampBack" type="MeshInstance3D" parent="Room"]
+position = Vector3(-4.8, 5.2, -4.6)
+mesh = SubResource("LampMesh")
+
+[node name="Toolbox" type="MeshInstance3D" parent="Room"]
+position = Vector3(-2.4, 0.44, -6.65)
+mesh = SubResource("ToolboxMesh")
+
+[node name="Drawer1" type="MeshInstance3D" parent="Room/Toolbox"]
+position = Vector3(0, 0.3, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer2" type="MeshInstance3D" parent="Room/Toolbox"]
+position = Vector3(0, 0.1, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer3" type="MeshInstance3D" parent="Room/Toolbox"]
+position = Vector3(0, -0.1, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer4" type="MeshInstance3D" parent="Room/Toolbox"]
+position = Vector3(0, -0.3, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Bench" type="Node3D" parent="Room"]
+position = Vector3(-6.6, 0, -2.2)
+
+[node name="Top" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("BenchTopMesh")
+
+[node name="LegA" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(-0.28, 0.4, -1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegB" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(-0.28, 0.4, 1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegC" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(0.28, 0.4, -1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegD" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(0.28, 0.4, 1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="Pegboard" type="MeshInstance3D" parent="Room/Bench"]
+position = Vector3(-0.38, 1.9, 0)
+mesh = SubResource("PegboardMesh")
+
+[node name="TiresCorner" parent="Room" instance=ExtResource("tire_stack")]
+position = Vector3(-6.2, -0.06, -6.2)
+
+[node name="TiresBack" parent="Room" instance=ExtResource("tire_stack")]
+transform = Transform3D(0.8, 0, 0.6, 0, 1, 0, -0.6, 0, 0.8, 0.6, -0.06, -6.4)
+
+[node name="Generator" parent="Room" instance=ExtResource("generator")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.4, -0.06, 2.6)
+
+[node name="Banner" parent="Room" instance=ExtResource("sponsor_banner")]
+position = Vector3(3.6, 1.2, -7.0)
+
+[node name="ConeA" parent="Room" instance=ExtResource("traffic_cone")]
+position = Vector3(3.6, -0.06, 3.9)
+
+[node name="ConeB" parent="Room" instance=ExtResource("traffic_cone")]
+position = Vector3(-3.6, -0.06, 3.9)
+
+[node name="Platform" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.03, 0)
+mesh = SubResource("PlatformMesh")
+
+[node name="Ring" type="MeshInstance3D" parent="Platform"]
+position = Vector3(0, 0.025, 0)
+mesh = SubResource("RingMesh")
+
+[node name="Turntable" type="Node3D" parent="."]
+transform = Transform3D(0.951057, 0, -0.309017, 0, 1, 0, 0.309017, 0, 0.951057, 0, 0, 0)
+unique_name_in_owner = true
+
+[node name="PreviewModel" parent="Turntable" instance=ExtResource("car_model")]
+unique_name_in_owner = true
+position = Vector3(0, -1.0842417, -0.82839704)
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(0.736443, -0.170954, 0.654543, 0, 0.967544, 0.252703, -0.6765, -0.186102, 0.712541, 7.9, 3.7, 8.6)
+unique_name_in_owner = true
+current = true
+fov = 30.0
+
+[editable path="Turntable/PreviewModel"]
