@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://dnfh1hjw5fb5t"]
 
-[ext_resource type="Script" uid="uid://p7x2rallyspb" path="res://scripts/effects/rally_sponsor_banner.gd" id="script"]
-[ext_resource type="Texture2D" uid="uid://bsiy7rcgoweqc" path="res://a764159358f676060879fa987e39b609.jpg" id="2_f5j38"]
+[ext_resource type="Script" uid="uid://dm3ypokccfgxo" path="res://scripts/effects/rally_sponsor_banner.gd" id="script"]
+[ext_resource type="Shader" uid="uid://wluia4hwd2yp" path="res://shaders/sponsor_banner.gdshader" id="screen_shader"]
+[ext_resource type="Texture2D" uid="uid://bjrvca8ru056r" path="res://textures/4XSponsorBanners.png" id="tex_banners"]
 [ext_resource type="Texture2D" uid="uid://iqvt05tfocjg" path="res://textures/environment/plank.png" id="tex_plank"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_plank"]
@@ -19,17 +20,38 @@ size = Vector3(0.09, 1.3441406, 0.09)
 material = SubResource("Mat_plank")
 size = Vector3(0.09, 1.3334595, 0.09)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rj7vs"]
-albedo_texture = ExtResource("2_f5j38")
-uv1_scale = Vector3(3.611, 2.34, 0.998)
-uv1_offset = Vector3(-2.495, -0.13, 0)
-texture_repeat = false
+[sub_resource type="StandardMaterial3D" id="Mat_frame"]
+albedo_color = Color(0.07, 0.075, 0.085, 1)
+metallic = 0.6
+roughness = 0.45
 
 [sub_resource type="BoxMesh" id="Mesh_board"]
-material = SubResource("StandardMaterial3D_rj7vs")
+material = SubResource("Mat_frame")
 size = Vector3(3.4917235, 1.6704651, 0.06)
 
-[node name="SponsorBanner" type="Node3D" unique_id=1883060401] script = ExtResource("script") editor_description = "LSD-экран спонсора: баннеры меняются каждые `banner_cycle_time` с и плавно растворяются за `banner_crossfade`. Картинки пока заглушки."
+[sub_resource type="ShaderMaterial" id="Mat_screen"]
+resource_local_to_scene = true
+shader = ExtResource("screen_shader")
+shader_parameter/banner_atlas = ExtResource("tex_banners")
+shader_parameter/atlas_grid = Vector2i(2, 2)
+shader_parameter/banner_count = 4
+shader_parameter/cycle_time = 3.0
+shader_parameter/crossfade_time = 0.6
+shader_parameter/random_phase = true
+shader_parameter/brightness = 1.15
+shader_parameter/scanline_strength = 0.3
+shader_parameter/scanline_frequency = 140.0
+shader_parameter/flicker_strength = 0.04
+shader_parameter/gloss_strength = 0.35
+shader_parameter/gloss_width = 0.08
+
+[sub_resource type="QuadMesh" id="Mesh_screen"]
+size = Vector2(2.9, 1.58)
+
+[node name="SponsorBanner" type="Node3D" unique_id=1883060401]
+editor_description = "ЖК-экран спонсора: баннеры из атласа textures/4XSponsorBanners.png меняются каждые cycle_time с и плавно растворяются за crossfade_time. Настройки — у корня."
+script = ExtResource("script")
+banner_atlas = ExtResource("tex_banners")
 
 [node name="Mesh_post_l" type="MeshInstance3D" parent="." unique_id=1358622859]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4447758, 0.6720703, 0)
@@ -42,3 +64,13 @@ mesh = SubResource("Mesh_post_r")
 [node name="Mesh_board" type="MeshInstance3D" parent="." unique_id=348518066]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0017211735, 2.1755767, 0)
 mesh = SubResource("Mesh_board")
+
+[node name="Mesh_screen_front" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0017211735, 2.1755767, 0.034)
+mesh = SubResource("Mesh_screen")
+material_override = SubResource("Mat_screen")
+
+[node name="Mesh_screen_back" type="MeshInstance3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.0017211735, 2.1755767, -0.034)
+mesh = SubResource("Mesh_screen")
+material_override = SubResource("Mat_screen")

@@ -1,62 +1,80 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_always, unshaded;
+render_mode unshaded, cull_back;
 
-// LSD-экран спонсора: светящаяся «жидкокристаллическая» панель на трассе.
-// Показывает текущий баннер, а за `crossfade` секунд плавно растворяет его в
-// следующем (смешение делает GDScript-скрипт — он даёт сюда готовое значение),
-// затем снова держит и так повторяет цикл. Пока картинки заглушки, панель всё
-// равно светится и мигает как настоящий рекламный экран.
+// ЖК-экран спонсора: светящаяся панель, которая показывает баннеры из атласа
+// (по умолчанию textures/4XSponsorBanners.png — 2×2 картинки) и каждые
+// cycle_time секунд плавно растворяет текущий в следующем. Поверх — рябь
+// строк, мерцание и блик стекла, как у работающего рекламного дисплея.
 //
-// Поверх изображения всегда рисуется характерная для таких дисплеев рябь из
-// горизонтальных «строк» (scanline) и блестящая полоса-блик сверху панели.
+// Всё переключение считается здесь по TIME, без скрипта: щиты вдоль трассы
+// запекаются в MultiMesh, где скрипты не работают, а шейдер — работает.
+// Фаза берётся из положения щита, поэтому соседние щиты не мигают хором.
 
-uniform sampler2D banner_a : source_color = null; // Баннер, который сейчас показан.
-uniform sampler2D banner_b : source_color = null; // Следующий баннер для перехода.
-uniform float crossfade : hint_range(0.0, 1.0) = 1.0;   // Прогресс перехода (0…1).
-uniform bool lsd_scanlines : hint_default_false = true;  // Рябь «строк» экрана.
-uniform float scanline_strength : hint_range(0.0, 1.0) = 0.30;
-uniform float scanline_frequency : hint_range(3.0, 80.0) = 26.0;
+// Атлас баннеров: картинки одинакового размера, сеткой atlas_grid (колонки, строки).
+uniform sampler2D banner_atlas : source_color, filter_linear_mipmap, repeat_disable;
+uniform ivec2 atlas_grid = ivec2(2, 2);
+// Сколько ячеек атласа реально занято (считаются слева направо, сверху вниз).
+uniform int banner_count : hint_range(1, 16) = 4;
+// Сколько секунд показывается один баннер, включая переход.
+uniform float cycle_time : hint_range(0.5, 60.0) = 3.0;
+// Длительность плавного перехода в конце цикла, секунды.
+uniform float crossfade_time : hint_range(0.0, 5.0) = 0.6;
+// Разносить щиты по времени (фаза зависит от положения щита в мире).
+uniform bool random_phase = true;
 
-// Верхний «блик» на стекле панели — узкая горизонтальная полоса блеска (LCD).
-uniform bool lsd_gloss_band : hint_default_false = true;
+// Яркость свечения экрана (больше 1 — подсвечивает glow окружения).
+uniform float brightness : hint_range(0.0, 4.0) = 1.15;
+// Рябь горизонтальных «строк» экрана.
+uniform float scanline_strength : hint_range(0.0, 1.0) = 0.3;
+uniform float scanline_frequency : hint_range(3.0, 400.0) = 140.0;
+// Лёгкое мерцание яркости.
+uniform float flicker_strength : hint_range(0.0, 0.4) = 0.04;
+// Блестящая полоса-блик у верхнего края (стекло LCD).
+uniform float gloss_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float gloss_width : hint_range(0.01, 0.35) = 0.08;
 
-// Лёгкое мерцание светимости — чтобы экран «дышал».
-uniform float flicker_strength : hint_range(0.0, 0.4) = 0.06;
+varying float v_phase;
 
-varying float v_flicker;
+void vertex() {
+	vec3 origin = MODEL_MATRIX[3].xyz;
+	v_phase = random_phase ? fract(sin(dot(origin.xz, vec2(12.9898, 78.233))) * 43758.5453) : 0.0;
+}
+
+vec3 banner_color(int index, vec2 uv) {
+	int cols = max(atlas_grid.x, 1);
+	int rows = max(atlas_grid.y, 1);
+	vec2 cell = vec2(float(index % cols), float((index / cols) % rows));
+	vec2 cell_size = vec2(1.0 / float(cols), 1.0 / float(rows));
+	// Полпикселя отступа от края ячейки, чтобы не подмешивался соседний баннер.
+	vec2 inset = 0.5 / vec2(textureSize(banner_atlas, 0));
+	vec2 local = clamp(uv, inset / cell_size, 1.0 - inset / cell_size);
+	return texture(banner_atlas, (cell + local) * cell_size).rgb;
+}
 
 void fragment() {
-	// Мерцание: от 1 до (1 + strength).
-	v_flicker = 1.0 + sin(TIME * 9.0) * flicker_strength;
-
-	// Текущая и следующая картинки с альфой, если баннер ещё не задан — подставляем
-	// тёмно-серую поверхность панели вместо пустоты (чтобы экран не был чёрным).
-	vec3 a_rgb = banner_a != null ? texture(banner_a, UV).rgb : vec3(0.16);
-	float a_alpha = banner_a != null ? texture(banner_a, UV).a : clamp(v_flicker * 0.5, 0.0, 1.0);
-	vec3 b_rgb = banner_b != null ? texture(banner_b, UV).rgb : vec3(0.24);
-	float b_alpha = banner_b != null ? texture(banner_b, UV).a : clamp(v_flicker * 0.5, 0.0, 1.0);
-
-	// Растворяем текущий баннер в следующем — градиент альфы тоже уходит вместе с ним.
-	vec3 color := mix(a_rgb, b_rgb, crossfade) * v_flicker;
-	float alpha := mix(a_alpha, b_alpha, crossfade);
-
-	ALBEDO = vec4(color, 1.0);
-	// Альфу вычисляем отдельно, чтобы панель растворилась плавно между логотипами,
-	// а не исчезла целиком — читается как работающий ЖК-дисплей.
-	ALPHA = clamp(alpha, 0.0, 1.0);
-
-	// Верхний «блик» на стекле панели — узкая полоса блеска у верхнего края.
-	if (lsd_gloss_band) {
-		float gloss = smoothstep(gloss_width, 0.0, abs(UV.y - 0.04)) * color.a;
-		ALBEDO.rgb += vec3(1.0) * gloss * 0.95;
+	int count = max(banner_count, 1);
+	float cycle = max(cycle_time, 0.1);
+	float fade = clamp(crossfade_time, 0.0, cycle * 0.9);
+	float t = TIME / cycle + v_phase * float(count);
+	float step_index = floor(t);
+	float in_cycle = (t - step_index) * cycle;
+	int current = int(mod(step_index, float(count)));
+	int next = (current + 1) % count;
+	float mix_amount = 0.0;
+	if (fade > 0.0) {
+		mix_amount = smoothstep(cycle - fade, cycle, in_cycle);
 	}
 
-	// Рябь «строк» у жидкокристаллических экранов: горизонтальные тёмные полоски с
-	// лёгким скроллом по вертикали — признак живого, работающего дисплея.
-	if (lsd_scanlines) {
-		float row = sin(UV.y * scanline_frequency + TIME * 1.5);
-		row = clamp(pow(2.0 - abs(row), 4.0), 0.0, 1.0) * scanline_strength;
-		ALPHA *= (1.0 - row * 0.85);
-	}
+	vec3 color = mix(banner_color(current, UV), banner_color(next, UV), mix_amount);
+
+	// Строки экрана медленно ползут вниз — признак живого дисплея.
+	float row = 0.5 + 0.5 * sin((UV.y * scanline_frequency - TIME * 3.0) * 6.2831853);
+	color *= 1.0 - scanline_strength * 0.5 * row;
+	color *= 1.0 + sin(TIME * 9.0 + v_phase * 40.0) * flicker_strength;
+	color *= brightness;
+	// Блик стекла у верхнего края.
+	float gloss = smoothstep(gloss_width, 0.0, abs(UV.y - gloss_width));
+	color += vec3(gloss * gloss_strength);
+
+	ALBEDO = color;
 }
