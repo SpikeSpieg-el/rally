@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="RallyBreakableConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rally_breakable_config.gd" id="1_breakable"]
+
+[resource]
+script = ExtResource("1_breakable")
+enabled = true
+detect_margin_m = 0.35
+restore_on_restart = true
+max_pieces = 90
+piece_lifetime_sec = 9.0
+piece_fade_sec = 0.6
+split_longer_than_m = 1.6
+velocity_transfer = 1.1
+min_kick_mps = 1.6
+scatter_mps = 2.6
+lift_mps = 3.2
+full_speed_mps = 26.0
+spin_rad_s = 9.0
+piece_friction = 0.8
+piece_bounce = 0.15
+pieces_hit_car = false
+momentum_transfer = 1.0
+max_car_speed_loss_mps = 2.2
+car_dent_per_mps = 0.12
+car_dent_max_dv = 4.5
+shake = 0.32
+kick = 0.45
+rumble = 0.45
+rumble_duration = 0.16
+splinters_enabled = true
+splinter_amount = 36
+splinter_size_m = Vector2(0.025, 0.09)
+splinter_lifetime = 1.2
+splinter_speed_min = 2.5
+splinter_speed_max = 9.0
+splinter_color = Color(0.62, 0.46, 0.3, 1)
+dust_enabled = true
+dust_amount = 8
+dust_color = Color(0.6, 0.56, 0.5, 0.5)
+sound_enabled = true
+volume_min_db = -14.0
+volume_max_db = 0.0
+pitch_jitter = 0.15
+sound_unit_size = 9.0

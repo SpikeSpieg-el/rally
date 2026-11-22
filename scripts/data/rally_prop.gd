@@ -74,18 +74,51 @@ enum Category { FOREST, VEGETATION, ROCKS, FIELD, FENCE, RALLY }
 
 @export_group("Коллизия")
 ## В пределах скольки метров от кромки полотна ставить коллизию. 0 — без
-## коллизии: сквозь кусты и траву машина проезжает.
+## коллизии: сквозь кусты и траву машина проезжает. У пропсов, которые
+## ставит оформление (палатки, машины, знаки), расстояние не важно — важна
+## форма `collider_shape`.
 @export_range(0.0, 200.0, 1.0) var collider_max_offset: float = 0.0
-## Минимальный шаг между коллизиями вдоль трассы, м.
-@export_range(0.0, 500.0, 1.0) var collider_spacing: float = 45.0
+## Минимальный шаг между коллизиями одного вида вдоль трассы, м. 0 — у
+## каждого экземпляра своя коллизия (так и должно быть: раньше шаг 45 м
+## оставлял большинство деревьев призрачными).
+@export_range(0.0, 500.0, 1.0) var collider_spacing: float = 0.0
+
+## Форма коллизии.
+##   CYLINDER — цилиндр collider_radius × collider_height (ствол дерева);
+##   SCENE — фигуры CollisionShape3D, нарисованные в самой сцене пропса;
+##   AUTO — фигуры из сцены, а если их нет — коробка по габаритам меша;
+##   BOX_FIT / CYLINDER_FIT / SPHERE_FIT — по габаритам меша × collider_fit_scale;
+##   NONE — без коллизии даже у поставленного оформлением пропса.
+## Размеры везде умножаются на масштаб экземпляра.
+enum ColliderShape { CYLINDER, SCENE, AUTO, BOX_FIT, CYLINDER_FIT, SPHERE_FIT, NONE }
+@export var collider_shape: ColliderShape = ColliderShape.CYLINDER
 @export_range(0.05, 5.0, 0.05) var collider_radius: float = 0.45
 @export_range(0.5, 40.0, 0.1) var collider_height: float = 9.0
 @export_range(-5.0, 5.0, 0.01) var collider_y_offset: float = 0.0
+## Множитель габаритов для *_FIT: камни и кусты круглее своей коробки.
+@export var collider_fit_scale: Vector3 = Vector3.ONE
+
+@export_group("Разрушение")
+## Пропс не прикован: от удара машины рассыпается на физические обломки.
+## Настройка обломков, щепок и звука — RallyBreakableConfig у сцены этапа.
+@export var breakable: bool = false
+## Масса целого пропса, кг: чем тяжелее, тем сильнее тормозит машину.
+@export_range(0.5, 2000.0, 0.5, "suffix:кг") var break_mass_kg: float = 40.0
+## Рассыпаться на части (каждый MeshInstance3D сцены — свой обломок).
+## Выключено — пропс улетает целиком.
+@export var break_into_parts: bool = true
+## Цвет щепок этого пропса. Прозрачный — цвет из настройки разрушения.
+@export var splinter_color: Color = Color(0, 0, 0, 0)
 
 
 ## Нужен ли этому виду физический ствол.
 func has_collider() -> bool:
-	return collider_max_offset > 0.0
+	return collider_max_offset > 0.0 and collider_shape != ColliderShape.NONE
+
+
+## Нужна ли коллизия пропсу, которого ставит оформление (не случайный лес).
+func wants_placed_collider() -> bool:
+	return collider_shape != ColliderShape.NONE and (collider_max_offset > 0.0 or collider_shape != ColliderShape.CYLINDER)
 
 
 ## Имя группы в дереве Generated/Scenery: `fir_tree` → `FirTree`.

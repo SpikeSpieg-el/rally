@@ -164,6 +164,22 @@ func scrape(world_point: Vector3, world_into_car: Vector3, slide_speed: float, w
 	_scrape_dir = dir.normalized() if dir.length_squared() > 1e-6 else Vector3.UP
 
 
+## Лёгкий толчок без искр и звука удара — снесённый забор, конус, табличка:
+## встряска (0..1), рывок камеры (доля kick_m) и вибрация. Свои щепки и треск
+## показывает сам разрушаемый пропс.
+func nudge(world_into_car: Vector3, shake: float, kick: float, rumble: float, rumble_duration: float) -> void:
+	var tuning := cfg()
+	if not tuning.enabled:
+		return
+	if tuning.shake_enabled:
+		_trauma = minf(1.0, _trauma + maxf(shake, 0.0))
+		if kick > 0.0 and world_into_car.length_squared() > 1e-6:
+			_kick_velocity += world_into_car.normalized() * tuning.kick_m * kick \
+				* maxf(tuning.kick_return, 0.1) * exp(1.0)
+	if tuning.rumble_enabled and rumble > 0.0 and _rumble.is_valid():
+		_rumble.call(rumble * 0.7, rumble, rumble_duration)
+
+
 ## Убрать подъём угла обзора прошлого кадра — до того, как машина сгладит FOV.
 func restore_camera(camera: Camera3D) -> void:
 	if camera != null and not is_zero_approx(_fov_applied):

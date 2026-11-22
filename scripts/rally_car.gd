@@ -434,6 +434,34 @@ func _install_damage_visual() -> void:
 	_damage_prev_velocity = linear_velocity
 
 
+## Подменить настройки вмятин и эффектов удара — так сцена этапа задаёт их
+## для всей гонки (группа «Удары и разрушения (гонка)» у корня этапа).
+## null — оставить настройку машины. Компоненты переставляются заново.
+func apply_impact_settings(fx_settings: RallyImpactFxConfig, damage_settings: RallyDamageVisualConfig) -> void:
+	var fx_same: bool = fx_settings == null or fx_settings == impact_fx_config
+	var dents_same: bool = damage_settings == null or damage_settings == damage_visual_config
+	if fx_same and dents_same:
+		return
+	if fx_settings != null:
+		impact_fx_config = fx_settings
+	if damage_settings != null:
+		damage_visual_config = damage_settings
+	if not is_inside_tree():
+		# Компоненты поставит _ready() уже с новыми настройками.
+		return
+	if damage_visual != null:
+		damage_visual.clear_damage()
+		remove_child(damage_visual)
+		damage_visual.queue_free()
+		damage_visual = null
+	if impact_fx != null:
+		impact_fx.clear()
+		remove_child(impact_fx)
+		impact_fx.queue_free()
+		impact_fx = null
+	_install_damage_visual()
+
+
 ## Шаг физики. Сигнатура без типа возврата — ровно как у предка (Vehicle),
 ## иначе GDScript не примет переопределение.
 func _integrate_forces(state : PhysicsDirectBodyState3D):
@@ -2215,6 +2243,10 @@ func restart_at_spawn() -> void:
 		damage_visual.clear_damage()
 	if is_instance_valid(impact_fx):
 		impact_fx.clear()
+	# Снесённые заборы и таблички встают на место, обломки убираются
+	# (если это разрешено в настройке разрушения этапа).
+	if is_inside_tree():
+		get_tree().call_group("rally_breakable_props", "restore_all")
 	if wipers != null and wipers.has_method("reset_wipers"):
 		wipers.call("reset_wipers")
 	if is_instance_valid(tire_marks) and tire_marks.has_method("clear_marks"):

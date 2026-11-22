@@ -109,6 +109,12 @@ Subaru Impreza и любой новой: ей нужен только меш к�
 | `data/car/default_damage_visual.tres` | `RallyDamageVisualConfig` | `damage_visual_config` |
 | `data/car/default_impact_fx.tres` | `RallyImpactFxConfig` | `impact_fx_config` |
 
+**Для всей гонки** обе настройки подменяются у корня сцены этапа (и аркады):
+группа «Удары и разрушения (гонка)», поля `impact_fx_override` и
+`damage_visual_override`. Заданное там действует на любую машину заезда,
+пустое поле оставляет настройку машины. Там же — `breakables`, настройка
+разрушаемых заборов и табличек (см. [BREAKABLE_PROPS_RU.md](BREAKABLE_PROPS_RU.md)).
+
 Способы править, оба без запуска игры:
 
 1. **В инспекторе машины.** Откройте `scenes/rally_car.tscn` (`rally_car2` —
