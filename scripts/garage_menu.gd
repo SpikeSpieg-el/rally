@@ -28,8 +28,6 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @export var ui_theme: UiThemeType = null
 ## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.
 @export var menu_layout: MenuLayoutType = null
-## Угол, под которым машина стоит к камере, градусы (0 — как в модели).
-@export_range(-180.0, 180.0, 1.0, "suffix:°") var rest_yaw_deg: float = -18.0
 ## Насколько машина покачивается на поворотном круге, градусы (0 — стоит).
 @export_range(0.0, 90.0, 1.0, "suffix:°") var sway_amplitude_deg: float = 16.0
 ## Через сколько секунд после вращения мышью машина снова покачивается.
@@ -783,8 +781,8 @@ func _init_camera_rig() -> void:
 	_cam_dir = offset / _cam_home_dist
 	_cam_target = _cam_home_target
 	_cam_dist = _cam_home_dist
-	_base_yaw = deg_to_rad(rest_yaw_deg)
-	_turntable.rotation.y = _base_yaw
+	# Угол машины в покое — поворот Turntable в garage_showroom.tscn.
+	_base_yaw = _turntable.rotation.y
 	_place_camera()
 
 
