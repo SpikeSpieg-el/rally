@@ -57,11 +57,16 @@ func _run() -> void:
 
 	garage.select_vehicle("mitsubishi")
 	await _frames(10)
-	check(callouts.card_text("engine").contains("Н·м"), "на карточке мотора момент: " + callouts.card_text("engine"))
+	check(
+		callouts.card_text("engine").contains("Н·м"),
+		"на карточке мотора момент: " + callouts.card_text("engine")
+	)
 	garage._create_copy()
 	garage._on_slider_changed(650.0, "max_torque")
 	await _frames(2)
-	check(callouts.card_text("engine").contains("650"), "карточка мотора меняется вместе с пресетом")
+	check(
+		callouts.card_text("engine").contains("650"), "карточка мотора меняется вместе с пресетом"
+	)
 
 	# Нажатие на карточку подвески открывает её панель.
 	var click := InputEventMouseButton.new()
@@ -71,10 +76,16 @@ func _run() -> void:
 	callouts.card("suspension").gui_input.emit(click)
 	await _frames(90)
 	var panel: Control = garage.get_node("%DetailPanel")
-	check(panel.visible and garage._active_group == "suspension", "карточка открывает панель своей части")
+	check(
+		panel.visible and garage._active_group == "suspension",
+		"карточка открывает панель своей части"
+	)
 	check(garage._tabs.current_tab == 3, "в панели — настройки подвески")
 	check(not callouts.card("engine").visible, "остальные выноски прячутся")
-	check(garage._cam_dist < start_distance * 0.8, "камера подъезжает к части (%.2f → %.2f)" % [start_distance, garage._cam_dist])
+	check(
+		garage._cam_dist < start_distance * 0.8,
+		"камера подъезжает к части (%.2f → %.2f)" % [start_distance, garage._cam_dist]
+	)
 	check(callouts.anchor_points().has("suspension"), "линия к открытой части видна")
 
 	var backs := [0]
@@ -93,7 +104,9 @@ func _run() -> void:
 	garage.queue_free()
 	game.queue_free()
 	await process_frame
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://garage_callouts_conditions.cfg"))
+	DirAccess.remove_absolute(
+		ProjectSettings.globalize_path("user://garage_callouts_conditions.cfg")
+	)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://garage_callouts_records.cfg"))
 	if failures.is_empty():
 		print("OK: выноски гаража")
@@ -108,7 +121,10 @@ func _check_vehicle(garage, callouts: GarageCallouts, id: String) -> void:
 	check(points.size() == 5, "%s: пять выносок (%d)" % [id, points.size()])
 	var layer := Rect2(Vector2.ZERO, callouts.size)
 	for part: String in points:
-		check(layer.has_point(points[part]), "%s: точка «%s» в кадре %s" % [id, part, str(points[part])])
+		check(
+			layer.has_point(points[part]),
+			"%s: точка «%s» в кадре %s" % [id, part, str(points[part])]
+		)
 	# Точки — на своих частях: проверяем в координатах модели (перед — +Z).
 	var model: Node3D = garage._active_model()
 	var data: Dictionary = callouts.anchor_data(model)
@@ -119,11 +135,19 @@ func _check_vehicle(garage, callouts: GarageCallouts, id: String) -> void:
 	var suspension: Vector3 = to_local * (anchors["suspension"] as Vector3)
 	var tires: Vector3 = to_local * (anchors["tires"] as Vector3)
 	var drive: Vector3 = to_local * (anchors["drivetrain"] as Vector3)
-	print("[callouts] %s: мотор %s, подвеска %s, шины %s, привод %s, кузов %s" % [id, engine, suspension, tires, drive, box])
+	print(
+		(
+			"[callouts] %s: мотор %s, подвеска %s, шины %s, привод %s, кузов %s"
+			% [id, engine, suspension, tires, drive, box]
+		)
+	)
 	check(engine.z > box.get_center().z + box.size.z * 0.15, "%s: мотор — от передней части" % id)
 	check(engine.y > box.position.y + box.size.y * 0.45, "%s: мотор — от капота сверху" % id)
 	check(suspension.z > box.get_center().z, "%s: подвеска — у переднего колеса" % id)
-	check(tires.z < box.get_center().z and drive.z < box.get_center().z, "%s: шины и привод — сзади" % id)
+	check(
+		tires.z < box.get_center().z and drive.z < box.get_center().z,
+		"%s: шины и привод — сзади" % id
+	)
 	# Карточки одной стороны не наезжают друг на друга и не выходят за экран.
 	var rects: Array[Rect2] = []
 	for part: String in GarageCallouts.PART_ORDER:
@@ -132,5 +156,8 @@ func _check_vehicle(garage, callouts: GarageCallouts, id: String) -> void:
 		var rect := Rect2(card.position, card.size)
 		check(layer.encloses(rect), "%s: карточка «%s» в пределах экрана" % [id, part])
 		for other in rects:
-			check(not rect.grow(-1.0).intersects(other), "%s: карточка «%s» не наезжает на соседнюю" % [id, part])
+			check(
+				not rect.grow(-1.0).intersects(other),
+				"%s: карточка «%s» не наезжает на соседнюю" % [id, part]
+			)
 		rects.append(rect)

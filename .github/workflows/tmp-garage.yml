@@ -26,7 +26,7 @@ jobs:
           }
           { grep -aE "garage|callout" /tmp/import.log | head -20; } > /tmp/imp.log
           for t in garage_callouts garage_smoke car_liveries car_customization garage_menu_flow; do
-            timeout 600 $godot --headless --path . --script res://tests/$t.gd >/tmp/$t.log 2>&1
+            timeout 150 $godot --headless --path . --script res://tests/$t.gd >/tmp/$t.log 2>&1
             echo "rc=$?" >> /tmp/$t.log
             grep -aE "FAIL|PASS|OK|SCRIPT ERROR|ERROR|callouts\]|rc=|итого|at:" /tmp/$t.log | head -120 > /tmp/${t}_s.log
           done
