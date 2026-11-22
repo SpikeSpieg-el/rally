@@ -29,7 +29,7 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 ## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.
 @export var menu_layout: MenuLayoutType = null
 ## Насколько машина покачивается на поворотном круге, градусы (0 — стоит).
-@export_range(0.0, 90.0, 1.0, "suffix:°") var sway_amplitude_deg: float = 16.0
+@export_range(0.0, 90.0, 1.0, "suffix:°") var sway_amplitude_deg: float = 0.0
 ## Через сколько секунд после вращения мышью машина снова покачивается.
 @export_range(0.0, 30.0, 0.5, "suffix:с") var sway_resume_sec: float = 3.0
 ## Насколько камера подъезжает к выбранной части (доля исходной дистанции).
