@@ -17,7 +17,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	root.size = Vector2i(640, 360)
+	root.size = Vector2i(512, 288)
 	var game := GameStub.new()
 	game.name = "RallyGame"
 	root.add_child(game)
@@ -64,7 +64,7 @@ func _run() -> void:
 			for i in range(3):
 				await process_frame
 			var img := root.get_texture().get_image()
-			img.save_jpg("/tmp/shot_%d.jpg" % shots, 0.7)
+			img.save_jpg("/tmp/shot_%d.jpg" % shots, 0.6)
 			shots += 1
 			cam.queue_free()
 		car.queue_free()
