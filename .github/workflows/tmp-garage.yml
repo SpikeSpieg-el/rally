@@ -24,7 +24,7 @@ jobs:
             gzip -9c "$file" | base64 -w 0 | fold -w 3500 | while read -r chunk || [ -n "$chunk" ]; do
               echo "::notice title=${name}-${i}::${chunk}"; i=$((i+1)); done
           }
-          for t in garage_callouts garage_menu_flow; do
+          for t in garage_callouts; do
             timeout 150 $godot --headless --path . --script res://tests/$t.gd >/tmp/$t.log 2>&1
             echo "rc=$?" >> /tmp/$t.log
             grep -aE "FAIL|SCRIPT ERROR|callouts\]|rc=|итого|OK" /tmp/$t.log | awk '!seen[$0]++' | head -40 > /tmp/${t}_s.log
@@ -33,12 +33,7 @@ jobs:
           emit tests /tmp/all.log
           mkdir -p /tmp/shots
           sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri >/dev/null 2>&1
-          xvfb-run -a -s "-screen 0 1920x1080x24" timeout 300 $godot --path . --rendering-driver opengl3 --resolution 1920x1080 --script res://tests/tmp/garage_shot.gd >/tmp/shot.log 2>&1
-          git fetch -q origin main && git checkout -q origin/main && $godot --headless --editor --path . --import >/dev/null 2>&1
-          timeout 150 $godot --headless --path . --script res://tests/garage_menu_flow.gd > /tmp/base.log 2>&1
-          echo "rc=$?" >> /tmp/base.log
-          grep -aE "FAIL|rc=" /tmp/base.log | head -20 > /tmp/base_s.log
-          emit baseline /tmp/base_s.log
+          LP_NUM_THREADS=0 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 300 $godot --path . --rendering-driver opengl3 --resolution 1920x1080 --script res://tests/tmp/garage_shot.gd >/tmp/shot.log 2>&1
       - uses: actions/upload-artifact@v4
         with:
           name: shots
