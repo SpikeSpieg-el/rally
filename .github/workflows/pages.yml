@@ -152,6 +152,7 @@ jobs:
           run_gd 180s tests/subaru_presets.gd
           run_gd 180s tests/car_liveries.gd
           run_gd 180s tests/garage_callouts.gd
+          run_gd 180s tests/sponsor_banner.gd
           run_gd 180s tests/car_body_fx.gd
           run_gd 180s tests/live_track_selection.gd
           run_gd 180s tests/menu_track_focus.gd
