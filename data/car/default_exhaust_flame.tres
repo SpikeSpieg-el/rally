@@ -51,5 +51,7 @@ outlet_marker_prefix = "ExhaustOutlet"
 auto_detect = true
 material_keywords = Array[String](["exhaust"])
 merge_distance_m = 0.12
+outlet_rear_zone_m = 0.6
+outlet_max_height_m = 0.8
 manual_outlets = Array[Vector3]([])
 fallback_outlet = Vector3(0, 0.45, -1.85)

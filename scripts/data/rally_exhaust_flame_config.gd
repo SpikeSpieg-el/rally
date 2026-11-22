@@ -117,6 +117,11 @@ extends Resource
 @export var material_keywords: Array[String] = ["exhaust"]
 ## Трубы ближе этого по ширине считаются одной, м.
 @export_range(0.02, 1.0, 0.01, "suffix:м") var merge_distance_m: float = 0.12
+## Тот же материал бывает на хроме решётки или значка: в трубы берутся только
+## вершины не дальше этого от самой задней точки «выхлопных» поверхностей, м…
+@export_range(0.05, 3.0, 0.01, "suffix:м") var outlet_rear_zone_m: float = 0.6
+## …и не выше этого над началом координат машины, м.
+@export_range(0.1, 2.0, 0.01, "suffix:м") var outlet_max_height_m: float = 0.8
 ## Свои точки труб в координатах машины (перед — +Z). Если заданы — главнее
 ## автоопределения (но не маркеров).
 @export var manual_outlets: Array[Vector3] = []

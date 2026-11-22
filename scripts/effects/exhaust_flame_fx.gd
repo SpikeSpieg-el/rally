@@ -392,7 +392,13 @@ func _build_outlets() -> void:
 		for point in tuning.manual_outlets:
 			outlets.append(Transform3D(_rear_basis(), point))
 	if outlets.is_empty() and tuning.auto_detect:
-		for point in detect_outlets(car, tuning.material_keywords, tuning.merge_distance_m):
+		for point in detect_outlets(
+			car,
+			tuning.material_keywords,
+			tuning.merge_distance_m,
+			tuning.outlet_rear_zone_m,
+			tuning.outlet_max_height_m
+		):
 			outlets.append(Transform3D(_rear_basis(), point))
 	if outlets.is_empty():
 		outlets.append(Transform3D(_rear_basis(), tuning.fallback_outlet))
@@ -412,8 +418,14 @@ static func _rear_basis() -> Basis:
 ## Срезы выхлопных труб по материалам модели, в координатах машины.
 ## Вершины поверхностей с «выхлопными» материалами делятся на трубы по
 ## ширине (X); у каждой берётся самая задняя точка по центру сечения.
+## Вершины выше max_height и дальше rear_zone от самой задней точки не
+## считаются: тем же материалом бывают покрыты решётка, значок, молдинги.
 static func detect_outlets(
-	root: Node3D, keywords: Array[String], merge_distance: float
+	root: Node3D,
+	keywords: Array[String],
+	merge_distance: float,
+	rear_zone: float = 0.6,
+	max_height: float = 0.8
 ) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	if root == null or keywords.is_empty():
@@ -434,9 +446,19 @@ static func detect_outlets(
 				continue
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			for v in verts:
-				points.append(xform * v)
+				var p := xform * v
+				if p.y <= max_height:
+					points.append(p)
 	if points.is_empty():
 		return out
+	var rear := INF
+	for p in points:
+		rear = minf(rear, p.z)
+	var rear_points: Array[Vector3] = []
+	for p in points:
+		if p.z <= rear + rear_zone:
+			rear_points.append(p)
+	points = rear_points
 	points.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.x < b.x)
 	var cluster: Array[Vector3] = [points[0]]
 	for i in range(1, points.size()):
