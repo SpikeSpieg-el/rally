@@ -21,7 +21,7 @@ func _run() -> void:
 	var garage = GarageScene.instantiate()
 	root.add_child(garage)
 	garage.open(Config, 0, game)
-	var ok: bool = garage.setup != original and garage._model != null and garage._wheel_visuals.size() == 4
+	var ok: bool = garage.setup != original and garage._model != null and garage._model_wheels(garage._active_model()).size() == 4
 	# Пикселизируется только витрина, а не меню; выключение PS1 у трассы
 	# возвращает обычный размер и фильтрацию превью.
 	ok = ok and garage._preview_container.stretch_shrink == 3 and garage._retro_rect.visible
@@ -37,14 +37,16 @@ func _run() -> void:
 	# Витрина задана сценой; настройки создаются из общей схемы в _ready.
 	ok = ok and garage.get_node_or_null("%Turntable") != null
 	ok = ok and garage.get_node_or_null("%TorqueSlider") is HSlider
-	ok = ok and garage.get_node_or_null("Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Camera") is Camera3D
-	ok = ok and garage.get_node_or_null("Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Platform") is MeshInstance3D
+	ok = ok and garage.get_node_or_null("Preview/Viewport/Showroom/Camera") is Camera3D
+	ok = ok and garage.get_node_or_null("Preview/Viewport/Showroom/Platform") is MeshInstance3D
 	garage._create_copy()
 	garage._on_slider_changed(560.0, "max_torque")
 	garage._on_slider_changed(0.48, "tire_radius")
 	garage._on_color_changed(Color(0.3, 0.6, 0.8))
 	ok = ok and is_equal_approx(original.max_torque, original_torque)
-	ok = ok and is_equal_approx(garage._wheel_visuals[0].basis.get_scale().y, 0.48 / 0.438)
+	var wheel: Node3D = garage._model_wheels(garage._active_model())[0]["node"]
+	var rest: Basis = garage._model_wheels(garage._active_model())[0]["rest"]
+	ok = ok and is_equal_approx(wheel.basis.get_scale().y / rest.get_scale().y, 0.48 / 0.438)
 	var saved_index: int = game.save_user_setup(0, garage.setup, "Тест", true)
 	game.load_conditions()
 	game.select_setup(saved_index)
