@@ -58,27 +58,23 @@ func _run() -> void:
 	garage.select_vehicle("mitsubishi")
 	await _frames(40)
 	await _measure("full")
-	var show = garage.get_node("Preview/Viewport/Showroom")
-	for path in ["Callouts", "Shade", "Preview/Viewport/PostFX/RetroShaderRect", "Preview"]:
-		_toggle(path, false)
-		await _measure("hide " + path)
-		_toggle(path, true)
-	for child in show.get_children():
-		if child is Node3D and not child is Camera3D:
-			child.visible = false
-			await _measure("hide 3D " + child.name)
-			child.visible = true
-	var room = show.get_node("Room")
-	for child in room.get_children():
-		child.visible = false
-		await _measure("hide room " + child.name)
-		child.visible = true
-	for child in show.get_children():
-		if child is Light3D:
-			child.shadow_enabled = false
-	await _measure("no shadows")
-	var env: Environment = show.get_node("WorldEnvironment").environment
-	print("[bisect] env glow=", env.glow_enabled, " ssao=", env.ssao_enabled, " fog=", env.fog_enabled, " volfog=", env.volumetric_fog_enabled, " tonemap=", env.tonemap_mode)
-	show.get_node("WorldEnvironment").environment = null
-	await _measure("no env")
+	RenderingServer.force_draw(false)
+	await RenderingServer.frame_post_draw
+	var img := root.get_texture().get_image()
+	print("[bisect] format=", img.get_format(), " mip=", img.has_mipmaps(), " size=", img.get_size(), " raw cut=", _cut_row(img))
+	var a := img.duplicate() as Image
+	a.resize(960, 540, Image.INTERPOLATE_BILINEAR)
+	print("[bisect] bilinear cut=", _cut_row(a), "/540")
+	var b := img.duplicate() as Image
+	b.resize(960, 540, Image.INTERPOLATE_LANCZOS)
+	print("[bisect] lanczos cut=", _cut_row(b), "/540")
+	var c := img.duplicate() as Image
+	c.convert(Image.FORMAT_RGB8)
+	c.resize(960, 540, Image.INTERPOLATE_BILINEAR)
+	print("[bisect] rgb8+bilinear cut=", _cut_row(c), "/540")
+	a.save_jpg("/tmp/shots/a.jpg", 0.72)
+	var back := Image.load_from_file("/tmp/shots/a.jpg")
+	print("[bisect] jpg reload cut=", _cut_row(back), "/540")
+	c.save_jpg("/tmp/shots/c.jpg", 0.72)
+	print("[bisect] c jpg reload cut=", _cut_row(Image.load_from_file("/tmp/shots/c.jpg")), "/540")
 	quit(0)
