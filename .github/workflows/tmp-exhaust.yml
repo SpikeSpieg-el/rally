@@ -22,19 +22,37 @@ jobs:
           { wc -l /tmp/import.log; grep -aE "ERROR|exhaust" /tmp/import.log | head -40; tail -5 /tmp/import.log; } > /tmp/import_err.log
           emit() {
             local name="$1" file="$2" i=0
-            gzip -9c "$file" | base64 -w 0 | fold -w 3500 | while read -r chunk || [ -n "$chunk" ]; do
+            gzip -9c "$file" | base64 -w 0 | fold -w 60000 | while read -r chunk || [ -n "$chunk" ]; do
               echo "::notice title=${name}-${i}::${chunk}"; i=$((i+1)); done
           }
-          emit import /tmp/import_err.log
           sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri >/dev/null 2>&1
           xvfb-run -a -s "-screen 0 1280x720x24" timeout 300 $godot --path . --rendering-driver opengl3 --script res://tests/tmp/flame_shot.gd >/tmp/shot.log 2>&1
           echo "rc=$?" >> /tmp/shot.log
           tail -30 /tmp/shot.log > /tmp/shot_s.log
           emit shotlog /tmp/shot_s.log
-          for f in /tmp/shot_*.jpg; do emit "img$(basename $f .jpg)" "$f"; done
           for t in skip; do
             timeout 600 $godot --headless --path . --fixed-fps 120 --script res://tests/$t.gd >/tmp/$t.log 2>&1
             echo "rc=$?" >> /tmp/$t.log
             grep -aE "FAIL|PASS|OK|SCRIPT ERROR|ERROR|exhaust|rc=|итого|at:" /tmp/$t.log | head -150 > /tmp/${t}_s.log
             emit $t /tmp/${t}_s.log
           done
+      - name: img0
+        shell: bash
+        run: |
+          set +e +o pipefail
+          gzip -9c /tmp/shot_0.jpg | base64 -w 0 | fold -w 60000 | { i=0; while read -r c || [ -n "$c" ]; do echo "::notice title=img0-$i::$c"; i=$((i+1)); done; }
+      - name: img1
+        shell: bash
+        run: |
+          set +e +o pipefail
+          gzip -9c /tmp/shot_1.jpg | base64 -w 0 | fold -w 60000 | { i=0; while read -r c || [ -n "$c" ]; do echo "::notice title=img1-$i::$c"; i=$((i+1)); done; }
+      - name: img2
+        shell: bash
+        run: |
+          set +e +o pipefail
+          gzip -9c /tmp/shot_2.jpg | base64 -w 0 | fold -w 60000 | { i=0; while read -r c || [ -n "$c" ]; do echo "::notice title=img2-$i::$c"; i=$((i+1)); done; }
+      - name: img3
+        shell: bash
+        run: |
+          set +e +o pipefail
+          gzip -9c /tmp/shot_3.jpg | base64 -w 0 | fold -w 60000 | { i=0; while read -r c || [ -n "$c" ]; do echo "::notice title=img3-$i::$c"; i=$((i+1)); done; }
