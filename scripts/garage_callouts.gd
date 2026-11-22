@@ -156,7 +156,7 @@ func _set_hover(id: String, hot: bool) -> void:
 
 
 func _on_card_input(event: InputEvent, id: String) -> void:
-	var click := event is InputEventMouseButton and event.pressed
+	var click: bool = event is InputEventMouseButton and event.pressed
 	if click and (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
 		return
 	if click or event.is_action_pressed("ui_accept"):
@@ -278,7 +278,7 @@ func anchor_data(target: Node3D) -> Dictionary:
 	var hood_y := box.position.y + box.size.y * 0.7
 	var found := false
 	for p in points:
-		var in_front := p.z > front - length * 0.32 and p.z < front - length * 0.12
+		var in_front: bool = p.z > front - length * 0.32 and p.z < front - length * 0.12
 		if in_front and absf(p.x - box.get_center().x) < box.size.x * 0.3:
 			hood_y = p.y if not found else maxf(hood_y, p.y)
 			found = true
