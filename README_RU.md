@@ -1569,6 +1569,21 @@ W — сетка).
 `data/stage/default_prop_library.tres` (`collider_shape`, `breakable`,
 `break_mass_kg`). Подробности — [`docs/BREAKABLE_PROPS_RU.md`](docs/BREAKABLE_PROPS_RU.md).
 
+### Выстрелы пламени из выхлопа
+
+Турбомотор стреляет огнём из труб (`textures/fire.png`): большой выстрел на
+сброс газа — вместе с хлопком и сбросом турбины в звуке, — короткая очередь
+«антилага» пока газ отпущен, выстрел при переключении вверх и треск на
+отсечке. Трубы находятся сами (по материалу «exhaust» в модели), направление
+и место можно задать маркерами `ExhaustOutlet*` в сцене машины. Пламя только
+рисуется: физика, мощность и звук не меняются. У атмосферных пресетов мотора
+(`turbo = false`) пламени нет — это переключается полем `turbo_only`.
+
+Настройка — `data/car/default_exhaust_flame.tres` (`RallyExhaustFlameConfig`)
+или поле `exhaust_flame_config` у корня `RallyCar`. Подробности —
+[`docs/EXHAUST_FLAME_RU.md`](docs/EXHAUST_FLAME_RU.md). Проверка:
+`godot --headless --path . --fixed-fps 120 --script res://tests/exhaust_flame.gd`.
+
 ### DualSense: вибрация и адаптивные триггеры
 
 Настройка, ограничения платформ и подключение описаны в [docs/DUALSENSE_RU.md](docs/DUALSENSE_RU.md).
