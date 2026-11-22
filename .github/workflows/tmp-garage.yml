@@ -1,0 +1,119 @@
+name: tmp garage check
+on:
+  push:
+    branches:
+      - arena/cbe262c1-rally
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run
+        shell: bash
+        run: |
+          set +e +o pipefail
+          version=4.7.2
+          base="https://github.com/godotengine/godot-builds/releases/download/${version}-stable"
+          curl -fL --retry 3 "$base/Godot_v${version}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          godot=/tmp/godot/Godot_v${version}-stable_linux.x86_64
+          chmod +x $godot
+          $godot --headless --editor --path . --import >/tmp/import.log 2>&1
+          emit() {
+            local name="$1" file="$2" i=0
+            gzip -9c "$file" | base64 -w 0 | fold -w 3500 | while read -r chunk || [ -n "$chunk" ]; do
+              echo "::notice title=${name}-${i}::${chunk}"; i=$((i+1)); done
+          }
+          { grep -aE "garage|callout" /tmp/import.log | head -20; } > /tmp/imp.log
+          for t in garage_callouts garage_smoke car_liveries car_customization garage_menu_flow; do
+            timeout 600 $godot --headless --path . --script res://tests/$t.gd >/tmp/$t.log 2>&1
+            echo "rc=$?" >> /tmp/$t.log
+            grep -aE "FAIL|PASS|OK|SCRIPT ERROR|ERROR|callouts\]|rc=|итого|at:" /tmp/$t.log | head -120 > /tmp/${t}_s.log
+          done
+          cat /tmp/imp.log /tmp/*_s.log > /tmp/all.log
+          emit tests /tmp/all.log
+          sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri >/dev/null 2>&1
+          xvfb-run -a -s "-screen 0 1920x1080x24" timeout 300 $godot --path . --rendering-driver opengl3 --resolution 1920x1080 --script res://tests/tmp/garage_shot.gd >/tmp/shot.log 2>&1
+          echo "rc=$?" >> /tmp/shot.log
+          grep -aE "ERROR|rc=|at:" /tmp/shot.log | head -30 > /tmp/shot_s.log
+          echo "::notice title=shotlog::$(tail -c 3000 /tmp/shot_s.log | base64 -w 0)"
+      - name: img0-0
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_0.jpg | fold -w 3500 > /tmp/c0.txt; echo >> /tmp/c0.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 0 ] && [ $n -lt 10 ]; then echo "::notice title=img0-$n::$c"; fi; n=$((n+1)); done < /tmp/c0.txt
+      - name: img0-1
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_0.jpg | fold -w 3500 > /tmp/c0.txt; echo >> /tmp/c0.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 10 ] && [ $n -lt 20 ]; then echo "::notice title=img0-$n::$c"; fi; n=$((n+1)); done < /tmp/c0.txt
+      - name: img0-2
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_0.jpg | fold -w 3500 > /tmp/c0.txt; echo >> /tmp/c0.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 20 ] && [ $n -lt 30 ]; then echo "::notice title=img0-$n::$c"; fi; n=$((n+1)); done < /tmp/c0.txt
+      - name: img0-3
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_0.jpg | fold -w 3500 > /tmp/c0.txt; echo >> /tmp/c0.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 30 ] && [ $n -lt 40 ]; then echo "::notice title=img0-$n::$c"; fi; n=$((n+1)); done < /tmp/c0.txt
+      - name: img1-0
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_1.jpg | fold -w 3500 > /tmp/c1.txt; echo >> /tmp/c1.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 0 ] && [ $n -lt 10 ]; then echo "::notice title=img1-$n::$c"; fi; n=$((n+1)); done < /tmp/c1.txt
+      - name: img1-1
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_1.jpg | fold -w 3500 > /tmp/c1.txt; echo >> /tmp/c1.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 10 ] && [ $n -lt 20 ]; then echo "::notice title=img1-$n::$c"; fi; n=$((n+1)); done < /tmp/c1.txt
+      - name: img1-2
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_1.jpg | fold -w 3500 > /tmp/c1.txt; echo >> /tmp/c1.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 20 ] && [ $n -lt 30 ]; then echo "::notice title=img1-$n::$c"; fi; n=$((n+1)); done < /tmp/c1.txt
+      - name: img1-3
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_1.jpg | fold -w 3500 > /tmp/c1.txt; echo >> /tmp/c1.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 30 ] && [ $n -lt 40 ]; then echo "::notice title=img1-$n::$c"; fi; n=$((n+1)); done < /tmp/c1.txt
+      - name: img2-0
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_2.jpg | fold -w 3500 > /tmp/c2.txt; echo >> /tmp/c2.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 0 ] && [ $n -lt 10 ]; then echo "::notice title=img2-$n::$c"; fi; n=$((n+1)); done < /tmp/c2.txt
+      - name: img2-1
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_2.jpg | fold -w 3500 > /tmp/c2.txt; echo >> /tmp/c2.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 10 ] && [ $n -lt 20 ]; then echo "::notice title=img2-$n::$c"; fi; n=$((n+1)); done < /tmp/c2.txt
+      - name: img2-2
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_2.jpg | fold -w 3500 > /tmp/c2.txt; echo >> /tmp/c2.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 20 ] && [ $n -lt 30 ]; then echo "::notice title=img2-$n::$c"; fi; n=$((n+1)); done < /tmp/c2.txt
+      - name: img2-3
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_2.jpg | fold -w 3500 > /tmp/c2.txt; echo >> /tmp/c2.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 30 ] && [ $n -lt 40 ]; then echo "::notice title=img2-$n::$c"; fi; n=$((n+1)); done < /tmp/c2.txt
+      - name: img3-0
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_3.jpg | fold -w 3500 > /tmp/c3.txt; echo >> /tmp/c3.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 0 ] && [ $n -lt 10 ]; then echo "::notice title=img3-$n::$c"; fi; n=$((n+1)); done < /tmp/c3.txt
+      - name: img3-1
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_3.jpg | fold -w 3500 > /tmp/c3.txt; echo >> /tmp/c3.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 10 ] && [ $n -lt 20 ]; then echo "::notice title=img3-$n::$c"; fi; n=$((n+1)); done < /tmp/c3.txt
+      - name: img3-2
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_3.jpg | fold -w 3500 > /tmp/c3.txt; echo >> /tmp/c3.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 20 ] && [ $n -lt 30 ]; then echo "::notice title=img3-$n::$c"; fi; n=$((n+1)); done < /tmp/c3.txt
+      - name: img3-3
+        shell: bash
+        run: |
+          base64 -w 0 /tmp/shot_3.jpg | fold -w 3500 > /tmp/c3.txt; echo >> /tmp/c3.txt
+          n=0; while read -r c; do if [ -n "$c" ] && [ $n -ge 30 ] && [ $n -lt 40 ]; then echo "::notice title=img3-$n::$c"; fi; n=$((n+1)); done < /tmp/c3.txt

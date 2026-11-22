@@ -1,8 +1,13 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/garage_menu.gd" id="garage_script"]
+[ext_resource type="Script" path="res://scripts/garage_callouts.gd" id="callouts_script"]
 [ext_resource type="PackedScene" path="res://low_poly_lance_evo.tscn" id="car_model"]
 [ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="ps1_shader"]
+[ext_resource type="PackedScene" path="res://scenes/props/tire_stack.tscn" id="tire_stack"]
+[ext_resource type="PackedScene" path="res://scenes/props/traffic_cone.tscn" id="traffic_cone"]
+[ext_resource type="PackedScene" path="res://scenes/props/generator.tscn" id="generator"]
+[ext_resource type="PackedScene" path="res://scenes/props/sponsor_banner.tscn" id="sponsor_banner"]
 
 [sub_resource type="ShaderMaterial" id="ShowroomPS1Material"]
 resource_local_to_scene = true
@@ -10,30 +15,222 @@ shader = ExtResource("ps1_shader")
 
 [sub_resource type="Environment" id="ShowroomEnvironment"]
 background_mode = 1
-background_color = Color(0.035, 0.055, 0.072, 1)
-ambient_light_source = 3
-ambient_light_color = Color(0.72, 0.8, 0.9, 1)
-ambient_light_energy = 0.8
+background_color = Color(0.02, 0.026, 0.034, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.62, 0.72, 1)
+ambient_light_energy = 0.45
+tonemap_mode = 2
+ssr_enabled = true
+glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.08
+glow_hdr_threshold = 1.2
+fog_enabled = true
+fog_light_color = Color(0.05, 0.065, 0.085, 1)
+fog_density = 0.012
+
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+albedo_color = Color(0.105, 0.115, 0.125, 1)
+metallic = 0.15
+roughness = 0.32
+
+[sub_resource type="PlaneMesh" id="FloorMesh"]
+material = SubResource("FloorMaterial")
+size = Vector2(40, 40)
+
+[sub_resource type="StandardMaterial3D" id="LineMaterial"]
+albedo_color = Color(0.95, 0.68, 0.12, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="LineLongMesh"]
+material = SubResource("LineMaterial")
+size = Vector3(0.09, 0.006, 8.4)
+
+[sub_resource type="BoxMesh" id="LineShortMesh"]
+material = SubResource("LineMaterial")
+size = Vector3(6.6, 0.006, 0.09)
+
+[sub_resource type="StandardMaterial3D" id="WallMaterial"]
+albedo_color = Color(0.13, 0.15, 0.17, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="WallBackMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(26, 6, 0.3)
+
+[sub_resource type="BoxMesh" id="WallSideMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(0.3, 6, 26)
+
+[sub_resource type="StandardMaterial3D" id="WainscotMaterial"]
+albedo_color = Color(0.07, 0.08, 0.09, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="WainscotBackMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(26, 1.1, 0.34)
+
+[sub_resource type="BoxMesh" id="WainscotSideMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.34, 1.1, 26)
+
+[sub_resource type="StandardMaterial3D" id="StripeMaterial"]
+albedo_color = Color(1, 0.5, 0.06, 1)
+emission_enabled = true
+emission = Color(1, 0.42, 0.04, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="StripeBackMesh"]
+material = SubResource("StripeMaterial")
+size = Vector3(26, 0.12, 0.36)
+
+[sub_resource type="BoxMesh" id="StripeSideMesh"]
+material = SubResource("StripeMaterial")
+size = Vector3(0.36, 0.12, 26)
+
+[sub_resource type="StandardMaterial3D" id="LampMaterial"]
+albedo_color = Color(0.95, 0.97, 1, 1)
+emission_enabled = true
+emission = Color(0.9, 0.95, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="LampMesh"]
+material = SubResource("LampMaterial")
+size = Vector3(0.18, 0.06, 3.6)
 
 [sub_resource type="StandardMaterial3D" id="PlatformMaterial"]
-albedo_color = Color(0.1, 0.14, 0.17, 1)
-metallic = 0.35
-roughness = 0.6
+albedo_color = Color(0.16, 0.18, 0.2, 1)
+metallic = 0.6
+roughness = 0.35
 
 [sub_resource type="CylinderMesh" id="PlatformMesh"]
 material = SubResource("PlatformMaterial")
-top_radius = 4.8
-bottom_radius = 4.8
-height = 0.12
+top_radius = 3.1
+bottom_radius = 3.15
+height = 0.06
+radial_segments = 64
+
+[sub_resource type="StandardMaterial3D" id="RingMaterial"]
+albedo_color = Color(1, 0.55, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.45, 0.05, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+material = SubResource("RingMaterial")
+inner_radius = 3.08
+outer_radius = 3.14
+rings = 96
+ring_segments = 6
+
+[sub_resource type="StandardMaterial3D" id="ToolboxMaterial"]
+albedo_color = Color(0.62, 0.08, 0.06, 1)
+metallic = 0.4
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="ToolboxMesh"]
+material = SubResource("ToolboxMaterial")
+size = Vector3(1.4, 1.0, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="DrawerMaterial"]
+albedo_color = Color(0.75, 0.77, 0.8, 1)
+metallic = 0.8
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="DrawerMesh"]
+material = SubResource("DrawerMaterial")
+size = Vector3(1.2, 0.025, 0.02)
+
+[sub_resource type="StandardMaterial3D" id="BenchMaterial"]
+albedo_color = Color(0.22, 0.2, 0.17, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BenchTopMesh"]
+material = SubResource("BenchMaterial")
+size = Vector3(0.7, 0.08, 2.6)
+
+[sub_resource type="BoxMesh" id="BenchLegMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.06, 0.9, 0.06)
+
+[sub_resource type="BoxMesh" id="PegboardMesh"]
+material = SubResource("WainscotMaterial")
+size = Vector3(0.04, 1.2, 2.6)
+
+[sub_resource type="Gradient" id="ShadeGradient"]
+offsets = PackedFloat32Array(0, 0.2, 0.72, 1)
+colors = PackedColorArray(0.01, 0.014, 0.02, 0.82, 0.01, 0.014, 0.02, 0, 0.01, 0.014, 0.02, 0, 0.01, 0.014, 0.02, 0.9)
+
+[sub_resource type="GradientTexture2D" id="ShadeTexture"]
+gradient = SubResource("ShadeGradient")
+width = 8
+height = 256
+fill_to = Vector2(0, 1)
+
+[sub_resource type="StyleBoxFlat" id="ButtonStyle"]
+content_margin_left = 18.0
+content_margin_top = 8.0
+content_margin_right = 18.0
+content_margin_bottom = 8.0
+bg_color = Color(0.03, 0.045, 0.06, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.32, 0.4, 0.47, 0.6)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="ButtonHoverStyle"]
+content_margin_left = 18.0
+content_margin_top = 8.0
+content_margin_right = 18.0
+content_margin_bottom = 8.0
+bg_color = Color(0.07, 0.09, 0.11, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.58, 0.08, 0.9)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StartStyle"]
-bg_color = Color(0.09, 0.125, 0.16, 1)
-border_width_bottom = 1
-border_color = Color(0.28, 0.38, 0.46, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
+content_margin_left = 22.0
+content_margin_top = 8.0
+content_margin_right = 22.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 0.56, 0.08, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StartHoverStyle"]
+content_margin_left = 22.0
+content_margin_top = 8.0
+content_margin_right = 22.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 0.7, 0.3, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxEmpty" id="FlatStyle"]
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+content_margin_left = 18.0
+content_margin_top = 14.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.022, 0.032, 0.044, 0.9)
+border_width_left = 3
+border_color = Color(1, 0.58, 0.08, 1)
 
 [node name="Garage" type="Control"]
 layout_mode = 3
@@ -54,235 +251,518 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.018, 0.028, 0.041, 1)
 
+[node name="Preview" type="SubViewportContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+
+[node name="Viewport" type="SubViewport" parent="Preview"]
+own_world_3d = true
+handle_input_locally = false
+size = Vector2i(1920, 1080)
+render_target_update_mode = 4
+
+[node name="Showroom" type="Node3D" parent="Preview/Viewport"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Preview/Viewport/Showroom"]
+environment = SubResource("ShowroomEnvironment")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Preview/Viewport/Showroom"]
+rotation = Vector3(-0.95, -0.6, 0)
+light_color = Color(0.85, 0.9, 1, 1)
+light_energy = 0.55
+shadow_enabled = true
+
+[node name="TopLight" type="SpotLight3D" parent="Preview/Viewport/Showroom"]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 6.2, 0)
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 9.0
+shadow_enabled = true
+spot_range = 10.0
+spot_angle = 38.0
+spot_attenuation = 0.6
+
+[node name="WarmFill" type="OmniLight3D" parent="Preview/Viewport/Showroom"]
+position = Vector3(-5.5, 2.4, -5.5)
+light_color = Color(1, 0.6, 0.25, 1)
+light_energy = 1.6
+omni_range = 7.0
+
+[node name="CoolRim" type="OmniLight3D" parent="Preview/Viewport/Showroom"]
+position = Vector3(5, 3, -4.5)
+light_color = Color(0.55, 0.7, 1, 1)
+light_energy = 1.4
+omni_range = 8.0
+
+[node name="Room" type="Node3D" parent="Preview/Viewport/Showroom"]
+
+[node name="Floor" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, -0.06, 0)
+mesh = SubResource("FloorMesh")
+
+[node name="BayLineLeft" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-3.3, -0.055, 0)
+mesh = SubResource("LineLongMesh")
+
+[node name="BayLineRight" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(3.3, -0.055, 0)
+mesh = SubResource("LineLongMesh")
+
+[node name="BayLineBack" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, -0.055, -4.2)
+mesh = SubResource("LineShortMesh")
+
+[node name="BayLineFront" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, -0.055, 4.2)
+mesh = SubResource("LineShortMesh")
+
+[node name="WallBack" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, 2.94, -7.2)
+mesh = SubResource("WallBackMesh")
+
+[node name="WallSide" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-7.2, 2.94, 0)
+mesh = SubResource("WallSideMesh")
+
+[node name="WainscotBack" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, 0.49, -7.2)
+mesh = SubResource("WainscotBackMesh")
+
+[node name="WainscotSide" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-7.2, 0.49, 0)
+mesh = SubResource("WainscotSideMesh")
+
+[node name="StripeBack" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(0, 1.1, -7.2)
+mesh = SubResource("StripeBackMesh")
+
+[node name="StripeSide" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-7.2, 1.1, 0)
+mesh = SubResource("StripeSideMesh")
+
+[node name="LampLeft" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-1.6, 5.2, 0)
+mesh = SubResource("LampMesh")
+
+[node name="LampRight" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(1.6, 5.2, 0)
+mesh = SubResource("LampMesh")
+
+[node name="LampBack" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-4.8, 5.2, -4.6)
+mesh = SubResource("LampMesh")
+
+[node name="Toolbox" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-2.4, 0.44, -6.65)
+mesh = SubResource("ToolboxMesh")
+
+[node name="Drawer1" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Toolbox"]
+position = Vector3(0, 0.3, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer2" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Toolbox"]
+position = Vector3(0, 0.1, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer3" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Toolbox"]
+position = Vector3(0, -0.1, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Drawer4" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Toolbox"]
+position = Vector3(0, -0.3, 0.31)
+mesh = SubResource("DrawerMesh")
+
+[node name="Bench" type="Node3D" parent="Preview/Viewport/Showroom/Room"]
+position = Vector3(-6.6, 0, -2.2)
+
+[node name="Top" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("BenchTopMesh")
+
+[node name="LegA" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(-0.28, 0.4, -1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegB" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(-0.28, 0.4, 1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegC" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(0.28, 0.4, -1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="LegD" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(0.28, 0.4, 1.2)
+mesh = SubResource("BenchLegMesh")
+
+[node name="Pegboard" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Room/Bench"]
+position = Vector3(-0.38, 1.9, 0)
+mesh = SubResource("PegboardMesh")
+
+[node name="TiresCorner" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("tire_stack")]
+position = Vector3(-6.2, -0.06, -6.2)
+
+[node name="TiresBack" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("tire_stack")]
+transform = Transform3D(0.8, 0, 0.6, 0, 1, 0, -0.6, 0, 0.8, 0.6, -0.06, -6.4)
+
+[node name="Generator" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("generator")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.4, -0.06, 2.6)
+
+[node name="Banner" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("sponsor_banner")]
+position = Vector3(3.6, 1.2, -7.0)
+
+[node name="ConeA" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("traffic_cone")]
+position = Vector3(3.6, -0.06, 3.9)
+
+[node name="ConeB" parent="Preview/Viewport/Showroom/Room" instance=ExtResource("traffic_cone")]
+position = Vector3(-3.6, -0.06, 3.9)
+
+[node name="Platform" type="MeshInstance3D" parent="Preview/Viewport/Showroom"]
+position = Vector3(0, -0.03, 0)
+mesh = SubResource("PlatformMesh")
+
+[node name="Ring" type="MeshInstance3D" parent="Preview/Viewport/Showroom/Platform"]
+position = Vector3(0, 0.025, 0)
+mesh = SubResource("RingMesh")
+
+[node name="Turntable" type="Node3D" parent="Preview/Viewport/Showroom"]
+unique_name_in_owner = true
+
+[node name="PreviewModel" parent="Preview/Viewport/Showroom/Turntable" instance=ExtResource("car_model")]
+unique_name_in_owner = true
+position = Vector3(0, -1.0842417, -0.82839704)
+
+[node name="Camera" type="Camera3D" parent="Preview/Viewport/Showroom"]
+unique_name_in_owner = true
+position = Vector3(6.4, 3.1, 6.9)
+current = true
+fov = 32.0
+
+[node name="PostFX" type="CanvasLayer" parent="Preview/Viewport"]
+layer = 1
+
+[node name="RetroShaderRect" type="ColorRect" parent="Preview/Viewport/PostFX"]
+unique_name_in_owner = true
+material = SubResource("ShowroomPS1Material")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Shade" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("ShadeTexture")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="Callouts" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("callouts_script")
+
 [node name="Accent" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 6.0
+offset_bottom = 4.0
 grow_horizontal = 2
 mouse_filter = 2
 color = Color(0.98, 0.48, 0.05, 1)
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="TopLeft" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 48
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_right = 48
-theme_override_constants/margin_bottom = 30
+offset_left = 48.0
+offset_top = 30.0
+offset_right = 900.0
+offset_bottom = 160.0
+mouse_filter = 2
+theme_override_constants/separation = 2
 
-[node name="Layout" type="VBoxContainer" parent="Margin"]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="Eyebrow" type="Label" parent="Margin/Layout"]
+[node name="Eyebrow" type="Label" parent="TopLeft"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
-theme_override_font_sizes/font_size = 16
-text = "02  /  ПОДГОТОВКА К ЗАЕЗДУ"
+theme_override_font_sizes/font_size = 15
+text = "ГАРАЖ  /  ПОДГОТОВКА К ЗАЕЗДУ"
 
-[node name="Title" type="Label" parent="Margin/Layout"]
+[node name="CarRow" type="HBoxContainer" parent="TopLeft"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.95, 0.96, 0.96, 1)
-theme_override_font_sizes/font_size = 46
-text = "ГАРАЖ"
+theme_override_constants/separation = 6
 
-[node name="Body" type="HBoxContainer" parent="Margin/Layout"]
+[node name="PrevCar" type="Button" parent="TopLeft/CarRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 24
+tooltip_text = "Предыдущая машина"
+theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
+theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
+theme_override_styles/pressed = SubResource("FlatStyle")
+theme_override_styles/focus = SubResource("FlatStyle")
+text = "◀"
 
-[node name="ShowroomColumn" type="VBoxContainer" parent="Margin/Layout/Body"]
+[node name="CarTitle" type="Label" parent="TopLeft/CarRow"]
+unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.3
-theme_override_constants/separation = 10
-
-[node name="CarTitle" type="Label" parent="Margin/Layout/Body/ShowroomColumn"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.91, 0.94, 1)
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.96, 0.97, 0.98, 1)
+theme_override_font_sizes/font_size = 36
 text = "MITSUBISHI LANCER EVOLUTION"
 
-[node name="VehicleSelector" type="OptionButton" parent="Margin/Layout/Body/ShowroomColumn"]
+[node name="NextCar" type="Button" parent="TopLeft/CarRow"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+tooltip_text = "Следующая машина"
+theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
+theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
+theme_override_styles/pressed = SubResource("FlatStyle")
+theme_override_styles/focus = SubResource("FlatStyle")
+text = "▶"
+
+[node name="Summary" type="Label" parent="TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.66, 0.75, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+text = "Характеристики машины"
+
+[node name="VehicleSelector" type="OptionButton" parent="TopLeft"]
+unique_name_in_owner = true
+visible = false
 layout_mode = 2
 tooltip_text = "Выберите автомобиль для заезда"
 
-[node name="Preview" type="SubViewportContainer" parent="Margin/Layout/Body/ShowroomColumn"]
-custom_minimum_size = Vector2(480, 380)
-layout_mode = 2
-size_flags_vertical = 3
-stretch = true
-
-[node name="Viewport" type="SubViewport" parent="Margin/Layout/Body/ShowroomColumn/Preview"]
-own_world_3d = true
-size = Vector2i(960, 600)
-render_target_update_mode = 4
-
-[node name="Showroom" type="Node3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport"]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
-environment = SubResource("ShowroomEnvironment")
-
-[node name="KeyLight" type="DirectionalLight3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
-rotation = Vector3(-0.872665, -0.610865, 0)
-light_energy = 1.8
-
-[node name="Platform" type="MeshInstance3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
-position = Vector3(0, -0.08, 0)
-mesh = SubResource("PlatformMesh")
-
-[node name="Turntable" type="Node3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
-unique_name_in_owner = true
-
-[node name="PreviewModel" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Turntable" instance=ExtResource("car_model")]
-unique_name_in_owner = true
-position = Vector3(0, -1.0842417, -0.82839704)
-
-[node name="Camera" type="Camera3D" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom"]
-position = Vector3(7.5, 4, 8)
-rotation = Vector3(-0.267, 0.753, 0)
-current = true
-fov = 36.0
-
-[node name="PostFX" type="CanvasLayer" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport"]
-layer = 1
-
-[node name="RetroShaderRect" type="ColorRect" parent="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/PostFX"]
-material = SubResource("ShowroomPS1Material")
-layout_mode = 3
-anchors_preset = 15
+[node name="TopRight" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_left = -468.0
+offset_top = 30.0
+offset_right = -48.0
+offset_bottom = 230.0
+grow_horizontal = 0
 mouse_filter = 2
+theme_override_constants/separation = 6
 
-[node name="PreviewCaption" type="Label" parent="Margin/Layout/Body/ShowroomColumn"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.65, 0.72, 1)
-theme_override_font_sizes/font_size = 14
-text = "ПРЕДПРОСМОТР  /  потяните мышью, чтобы вращать  ·  колесо — масштаб"
-
-[node name="Settings" type="VBoxContainer" parent="Margin/Layout/Body"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="ConfigurationTitle" type="Label" parent="Margin/Layout/Body/Settings"]
+[node name="ConfigurationTitle" type="Label" parent="TopRight"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
-theme_override_font_sizes/font_size = 16
-text = "ПРЕСЕТЫ  /  ЗАГОТОВЛЕННЫЕ И СВОИ"
+theme_override_font_sizes/font_size = 15
+text = "ПРЕСЕТ"
+horizontal_alignment = 2
 
-[node name="SetupSelector" type="OptionButton" parent="Margin/Layout/Body/Settings"]
+[node name="SetupSelector" type="OptionButton" parent="TopRight"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
 fit_to_longest_item = false
 
-[node name="CreateButton" type="Button" parent="Margin/Layout/Body/Settings"]
-unique_name_in_owner = true
+[node name="PresetRow" type="HBoxContainer" parent="TopRight"]
 layout_mode = 2
-text = "СОЗДАТЬ СВОЙ НА ОСНОВЕ ЭТОГО"
-tooltip_text = "Создать отдельную копию, не изменяя исходный пресет."
+alignment = 2
+theme_override_constants/separation = 6
 
-[node name="PresetName" type="LineEdit" parent="Margin/Layout/Body/Settings"]
+[node name="PresetName" type="LineEdit" parent="TopRight/PresetRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 placeholder_text = "Название своего пресета"
 max_length = 60
 
-[node name="Description" type="Label" parent="Margin/Layout/Body/Settings"]
+[node name="CreateButton" type="Button" parent="TopRight/PresetRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.65, 0.73, 0.78, 1)
+tooltip_text = "Создать отдельную копию, не изменяя исходный пресет."
 theme_override_font_sizes/font_size = 14
-text = "Описание базового пресета"
-autowrap_mode = 3
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+text = "＋  СВОЙ НА ОСНОВЕ ЭТОГО"
 
-[node name="Summary" type="Label" parent="Margin/Layout/Body/Settings"]
+[node name="Description" type="Label" parent="TopRight"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.94, 0.96, 1)
-theme_override_font_sizes/font_size = 17
-text = "Характеристики машины"
+theme_override_colors/font_color = Color(0.58, 0.67, 0.74, 1)
+theme_override_font_sizes/font_size = 13
+text = "Описание базового пресета"
+horizontal_alignment = 2
 autowrap_mode = 3
+max_lines_visible = 3
 
-[node name="SettingsTitle" type="Label" parent="Margin/Layout/Body/Settings"]
+[node name="DetailPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -520.0
+offset_top = 250.0
+offset_right = -48.0
+offset_bottom = -112.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Layout" type="VBoxContainer" parent="DetailPanel"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
-theme_override_font_sizes/font_size = 16
-text = "ХАРАКТЕРИСТИКИ  /  ПРОКРУТИТЕ ДЛЯ ДРУГИХ ПАРАМЕТРОВ"
+theme_override_constants/separation = 8
 
-[node name="SettingsTabs" type="TabContainer" parent="Margin/Layout/Body/Settings"]
+[node name="Header" type="HBoxContainer" parent="DetailPanel/Layout"]
+layout_mode = 2
+
+[node name="PanelTitle" type="Label" parent="DetailPanel/Layout/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.97, 0.98, 1)
+theme_override_font_sizes/font_size = 22
+text = "МОТОР"
+
+[node name="ClosePanel" type="Button" parent="DetailPanel/Layout/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Закрыть (Esc)"
+theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
+theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
+theme_override_styles/pressed = SubResource("FlatStyle")
+text = "✕"
+
+[node name="SettingsTabs" type="TabContainer" parent="DetailPanel/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-clip_tabs = true
+tabs_visible = false
+theme_override_styles/panel = SubResource("FlatStyle")
 
-[node name="ResetRow" type="HBoxContainer" parent="Margin/Layout/Body/Settings"]
-layout_mode = 2
+[node name="Hint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -106.0
+offset_right = 500.0
+offset_bottom = -86.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.45, 0.53, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+text = "ТЯНИТЕ — ВРАЩАТЬ  ·  КОЛЕСО — БЛИЖЕ  ·  НАЖМИТЕ НА ВЫНОСКУ — НАСТРОИТЬ"
+horizontal_alignment = 1
+
+[node name="BottomBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = -78.0
+offset_right = -48.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 theme_override_constants/separation = 10
 
-[node name="Status" type="Label" parent="Margin/Layout/Body/Settings/ResetRow"]
+[node name="BackButton" type="Button" parent="BottomBar"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.63, 0.74, 0.79, 1)
-theme_override_font_sizes/font_size = 13
-text = "Изменения сохраняются кнопкой ниже"
-autowrap_mode = 3
-
-[node name="ResetButton" type="Button" parent="Margin/Layout/Body/Settings/ResetRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(190, 40)
-layout_mode = 2
-text = "ОТМЕНИТЬ ПРАВКИ"
-tooltip_text = "Отменить несохранённые изменения."
-
-[node name="Buttons" type="HBoxContainer" parent="Margin/Layout"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BackButton" type="Button" parent="Margin/Layout/Buttons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(210, 52)
-layout_mode = 2
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
 text = "◀  К ТРАССЕ"
 
-[node name="ControlsButton" type="Button" parent="Margin/Layout/Buttons"]
+[node name="ControlsButton" type="Button" parent="BottomBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 52)
+custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
-text = "УПРАВЛЕНИЕ"
 tooltip_text = "Переназначить клавиатуру или геймпад."
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+text = "УПРАВЛЕНИЕ"
 
-[node name="Spacer" type="Control" parent="Margin/Layout/Buttons"]
+[node name="Status" type="Label" parent="BottomBar"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.58, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 13
+text = "Изменения сохраняются кнопкой «Сохранить»"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
 
-[node name="SaveButton" type="Button" parent="Margin/Layout/Buttons"]
+[node name="ResetButton" type="Button" parent="BottomBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 52)
+custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "СОХРАНИТЬ"
+tooltip_text = "Отменить несохранённые изменения."
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+text = "ОТМЕНИТЬ ПРАВКИ"
+
+[node name="SaveButton" type="Button" parent="BottomBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 48)
+layout_mode = 2
 tooltip_text = "Сохранить свой пресет без запуска заезда."
+theme_override_styles/normal = SubResource("ButtonStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
+theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+text = "СОХРАНИТЬ"
 
-[node name="StartButton" type="Button" parent="Margin/Layout/Buttons"]
+[node name="StartButton" type="Button" parent="BottomBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(250, 52)
+custom_minimum_size = Vector2(230, 48)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.06, 0.06, 0.06, 1)
-theme_override_font_sizes/font_size = 21
+theme_override_colors/font_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_pressed_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_focus_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("StartStyle")
+theme_override_styles/hover = SubResource("StartHoverStyle")
+theme_override_styles/pressed = SubResource("StartHoverStyle")
+theme_override_styles/focus = SubResource("StartHoverStyle")
 text = "НА СТАРТ  ▶"
 
-[editable path="Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Turntable/PreviewModel"]
+[editable path="Preview/Viewport/Showroom/Turntable/PreviewModel"]

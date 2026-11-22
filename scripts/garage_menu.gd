@@ -1,4 +1,8 @@
-## Экран подготовки машины. Витрина и автомобиль заезда используют одну
+## Экран подготовки машины: 3D-гараж во весь экран, минимум меню и выноски-
+## инфографика от частей машины (мотор — от капота, подвеска — от стойки
+## переднего колеса, шины — от заднего колеса, привод — от заднего моста,
+## внешность — от двери). Нажатие на выноску открывает панель настроек этой
+## части, камера подъезжает к ней. Витрина и автомобиль заезда используют одну
 ## реализацию внешности; готовые пресеты доступны только для просмотра.
 extends Control
 
@@ -24,6 +28,15 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @export var ui_theme: UiThemeType = null
 ## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.
 @export var menu_layout: MenuLayoutType = null
+## Угол, под которым машина стоит к камере, градусы (0 — как в модели).
+@export_range(-180.0, 180.0, 1.0, "suffix:°") var rest_yaw_deg: float = -18.0
+## Насколько машина покачивается на поворотном круге, градусы (0 — стоит).
+@export_range(0.0, 90.0, 1.0, "suffix:°") var sway_amplitude_deg: float = 16.0
+## Через сколько секунд после вращения мышью машина снова покачивается.
+@export_range(0.0, 30.0, 0.5, "suffix:с") var sway_resume_sec: float = 3.0
+## Насколько камера подъезжает к выбранной части (доля исходной дистанции).
+## Карточки выносок настраиваются на узле %Callouts (GarageCallouts).
+@export_range(0.2, 1.0, 0.01) var focus_distance: float = 0.6
 
 var config: RallyGameConfig
 var game: Node
@@ -52,6 +65,18 @@ var _model_default_y: float = 0.0
 ## Кузов сцены (%PreviewModel) показывается, пока витрина машины не загружена.
 var _vehicle_models: Dictionary = {}
 var _vehicle_id: String = "mitsubishi"
+
+## Открытая панель части машины (id группы), пусто — панель закрыта.
+var _active_group := ""
+var _base_yaw := 0.0
+var _sway_phase := 0.0
+var _idle_time := 0.0
+var _cam_home_target := Vector3(0.0, 0.65, 0.0)
+var _cam_dir := Vector3(0.6, 0.35, 0.7)
+var _cam_home_dist := 9.5
+var _cam_target := Vector3.ZERO
+var _cam_dist := 9.5
+var _cam_shift := 0.0
 
 
 func theme_cfg() -> UiThemeType:
@@ -88,13 +113,17 @@ func turntable_speed() -> float:
 @onready var _status: Label = %Status
 @onready var _tabs: TabContainer = %SettingsTabs
 @onready var _vehicle_selector: OptionButton = %VehicleSelector
-@onready var _car_title: Label = $Margin/Layout/Body/ShowroomColumn/CarTitle
+@onready var _car_title: Label = %CarTitle
 @onready var _model: Node3D = %PreviewModel
 @onready var _turntable: Node3D = %Turntable
 @onready var _start: Button = %StartButton
-@onready var _preview_container: SubViewportContainer = $Margin/Layout/Body/ShowroomColumn/Preview
-@onready var _preview_camera: Camera3D = $Margin/Layout/Body/ShowroomColumn/Preview/Viewport/Showroom/Camera
-@onready var _retro_rect: ColorRect = $Margin/Layout/Body/ShowroomColumn/Preview/Viewport/PostFX/RetroShaderRect
+@onready var _preview_container: SubViewportContainer = %Preview
+@onready var _preview_viewport: SubViewport = $Preview/Viewport
+@onready var _preview_camera: Camera3D = %Camera
+@onready var _retro_rect: ColorRect = %RetroShaderRect
+@onready var _callouts: GarageCallouts = %Callouts
+@onready var _detail_panel: PanelContainer = %DetailPanel
+@onready var _panel_title: Label = %PanelTitle
 
 
 func _ready() -> void:
@@ -109,10 +138,17 @@ func _ready() -> void:
 	%BackButton.pressed.connect(_request_back)
 	%ControlsButton.pressed.connect(func() -> void: controls_requested.emit())
 	_start.pressed.connect(_start_race)
+	%PrevCar.pressed.connect(func() -> void: _step_vehicle(-1))
+	%NextCar.pressed.connect(func() -> void: _step_vehicle(1))
+	%ClosePanel.pressed.connect(close_group)
 	_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview_container.gui_input.connect(_on_preview_input)
 	_model_default_y = _model.position.y
 	_track_wheels(_model, SCENE_WHEEL_NAMES)
+	_init_camera_rig()
+	_callouts.camera = _preview_camera
+	_callouts.viewport = _preview_viewport
+	_callouts.part_pressed.connect(_on_part_pressed)
 
 
 func _build_settings() -> void:
@@ -250,6 +286,8 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	)
 	_show_vehicle(selected_vehicle)
 	_configure_preview_style()
+	close_group()
+	_callouts.reset_layout()
 	_dirty.clear()
 	_status.text = "Выберите пресет или создайте свой на его основе."
 	_rebuild_selector()
@@ -383,14 +421,24 @@ func _configure_preview_style() -> void:
 
 
 func _process(delta: float) -> void:
-	if visible and _turntable != null and not _dragging:
-		_turntable.rotate_y(delta * turntable_speed())
+	if not visible or _turntable == null:
+		return
+	_update_turntable(delta)
+	_update_camera_rig(delta)
+	var model := _active_model()
+	_callouts.model = model
+	_callouts.wheels = _model_wheels(model)
+	_callouts.active_part = _active_group
+	var panel_rect := _detail_panel.get_global_rect()
+	_callouts.focus_point = Vector2(panel_rect.position.x, panel_rect.position.y + 26.0)
+	_callouts.tick(delta)
 
 
 func _on_preview_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = event.pressed
+			_idle_time = 0.0
 			_preview_container.accept_event()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_preview_camera.fov = maxf(layout().garage_preview_fov_min, _preview_camera.fov - layout().garage_preview_fov_step)
@@ -399,7 +447,9 @@ func _on_preview_input(event: InputEvent) -> void:
 			_preview_camera.fov = minf(layout().garage_preview_fov_max, _preview_camera.fov + layout().garage_preview_fov_step)
 			_preview_container.accept_event()
 	elif event is InputEventMouseMotion and _dragging:
-		_turntable.rotate_y(-event.relative.x * layout().garage_mouse_rotate_speed)
+		_base_yaw -= event.relative.x * layout().garage_mouse_rotate_speed
+		_sway_phase = 0.0
+		_idle_time = 0.0
 		_preview_container.accept_event()
 
 
@@ -551,6 +601,7 @@ func _refresh() -> void:
 		elif kind == "color":
 			(control as ColorPickerButton).color = setup.get(key)
 	_update_preview()
+	_refresh_cards()
 	_updating = false
 
 
@@ -651,6 +702,7 @@ func _on_custom_color_changed(color: Color, key: String) -> void:
 	setup.set(key, Customization.sanitize_value(_fields[key], color, setup.get(key)))
 	_mark_changed()
 	_update_preview()
+	_refresh_cards()
 
 
 # Совместимость с прежним обработчиком настройки цвета.
@@ -701,5 +753,129 @@ func _reset_setup() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		_request_back()
+		# Esc сначала закрывает панель части, потом уходит из гаража.
+		if not _active_group.is_empty():
+			close_group()
+		else:
+			_request_back()
 		get_viewport().set_input_as_handled()
+
+
+# ---------------------------------------------------------------------------
+# Поворотный круг и камера
+# ---------------------------------------------------------------------------
+
+
+## Камера смотрит на машину из точки, заданной в сцене (узел Camera); дальше её
+## ведёт скрипт: подъезд к выбранной части и сдвиг вбок под панель настроек.
+func _init_camera_rig() -> void:
+	var offset := _preview_camera.position - _cam_home_target
+	_cam_home_dist = maxf(offset.length(), 1.0)
+	_cam_dir = offset / _cam_home_dist
+	_cam_target = _cam_home_target
+	_cam_dist = _cam_home_dist
+	_base_yaw = deg_to_rad(rest_yaw_deg)
+	_turntable.rotation.y = _base_yaw
+	_place_camera()
+
+
+func _update_turntable(delta: float) -> void:
+	if _dragging:
+		_turntable.rotation.y = _base_yaw
+		return
+	_idle_time += delta
+	# Пока открыта панель части, машина стоит: выноска не уезжает.
+	if _active_group.is_empty() and _idle_time >= sway_resume_sec:
+		_sway_phase += delta * turntable_speed() * 3.0
+	var target := _base_yaw + sin(_sway_phase) * deg_to_rad(sway_amplitude_deg)
+	_turntable.rotation.y = lerp_angle(_turntable.rotation.y, target, 1.0 - exp(-delta * 6.0))
+
+
+func _update_camera_rig(delta: float) -> void:
+	var target := _cam_home_target
+	var dist := _cam_home_dist
+	var shift := 0.0
+	if not _active_group.is_empty():
+		var anchors := _callouts.part_anchors()
+		if anchors.has(_active_group):
+			var part: Vector3 = anchors[_active_group]
+			target = _cam_home_target.lerp(part, 0.7)
+		dist = _cam_home_dist * focus_distance
+		# Панель настроек справа: машина уходит в левую половину кадра.
+		var half_height := tan(deg_to_rad(_preview_camera.fov) * 0.5) * dist
+		shift = half_height * _view_aspect() * 0.42
+	var k := 1.0 - exp(-delta * 4.0)
+	_cam_target = _cam_target.lerp(target, k)
+	_cam_dist = lerpf(_cam_dist, dist, k)
+	_cam_shift = lerpf(_cam_shift, shift, k)
+	_place_camera()
+
+
+func _place_camera() -> void:
+	_preview_camera.position = _cam_target + _cam_dir * _cam_dist
+	_preview_camera.look_at(_cam_target, Vector3.UP)
+	_preview_camera.h_offset = _cam_shift
+
+
+func _view_aspect() -> float:
+	var size := Vector2(_preview_viewport.size)
+	return size.x / maxf(size.y, 1.0)
+
+
+func _active_model() -> Node3D:
+	return _vehicle_models.get(_vehicle_id, _model) as Node3D
+
+
+## Соседняя машина по стрелкам ◀ ▶ у названия.
+func _step_vehicle(step: int) -> void:
+	var ids := _vehicle_ids()
+	if ids.is_empty():
+		return
+	_select_vehicle(posmod(_vehicle_index(_vehicle_id) + step, ids.size()))
+	_callouts.reset_layout()
+
+
+# ---------------------------------------------------------------------------
+# Панель настроек части машины
+# ---------------------------------------------------------------------------
+
+
+func _on_part_pressed(id: String) -> void:
+	if _active_group == id:
+		close_group()
+	else:
+		open_group(id)
+
+
+## Открыть панель настроек части машины (id группы из car_customization.gd):
+## камера подъезжает к детали, остальные выноски прячутся.
+func open_group(id: String) -> void:
+	var index := -1
+	for i in range(Customization.GROUPS.size()):
+		if String(Customization.GROUPS[i]["id"]) == id:
+			index = i
+	if index < 0:
+		return
+	_active_group = id
+	_tabs.current_tab = index
+	var caption: String = Customization.GROUPS[index]["title"]
+	_panel_title.text = String(GarageCallouts.PART_CAPTIONS.get(id, caption))
+	_detail_panel.show()
+	_idle_time = 0.0
+
+
+func close_group() -> void:
+	_active_group = ""
+	if _detail_panel != null:
+		_detail_panel.hide()
+
+
+## Цифры на карточках выносок — из текущего пресета.
+func _refresh_cards() -> void:
+	if setup == null or _callouts == null:
+		return
+	var finishes: Array = []
+	for field: Dictionary in Customization.FIELDS:
+		if field["key"] == "paint_finish":
+			finishes = field["options"]
+	_callouts.refresh(setup, _livery_labels(), finishes)
