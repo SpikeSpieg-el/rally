@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://dnfh1hjw5fb5t"]
 
+[ext_resource type="Script" uid="uid://p7x2rallyspb" path="res://scripts/effects/rally_sponsor_banner.gd" id="script"]
 [ext_resource type="Texture2D" uid="uid://bsiy7rcgoweqc" path="res://a764159358f676060879fa987e39b609.jpg" id="2_f5j38"]
 [ext_resource type="Texture2D" uid="uid://iqvt05tfocjg" path="res://textures/environment/plank.png" id="tex_plank"]
 
@@ -28,7 +29,7 @@ texture_repeat = false
 material = SubResource("StandardMaterial3D_rj7vs")
 size = Vector3(3.4917235, 1.6704651, 0.06)
 
-[node name="SponsorBanner" type="Node3D" unique_id=1883060401]
+[node name="SponsorBanner" type="Node3D" unique_id=1883060401] script = ExtResource("script") editor_description = "LSD-экран спонсора: баннеры меняются каждые `banner_cycle_time` с и плавно растворяются за `banner_crossfade`. Картинки пока заглушки."
 
 [node name="Mesh_post_l" type="MeshInstance3D" parent="." unique_id=1358622859]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4447758, 0.6720703, 0)
