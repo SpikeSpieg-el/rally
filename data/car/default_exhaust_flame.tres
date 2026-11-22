@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="RallyExhaustFlameConfig" load_steps=3 format=3 uid="uid://bfsjowpvvqejk"]
+
+[ext_resource type="Script" uid="uid://brem6zjx5gcq1" path="res://scripts/data/rally_exhaust_flame_config.gd" id="1_flame"]
+[ext_resource type="Texture2D" uid="uid://dteu0pri100nw" path="res://textures/fire.png" id="2_fire"]
+
+[resource]
+script = ExtResource("1_flame")
+enabled = true
+turbo_only = true
+vehicle_ids = Array[String]([])
+cooldown_sec = 0.09
+sync_with_audio = true
+lift_throttle_from = 0.5
+lift_throttle_to = 0.1
+lift_min_rpm = 3000.0
+crackle_enabled = true
+crackle_duration_sec = 1.1
+crackle_rate_hz = 7.0
+crackle_min_rpm = 3600.0
+crackle_strength = 0.45
+upshift_enabled = true
+upshift_min_rpm = 5200.0
+upshift_strength = 0.8
+limiter_enabled = true
+limiter_rate_hz = 6.0
+limiter_strength = 0.6
+flame_texture = ExtResource("2_fire")
+flame_color = Color(1, 0.62, 0.26, 1)
+core_color = Color(0.55, 0.7, 1, 1)
+flame_length_m = Vector2(0.55, 0.95)
+flame_width_ratio = 0.62
+flame_life_sec = 0.16
+flame_grow_part = 0.25
+flame_energy = 2.2
+flame_pitch_down_deg = 6.0
+flame_jitter_deg = 7.0
+flame_offset_m = 0.02
+flames_per_outlet = 3
+fireball_enabled = true
+fireball_amount = 6
+fireball_size_m = Vector2(0.18, 0.36)
+fireball_speed_mps = 3.5
+fireball_life_sec = 0.22
+fireball_min_strength = 0.6
+light_enabled = true
+light_color = Color(1, 0.55, 0.2, 1)
+light_energy = 3.5
+light_range_m = 4.5
+light_shadows = false
+outlet_marker_prefix = "ExhaustOutlet"
+auto_detect = true
+material_keywords = Array[String](["exhaust"])
+merge_distance_m = 0.12
+manual_outlets = Array[Vector3]([])
+fallback_outlet = Vector3(0, 0.45, -1.85)

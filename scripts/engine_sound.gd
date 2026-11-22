@@ -19,6 +19,10 @@
 class_name RallyEngineSound
 extends Node3D
 
+## Хлопок в выхлопе на сброс газа турбомотора: сила 0..1 (1 — со сбросом
+## турбины). По нему стреляет пламя из труб (ExhaustFlameFx).
+signal exhaust_pop(strength: float)
+
 const CarType = preload("res://scripts/rally_car.gd")
 
 const ENGINE_DIR := "res://audio/engine/"
@@ -785,6 +789,11 @@ func _update_events(rpm: float, throttle: float, delta: float) -> void:
 	# постоянно, звук превращается в треск и мотор «захлёбывается».
 	var lifted: bool = _prev_throttle > 0.5 and throttle < 0.1
 	if lifted and not shifting and _turbo_enabled():
+		# Пламя стреляет независимо от того, свободен ли канал звука.
+		if _boost > 0.3:
+			exhaust_pop.emit(1.0)
+		elif rpm > 3000.0:
+			exhaust_pop.emit(0.75)
 		if _boost > 0.3 and _bov_cooldown <= 0.0 and not _bov_streams.is_empty():
 			_play_event(_bov_streams[randi() % _bov_streams.size()], 0.7, 0.06)
 			_bov_cooldown = BOV_COOLDOWN

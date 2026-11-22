@@ -17,6 +17,8 @@ const DEFAULT_FEEL_PATH := "res://data/car/default_car_feel.tres"
 const DEFAULT_DAMAGE_VISUAL_PATH := "res://data/car/default_damage_visual.tres"
 # Эффекты удара (тряска камеры, искры, обломки, звук, вибрация) — тоже ресурсом.
 const DEFAULT_IMPACT_FX_PATH := "res://data/car/default_impact_fx.tres"
+# Выстрелы пламени из выхлопа (textures/fire.png) — тоже ресурсом.
+const DEFAULT_EXHAUST_FLAME_PATH := "res://data/car/default_exhaust_flame.tres"
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
@@ -68,6 +70,9 @@ const FEEL_GRAVITY: float = 9.81
 ## Эффекты удара: тряска и рывок камеры, искры, обломки, звук, вибрация.
 ## Пусто — res://data/car/default_impact_fx.tres.
 @export var impact_fx_config: RallyImpactFxConfig = null
+## Выстрелы пламени из выхлопа турбомотора: когда стреляет, длина, цвет,
+## вспышка, где трубы. Пусто — res://data/car/default_exhaust_flame.tres.
+@export var exhaust_flame_config: RallyExhaustFlameConfig = null
 ## Пятна крови на кузове. Пусто — res://scenes/effects/blood_stains.tscn.
 @export var blood_stains_scene: PackedScene
 
@@ -253,6 +258,8 @@ var blood_fx: BloodFxType = null
 var damage_visual: CarDamageVisual = null
 ## Эффекты удара (камера, частицы, звук, вибрация). null — выключены.
 var impact_fx: CarImpactFx = null
+## Выстрелы пламени из выхлопа. null — в витрине или у исключённых машин.
+var exhaust_flames: ExhaustFlameFx = null
 var _damage_prev_velocity := Vector3.ZERO
 var _damage_cooldown := 0.0
 var precipitation_rain: float = 0.0
@@ -299,6 +306,7 @@ func _ready() -> void:
 	# После покраски: компонент запоминает материалы поверхностей кузова такими,
 	# какими их оставила ливрея, и не мешает смене краски позже.
 	_install_damage_visual()
+	_install_exhaust_flames()
 	_setup_brake_lights()
 	surface_effects = SurfaceEffectsType.new()
 	surface_effects.fx = fx_config()
@@ -624,6 +632,44 @@ func fx_config() -> RallyFxProfile:
 
 ## Настройка эффектов удара (никогда null): поле сцены, иначе ресурс по
 ## умолчанию из data/car/.
+func exhaust_flame_settings() -> RallyExhaustFlameConfig:
+	if exhaust_flame_config == null:
+		if ResourceLoader.exists(DEFAULT_EXHAUST_FLAME_PATH):
+			exhaust_flame_config = ResourceLoader.load(DEFAULT_EXHAUST_FLAME_PATH) as RallyExhaustFlameConfig
+		if exhaust_flame_config == null:
+			exhaust_flame_config = RallyExhaustFlameConfig.new()
+	return exhaust_flame_config
+
+
+## Ставит выстрелы пламени из выхлопа. Турбина проверяется на каждом выстреле
+## (пресет мотора меняется в меню), поэтому узел ставится всем подходящим машинам.
+## Пламя — только картинка: на физику, мощность и звук не влияет.
+func _install_exhaust_flames() -> void:
+	if exhaust_flames != null:
+		exhaust_flames.clear()
+		remove_child(exhaust_flames)
+		exhaust_flames.queue_free()
+		exhaust_flames = null
+	var settings := exhaust_flame_settings()
+	if cinematic_mode or not settings.enabled:
+		return
+	if not settings.vehicle_ids.is_empty() and not settings.vehicle_ids.has(vehicle_id):
+		return
+	exhaust_flames = ExhaustFlameFx.new()
+	exhaust_flames.name = "ExhaustFlames"
+	add_child(exhaust_flames)
+	exhaust_flames.setup(self, settings, get_node_or_null("EngineAudio"))
+
+
+## Подменить настройку пламени из выхлопа (null — оставить как есть).
+func apply_exhaust_flame_settings(settings: RallyExhaustFlameConfig) -> void:
+	if settings == null or settings == exhaust_flame_config:
+		return
+	exhaust_flame_config = settings
+	if is_inside_tree():
+		_install_exhaust_flames()
+
+
 func impact_config() -> RallyImpactFxConfig:
 	if impact_fx_config == null:
 		if ResourceLoader.exists(DEFAULT_IMPACT_FX_PATH):
@@ -2257,6 +2303,8 @@ func restart_at_spawn() -> void:
 	var audio := get_node_or_null("EngineAudio")
 	if audio != null and audio.has_method("reset_state"):
 		audio.call("reset_state")
+	if exhaust_flames != null:
+		exhaust_flames.clear()
 
 
 func get_average_tire_slip() -> float:
