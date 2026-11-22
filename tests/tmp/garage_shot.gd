@@ -15,6 +15,9 @@ func _frames(count: int) -> void:
 
 
 func _shot(index: int) -> void:
+	RenderingServer.force_draw(false)
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
 	var img := root.get_texture().get_image()
 	img.resize(960, 540, Image.INTERPOLATE_BILINEAR)
 	img.save_jpg("/tmp/shots/shot_%d.jpg" % index, 0.72)
@@ -28,24 +31,24 @@ func _run() -> void:
 	root.add_child(garage)
 	garage.open(Config, 0, game)
 	await _frames(60)
-	_shot(0)
+	await _shot(0)
 	garage.open_group("engine")
 	await _frames(30)
-	_shot(1)
+	await _shot(1)
 	await _frames(90)
-	_shot(4)
+	await _shot(4)
 	garage.open_group("tires")
 	await _frames(120)
-	_shot(5)
+	await _shot(5)
 	garage.close_group()
 	garage.select_vehicle("subaru")
 	await _frames(90)
-	_shot(2)
+	await _shot(2)
 	var track = game.current_track.duplicate()
 	track.ps1_style = false
 	game.current_track = track
 	garage._configure_preview_style()
 	garage.select_vehicle("golf")
 	await _frames(90)
-	_shot(3)
+	await _shot(3)
 	quit(0)
