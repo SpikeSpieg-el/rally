@@ -20,7 +20,7 @@ func _shot(index: int) -> void:
 	await RenderingServer.frame_post_draw
 	var img := root.get_texture().get_image()
 	img.resize(960, 540, Image.INTERPOLATE_BILINEAR)
-	img.save_jpg("/tmp/shots/shot_%d.jpg" % index, 0.72)
+	img.save_jpg("/tmp/shots/shot_%d.jpg" % index, 0.6)
 
 
 func _run() -> void:
