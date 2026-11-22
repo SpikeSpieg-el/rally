@@ -35,7 +35,7 @@ func _run() -> void:
 	garage._configure_preview_style()
 	ok = ok and garage._preview_container.stretch_shrink == 3 and garage._retro_rect.visible
 	# Витрина задана сценой; настройки создаются из общей схемы в _ready.
-	ok = ok and garage.get_node_or_null("%Turntable") != null
+	ok = ok and garage.get_node_or_null("Preview/Viewport/Showroom/Turntable") != null
 	ok = ok and garage.get_node_or_null("%TorqueSlider") is HSlider
 	ok = ok and garage.get_node_or_null("Preview/Viewport/Showroom/Camera") is Camera3D
 	ok = ok and garage.get_node_or_null("Preview/Viewport/Showroom/Platform") is MeshInstance3D

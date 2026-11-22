@@ -28,8 +28,6 @@ const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 @export var ui_theme: UiThemeType = null
 ## Тексты и подсказки гаража. Пусто — res://data/ui/default_menu_layout.tres.
 @export var menu_layout: MenuLayoutType = null
-## Угол, под которым машина стоит к камере, градусы (0 — как в модели).
-@export_range(-180.0, 180.0, 1.0, "suffix:°") var rest_yaw_deg: float = -18.0
 ## Насколько машина покачивается на поворотном круге, градусы (0 — стоит).
 @export_range(0.0, 90.0, 1.0, "suffix:°") var sway_amplitude_deg: float = 16.0
 ## Через сколько секунд после вращения мышью машина снова покачивается.
@@ -114,12 +112,15 @@ func turntable_speed() -> float:
 @onready var _tabs: TabContainer = %SettingsTabs
 @onready var _vehicle_selector: OptionButton = %VehicleSelector
 @onready var _car_title: Label = %CarTitle
-@onready var _model: Node3D = %PreviewModel
-@onready var _turntable: Node3D = %Turntable
+# 3D-бокс — отдельная сцена scenes/garage_showroom.tscn: её удобно править во
+# вкладке 3D редактора. Уникальные имена ищем внутри неё.
+@onready var _showroom: Node3D = $Preview/Viewport/Showroom
+@onready var _model: Node3D = _showroom.get_node("%PreviewModel")
+@onready var _turntable: Node3D = _showroom.get_node("%Turntable")
 @onready var _start: Button = %StartButton
 @onready var _preview_container: SubViewportContainer = %Preview
 @onready var _preview_viewport: SubViewport = $Preview/Viewport
-@onready var _preview_camera: Camera3D = %Camera
+@onready var _preview_camera: Camera3D = _showroom.get_node("%Camera")
 @onready var _retro_rect: ColorRect = %RetroShaderRect
 @onready var _callouts: GarageCallouts = %Callouts
 @onready var _detail_panel: PanelContainer = %DetailPanel
@@ -769,13 +770,19 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Камера смотрит на машину из точки, заданной в сцене (узел Camera); дальше её
 ## ведёт скрипт: подъезд к выбранной части и сдвиг вбок под панель настроек.
 func _init_camera_rig() -> void:
+	# Кадр берём таким, каким камера выставлена в garage_showroom.tscn: центр
+	# облёта — точка на луче взгляда напротив оси поворотного круга.
+	var forward := -_preview_camera.transform.basis.z.normalized()
+	var axis_point := Vector3(_turntable.position.x, _cam_home_target.y, _turntable.position.z)
+	var reach := maxf((axis_point - _preview_camera.position).dot(forward), 1.0)
+	_cam_home_target = _preview_camera.position + forward * reach
 	var offset := _preview_camera.position - _cam_home_target
 	_cam_home_dist = maxf(offset.length(), 1.0)
 	_cam_dir = offset / _cam_home_dist
 	_cam_target = _cam_home_target
 	_cam_dist = _cam_home_dist
-	_base_yaw = deg_to_rad(rest_yaw_deg)
-	_turntable.rotation.y = _base_yaw
+	# Угол машины в покое — поворот Turntable в garage_showroom.tscn.
+	_base_yaw = _turntable.rotation.y
 	_place_camera()
 
 
