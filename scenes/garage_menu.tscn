@@ -1,13 +1,25 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cgsanxpsymfmj"]
 
-[ext_resource type="Script" path="res://scripts/garage_menu.gd" id="garage_script"]
-[ext_resource type="Script" path="res://scripts/garage_callouts.gd" id="callouts_script"]
-[ext_resource type="PackedScene" path="res://scenes/garage_showroom.tscn" id="showroom_scene"]
-[ext_resource type="Shader" path="res://shaders/speed_fx.gdshader" id="ps1_shader"]
+[ext_resource type="Script" uid="uid://doi5jx65l71fl" path="res://scripts/garage_callouts.gd" id="callouts_script"]
+[ext_resource type="Script" uid="uid://bldow7yt6dfq0" path="res://scripts/garage_menu.gd" id="garage_script"]
+[ext_resource type="Shader" uid="uid://cjk0afgvjqwx0" path="res://shaders/speed_fx.gdshader" id="ps1_shader"]
+[ext_resource type="PackedScene" uid="uid://dwrqum6ory2fe" path="res://scenes/garage_showroom.tscn" id="showroom_scene"]
 
 [sub_resource type="ShaderMaterial" id="ShowroomPS1Material"]
 resource_local_to_scene = true
 shader = ExtResource("ps1_shader")
+shader_parameter/retro_strength = 1.0
+shader_parameter/resolution_y = 270.0
+shader_parameter/color_levels = 31.0
+shader_parameter/dither_strength = 1.0
+shader_parameter/speed_intensity = 0.0
+shader_parameter/blur_strength = 0.012
+shader_parameter/vignette_strength = 0.12
+shader_parameter/camera_mode = 0
+shader_parameter/blur_gain = 2.0
+shader_parameter/cockpit_scale = 0.8
+shader_parameter/speed_stretch = 0.02
+shader_parameter/speed_stretch_gain = 1.0
 
 [sub_resource type="Gradient" id="ShadeGradient"]
 offsets = PackedFloat32Array(0, 0.2, 0.72, 1)
@@ -18,6 +30,8 @@ gradient = SubResource("ShadeGradient")
 width = 8
 height = 256
 fill_to = Vector2(0, 1)
+
+[sub_resource type="StyleBoxEmpty" id="FlatStyle"]
 
 [sub_resource type="StyleBoxFlat" id="ButtonStyle"]
 content_margin_left = 18.0
@@ -51,6 +65,15 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+content_margin_left = 18.0
+content_margin_top = 14.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.022, 0.032, 0.044, 0.9)
+border_width_left = 3
+border_color = Color(1, 0.58, 0.08, 1)
+
 [sub_resource type="StyleBoxFlat" id="StartStyle"]
 content_margin_left = 22.0
 content_margin_top = 8.0
@@ -73,18 +96,7 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
-[sub_resource type="StyleBoxEmpty" id="FlatStyle"]
-
-[sub_resource type="StyleBoxFlat" id="PanelStyle"]
-content_margin_left = 18.0
-content_margin_top = 14.0
-content_margin_right = 12.0
-content_margin_bottom = 12.0
-bg_color = Color(0.022, 0.032, 0.044, 0.9)
-border_width_left = 3
-border_color = Color(1, 0.58, 0.08, 1)
-
-[node name="Garage" type="Control"]
+[node name="Garage" type="Control" unique_id=867468184]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -93,7 +105,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("garage_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1806626512]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -103,7 +115,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.018, 0.028, 0.041, 1)
 
-[node name="Preview" type="SubViewportContainer" parent="."]
+[node name="Preview" type="SubViewportContainer" parent="." unique_id=1977681568]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -113,19 +125,20 @@ grow_horizontal = 2
 grow_vertical = 2
 stretch = true
 
-[node name="Viewport" type="SubViewport" parent="Preview"]
+[node name="Viewport" type="SubViewport" parent="Preview" unique_id=611335130]
 own_world_3d = true
 handle_input_locally = false
 size = Vector2i(1920, 1080)
 render_target_update_mode = 4
 
-[node name="Showroom" parent="Preview/Viewport" instance=ExtResource("showroom_scene")]
+[node name="Showroom" parent="Preview/Viewport" unique_id=1497542471 instance=ExtResource("showroom_scene")]
 
-[node name="PostFX" type="CanvasLayer" parent="Preview/Viewport"]
-layer = 1
+[node name="PostFX" type="CanvasLayer" parent="Preview/Viewport" unique_id=732002801]
+visible = false
 
-[node name="RetroShaderRect" type="ColorRect" parent="Preview/Viewport/PostFX"]
+[node name="RetroShaderRect" type="ColorRect" parent="Preview/Viewport/PostFX" unique_id=389334849]
 unique_name_in_owner = true
+visible = false
 material = SubResource("ShowroomPS1Material")
 anchors_preset = 15
 anchor_right = 1.0
@@ -134,7 +147,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Shade" type="TextureRect" parent="."]
+[node name="Shade" type="TextureRect" parent="." unique_id=1929134402]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -144,9 +157,8 @@ grow_vertical = 2
 mouse_filter = 2
 texture = SubResource("ShadeTexture")
 expand_mode = 1
-stretch_mode = 0
 
-[node name="Callouts" type="Control" parent="."]
+[node name="Callouts" type="Control" parent="." unique_id=345844877]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -157,7 +169,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("callouts_script")
 
-[node name="Accent" type="ColorRect" parent="."]
+[node name="Accent" type="ColorRect" parent="." unique_id=278188273]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -166,7 +178,7 @@ grow_horizontal = 2
 mouse_filter = 2
 color = Color(0.98, 0.48, 0.05, 1)
 
-[node name="TopLeft" type="VBoxContainer" parent="."]
+[node name="TopLeft" type="VBoxContainer" parent="." unique_id=1324952806]
 layout_mode = 1
 offset_left = 48.0
 offset_top = 30.0
@@ -175,17 +187,17 @@ offset_bottom = 160.0
 mouse_filter = 2
 theme_override_constants/separation = 2
 
-[node name="Eyebrow" type="Label" parent="TopLeft"]
+[node name="Eyebrow" type="Label" parent="TopLeft" unique_id=619920618]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 15
 text = "ГАРАЖ  /  ПОДГОТОВКА К ЗАЕЗДУ"
 
-[node name="CarRow" type="HBoxContainer" parent="TopLeft"]
+[node name="CarRow" type="HBoxContainer" parent="TopLeft" unique_id=1130235147]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="PrevCar" type="Button" parent="TopLeft/CarRow"]
+[node name="PrevCar" type="Button" parent="TopLeft/CarRow" unique_id=328593452]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
@@ -194,19 +206,19 @@ theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
 theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("FlatStyle")
-theme_override_styles/hover = SubResource("FlatStyle")
 theme_override_styles/pressed = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
 theme_override_styles/focus = SubResource("FlatStyle")
 text = "◀"
 
-[node name="CarTitle" type="Label" parent="TopLeft/CarRow"]
+[node name="CarTitle" type="Label" parent="TopLeft/CarRow" unique_id=2013179487]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.97, 0.98, 1)
 theme_override_font_sizes/font_size = 36
 text = "MITSUBISHI LANCER EVOLUTION"
 
-[node name="NextCar" type="Button" parent="TopLeft/CarRow"]
+[node name="NextCar" type="Button" parent="TopLeft/CarRow" unique_id=834318444]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
@@ -215,25 +227,25 @@ theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
 theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("FlatStyle")
-theme_override_styles/hover = SubResource("FlatStyle")
 theme_override_styles/pressed = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
 theme_override_styles/focus = SubResource("FlatStyle")
 text = "▶"
 
-[node name="Summary" type="Label" parent="TopLeft"]
+[node name="Summary" type="Label" parent="TopLeft" unique_id=933514683]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.66, 0.75, 0.82, 1)
 theme_override_font_sizes/font_size = 16
 text = "Характеристики машины"
 
-[node name="VehicleSelector" type="OptionButton" parent="TopLeft"]
+[node name="VehicleSelector" type="OptionButton" parent="TopLeft" unique_id=1620756657]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 tooltip_text = "Выберите автомобиль для заезда"
 
-[node name="TopRight" type="VBoxContainer" parent="."]
+[node name="TopRight" type="VBoxContainer" parent="." unique_id=1902288131]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -246,45 +258,45 @@ grow_horizontal = 0
 mouse_filter = 2
 theme_override_constants/separation = 6
 
-[node name="ConfigurationTitle" type="Label" parent="TopRight"]
+[node name="ConfigurationTitle" type="Label" parent="TopRight" unique_id=512426799]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.56, 0.17, 1)
 theme_override_font_sizes/font_size = 15
 text = "ПРЕСЕТ"
 horizontal_alignment = 2
 
-[node name="SetupSelector" type="OptionButton" parent="TopRight"]
+[node name="SetupSelector" type="OptionButton" parent="TopRight" unique_id=257919048]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 fit_to_longest_item = false
 
-[node name="PresetRow" type="HBoxContainer" parent="TopRight"]
+[node name="PresetRow" type="HBoxContainer" parent="TopRight" unique_id=864028331]
 layout_mode = 2
-alignment = 2
 theme_override_constants/separation = 6
+alignment = 2
 
-[node name="PresetName" type="LineEdit" parent="TopRight/PresetRow"]
+[node name="PresetName" type="LineEdit" parent="TopRight/PresetRow" unique_id=645755923]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Название своего пресета"
 max_length = 60
 
-[node name="CreateButton" type="Button" parent="TopRight/PresetRow"]
+[node name="CreateButton" type="Button" parent="TopRight/PresetRow" unique_id=921751903]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Создать отдельную копию, не изменяя исходный пресет."
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 text = "＋  СВОЙ НА ОСНОВЕ ЭТОГО"
 
-[node name="Description" type="Label" parent="TopRight"]
+[node name="Description" type="Label" parent="TopRight" unique_id=1877662027]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.67, 0.74, 1)
@@ -294,7 +306,7 @@ horizontal_alignment = 2
 autowrap_mode = 3
 max_lines_visible = 3
 
-[node name="DetailPanel" type="PanelContainer" parent="."]
+[node name="DetailPanel" type="PanelContainer" parent="." unique_id=1595403599]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -310,14 +322,14 @@ grow_horizontal = 0
 grow_vertical = 2
 theme_override_styles/panel = SubResource("PanelStyle")
 
-[node name="Layout" type="VBoxContainer" parent="DetailPanel"]
+[node name="Layout" type="VBoxContainer" parent="DetailPanel" unique_id=3525004]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Header" type="HBoxContainer" parent="DetailPanel/Layout"]
+[node name="Header" type="HBoxContainer" parent="DetailPanel/Layout" unique_id=797073783]
 layout_mode = 2
 
-[node name="PanelTitle" type="Label" parent="DetailPanel/Layout/Header"]
+[node name="PanelTitle" type="Label" parent="DetailPanel/Layout/Header" unique_id=1889091790]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -325,7 +337,7 @@ theme_override_colors/font_color = Color(0.96, 0.97, 0.98, 1)
 theme_override_font_sizes/font_size = 22
 text = "МОТОР"
 
-[node name="ClosePanel" type="Button" parent="DetailPanel/Layout/Header"]
+[node name="ClosePanel" type="Button" parent="DetailPanel/Layout/Header" unique_id=1539465290]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Закрыть (Esc)"
@@ -333,19 +345,19 @@ theme_override_colors/font_color = Color(0.62, 0.7, 0.76, 1)
 theme_override_colors/font_hover_color = Color(1, 0.6, 0.15, 1)
 theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("FlatStyle")
-theme_override_styles/hover = SubResource("FlatStyle")
 theme_override_styles/pressed = SubResource("FlatStyle")
+theme_override_styles/hover = SubResource("FlatStyle")
 text = "✕"
 
-[node name="SettingsTabs" type="TabContainer" parent="DetailPanel/Layout"]
+[node name="SettingsTabs" type="TabContainer" parent="DetailPanel/Layout" unique_id=1858395443]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-tabs_visible = false
 theme_override_styles/panel = SubResource("FlatStyle")
+tabs_visible = false
 
-[node name="Hint" type="Label" parent="."]
+[node name="Hint" type="Label" parent="." unique_id=602608774]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 7
@@ -364,7 +376,7 @@ theme_override_font_sizes/font_size = 13
 text = "ТЯНИТЕ — ВРАЩАТЬ  ·  КОЛЕСО — БЛИЖЕ  ·  НАЖМИТЕ НА ВЫНОСКУ — НАСТРОИТЬ"
 horizontal_alignment = 1
 
-[node name="BottomBar" type="HBoxContainer" parent="."]
+[node name="BottomBar" type="HBoxContainer" parent="." unique_id=679977848]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -378,26 +390,26 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 10
 
-[node name="BackButton" type="Button" parent="BottomBar"]
+[node name="BackButton" type="Button" parent="BottomBar" unique_id=156008595]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 text = "◀  К ТРАССЕ"
 
-[node name="ControlsButton" type="Button" parent="BottomBar"]
+[node name="ControlsButton" type="Button" parent="BottomBar" unique_id=424411543]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 tooltip_text = "Переназначить клавиатуру или геймпад."
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 text = "УПРАВЛЕНИЕ"
 
-[node name="Status" type="Label" parent="BottomBar"]
+[node name="Status" type="Label" parent="BottomBar" unique_id=390693622]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -408,37 +420,37 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="ResetButton" type="Button" parent="BottomBar"]
+[node name="ResetButton" type="Button" parent="BottomBar" unique_id=1573649297]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 tooltip_text = "Отменить несохранённые изменения."
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 text = "ОТМЕНИТЬ ПРАВКИ"
 
-[node name="SaveButton" type="Button" parent="BottomBar"]
+[node name="SaveButton" type="Button" parent="BottomBar" unique_id=1690288129]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 tooltip_text = "Сохранить свой пресет без запуска заезда."
 theme_override_styles/normal = SubResource("ButtonStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
 theme_override_styles/pressed = SubResource("ButtonHoverStyle")
+theme_override_styles/hover = SubResource("ButtonHoverStyle")
 text = "СОХРАНИТЬ"
 
-[node name="StartButton" type="Button" parent="BottomBar"]
+[node name="StartButton" type="Button" parent="BottomBar" unique_id=932473827]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(230, 48)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.05, 0.05, 0.05, 1)
-theme_override_colors/font_hover_color = Color(0.05, 0.05, 0.05, 1)
-theme_override_colors/font_pressed_color = Color(0.05, 0.05, 0.05, 1)
 theme_override_colors/font_focus_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_pressed_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.05, 0.05, 0.05, 1)
 theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("StartStyle")
-theme_override_styles/hover = SubResource("StartHoverStyle")
 theme_override_styles/pressed = SubResource("StartHoverStyle")
+theme_override_styles/hover = SubResource("StartHoverStyle")
 theme_override_styles/focus = SubResource("StartHoverStyle")
 text = "НА СТАРТ  ▶"

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dnfh1hjw5fb5t"]
 
-[ext_resource type="Texture2D" uid="uid://frjeaextnnhy" path="res://textures/environment/banner.png" id="tex_banner"]
+[ext_resource type="Texture2D" uid="uid://bsiy7rcgoweqc" path="res://a764159358f676060879fa987e39b609.jpg" id="2_f5j38"]
 [ext_resource type="Texture2D" uid="uid://iqvt05tfocjg" path="res://textures/environment/plank.png" id="tex_plank"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_plank"]
@@ -12,31 +12,30 @@ roughness = 0.97
 
 [sub_resource type="BoxMesh" id="Mesh_post_l"]
 material = SubResource("Mat_plank")
-size = Vector3(0.09, 1.9, 0.09)
+size = Vector3(0.09, 1.3441406, 0.09)
 
 [sub_resource type="BoxMesh" id="Mesh_post_r"]
 material = SubResource("Mat_plank")
-size = Vector3(0.09, 1.9, 0.09)
+size = Vector3(0.09, 1.3334595, 0.09)
 
-[sub_resource type="StandardMaterial3D" id="Mat_banner"]
-specular_mode = 2
-albedo_color = Color(0.95, 0.96, 0.97, 1)
-albedo_texture = ExtResource("tex_banner")
-metallic_specular = 0.28
-roughness = 0.85
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rj7vs"]
+albedo_texture = ExtResource("2_f5j38")
+uv1_scale = Vector3(3.611, 2.34, 0.998)
+uv1_offset = Vector3(-2.495, -0.13, 0)
+texture_repeat = false
 
 [sub_resource type="BoxMesh" id="Mesh_board"]
-material = SubResource("Mat_banner")
+material = SubResource("StandardMaterial3D_rj7vs")
 size = Vector3(3.4917235, 1.6704651, 0.06)
 
 [node name="SponsorBanner" type="Node3D" unique_id=1883060401]
 
 [node name="Mesh_post_l" type="MeshInstance3D" parent="." unique_id=1358622859]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4447758, 0.95, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4447758, 0.6720703, 0)
 mesh = SubResource("Mesh_post_l")
 
 [node name="Mesh_post_r" type="MeshInstance3D" parent="." unique_id=543978191]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4089891, 0.95, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4089891, 0.66672975, 0)
 mesh = SubResource("Mesh_post_r")
 
 [node name="Mesh_board" type="MeshInstance3D" parent="." unique_id=348518066]
