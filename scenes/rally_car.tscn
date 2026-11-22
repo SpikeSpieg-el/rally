@@ -15,10 +15,11 @@
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="11_yojui"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="12_37cw1"]
 [ext_resource type="PackedScene" uid="uid://bmcd7ia5sn87s" path="res://scenes/effects/windshield_wipers.tscn" id="13_4mbpt"]
-[ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="13_37cw1"]
 [ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="14_radio"]
 [ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="15_cockpit"]
 [ext_resource type="Texture2D" uid="uid://bpat508462y4d" path="res://textures/mitsubishi_emmision.png" id="16_emiss"]
+[ext_resource type="Material" uid="uid://dvqv1vrsmewed" path="res://fig1.tres" id="20_7x55j"]
+[ext_resource type="Texture2D" uid="uid://bsiy7rcgoweqc" path="res://a764159358f676060879fa987e39b609.jpg" id="20_he3tm"]
 [ext_resource type="Texture2D" uid="uid://ch66w628acnj1" path="res://textures/иташа2.jpg" id="livery_0"]
 [ext_resource type="Texture2D" uid="uid://hea8yeji0bse" path="res://textures/иташа.jpg" id="livery_1"]
 [ext_resource type="Texture2D" uid="uid://byw7se1senceh" path="res://textures/иташа3.jpg" id="livery_2"]
@@ -694,10 +695,11 @@ top_radius = 0.0043945313
 bottom_radius = 0.0043945313
 height = 0.047187805
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4mbpt"]
-albedo_texture = ExtResource("13_37cw1")
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_b2qog"]
+albedo_texture = ExtResource("20_he3tm")
 
 [sub_resource type="BoxMesh" id="BoxMesh_dmcip"]
+material = SubResource("StandardMaterial3D_b2qog")
 size = Vector3(0.104003906, 0.4003296, 0.38993454)
 
 [sub_resource type="BoxMesh" id="BoxMesh_02ico"]
@@ -1182,7 +1184,7 @@ transform = Transform3D(0.24603443, 0, 0.99769026, 0, 1.344, 0, -3.613634, 0, 0.
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="low poly lance evo/RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe/FigureHook" unique_id=733396187]
 transform = Transform3D(0.099, 0, 7.6484866e-08, 0, 0.12499994, 0, -2.2351742e-07, 0, 0.09000003, 0.00010025501, -0.01211977, -0.0018179268)
-material_override = SubResource("StandardMaterial3D_4mbpt")
+material_override = ExtResource("20_7x55j")
 mesh = SubResource("BoxMesh_dmcip")
 
 [node name="RoofPanel2" type="MeshInstance3D" parent="low poly lance evo/RallyCockpit/InteriorShell" unique_id=2115038823]

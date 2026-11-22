@@ -12,8 +12,8 @@
 [ext_resource type="Script" uid="uid://c6m3k7n8v2p4w" path="res://scripts/ui/rally_cockpit.gd" id="7_ggxr1"]
 [ext_resource type="Material" uid="uid://46g0xele4pv" path="res://material_cok.tres" id="8_endy0"]
 [ext_resource type="Script" uid="uid://c0l7seebprb8u" path="res://scenes/charm_pivot.gd" id="9_nx6sy"]
-[ext_resource type="Texture2D" uid="uid://crokxipveh015" path="res://b96e9d77b57f360892c079570068d4b7.jpg" id="10_4ms5t"]
 [ext_resource type="Script" uid="uid://dsqmoyes6p3wi" path="res://scripts/ui/rally_cockpit_radio.gd" id="11_lkhb3"]
+[ext_resource type="Material" uid="uid://dvqv1vrsmewed" path="res://fig1.tres" id="13_endy0"]
 [ext_resource type="PackedScene" uid="uid://bmcd7ia5sn87s" path="res://scenes/effects/windshield_wipers.tscn" id="wipers"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_37cw1"]
@@ -757,9 +757,6 @@ top_radius = 0.0043945313
 bottom_radius = 0.0043945313
 height = 0.047187805
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_76aqe"]
-albedo_texture = ExtResource("10_4ms5t")
-
 [sub_resource type="BoxMesh" id="BoxMesh_7qlqm"]
 size = Vector3(0.104003906, 0.4003296, 0.38993454)
 
@@ -1241,7 +1238,7 @@ transform = Transform3D(0.24603443, 0, 0.99769026, 0, 1.344, 0, -3.613634, 0, 0.
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell/RearviewMirror/CharmPivot/robe/FigureHook" unique_id=1563326663]
 transform = Transform3D(0.099, 0, 7.6484866e-08, 0, 0.12499994, 0, -2.2351742e-07, 0, 0.09000003, 0.00010025501, -0.01211977, -0.0018179268)
-material_override = SubResource("StandardMaterial3D_76aqe")
+material_override = ExtResource("13_endy0")
 mesh = SubResource("BoxMesh_7qlqm")
 
 [node name="RoofPanel2" type="MeshInstance3D" parent="Volkswagen Golf R32 Mk4/RallyCockpit/InteriorShell" unique_id=258254381]

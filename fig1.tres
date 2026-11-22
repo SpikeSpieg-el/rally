@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dvqv1vrsmewed"]
+
+[ext_resource type="Texture2D" uid="uid://bsiy7rcgoweqc" path="res://a764159358f676060879fa987e39b609.jpg" id="1_ax4y7"]
+
+[resource]
+albedo_color = Color(1.6852883, 1.6852883, 1.6852883, 1)
+albedo_texture = ExtResource("1_ax4y7")
+roughness = 0.92
+uv1_scale = Vector3(1.965, 1.965, 1.965)
+uv1_offset = Vector3(0.46, 0.03, 0)
