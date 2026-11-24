@@ -83,6 +83,14 @@ var _has_progress: bool = false
 var _screen: PackedVector2Array = PackedVector2Array()
 var _scale: float = 1.0
 var _offset: Vector2 = Vector2.ZERO
+## Кэш «пройденного» отрезка: `slice()` в каждом кадре создавал новый массив
+## на 1400 точек, а в браузере это заметная работа сборщика мусора. Пересчёт
+## — только когда машина реально перешла на следующую точку маршрута.
+var _passed: PackedVector2Array = PackedVector2Array()
+var _passed_index: int = -1
+## StyleBoxFlat панели: раньше новый ресурс создавался при каждой отрисовке.
+var _panel_style: StyleBoxFlat = StyleBoxFlat.new()
+var _panel_style_key: String = ""
 
 
 func _ready() -> void:
@@ -211,15 +219,7 @@ func _draw() -> void:
 	var h := self.size.y
 	var rect := Rect2(Vector2.ZERO, Vector2(w, h))
 
-	var panel := StyleBoxFlat.new()
-	panel.bg_color = background_color
-	panel.border_color = border_color
-	panel.set_border_width_all(border_width)
-	panel.set_corner_radius_all(0 if pixel_mode else corner_radius)
-	panel.shadow_color = shadow_color
-	panel.shadow_size = 0 if pixel_mode else shadow_size
-	panel.shadow_offset = shadow_offset
-	draw_style_box(panel, rect)
+	draw_style_box(_panel_box(), rect)
 
 	if show_grid:
 		_draw_grid(rect)
@@ -238,8 +238,10 @@ func _draw() -> void:
 	if has_car and _screen.size() >= 2:
 		var along_index: int = clampi(roundi(progress * float(_screen.size() - 1)), 0, _screen.size() - 1) if _has_progress else _nearest_route_index(car_position)
 		if along_index >= 1:
-			var passed := _screen.slice(0, along_index + 1)
-			draw_polyline(passed, progress_color, route_line_width + 0.8, aa)
+			if along_index != _passed_index or _passed.size() != along_index + 1:
+				_passed = _screen.slice(0, along_index + 1)
+				_passed_index = along_index
+			draw_polyline(_passed, progress_color, route_line_width + 0.8, aa)
 
 	if show_checkpoints:
 		for cp in checkpoints:
@@ -293,6 +295,25 @@ func _draw() -> void:
 			rotated.append(car_screen + p.rotated(-car_heading))
 		draw_circle(car_screen, s * 0.85, marker_outline_color)
 		draw_colored_polygon(rotated, car_color)
+
+
+## StyleBoxFlat панели, пересобранный только при смене свойств.
+func _panel_box() -> StyleBoxFlat:
+	var key := "%s|%s|%d|%d|%s|%d|%s" % [
+		background_color, border_color, border_width, 0 if pixel_mode else corner_radius,
+		shadow_color, 0 if pixel_mode else shadow_size, shadow_offset
+	]
+	if key == _panel_style_key:
+		return _panel_style
+	_panel_style_key = key
+	_panel_style.bg_color = background_color
+	_panel_style.border_color = border_color
+	_panel_style.set_border_width_all(border_width)
+	_panel_style.set_corner_radius_all(0 if pixel_mode else corner_radius)
+	_panel_style.shadow_color = shadow_color
+	_panel_style.shadow_size = 0 if pixel_mode else shadow_size
+	_panel_style.shadow_offset = shadow_offset
+	return _panel_style
 
 
 func _nearest_route_index(p: Vector2) -> int:

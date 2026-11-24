@@ -18,6 +18,7 @@ const Customization = preload("res://scripts/car_customization.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
+const LayoutType = preload("res://scripts/ui/rally_screen_layout.gd")
 const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
 
 @export_group("Инспектор: витрина")
@@ -128,6 +129,9 @@ func turntable_speed() -> float:
 
 
 func _ready() -> void:
+	# Телефон/браузер: крупнее шрифты и строки (см. RallyUiTheme.ui_scale).
+	# Ставим ДО `_build_settings()`: строки настроек читают размеры из темы.
+	theme_cfg().ui_scale = LayoutType.ui_scale()
 	_build_settings()
 	_fill_vehicle_selector()
 	_vehicle_selector.item_selected.connect(_select_vehicle)

@@ -9,6 +9,9 @@ class_name RallyTouchControls
 extends Control
 
 signal pause_requested
+## Раскладка кнопок пересобрана: HUD ставит спидометр и мини-карту по
+## фактическому верху кнопок (`content_top()`), поэтому должен узнать о смене.
+signal layout_changed
 
 const STEER_TINT := Color(1.0, 0.48, 0.12, 1.0)
 const THROTTLE_TINT := Color(0.22, 0.92, 0.48, 1.0)
@@ -21,6 +24,7 @@ const INK := Color(0.96, 0.98, 1.0, 0.98)
 
 ## Значения совпадают с RallyCarSetup.Transmission и RallyGame.transmission_index.
 const GameSettings = preload("res://scripts/ui/game_settings.gd")
+const LayoutType = preload("res://scripts/ui/rally_screen_layout.gd")
 const TRANSMISSION_AUTOMATIC := 0
 const TRANSMISSION_MANUAL_CLUTCH := 2
 
@@ -42,6 +46,16 @@ const PAUSE_RATIO := 0.50
 const TEXT_LABEL_SCALE := 0.30
 const SHORT_LABEL_SCALE := 0.50
 
+## В портрете низ экрана — единственное место для пальцев, поэтому 4 кнопки
+## в ряд делят полную ширину: было 0.26 от короткой стороны, но короткая
+## сторона в портрете и есть ширина, и кнопки упирались в потолок 340 px —
+## на экране 1080 px это 4×280 px, которые не помещались после вычета
+## отступов и зазоров (см. PORTRAIT_SIDE_RATIO).
+const PORTRAIT_SIDE_RATIO := 0.235
+## Портрет: пальцами удобнее, когда между нижними кнопками и панелями HUD есть
+## воздух. Кнопки чуть выше над нижним краем.
+const PORTRAIT_BOTTOM_INSET := 0.012
+
 ## Для проверки раскладки в редакторе; в обычном запуске показываем элементы
 ## только на сенсорном устройстве.
 @export var force_visible: bool = false
@@ -55,6 +69,8 @@ var _action_holds: Dictionary = {}
 ## Ключ раскладки (коробка передач). При смене в меню зоны пересобираем.
 var _layout_key: String = ""
 var _game: Node = null
+## Множитель подписи, подобранный под фактический размер кнопки.
+var _label_scale: float = 1.0
 
 
 func _ready() -> void:
@@ -64,6 +80,10 @@ func _ready() -> void:
 	resized.connect(_rebuild_zones)
 	_rebuild_zones()
 	call_deferred("_rebuild_zones")
+	# Поворот телефона меняет канву: кнопки пересобираются под новую ширину.
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.size_changed.connect(_rebuild_zones)
 	_refresh_visibility()
 
 
@@ -176,12 +196,21 @@ func _rebuild_zones() -> void:
 	var short_side := minf(size.x, size.y)
 	var margin := clampf(short_side * 0.03, 8.0, 24.0)
 	var gap := maxf(8.0, short_side * 0.03)
-	var side := _main_side(short_side)
-	# В узком экране (портрет) кнопки не должны налезать друг на друга.
-	side = minf(side, (size.x - 2.0 * margin - 2.0 * gap) * 0.25)
+	var portrait: bool = LayoutType.is_portrait(size)
+	var side := _main_side(short_side, portrait)
+	# В нижнем ряду 4 кнопки (руль ◀ ▶, тормоз, газ) — значит, зазоров между
+	# ними ТРИ. Раньше вычитались два, и на портретном телефоне «руль вправо»
+	# наезжал на «тормоз». Считаем по фактическому числу зазоров.
+	side = minf(side, (size.x - 2.0 * margin - 3.0 * gap) * 0.25)
 	side = maxf(side, 44.0)
+	# Подписи «ТОРМОЗ»/«РУЧНИК» рисуются в круг: на узком портрете длинное
+	# слово вылезало за видимую кнопку. Доля текста от радиуса уменьшается,
+	# если кнопка в портрете маленькая. Поле, а не локальная: подпись рисует
+	# `_draw()`.
+	_label_scale = clampf(side / 280.0, 0.72, 1.0)
 
-	var bottom_y := maxf(0.0, size.y - margin - side)
+	var bottom_inset := size.y * PORTRAIT_BOTTOM_INSET if portrait else 0.0
+	var bottom_y := maxf(0.0, size.y - margin - bottom_inset - side)
 	var throttle_x := size.x - margin - side
 	var brake_x := throttle_x - gap - side
 	var handbrake := side * HANDBRAKE_RATIO
@@ -230,9 +259,28 @@ func _rebuild_zones() -> void:
 		PAUSE_TINT
 	)
 	queue_redraw()
+	layout_changed.emit()
 
 
-func _main_side(short_side: float) -> float:
+## Верхняя граница нарисованных кнопок в координатах HUD. По ней портретный
+## HUD ставит спидометр и мини-карту так, чтобы панели не наезжали на пальцы.
+## Пусто/скрыто — возвращаем долю экрана, которую кнопки занимают по умолчанию.
+func content_top() -> float:
+	if _zones.is_empty() or size.y <= 0.0:
+		return size.y * 0.62
+	var top := size.y
+	for zone: Dictionary in _zones:
+		var rect: Rect2 = zone["rect"]
+		top = minf(top, rect.position.y)
+	return top
+
+
+## Размер главной кнопки. `portrait` — отдельная ветка: в портрете короткая
+## сторона равна ширине, и доля 0.26 с потолком 340 px давала кнопки, которым
+## не хватало места в нижнем ряду из четырёх.
+func _main_side(short_side: float, portrait: bool = false) -> float:
+	if portrait:
+		return clampf(short_side * PORTRAIT_SIDE_RATIO, WEB_MAIN_SIDE_MIN, WEB_MAIN_SIDE_MAX)
 	if GameSettings.is_low_power_runtime():
 		return clampf(short_side * WEB_MAIN_SIDE_RATIO, WEB_MAIN_SIDE_MIN, WEB_MAIN_SIDE_MAX)
 	return clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)
@@ -329,7 +377,7 @@ func _draw() -> void:
 		if label.is_empty():
 			_draw_icon(action, center, radius)
 		elif font != null:
-			var text_scale: float = SHORT_LABEL_SCALE if label.length() <= 2 else TEXT_LABEL_SCALE
+			var text_scale: float = SHORT_LABEL_SCALE if label.length() <= 2 else TEXT_LABEL_SCALE * _label_scale
 			var font_size := clampi(roundi(radius * text_scale), 11, 27)
 			var baseline := center.y + float(font_size) * 0.36
 			draw_string(

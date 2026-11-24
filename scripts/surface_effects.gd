@@ -16,7 +16,11 @@ const SurfaceType = preload("res://scripts/road_surface.gd")
 const FxProfileType = preload("res://scripts/data/rally_fx_profile.gd")
 const SurfaceFxProfileType = preload("res://scripts/data/rally_surface_fx_profile.gd")
 const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const SURFACE_KINDS: Array[String] = ["gravel", "mud", "grass", "snow", "asphalt"]
+## Web/mobile: во сколько раз меньше частиц у каждого колеса (см.
+## `_configure_for_profile`). 0.4 сохраняет читаемый шлейф и режет overdraw.
+const LOW_POWER_AMOUNT_SCALE := 0.4
 
 ## Профиль эффектов из инспектора. Пусто — значения по умолчанию ресурса.
 @export var fx: FxProfileType = null
@@ -860,6 +864,10 @@ func _stop_pools(index: int) -> void:
 func _configure_for_profile(index: int, profile: RallySurfaceFxProfile) -> void:
 	_spray_kinds[index] = profile.kind_name()
 	var amount_scale: float = clampf(_p("fx_intensity", 1.0), 0.0, 4.0)
+	# Web/mobile: меньше частиц на колесо. Полупрозрачные клубы — самый дорогой
+	# пиксельный слой в кадре, а размер и цвет клуба остаются из профиля.
+	if GameSettings.is_low_power_runtime():
+		amount_scale *= LOW_POWER_AMOUNT_SCALE
 	_configure_foam(index, profile, amount_scale)
 	_configure_grit(index, profile, amount_scale)
 

@@ -24,6 +24,15 @@ const TILE_SIZE := 96.0
 const TILE_DIVISIONS := 16
 const LOAD_RADIUS := 384.0
 const KEEP_RADIUS := 576.0
+## Перепланирование (пересчёт приоритетов всех тайлов и дорог) — заметная
+## работа на главном потоке. На телефоне шаг 32 м означает новый план каждые
+## 0.6 с на 190 км/ч; 48 м и 1.25 с дают вдвое меньше планов при том же
+## запасе подгрузки (радиус 384 м всё равно больше любого шага).
+const MOBILE_REPLAN_DISTANCE := 48.0
+const MOBILE_REPLAN_SECONDS := 1.25
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
+
+
 # У процедурной трассы заранее загружаем узкий коридор вдоль маршрута,
 # а не огромный круг вокруг машины. При скорости 200 км/ч — до ~950 м.
 const LIVE_LOOKAHEAD_MIN := 640.0
@@ -491,7 +500,9 @@ func _process(delta: float) -> void:
 	_refresh_clock += delta
 	# The frame clock completes jobs after this scheduling decision, so a
 	# mesh/collider commit and a new job do not share the same frame.
-	if not _busy and (_plan_distance_squared(car_pos, _last_position) > 32.0 * 32.0 or _refresh_clock > 1.0):
+	var replan_distance: float = MOBILE_REPLAN_DISTANCE if GameSettings.is_low_power_runtime() else 32.0
+	var replan_seconds: float = MOBILE_REPLAN_SECONDS if GameSettings.is_low_power_runtime() else 1.0
+	if not _busy and (_plan_distance_squared(car_pos, _last_position) > replan_distance * replan_distance or _refresh_clock > replan_seconds):
 		_refresh_clock = 0.0
 		_request(car_pos)
 	var distance: float = stage.network.distance_to_road(car_pos.x, car_pos.z)
