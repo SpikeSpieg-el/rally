@@ -567,6 +567,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not mouse_look_enabled:
 		return
+	# Godot превращает касание в мышиное событие (device = DEVICE_ID_EMULATION).
+	# Без этой проверки палец на кнопке захватывал курсор и крутил камеру.
+	if event.device == InputEvent.DEVICE_ID_EMULATION:
+		return
 
 	if event is InputEventKey and event.is_action_pressed("ui_cancel") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
