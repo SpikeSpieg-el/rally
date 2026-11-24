@@ -10,6 +10,7 @@ extends ColorRect
 
 const SpeedFeelType = preload("res://scripts/effects/rally_speed_feel.gd")
 const ShaderParam = preload("res://scripts/data/rally_shader_parameter.gd")
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 
 signal settings_changed
 
@@ -213,6 +214,7 @@ func _apply_material() -> void:
 	if mat == null:
 		return
 	var retro_on := enabled and _track_ps1 and not _compare_original
+	var low_power_mode := GameSettings.is_low_power_runtime()
 	var bits := palette_bits if look == Look.CUSTOM else int(PRESETS.get(look, PRESETS[Look.CLASSIC_PS1])[2])
 	var levels := (1 << clampi(bits, 0, 8)) - 1 if retro_on and bits > 0 else 0
 	_set_param(mat, "retro_strength", clampf(strength, 0.0, 1.0) if retro_on else 0.0)
@@ -241,6 +243,8 @@ func _apply_material() -> void:
 		)
 	if _params_dirty:
 		ShaderParam.apply_all(mat, custom_uniforms)
+	# Платформенный флаг качества не должен переопределяться шейдерными настройками.
+	_set_param(mat, "low_power_mode", low_power_mode)
 	_params_dirty = false
 
 

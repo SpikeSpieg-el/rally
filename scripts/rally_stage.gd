@@ -98,6 +98,7 @@ const PropCollision = preload("res://scripts/track/prop_collision.gd")
 const BreakableProps = preload("res://scripts/track/breakable_props.gd")
 ## Чисел на одну коллизию пропса: вид, x, y, z, поворот, ширина, высота.
 const COLLIDER_STRIDE := 7
+const HUD_REFRESH: float = 0.08
 
 @export_group("Данные (перетащите ресурсы в инспектор)")
 @export var game_config: GameConfigType = null
@@ -233,6 +234,7 @@ var _screen_look: ScreenLookType = null
 var delta_widget: Control = null
 var _prev_lin_vel: Vector3 = Vector3.ZERO
 var _frame_delta: float = 0.016
+var _hud_clock: float = 0.0
 
 # Автопересборка в редакторе: как только правка кривой/настроек затихла,
 # трасса пересобирается сама (кнопка остаётся для ручного пересчёта).
@@ -4168,6 +4170,7 @@ func _configure_world() -> void:
 	# Погода «КАК НА ТРАССЕ» (weather == null) оставляет всё как в .tres.
 	# Все константы постобработки живут в RallyStageSettings (инспектор).
 	var cfg := s_settings()
+	var low_power_render := GameSettings.is_low_power_runtime()
 	var night: bool = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
 	var explicit_time: int = WeatherType.explicit_time_choice(time_choice, weather)
 	var sky_top: Color = _weather_sky_color(track.sky_top_color)
@@ -4333,14 +4336,14 @@ func _configure_world() -> void:
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
-		env.glow_enabled = true
+		env.glow_enabled = not low_power_render
 		env.glow_intensity = cfg.glow_intensity_ps1 if track.ps1_style else cfg.glow_intensity_normal
 		env.glow_bloom = cfg.glow_bloom_ps1 if track.ps1_style else cfg.glow_bloom_normal
-		env.ssao_enabled = cfg.ssao_enabled and track.screen_space_ao
+		env.ssao_enabled = cfg.ssao_enabled and track.screen_space_ao and not low_power_render
 		env.ssao_radius = cfg.ssao_radius
 		env.ssao_intensity = cfg.ssao_intensity
-		# Лучи фар и погодный объёмный туман остаются доступны и в PS1-режиме.
-		env.volumetric_fog_enabled = volumetric
+		# Web/mobile сохраняют обычный depth-туман, но отключают дорогие эффекты.
+		env.volumetric_fog_enabled = volumetric and not low_power_render
 		env.volumetric_fog_density = volumetric_density
 		env.volumetric_fog_albedo = cfg.volumetric_fog_albedo
 		if weather != null:
@@ -4374,6 +4377,8 @@ func _configure_world() -> void:
 		sun_light.rotation = Vector3(deg_to_rad(sun_pitch), deg_to_rad(sun_yaw), 0.0)
 		sun_light.light_color = sun_color
 		sun_light.light_energy = sun_energy
+		if low_power_render:
+			sun_light.shadow_enabled = false
 
 
 ## Отладка окружения без перезапуска: перечитывает .tres трассы с диска (мимо
@@ -4466,6 +4471,8 @@ func _setup_precipitation() -> void:
 	var particles := _make_precipitation_particles()
 	if particles == null:
 		return
+	if GameSettings.is_low_power_runtime():
+		particles.amount = maxi(80, roundi(float(particles.amount) * 0.5))
 	add_child(particles)
 	if car != null:
 		particles.global_position = _anchor_for(car.global_position, car.linear_velocity)
@@ -4525,6 +4532,7 @@ func _configure_car() -> void:
 	if car == null:
 		push_warning("RallyStage: узел RallyCar не найден.")
 		return
+	GameSettings.disable_low_power_light_shadows(self)
 	# Машина собирает частицы ещё в своём _ready, поэтому профиль, назначенный
 	# в сцене этапа, передаём ей явно и пересобираем готовые эффекты: иначе
 	# правки поля Fx Profile в инспекторе не доходили бы до пыли и грязи.
@@ -4855,6 +4863,11 @@ func _setup_hud() -> void:
 
 	hint_label = _hud_node("RallyHUD/Hint") as Label
 	clutch_notice = _hud_node("RallyHUD/ClutchNotice") as Label
+	var touch_controls := _hud_node("RallyHUD/TouchControls")
+	if touch_controls != null and touch_controls.has_signal("pause_requested"):
+		var pause_callback := Callable(self, "_on_touch_pause_requested")
+		if not touch_controls.is_connected("pause_requested", pause_callback):
+			touch_controls.connect("pause_requested", pause_callback)
 	_update_input_hint()
 	_setup_ghost_session()
 	var controller := _controller_manager()
@@ -5195,8 +5208,11 @@ func _process(delta: float) -> void:
 		speed_fx_material.set_shader_parameter("speed_intensity", intensity)
 		speed_fx_material.set_shader_parameter("camera_mode", camera_mode)
 	_report_speed_fx(speed)
-	_frame_delta = delta
-	_update_hud()
+	_hud_clock += delta
+	if _hud_clock >= HUD_REFRESH:
+		_frame_delta = _hud_clock
+		_hud_clock = 0.0
+		_update_hud()
 
 
 ## Значение, которое стоит в материале экрана, для строки диагностики в HUD.
@@ -5362,6 +5378,14 @@ func _finish_stage() -> void:
 	var controller := _controller_manager()
 	if controller != null and controller.has_method("rumble"):
 		controller.call("rumble", 0.45, 0.85, 0.45)
+
+
+func _on_touch_pause_requested() -> void:
+	if stage_finished:
+		return
+	if input_settings != null and input_settings.blocks_actions():
+		return
+	_set_paused(not is_paused)
 
 
 func _set_paused(value: bool) -> void:
@@ -5538,6 +5562,7 @@ func _apply_instant_restart(spawn_xform: Transform3D) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if car != null and car.mouse_look_enabled else Input.MOUSE_MODE_VISIBLE
 	if is_inside_tree():
 		get_viewport().gui_release_focus()
+	_hud_clock = 0.0
 	_update_hud()
 	if car != null:
 		if is_inside_tree() and get_tree() != null and not Engine.is_editor_hint():

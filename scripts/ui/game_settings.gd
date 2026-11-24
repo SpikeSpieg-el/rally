@@ -138,10 +138,47 @@ static func anisotropic_index() -> int:
 	return clampi(int(_read("anisotropic_index", 0)), 0, 4)
 
 
+## В браузере и на мобильной ОС по умолчанию используем более лёгкий рендер:
+## WebGL 2 и телефон не должны стартовать с настольными 120 тиками физики.
+static func is_low_power_runtime() -> bool:
+	return OS.has_feature("web") or OS.has_feature("mobile")
+
+
+static func apply_platform_defaults(viewport: Viewport = null) -> void:
+	if not is_low_power_runtime():
+		return
+	Engine.max_fps = 60
+	Engine.physics_ticks_per_second = 60
+	ProjectSettings.set_setting("rendering/scaling_3d/mode", 0)
+	ProjectSettings.set_setting("rendering/scaling_3d/scale", 0.72)
+	ProjectSettings.set_setting(
+		"rendering/lights_and_shadows/directional_shadow/size", SHADOW_SIZES[0]
+	)
+	if viewport != null:
+		viewport.msaa_3d = 0
+		viewport.scaling_3d_mode = 0
+		viewport.scaling_3d_scale = 0.72
+
+
+static func disable_low_power_light_shadows(root: Node) -> void:
+	if root == null or not is_low_power_runtime():
+		return
+	for node in root.find_children("*", "Light3D", true, false):
+		var light := node as Light3D
+		if light != null:
+			light.shadow_enabled = false
+
+
 ## Применить дисплейные параметры к движку. Вызывать из _ready меню/заезда.
 static func apply_display(viewport: Viewport = null) -> void:
-	Engine.max_fps = max_fps()
-	if DisplayServer.get_name() != "headless":
+	var low_power := is_low_power_runtime()
+	var fps_limit := max_fps()
+	if low_power:
+		fps_limit = 60 if fps_limit <= 0 else mini(fps_limit, 60)
+	Engine.max_fps = fps_limit
+	if low_power:
+		Engine.physics_ticks_per_second = 60
+	if DisplayServer.get_name() != "headless" and not OS.has_feature("web"):
 		DisplayServer.window_set_vsync_mode(
 			DisplayServer.VSYNC_ENABLED if vsync_enabled() else DisplayServer.VSYNC_DISABLED
 		)
@@ -155,16 +192,19 @@ static func apply_display(viewport: Viewport = null) -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
 			DisplayServer.window_set_size(RESOLUTIONS[resolution_index()])
-	ProjectSettings.set_setting("rendering/scaling_3d/mode", scaling_mode())
-	ProjectSettings.set_setting("rendering/scaling_3d/scale", scaling_scale())
+	var effective_scale: float = minf(scaling_scale(), 0.72) if low_power else scaling_scale()
+	var effective_scaling_mode: int = 0 if low_power else scaling_mode()
+	var effective_shadow_quality: int = 0 if low_power else shadow_quality()
+	ProjectSettings.set_setting("rendering/scaling_3d/mode", effective_scaling_mode)
+	ProjectSettings.set_setting("rendering/scaling_3d/scale", effective_scale)
 	ProjectSettings.set_setting(
-		"rendering/lights_and_shadows/directional_shadow/size", SHADOW_SIZES[shadow_quality()]
+		"rendering/lights_and_shadows/directional_shadow/size", SHADOW_SIZES[effective_shadow_quality]
 	)
 	ProjectSettings.set_setting("rendering/textures/anisotropic_filtering_level", anisotropic_index())
 	if viewport != null:
-		viewport.msaa_3d = msaa_index()
-		viewport.scaling_3d_mode = scaling_mode()
-		viewport.scaling_3d_scale = scaling_scale()
+		viewport.msaa_3d = 0 if low_power else msaa_index()
+		viewport.scaling_3d_mode = effective_scaling_mode
+		viewport.scaling_3d_scale = effective_scale
 
 
 # --- UI --------------------------------------------------------------------
@@ -244,6 +284,11 @@ func _build_display_section() -> void:
 	_vsync.toggled.connect(_on_vsync_toggled)
 	_fps = _option(_row("Лимит FPS"), FPS_LABELS)
 	_fps.item_selected.connect(_on_fps_changed)
+	if is_low_power_runtime():
+		for index in range(FPS_VALUES.size()):
+			if FPS_VALUES[index] == 0 or FPS_VALUES[index] > 60:
+				_fps.set_item_disabled(index, true)
+		_fps.tooltip_text = "В Web/mobile доступно не более 60 FPS."
 
 
 func _build_performance_section() -> void:
@@ -260,6 +305,15 @@ func _build_performance_section() -> void:
 	_shadows.item_selected.connect(_on_shadows_changed)
 	_aniso = _option(_row("Анизотропная фильтрация"), ANISO_LABELS)
 	_aniso.item_selected.connect(_on_aniso_changed)
+	if is_low_power_runtime():
+		_msaa.disabled = true
+		_msaa.tooltip_text = "Отключено в Web/mobile для повышения производительности."
+		_scaling.disabled = true
+		_scaling.tooltip_text = "Web/mobile использует более быстрый режим масштабирования."
+		_scaling_scale.max_value = 0.72
+		_scaling_scale.tooltip_text = "Можно дополнительно снизить масштаб 3D до 50%."
+		_shadows.disabled = true
+		_shadows.tooltip_text = "Тени отключены в Web/mobile для повышения производительности."
 
 
 func _build_retro_section() -> void:
@@ -296,17 +350,22 @@ func _build_retro_section() -> void:
 
 
 func _sync_all() -> void:
+	var low_power := is_low_power_runtime()
+	var effective_fps := max_fps()
+	if low_power:
+		effective_fps = 60 if effective_fps <= 0 else mini(effective_fps, 60)
+	var effective_scale := minf(scaling_scale(), 0.72) if low_power else scaling_scale()
 	_window_mode.select(window_mode())
 	_resolution.select(resolution_index())
 	_resolution.disabled = window_mode() == 2
 	_vsync.set_pressed_no_signal(vsync_enabled())
-	_fps.select(maxi(0, FPS_VALUES.find(max_fps())))
-	_msaa.select(msaa_index())
-	_scaling.select(scaling_mode())
-	_scaling_scale.set_value_no_signal(scaling_scale())
-	_scaling_scale_value.text = "%d%%" % roundi(scaling_scale() * 100.0)
-	_scaling_scale.editable = scaling_mode() != 0
-	_shadows.select(shadow_quality())
+	_fps.select(maxi(0, FPS_VALUES.find(effective_fps)))
+	_msaa.select(0 if low_power else msaa_index())
+	_scaling.select(0 if low_power else scaling_mode())
+	_scaling_scale.set_value_no_signal(effective_scale)
+	_scaling_scale_value.text = "%d%%" % roundi(effective_scale * 100.0)
+	_scaling_scale.editable = low_power or scaling_mode() != 0
+	_shadows.select(0 if low_power else shadow_quality())
 	_aniso.select(anisotropic_index())
 	_ps1_toggle.set_pressed_no_signal(ps1_enabled())
 	_retro_strength.set_value_no_signal(retro_strength())
