@@ -1,5 +1,10 @@
 ## Сенсорные кнопки для общего гоночного HUD.
-## Каждый палец хранит своё действие: руль и педаль можно нажимать одновременно.
+## Каждый палец хранит своё действие: руль, газ, тормоз и передачи можно
+## нажимать одновременно. Размер считается от короткой стороны экрана, а область
+## касания шире видимого круга, чтобы промахиваться было сложнее.
+## Передачи: в автомате «R» (назад) и «D» (вперёд); в ручной — стрелки ▼ ▲;
+## в ручной с педалью дополнительно «СЦЕП». Стрелки и паузу рисуем полигонами,
+## чтобы не зависеть от наличия символов в шрифте браузера.
 class_name RallyTouchControls
 extends Control
 
@@ -10,6 +15,26 @@ const THROTTLE_TINT := Color(0.22, 0.92, 0.48, 1.0)
 const BRAKE_TINT := Color(1.0, 0.30, 0.22, 1.0)
 const HANDBRAKE_TINT := Color(0.35, 0.72, 1.0, 1.0)
 const PAUSE_TINT := Color(0.92, 0.95, 1.0, 1.0)
+const GEAR_TINT := Color(0.98, 0.84, 0.30, 1.0)
+const CLUTCH_TINT := Color(0.74, 0.58, 1.0, 1.0)
+const INK := Color(0.96, 0.98, 1.0, 0.98)
+
+## Значения совпадают с RallyCarSetup.Transmission и RallyGame.transmission_index.
+const TRANSMISSION_AUTOMATIC := 0
+const TRANSMISSION_MANUAL_CLUTCH := 2
+
+## Главные педали и руль — доля короткой стороны экрана (раньше было 0.18).
+const MAIN_SIDE_RATIO := 0.24
+const MAIN_SIDE_MIN := 64.0
+const MAIN_SIDE_MAX := 132.0
+## Вспомогательные кнопки — доли главной.
+const HANDBRAKE_RATIO := 0.70
+const GEAR_RATIO := 0.60
+const CLUTCH_RATIO := 0.70
+const PAUSE_RATIO := 0.50
+## Размер текста относительно радиуса круга.
+const TEXT_LABEL_SCALE := 0.30
+const SHORT_LABEL_SCALE := 0.50
 
 ## Для проверки раскладки в редакторе; в обычном запуске показываем элементы
 ## только на сенсорном устройстве.
@@ -21,6 +46,9 @@ var _zones: Array[Dictionary] = []
 var _touch_actions: Dictionary = {}
 ## action -> число удерживающих палец пальцев
 var _action_holds: Dictionary = {}
+## Ключ раскладки (коробка передач). При смене в меню зоны пересобираем.
+var _layout_key: String = ""
+var _game: Node = null
 
 
 func _ready() -> void:
@@ -35,6 +63,10 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_refresh_visibility()
+	var key := str(_transmission_index())
+	if key != _layout_key:
+		_layout_key = key
+		_rebuild_zones()
 
 
 func _exit_tree() -> void:
@@ -119,6 +151,16 @@ func _input_blocked() -> bool:
 	return not visible or not _gameplay_controls_available()
 
 
+## Коробка из главного меню (RallyGame). Нет автозагрузки — считаем автоматом.
+func _transmission_index() -> int:
+	if _game == null or not is_instance_valid(_game):
+		_game = get_node_or_null("/root/RallyGame")
+	if _game == null:
+		return TRANSMISSION_AUTOMATIC
+	var value: Variant = _game.get("transmission_index")
+	return int(value) if value != null else TRANSMISSION_AUTOMATIC
+
+
 func _rebuild_zones() -> void:
 	_zones.clear()
 	if size.x <= 0.0 or size.y <= 0.0:
@@ -126,40 +168,58 @@ func _rebuild_zones() -> void:
 		return
 
 	var short_side := minf(size.x, size.y)
-	var margin := clampf(short_side * 0.04, 10.0, 30.0)
-	var side := minf(clampf(short_side * 0.18, 52.0, 122.0), size.x * 0.20)
+	var margin := clampf(short_side * 0.03, 8.0, 24.0)
+	var gap := maxf(8.0, short_side * 0.03)
+	var side := clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)
+	# В узком экране (портрет) кнопки не должны налезать друг на друга.
+	side = minf(side, (size.x - 2.0 * margin - 2.0 * gap) * 0.25)
 	side = maxf(side, 44.0)
-	var gap := maxf(7.0, side * 0.13)
+
 	var bottom_y := maxf(0.0, size.y - margin - side)
-	var right_group_left := size.x - margin - (side * 2.0) - gap
+	var throttle_x := size.x - margin - side
+	var brake_x := throttle_x - gap - side
+	var handbrake := side * HANDBRAKE_RATIO
+	var handbrake_x := brake_x + (side - handbrake) * 0.5
+	var handbrake_y := maxf(margin, bottom_y - handbrake - gap)
+	var gear := side * GEAR_RATIO
+	var gear_x := throttle_x + (side - gear) * 0.5
+	var gear_down_y := maxf(margin, bottom_y - gap - gear)
+	var gear_up_y := maxf(margin, gear_down_y - gap - gear)
+	var transmission := _transmission_index()
+	var automatic := transmission == TRANSMISSION_AUTOMATIC
 
+	# Левая группа — руль.
+	_add_zone("steer_left", "", Rect2(Vector2(margin, bottom_y), Vector2(side, side)), STEER_TINT)
 	_add_zone(
-		"steer_left", "◀", Rect2(Vector2(margin, bottom_y), Vector2(side, side)), STEER_TINT
+		"steer_right", "",
+		Rect2(Vector2(margin + side + gap, bottom_y), Vector2(side, side)), STEER_TINT
 	)
+	# Правая группа — тормоз и газ; ручник над тормозом; передачи над газом.
+	_add_zone("brake", "ТОРМОЗ", Rect2(Vector2(brake_x, bottom_y), Vector2(side, side)), BRAKE_TINT)
 	_add_zone(
-		"steer_right", "▶", Rect2(Vector2(margin + side + gap, bottom_y), Vector2(side, side)),
-		STEER_TINT
+		"throttle", "ГАЗ", Rect2(Vector2(throttle_x, bottom_y), Vector2(side, side)), THROTTLE_TINT
 	)
-	_add_zone(
-		"brake", "ТОРМОЗ", Rect2(Vector2(right_group_left, bottom_y), Vector2(side, side)), BRAKE_TINT
-	)
-	_add_zone(
-		"throttle", "ГАЗ", Rect2(Vector2(size.x - margin - side, bottom_y), Vector2(side, side)),
-		THROTTLE_TINT
-	)
-
-	var aux_side := side * 0.70
-	var brake_x := right_group_left + (side - aux_side) * 0.5
-	var handbrake_y := maxf(margin, bottom_y - aux_side - gap)
 	_add_zone(
 		"handbrake", "РУЧНИК",
-		Rect2(Vector2(brake_x, handbrake_y), Vector2(aux_side, aux_side)),
-		HANDBRAKE_TINT
+		Rect2(Vector2(handbrake_x, handbrake_y), Vector2(handbrake, handbrake)), HANDBRAKE_TINT
 	)
-
-	var pause_side := side * 0.62
 	_add_zone(
-		"pause", "Ⅱ",
+		"shift_down", "R" if automatic else "",
+		Rect2(Vector2(gear_x, gear_down_y), Vector2(gear, gear)), GEAR_TINT
+	)
+	_add_zone(
+		"shift_up", "D" if automatic else "",
+		Rect2(Vector2(gear_x, gear_up_y), Vector2(gear, gear)), GEAR_TINT
+	)
+	if transmission == TRANSMISSION_MANUAL_CLUTCH:
+		var clutch := side * CLUTCH_RATIO
+		var clutch_x := brake_x + (side - clutch) * 0.5
+		var clutch_y := maxf(margin, handbrake_y - gap - clutch)
+		_add_zone("clutch", "СЦЕП", Rect2(Vector2(clutch_x, clutch_y), Vector2(clutch, clutch)), CLUTCH_TINT)
+
+	var pause_side := side * PAUSE_RATIO
+	_add_zone(
+		"pause", "",
 		Rect2(Vector2((size.x - pause_side) * 0.5, bottom_y), Vector2(pause_side, pause_side)),
 		PAUSE_TINT
 	)
@@ -167,20 +227,24 @@ func _rebuild_zones() -> void:
 
 
 func _add_zone(action: String, label: String, rect: Rect2, tint: Color) -> void:
+	# Область касания шире круга на несколько пикселей: палец почти всегда
+	# попадает чуть мимо видимой кнопки.
+	var pad := clampf(minf(rect.size.x, rect.size.y) * 0.12, 4.0, 14.0)
 	_zones.append({
 		"action": action,
 		"label": label,
 		"rect": rect,
+		"hit": rect.grow(pad),
 		"tint": tint,
 	})
 
 
 func _action_at(point: Vector2) -> String:
-	# При пересечении областей выигрывает меньшая кнопка, добавленная позже.
+	# При пересечении областей выигрывает кнопка, добавленная позже.
 	for index in range(_zones.size() - 1, -1, -1):
 		var zone: Dictionary = _zones[index]
-		var rect: Rect2 = zone["rect"]
-		if rect.has_point(point):
+		var hit: Rect2 = zone["hit"]
+		if hit.has_point(point):
 			return String(zone["action"])
 	return ""
 
@@ -233,11 +297,10 @@ func _draw() -> void:
 	if _zones.is_empty():
 		return
 	var font: Font = ThemeDB.fallback_font
-	if font == null:
-		return
 	for zone: Dictionary in _zones:
 		var rect: Rect2 = zone["rect"]
 		var action := String(zone["action"])
+		var label := String(zone["label"])
 		var tint: Color = zone["tint"]
 		var is_pressed := int(_action_holds.get(action, 0)) > 0
 		var center := rect.get_center()
@@ -251,11 +314,35 @@ func _draw() -> void:
 			Color(tint.r, tint.g, tint.b, ring_alpha),
 			maxf(2.0, radius * 0.055), true
 		)
-		var font_scale := 0.48 if action in ["steer_left", "steer_right", "pause"] else 0.27
-		var font_size := clampi(roundi(radius * font_scale), 11, 27)
-		var baseline := center.y + float(font_size) * 0.36
-		draw_string(
-			font, Vector2(rect.position.x, baseline), String(zone["label"]),
-			HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, font_size,
-			Color(0.96, 0.98, 1.0, 0.98)
-		)
+		if label.is_empty():
+			_draw_icon(action, center, radius)
+		elif font != null:
+			var text_scale: float = SHORT_LABEL_SCALE if label.length() <= 2 else TEXT_LABEL_SCALE
+			var font_size := clampi(roundi(radius * text_scale), 11, 27)
+			var baseline := center.y + float(font_size) * 0.36
+			draw_string(
+				font, Vector2(rect.position.x, baseline), label,
+				HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, font_size, INK
+			)
+
+
+## Стрелки и пауза из полигонов: не зависят от шрифта браузера.
+func _draw_icon(action: String, center: Vector2, radius: float) -> void:
+	var s := radius * 0.42
+	match action:
+		"steer_left":
+			_fill_triangle(center + Vector2(-s, 0.0), center + Vector2(s * 0.5, -s), center + Vector2(s * 0.5, s))
+		"steer_right":
+			_fill_triangle(center + Vector2(s, 0.0), center + Vector2(-s * 0.5, -s), center + Vector2(-s * 0.5, s))
+		"shift_up":
+			_fill_triangle(center + Vector2(0.0, -s), center + Vector2(s, s * 0.6), center + Vector2(-s, s * 0.6))
+		"shift_down":
+			_fill_triangle(center + Vector2(0.0, s), center + Vector2(s, -s * 0.6), center + Vector2(-s, -s * 0.6))
+		"pause":
+			var bar := s * 0.42
+			draw_rect(Rect2(center + Vector2(-s * 0.7, -s * 0.8), Vector2(bar, s * 1.6)), INK)
+			draw_rect(Rect2(center + Vector2(s * 0.28, -s * 0.8), Vector2(bar, s * 1.6)), INK)
+
+
+func _fill_triangle(a: Vector2, b: Vector2, c: Vector2) -> void:
+	draw_colored_polygon(PackedVector2Array([a, b, c]), INK)

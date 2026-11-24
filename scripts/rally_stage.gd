@@ -2584,6 +2584,10 @@ const SceneryPlacement = preload("res://scripts/data/rally_scenery_placement.gd"
 const GuardrailPlacement = preload("res://scripts/data/rally_guardrail_placement.gd")
 ## Потолок секций забора на один поворот: страховка от ошибки в размере пропса.
 const MAX_FENCE_SECTIONS := 400
+## Web/mobile: тот же лес, но реже. Множитель действует на все проходы
+## (деревья, подлесок, трава), поэтому раскладка остаётся согласованной.
+## На ПК не применяется.
+const WEB_SCENERY_DENSITY_SCALE := 0.6
 
 
 func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -2596,6 +2600,8 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 	var library := s_props()
 	var pickable := library.active_props()
 	var density: float = clampf(track.scenery_density, 0.0, 2.0)
+	if GameSettings.is_low_power_runtime():
+		density *= WEB_SCENERY_DENSITY_SCALE
 	# Спутник (трава, папоротник) в общую «урну» не попадает — у него вес 0,
 	# но сцена ему нужна, поэтому он едет в список видов отдельно.
 	var kinds: Array[RallyProp] = []

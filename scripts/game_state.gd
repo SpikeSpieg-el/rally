@@ -15,6 +15,7 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
+const WebRenderGovernor = preload("res://scripts/ui/web_render_governor.gd")
 ## Варианты времени суток в меню: как на трассе, утро, день, вечер, ночь.
 const TIME_CHOICE_COUNT := 5
 ## Коробка из главного меню: 0 — автомат, 1 — ручная, 2 — ручная + сцепление.
@@ -65,6 +66,11 @@ var marathon_index: int = 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	GameSettingsType.apply_platform_defaults(get_viewport())
+	# Браузер/телефон: авто-снижение масштаба 3D при просадке FPS. На ПК не создаём.
+	if GameSettingsType.is_low_power_runtime():
+		var governor := WebRenderGovernor.new()
+		governor.name = "WebRenderGovernor"
+		add_child(governor)
 	load_config()
 	load_records()
 	load_conditions()

@@ -55,8 +55,8 @@ class MobileControlsTest(unittest.TestCase):
         settings = read("scripts/ui/game_settings.gd")
         self.assertIn('OS.has_feature("web") or OS.has_feature("mobile")', settings)
         self.assertIn("Engine.physics_ticks_per_second = 60", settings)
-        self.assertIn("viewport.scaling_3d_scale = 0.72", settings)
-        self.assertIn("viewport.msaa_3d = 0 if low_power else msaa_index()", settings)
+        self.assertIn("viewport.scaling_3d_scale = WEB_DEFAULT_SCALE", settings)
+        self.assertIn("const WEB_DEFAULT_SCALE := 0.72", settings)
         self.assertIn("disable_low_power_light_shadows", settings)
 
         for rel in ("scripts/rally_stage.gd", "scripts/arcade/arcade_stage.gd"):
@@ -68,6 +68,78 @@ class MobileControlsTest(unittest.TestCase):
         shader = read("shaders/speed_fx.gdshader")
         self.assertIn("uniform bool low_power_mode = false", shader)
         self.assertIn("if (!low_power_mode && mask > 0.001)", shader)
+
+    def test_touch_buttons_are_larger_and_hit_wider_than_they_look(self):
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn("const MAIN_SIDE_RATIO := 0.24", controls)
+        self.assertIn("const MAIN_SIDE_MIN := 64.0", controls)
+        # Прежняя доля 0.18 давала кнопки около 65 px на телефоне: слишком мало.
+        self.assertNotIn("short_side * 0.18", controls)
+        self.assertIn('"hit": rect.grow(pad)', controls)
+        self.assertIn('var hit: Rect2 = zone["hit"]', controls)
+
+    def test_touch_reverse_and_gears_exist_without_keyboard(self):
+        controls = read("scripts/ui/touch_controls.gd")
+        # Задний ход в автомате включается только через shift_down (клавиша Q).
+        # На телефоне без кнопки сюда не попасть — поэтому R и D есть на экране.
+        self.assertIn('"shift_down", "R" if automatic else ""', controls)
+        self.assertIn('"shift_up", "D" if automatic else ""', controls)
+        self.assertIn('Input.action_press(action, 1.0)', controls)
+        self.assertIn("TRANSMISSION_MANUAL_CLUTCH", controls)
+        self.assertIn('"clutch", "СЦЕП"', controls)
+
+    def test_touch_layout_rebuilds_when_transmission_changes(self):
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn('get_node_or_null("/root/RallyGame")', controls)
+        self.assertIn('_game.get("transmission_index")', controls)
+        self.assertIn("if key != _layout_key:", controls)
+
+    def test_touch_icons_do_not_depend_on_font_glyphs(self):
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn("func _draw_icon(", controls)
+        self.assertIn("draw_colored_polygon", controls)
+        self.assertNotIn('"◀"', controls)
+        self.assertNotIn('"▶"', controls)
+
+    def test_web_graphics_settings_apply_at_startup_and_work(self):
+        settings = read("scripts/ui/game_settings.gd")
+        # Раньше apply_display вызывался только при правке в меню, и после
+        # перезагрузки страницы сохранённые настройки не действовали.
+        platform = settings.split("static func apply_platform_defaults", 1)[1].split("static func disable_low_power_light_shadows", 1)[0]
+        self.assertIn("apply_display(viewport)", platform)
+        self.assertIn("viewport.msaa_3d = msaa_index()", settings)
+        self.assertNotIn("viewport.msaa_3d = 0 if low_power", settings)
+        self.assertNotIn("minf(scaling_scale(), 0.72)", settings)
+        self.assertNotIn("_msaa.disabled = true", settings)
+        self.assertNotIn("_shadows.disabled = true", settings)
+        self.assertNotIn("_scaling.disabled = true", settings)
+        # Строки, которыми управляет браузер, прячем, а не оставляем серыми.
+        for row in ("_window_mode.get_parent().visible = false",
+                    "_resolution.get_parent().visible = false",
+                    "_vsync.get_parent().visible = false",
+                    "_scaling.get_parent().visible = false",
+                    "_shadows.get_parent().visible = false"):
+            self.assertIn(row, settings)
+
+    def test_web_render_governor_lowers_scale_only_on_low_power_runtime(self):
+        governor = read("scripts/ui/web_render_governor.gd")
+        self.assertIn("set_process(GameSettingsType.is_low_power_runtime())", governor)
+        self.assertIn("viewport.scaling_3d_scale = target", governor)
+        self.assertIn("GameSettingsType.WEB_MIN_SCALE", governor)
+        self.assertIn("const LOW_FPS: float = 30.0", governor)
+        self.assertIn("const HIGH_FPS: float = 50.0", governor)
+        game_state = read("scripts/game_state.gd")
+        self.assertIn('governor.name = "WebRenderGovernor"', game_state)
+        start = game_state.index('func _ready() -> void:')
+        block = game_state[start:game_state.index("load_config()", start)]
+        self.assertIn("if GameSettingsType.is_low_power_runtime():", block)
+
+    def test_web_scenery_density_is_reduced_only_in_browser(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("const WEB_SCENERY_DENSITY_SCALE := 0.6", stage)
+        self.assertIn("density *= WEB_SCENERY_DENSITY_SCALE", stage)
+        guard = stage.index("density *= WEB_SCENERY_DENSITY_SCALE")
+        self.assertIn("if GameSettings.is_low_power_runtime():", stage[guard - 80:guard])
 
     def test_normal_rally_hud_updates_at_a_bounded_rate(self):
         stage = read("scripts/rally_stage.gd")
