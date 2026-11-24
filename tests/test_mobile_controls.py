@@ -173,7 +173,21 @@ class MobileControlsTest(unittest.TestCase):
         fps = read("scripts/ui/fps_label.gd")
         self.assertIn("show_render_stats = GameSettingsType.is_low_power_runtime()", fps)
         self.assertIn("RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME", fps)
-        self.assertIn('"%d FPS · %d dc"', fps)
+        self.assertIn('"%d FPS · %d dc · %d%%"', fps)
+
+    def test_web_hidpi_is_off_only_for_the_browser(self):
+        project = read("project.godot")
+        self.assertIn("window/dpi/allow_hidpi.web=false", project)
+        # Базовое значение не трогаем: ПК остаётся с HiDPI.
+        self.assertNotIn("window/dpi/allow_hidpi=false", project)
+
+    def test_web_hides_anisotropy_row_that_has_no_effect(self):
+        settings = read("scripts/ui/game_settings.gd")
+        self.assertIn("_aniso.get_parent().visible = false", settings)
+
+    def test_fps_counter_shows_current_3d_scale(self):
+        fps = read("scripts/ui/fps_label.gd")
+        self.assertIn("get_viewport().scaling_3d_scale", fps)
 
     def test_normal_rally_hud_updates_at_a_bounded_rate(self):
         stage = read("scripts/rally_stage.gd")

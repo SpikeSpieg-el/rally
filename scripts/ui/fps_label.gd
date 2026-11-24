@@ -75,7 +75,8 @@ func _process(_delta: float) -> void:
 		var draws: int = RenderingServer.get_rendering_info(
 			RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME
 		)
-		text = "%d FPS · %d dc" % [fps_val, draws]
+		var scale_pct: int = roundi(get_viewport().scaling_3d_scale * 100.0)
+		text = "%d FPS · %d dc · %d%%" % [fps_val, draws, scale_pct]
 		_apply_fps_color(fps_val)
 		return
 	if fps_val == _last_fps and not text.is_empty():

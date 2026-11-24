@@ -324,6 +324,8 @@ func _build_performance_section() -> void:
 		# а тени дороги для телефона: строки скрыты, а не показаны серыми.
 		_scaling.get_parent().visible = false
 		_shadows.get_parent().visible = false
+		# Анизотропия в Compatibility (GLES3) не применяется во время работы.
+		_aniso.get_parent().visible = false
 		_msaa.tooltip_text = "Сглаживание дорогое для телефона; по умолчанию выключено."
 		_scaling_scale.tooltip_text = "Потолок масштаба. Если FPS падает, масштаб снижается сам (до 50 %)."
 		var note := Label.new()
