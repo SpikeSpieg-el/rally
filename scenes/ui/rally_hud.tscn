@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://c5iyuytyv1q0e" path="res://scripts/ui/sprite_counter.gd" id="10_counter"]
 [ext_resource type="PackedScene" path="res://scenes/ui/delta_panel.tscn" id="11_delta_panel"]
 [ext_resource type="Script" path="res://scripts/ui/ghost_settings.gd" id="12_ghost_settings"]
+[ext_resource type="Script" path="res://scripts/ui/touch_controls.gd" id="13_touch_controls"]
 
 [sub_resource type="StyleBoxFlat" id="SB_panel"]
 content_margin_left = 18.0
@@ -1017,3 +1018,13 @@ theme_override_styles/pressed = SubResource("SB_button_pressed")
 theme_override_styles/hover = SubResource("SB_button_hover")
 theme_override_styles/focus = SubResource("SB_button_focus")
 text = "ГЛАВНОЕ МЕНЮ"
+
+[node name="TouchControls" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("13_touch_controls")

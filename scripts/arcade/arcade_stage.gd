@@ -392,6 +392,7 @@ func _apply_conditions_to_track() -> void:
 
 func _configure_world() -> void:
 	var cfg := settings
+	var low_power_render := GameSettings.is_low_power_runtime()
 	_is_night = WeatherType.resolve_night_choice(time_choice, weather, track.night_mode)
 	var explicit_time: int = WeatherType.explicit_time_choice(time_choice, weather)
 	var sky_top: Color = _weather_sky_color(track.sky_top_color)
@@ -558,13 +559,13 @@ func _configure_world() -> void:
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
-		env.glow_enabled = true
+		env.glow_enabled = not low_power_render
 		env.glow_intensity = cfg.glow_intensity_ps1 if track.ps1_style else cfg.glow_intensity_normal
 		env.glow_bloom = cfg.glow_bloom_ps1 if track.ps1_style else cfg.glow_bloom_normal
-		env.ssao_enabled = cfg.ssao_enabled and track.screen_space_ao
+		env.ssao_enabled = cfg.ssao_enabled and track.screen_space_ao and not low_power_render
 		env.ssao_radius = cfg.ssao_radius
 		env.ssao_intensity = cfg.ssao_intensity
-		env.volumetric_fog_enabled = volumetric
+		env.volumetric_fog_enabled = volumetric and not low_power_render
 		env.volumetric_fog_density = volumetric_density
 		env.volumetric_fog_albedo = cfg.volumetric_fog_albedo
 		if weather != null:
@@ -597,6 +598,8 @@ func _configure_world() -> void:
 		sun_light.rotation = Vector3(deg_to_rad(sun_pitch), deg_to_rad(sun_yaw), 0.0)
 		sun_light.light_color = sun_col
 		sun_light.light_energy = sun_energy
+		if low_power_render:
+			sun_light.shadow_enabled = false
 
 
 func _weather_sky_color(base: Color) -> Color:
@@ -643,6 +646,8 @@ func _setup_precipitation() -> void:
 	var particles := fx_root.call("make_weather_particles", weather) as GPUParticles3D
 	if particles == null:
 		return
+	if GameSettings.is_low_power_runtime():
+		particles.amount = maxi(80, roundi(float(particles.amount) * 0.5))
 	add_child(particles)
 	if car != null and fx_root.has_method("anchor_for"):
 		particles.global_position = fx_root.call("anchor_for", car.global_position, car.linear_velocity)
@@ -830,6 +835,11 @@ func _setup_hud() -> void:
 	_setup_arcade_hud()
 	_setup_pause()
 	_setup_screen()
+	var touch_controls := hud.get_node_or_null("TouchControls")
+	if touch_controls != null and touch_controls.has_signal("pause_requested"):
+		var pause_callback := Callable(self, "_on_touch_pause_requested")
+		if not touch_controls.is_connected("pause_requested", pause_callback):
+			touch_controls.connect("pause_requested", pause_callback)
 	_update_input_hint()
 	var controller := _controller_manager()
 	if controller != null and controller.has_signal("active_device_changed"):
@@ -1102,6 +1112,12 @@ func _end_arcade_run() -> void:
 		_again_button.focus_mode = Control.FOCUS_ALL
 		if _again_button.is_visible_in_tree():
 			_again_button.grab_focus()
+
+
+func _on_touch_pause_requested() -> void:
+	if _rules != null and _rules.run_ended:
+		return
+	_set_paused(not _is_paused)
 
 
 func _set_paused(value: bool) -> void:
@@ -1399,6 +1415,7 @@ func _configure_car() -> void:
 	if car == null:
 		push_warning("RallyArcadeStage: узел RallyCar не найден.")
 		return
+	GameSettings.disable_low_power_light_shadows(self)
 	car.process_mode = Node.PROCESS_MODE_PAUSABLE
 	if car.has_method("apply_impact_settings"):
 		car.apply_impact_settings(impact_fx_override, damage_visual_override)

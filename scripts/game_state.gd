@@ -12,6 +12,7 @@ extends Node
 
 const GameConfigType = preload("res://scripts/data/rally_game_config.gd")
 const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
+const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
 const CarModels = preload("res://scripts/car_models.gd")
 const CarCustomization = preload("res://scripts/car_customization.gd")
 ## Варианты времени суток в меню: как на трассе, утро, день, вечер, ночь.
@@ -63,6 +64,7 @@ var marathon_index: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	GameSettingsType.apply_platform_defaults(get_viewport())
 	load_config()
 	load_records()
 	load_conditions()

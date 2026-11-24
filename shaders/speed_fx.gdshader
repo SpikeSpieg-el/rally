@@ -19,6 +19,8 @@ uniform float cockpit_scale : hint_range(0.0, 1.0) = 0.8;
 // который не трясёт кадр. Центр (дорога) остаётся резким.
 uniform float speed_stretch : hint_range(0.0, 0.06) = 0.02;
 uniform float speed_stretch_gain : hint_range(0.0, 3.0) = 1.0;
+// Web/mobile: пропускаем четыре дополнительных экранных сэмпла размытия.
+uniform bool low_power_mode = false;
 
 // Упорядоченная матрица Bayer 4x4: стабильна во времени и привязана к
 // виртуальным пикселям, поэтому туман не мерцает случайным шумом.
@@ -81,10 +83,9 @@ void fragment() {
 	vec2 zoomed_uv = effect_uv + (vec2(0.5) - effect_uv) * zoom;
 
 	vec3 color = sample_world(zoomed_uv, grid, SCREEN_PIXEL_SIZE);
-	if (mask > 0.001) {
+	if (!low_power_mode && mask > 0.001) {
 		// Один проход на всё: симметричный разлёт выборок вдоль луча взгляда.
-		// Разлёт = размытие + растяжение, поэтому стоимость шейдера не выросла.
-		// Центр кадра маска обнуляет, так что прицел и дорога остаются резкими.
+		// Web/mobile оставляет зум и виньетку, но пропускает эти четыре сэмпла.
 		float stretch = speed_stretch * speed_stretch_gain * mask * intensity;
 		float spread = stretch + blur_strength * view_blur_gain * mask;
 		vec3 smeared = vec3(0.0);
