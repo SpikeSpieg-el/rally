@@ -2588,6 +2588,8 @@ const MAX_FENCE_SECTIONS := 400
 ## (деревья, подлесок, трава), поэтому раскладка остаётся согласованной.
 ## На ПК не применяется.
 const WEB_SCENERY_DENSITY_SCALE := 0.6
+## Web/mobile: подлесок и трава (ground cover) — самая большая часть инстансов.
+const WEB_COVER_DENSITY_SCALE := 0.5
 
 
 func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -2820,6 +2822,8 @@ func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0,
 				cover_rng.seed = hash(Vector3i(roundi(distance * 100.0), int(side_sign), track.terrain_seed ^ seed_salt))
 				var cover_pool: Array[RallyProp] = cover_pools[zone] if cover_pass == 0 else grass_pools[zone]
 				var cover_density: float = cfg.ground_cover_density if cover_pass == 0 else (cfg.extra_grass_density if cfg.ground_cover_density > 0.0 else 0.0)
+				if cover_pass == 0 and GameSettings.is_low_power_runtime():
+					cover_density *= WEB_COVER_DENSITY_SCALE
 				var scaled_attempts: float = float(cfg.ground_cover_attempts_per_step) * cover_density * density * biome_density * (0.2 + 0.8 * cluster)
 				var cover_attempts: int = clampi(ceili(scaled_attempts), 0, cfg.max_attempts_per_step) if not cover_pool.is_empty() else 0
 				var cover_chance: float = clampf(cfg.ground_cover_success_chance * scaled_attempts / float(maxi(1, cover_attempts)), 0.0, 1.0)

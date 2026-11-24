@@ -7,6 +7,8 @@
 class_name RallyFpsCounter
 extends Label
 
+const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
+
 @export var hud_style: RallyHudStyle:
 	set(v):
 		if hud_style != null and hud_style.changed.is_connected(_on_hud_style_changed):
@@ -25,6 +27,8 @@ extends Label
 @export var fps_warn_color: Color = Color(1.0, 0.78, 0.2, 0.95)
 @export var fps_low_color: Color = Color(0.95, 0.35, 0.35, 0.95)
 @export var preview_fps: int = 60
+## Браузер/телефон: показывать число draw calls рядом с FPS (для диагностики).
+@export var show_render_stats: bool = false
 
 var _atlas: RallyHudSpriteAtlas = RallyHudSpriteAtlas.new()
 var _last_fps: int = 60
@@ -32,6 +36,8 @@ var _sprite_active: bool = false
 
 
 func _ready() -> void:
+	if not Engine.is_editor_hint():
+		show_render_stats = GameSettingsType.is_low_power_runtime()
 	_refresh_style_state()
 
 
@@ -44,7 +50,7 @@ func _on_hud_style_changed() -> void:
 
 
 func _refresh_style_state() -> void:
-	var want_sprite := use_sprite_digits
+	var want_sprite := use_sprite_digits and not show_render_stats
 	if hud_style != null:
 		want_sprite = want_sprite and hud_style.is_pixel_mode() and hud_style.use_sprite_digits_for_fps
 		add_theme_stylebox_override("normal", hud_style.make_hint_style())
@@ -64,6 +70,14 @@ func _refresh_style_state() -> void:
 
 func _process(_delta: float) -> void:
 	var fps_val := preview_fps if Engine.is_editor_hint() else int(Engine.get_frames_per_second())
+	if show_render_stats:
+		_last_fps = fps_val
+		var draws: int = RenderingServer.get_rendering_info(
+			RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME
+		)
+		text = "%d FPS · %d dc" % [fps_val, draws]
+		_apply_fps_color(fps_val)
+		return
 	if fps_val == _last_fps and not text.is_empty():
 		return
 	_last_fps = fps_val

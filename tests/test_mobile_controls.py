@@ -141,6 +141,40 @@ class MobileControlsTest(unittest.TestCase):
         guard = stage.index("density *= WEB_SCENERY_DENSITY_SCALE")
         self.assertIn("if GameSettings.is_low_power_runtime():", stage[guard - 80:guard])
 
+    def test_emulated_touch_mouse_never_turns_the_camera(self):
+        # Godot шлёт касания как мышь с device == DEVICE_ID_EMULATION.
+        # Без этой проверки палец на кнопке крутил камеру (жалоба на телефоне).
+        car = read("scripts/rally_car.gd")
+        start = car.index("func _unhandled_input(event: InputEvent) -> void:")
+        body = car[start:car.index("\n\n\nfunc ", start)]
+        self.assertIn("event.device == InputEvent.DEVICE_ID_EMULATION", body)
+        self.assertLess(
+            body.index("DEVICE_ID_EMULATION"),
+            body.index("InputEventMouseMotion"),
+        )
+
+    def test_web_buttons_have_no_small_upper_clamp(self):
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn("const WEB_MAIN_SIDE_RATIO := 0.26", controls)
+        self.assertIn("const WEB_MAIN_SIDE_MIN := 200.0", controls)
+        self.assertIn("const WEB_MAIN_SIDE_MAX := 340.0", controls)
+        self.assertIn("func _main_side(short_side: float) -> float:", controls)
+        self.assertIn("if GameSettings.is_low_power_runtime():", controls)
+        # На ПК размеры прежние: отдельная ветка с MAIN_SIDE_MAX.
+        self.assertIn("return clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)", controls)
+
+    def test_web_cover_density_is_halved_only_in_browser(self):
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("const WEB_COVER_DENSITY_SCALE := 0.5", stage)
+        self.assertIn("cover_density *= WEB_COVER_DENSITY_SCALE", stage)
+        self.assertIn("if cover_pass == 0 and GameSettings.is_low_power_runtime():", stage)
+
+    def test_fps_counter_shows_draw_calls_only_in_browser(self):
+        fps = read("scripts/ui/fps_label.gd")
+        self.assertIn("show_render_stats = GameSettingsType.is_low_power_runtime()", fps)
+        self.assertIn("RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME", fps)
+        self.assertIn('"%d FPS · %d dc"', fps)
+
     def test_normal_rally_hud_updates_at_a_bounded_rate(self):
         stage = read("scripts/rally_stage.gd")
         self.assertIn("const HUD_REFRESH: float = 0.08", stage)

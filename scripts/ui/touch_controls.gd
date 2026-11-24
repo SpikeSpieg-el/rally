@@ -20,6 +20,7 @@ const CLUTCH_TINT := Color(0.74, 0.58, 1.0, 1.0)
 const INK := Color(0.96, 0.98, 1.0, 0.98)
 
 ## Значения совпадают с RallyCarSetup.Transmission и RallyGame.transmission_index.
+const GameSettings = preload("res://scripts/ui/game_settings.gd")
 const TRANSMISSION_AUTOMATIC := 0
 const TRANSMISSION_MANUAL_CLUTCH := 2
 
@@ -27,6 +28,11 @@ const TRANSMISSION_MANUAL_CLUTCH := 2
 const MAIN_SIDE_RATIO := 0.24
 const MAIN_SIDE_MIN := 64.0
 const MAIN_SIDE_MAX := 132.0
+## Browser/телефон: проект рисуется в 1080 px по короткой стороне, поэтому
+## кнопка 26 % ≈ 280 px ≈ 13–15 мм на экране. Прежний потолок 132 px давал ~6 мм.
+const WEB_MAIN_SIDE_RATIO := 0.26
+const WEB_MAIN_SIDE_MIN := 200.0
+const WEB_MAIN_SIDE_MAX := 340.0
 ## Вспомогательные кнопки — доли главной.
 const HANDBRAKE_RATIO := 0.70
 const GEAR_RATIO := 0.60
@@ -170,7 +176,7 @@ func _rebuild_zones() -> void:
 	var short_side := minf(size.x, size.y)
 	var margin := clampf(short_side * 0.03, 8.0, 24.0)
 	var gap := maxf(8.0, short_side * 0.03)
-	var side := clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)
+	var side := _main_side(short_side)
 	# В узком экране (портрет) кнопки не должны налезать друг на друга.
 	side = minf(side, (size.x - 2.0 * margin - 2.0 * gap) * 0.25)
 	side = maxf(side, 44.0)
@@ -224,6 +230,12 @@ func _rebuild_zones() -> void:
 		PAUSE_TINT
 	)
 	queue_redraw()
+
+
+func _main_side(short_side: float) -> float:
+	if GameSettings.is_low_power_runtime():
+		return clampf(short_side * WEB_MAIN_SIDE_RATIO, WEB_MAIN_SIDE_MIN, WEB_MAIN_SIDE_MAX)
+	return clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)
 
 
 func _add_zone(action: String, label: String, rect: Rect2, tint: Color) -> void:
