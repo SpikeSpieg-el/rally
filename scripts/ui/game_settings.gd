@@ -29,6 +29,10 @@ const SCALING_LABELS: Array[String] = ["Билинейная", "FSR", "FSR2"]
 const SHADOW_LABELS: Array[String] = ["Низкое", "Среднее", "Высокое"]
 const SHADOW_SIZES: Array[int] = [1024, 2048, 4096]
 const ANISO_LABELS: Array[String] = ["Выкл", "2x", "4x", "8x", "16x"]
+## В браузере стартуем с 72 % масштаба 3D (ПК — 100 %). Это потолок: если FPS
+## падает, web_render_governor.gd опускает масштаб, но не ниже WEB_MIN_SCALE.
+const WEB_DEFAULT_SCALE := 0.72
+const WEB_MIN_SCALE := 0.5
 ## Палитра ретро: -1 — как на трассе, 0 — без ограничения, 5..8 — бит/канал.
 const PALETTE_VALUES: Array[int] = [-1, 0, 5, 6, 7, 8]
 const PALETTE_LABELS: Array[String] = ["Как на трассе", "Без ограничения", "RGB555 (5 бит)", "6 бит", "7 бит", "8 бит"]
@@ -127,7 +131,8 @@ static func scaling_mode() -> int:
 
 
 static func scaling_scale() -> float:
-	return clampf(float(_read("scaling_scale", 1.0)), 0.5, 1.0)
+	var fallback := WEB_DEFAULT_SCALE if is_low_power_runtime() else 1.0
+	return clampf(float(_read("scaling_scale", fallback)), WEB_MIN_SCALE, 1.0)
 
 
 static func shadow_quality() -> int:
@@ -157,7 +162,10 @@ static func apply_platform_defaults(viewport: Viewport = null) -> void:
 	if viewport != null:
 		viewport.msaa_3d = 0
 		viewport.scaling_3d_mode = 0
-		viewport.scaling_3d_scale = 0.72
+		viewport.scaling_3d_scale = WEB_DEFAULT_SCALE
+	# Сохранённые настройки должны действовать с первого кадра, а не только
+	# после правки в меню: иначе перезагрузка страницы сбрасывала бы их.
+	apply_display(viewport)
 
 
 static func disable_low_power_light_shadows(root: Node) -> void:
@@ -192,7 +200,7 @@ static func apply_display(viewport: Viewport = null) -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
 			DisplayServer.window_set_size(RESOLUTIONS[resolution_index()])
-	var effective_scale: float = minf(scaling_scale(), 0.72) if low_power else scaling_scale()
+	var effective_scale: float = scaling_scale()
 	var effective_scaling_mode: int = 0 if low_power else scaling_mode()
 	var effective_shadow_quality: int = 0 if low_power else shadow_quality()
 	ProjectSettings.set_setting("rendering/scaling_3d/mode", effective_scaling_mode)
@@ -202,7 +210,8 @@ static func apply_display(viewport: Viewport = null) -> void:
 	)
 	ProjectSettings.set_setting("rendering/textures/anisotropic_filtering_level", anisotropic_index())
 	if viewport != null:
-		viewport.msaa_3d = 0 if low_power else msaa_index()
+		# MSAA — выбор пользователя и на вебе (по умолчанию выключен).
+		viewport.msaa_3d = msaa_index()
 		viewport.scaling_3d_mode = effective_scaling_mode
 		viewport.scaling_3d_scale = effective_scale
 
@@ -289,6 +298,11 @@ func _build_display_section() -> void:
 			if FPS_VALUES[index] == 0 or FPS_VALUES[index] > 60:
 				_fps.set_item_disabled(index, true)
 		_fps.tooltip_text = "В Web/mobile доступно не более 60 FPS."
+		# Размер окна, VSync и полноэкранный режим в браузере задаёт сам браузер.
+		# Прячем эти строки, а не оставляем «настройки, которые ничего не меняют».
+		_window_mode.get_parent().visible = false
+		_resolution.get_parent().visible = false
+		_vsync.get_parent().visible = false
 
 
 func _build_performance_section() -> void:
@@ -306,14 +320,18 @@ func _build_performance_section() -> void:
 	_aniso = _option(_row("Анизотропная фильтрация"), ANISO_LABELS)
 	_aniso.item_selected.connect(_on_aniso_changed)
 	if is_low_power_runtime():
-		_msaa.disabled = true
-		_msaa.tooltip_text = "Отключено в Web/mobile для повышения производительности."
-		_scaling.disabled = true
-		_scaling.tooltip_text = "Web/mobile использует более быстрый режим масштабирования."
-		_scaling_scale.max_value = 0.72
-		_scaling_scale.tooltip_text = "Можно дополнительно снизить масштаб 3D до 50%."
-		_shadows.disabled = true
-		_shadows.tooltip_text = "Тени отключены в Web/mobile для повышения производительности."
+		# Браузерный рендерер (WebGL 2) работает только с билинейным масштабом,
+		# а тени дороги для телефона: строки скрыты, а не показаны серыми.
+		_scaling.get_parent().visible = false
+		_shadows.get_parent().visible = false
+		_msaa.tooltip_text = "Сглаживание дорогое для телефона; по умолчанию выключено."
+		_scaling_scale.tooltip_text = "Потолок масштаба. Если FPS падает, масштаб снижается сам (до 50 %)."
+		var note := Label.new()
+		note.text = "В браузере тени, SSAO, объёмный туман и FSR отключены для скорости. Масштаб 3D снижается сам, когда FPS проседает."
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82, 1.0))
+		note.add_theme_font_size_override("font_size", 13)
+		add_child(note)
 
 
 func _build_retro_section() -> void:
@@ -354,13 +372,13 @@ func _sync_all() -> void:
 	var effective_fps := max_fps()
 	if low_power:
 		effective_fps = 60 if effective_fps <= 0 else mini(effective_fps, 60)
-	var effective_scale := minf(scaling_scale(), 0.72) if low_power else scaling_scale()
+	var effective_scale := scaling_scale()
 	_window_mode.select(window_mode())
 	_resolution.select(resolution_index())
 	_resolution.disabled = window_mode() == 2
 	_vsync.set_pressed_no_signal(vsync_enabled())
 	_fps.select(maxi(0, FPS_VALUES.find(effective_fps)))
-	_msaa.select(0 if low_power else msaa_index())
+	_msaa.select(msaa_index())
 	_scaling.select(0 if low_power else scaling_mode())
 	_scaling_scale.set_value_no_signal(effective_scale)
 	_scaling_scale_value.text = "%d%%" % roundi(effective_scale * 100.0)
