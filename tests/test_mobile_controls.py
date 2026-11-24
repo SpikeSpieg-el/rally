@@ -158,10 +158,46 @@ class MobileControlsTest(unittest.TestCase):
         self.assertIn("const WEB_MAIN_SIDE_RATIO := 0.26", controls)
         self.assertIn("const WEB_MAIN_SIDE_MIN := 200.0", controls)
         self.assertIn("const WEB_MAIN_SIDE_MAX := 340.0", controls)
-        self.assertIn("func _main_side(short_side: float) -> float:", controls)
+        self.assertIn("func _main_side(short_side: float, portrait: bool = false) -> float:", controls)
         self.assertIn("if GameSettings.is_low_power_runtime():", controls)
         # На ПК размеры прежние: отдельная ветка с MAIN_SIDE_MAX.
         self.assertIn("return clampf(short_side * MAIN_SIDE_RATIO, MAIN_SIDE_MIN, MAIN_SIDE_MAX)", controls)
+
+    def test_portrait_buttons_fit_four_in_a_row(self):
+        # Раньше вычитались зазоры только двух соседей, хотя в нижнем ряду
+        # четыре кнопки — «руль вправо» наезжал на «тормоз» в портрете.
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn("const PORTRAIT_SIDE_RATIO := 0.235", controls)
+        self.assertIn("(size.x - 2.0 * margin - 3.0 * gap) * 0.25", controls)
+        self.assertIn("func content_top() -> float:", controls)
+        # Поворот телефона пересобирает зоны под новую ширину.
+        self.assertIn("viewport.size_changed.connect(_rebuild_zones)", controls)
+
+    def test_portrait_layout_and_theme_scale_exist(self):
+        layout = read("scripts/ui/rally_screen_layout.gd")
+        for token in (
+            "static func is_portrait(",
+            "static func ui_scale(",
+            "const UI_SCALE_LANDSCAPE := 1.15",
+            "const UI_SCALE_PORTRAIT := 1.05",
+        ):
+            self.assertIn(token, layout)
+        # Масштаб — это числа шрифтов/отступов, а не Control.scale.
+        theme = read("scripts/data/rally_ui_theme.gd")
+        self.assertIn("var ui_scale: float = 1.0", theme)
+        self.assertIn("func scaled_font(base_size: int) -> int:", theme)
+        self.assertNotIn("scale = Vector2(", theme)
+        hud = read("scripts/ui/rally_hud.gd")
+        self.assertIn("func _apply_portrait_layout(", hud)
+        self.assertIn("func _apply_orientation() -> void:", hud)
+        self.assertIn("_restore_scene_layout()", hud)
+
+    def test_camera_widens_in_portrait(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn("func _portrait_fov_bonus() -> float:", car)
+        self.assertIn("var portrait_fov_bonus: float = 12.0", car)
+        self.assertIn("+ _portrait_fov_bonus()", car)
+        self.assertIn("func _portrait_distance_scale() -> float:", car)
 
     def test_web_cover_density_is_halved_only_in_browser(self):
         stage = read("scripts/rally_stage.gd")
@@ -194,6 +230,80 @@ class MobileControlsTest(unittest.TestCase):
         self.assertIn("const HUD_REFRESH: float = 0.08", stage)
         self.assertIn("if _hud_clock >= HUD_REFRESH:", stage)
         self.assertIn("_update_hud()", stage)
+
+    def test_portrait_hud_reserves_room_for_the_thumb_row(self):
+        # Спидометр 210 px и кнопки газа делили низ экрана: панель ложилась
+        # под пальцы. Нижняя полоса считается от `content_top()`, а не от
+        # доли экрана «на глаз».
+        hud = read("scripts/ui/rally_hud.gd")
+        self.assertIn("func _controls_top(canvas: Vector2) -> float:", hud)
+        self.assertIn('controls.has_method("content_top")', hud)
+        self.assertIn("controls_top - margin", hud)
+        self.assertIn("var speed_height: float = clampf(maxf(portrait_speed_height, speed_min.y), 120.0, band_height)", hud)
+        # Панель-контейнер уважает свой минимум, иначе Godot вырастит её на пальцы.
+        self.assertIn("speed_panel.get_combined_minimum_size()", hud)
+        self.assertIn("@export var touch_controls_path: NodePath = NodePath(\"TouchControls\")", hud)
+        controls = read("scripts/ui/touch_controls.gd")
+        self.assertIn("signal layout_changed", controls)
+        self.assertIn("layout_changed.emit()", controls)
+        self.assertIn('controls.connect("layout_changed", Callable(self, "_apply_orientation"))', hud)
+
+    def test_portrait_layout_reacts_to_a_new_band_without_a_rotate(self):
+        # Зоны кнопок собираются отложенно; HUD должен переставиться, даже
+        # если ориентация и канва не менялись.
+        hud = read("scripts/ui/rally_hud.gd")
+        self.assertIn("var _applied_controls_top: float = -1.0", hud)
+        self.assertIn("var same_band: bool = absf(controls_top - _applied_controls_top) < 1.0", hud)
+
+    def test_ui_scale_does_not_compound_across_rotations(self):
+        # Поворот альбом→портрет→альбом раньше умножал уже увеличенный шрифт.
+        hud = read("scripts/ui/rally_hud.gd")
+        self.assertIn("var _base_font_sizes: Dictionary = {}", hud)
+        self.assertIn("func _scale_font_size(ctrl: Control, amount: float) -> void:", hud)
+        # Снимать оверрайд нельзя: размер из .tscn хранится в нём же.
+        self.assertNotIn('ctrl.remove_theme_font_size_override("font_size")', hud)
+        self.assertIn('ctrl.add_theme_font_size_override("font_size", maxi(8, roundi(float(base_size) * amount)))', hud)
+        self.assertIn("viewport.size_changed.connect(_on_viewport_resized)", hud)
+
+    def test_portrait_modals_fit_the_tall_canvas(self):
+        hud = read("scripts/ui/rally_hud.gd")
+        self.assertIn("func _place_modal(ctrl: Control, canvas: Vector2, margin: float, height_ratio: float) -> void:", hud)
+        self.assertIn("_place_modal(get_node_or_null(pause_panel_path) as Control, canvas, margin, 0.62)", hud)
+        self.assertIn("_place_modal(get_node_or_null(results_panel_path) as Control, canvas, margin, 0.45)", hud)
+        # Модалка портрета тянется по ширине: 620 px — это треть узкой канвы.
+        self.assertIn("maxf(320.0, canvas.x - margin * 2.0)", hud)
+
+    def test_low_power_render_trims_are_wired(self):
+        car = read("scripts/rally_car.gd")
+        self.assertIn("const LOW_POWER_FX_AMOUNT_SCALE := 0.35", car)
+        self.assertIn("func _sync_interior_visibility() -> void:", car)
+        self.assertIn("const INTERIOR_LOW_POWER := true", car)
+        stage = read("scripts/rally_stage.gd")
+        self.assertIn("const WEB_SCENERY_RANGE_SCALE := 0.72", stage)
+        self.assertIn("const WEB_SCENERY_RANGE_SMALL_SCALE := 0.75", stage)
+        self.assertIn("func _scenery_range(", stage)
+        streamer = read("scripts/world_streamer.gd")
+        self.assertIn("const MOBILE_REPLAN_DISTANCE := 48.0", streamer)
+        self.assertIn("const MOBILE_REPLAN_SECONDS := 1.25", streamer)
+        hud_speed = read("scripts/ui/sprite_speedometer.gd")
+        self.assertIn("LOW_POWER_REDRAW_HZ", hud_speed)
+        self.assertIn("func _low_power_redraw_enabled() -> bool:", hud_speed)
+        radio = read("scripts/ui/rally_radio_card.gd")
+        self.assertIn("LOW_POWER_POLL_INTERVAL", radio)
+        governor = read("scripts/ui/web_render_governor.gd")
+        self.assertIn("CRITICAL_FPS", governor)
+        self.assertIn("func _trim_expensive_extras() -> void:", governor)
+        self.assertIn("Engine.physics_ticks_per_second = 45", governor)
+        title = read("scripts/title_screen.gd")
+        self.assertIn("LOW_POWER_PREVIEW_FPS", title)
+        self.assertIn("OS.has_feature(\"web\")", title)
+
+    def test_expensive_draw_caches_are_reused(self):
+        minimap = read("scripts/ui/mini_map.gd")
+        self.assertIn("func _panel_box() -> StyleBoxFlat:", minimap)
+        self.assertIn("_passed_index", minimap)
+        surface = read("scripts/surface_effects.gd")
+        self.assertIn("const LOW_POWER_AMOUNT_SCALE := 0.4", surface)
 
 
 if __name__ == "__main__":

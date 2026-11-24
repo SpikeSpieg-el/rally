@@ -9,6 +9,8 @@
 class_name RallyHUD
 extends Control
 
+const LayoutType = preload("res://scripts/ui/rally_screen_layout.gd")
+
 signal hud_style_applied(pixel_active: bool)
 signal cockpit_mode_changed(in_cockpit: bool)
 
@@ -63,6 +65,15 @@ enum CockpitHideMode {
 			_apply_cockpit_visibility()
 @export var sync_cockpit_camera_from_vehicle: bool = true
 
+@export_group("Портретная раскладка")
+## Высота нижней полосы HUD, отданной спидометру в портрете, px канвы
+## (1920-базовая шкала; на экране масштабируется вместе с остальным UI).
+@export_range(120.0, 400.0, 4.0) var portrait_speed_height: float = 210.0
+## Ширина мини-карты в портрете, px канвы.
+@export_range(120.0, 600.0, 8.0) var portrait_minimap_width: float = 300.0
+## Зазор между панелями и краем экрана в портрете, px канвы.
+@export_range(0.0, 80.0, 2.0) var portrait_margin: float = 20.0
+
 @export_group("Пути виджетов")
 @export var stage_panel_path: NodePath = NodePath("StagePanel")
 @export var radio_card_path: NodePath = NodePath("RadioCard")
@@ -82,6 +93,7 @@ enum CockpitHideMode {
 @export var clutch_notice_path: NodePath = NodePath("ClutchNotice")
 @export var pause_panel_path: NodePath = NodePath("PausePanel")
 @export var results_panel_path: NodePath = NodePath("ResultsPanel")
+@export var touch_controls_path: NodePath = NodePath("TouchControls")
 
 var _saved_panel_styles: Dictionary = {}
 var _saved_label_styles: Dictionary = {}
@@ -91,6 +103,22 @@ var _classic_captured: bool = false
 var _current_camera_mode: int = 0
 var _cockpit_hidden_nodes: Dictionary = {}
 var _bound_vehicle: Node = null
+## Раскладка, которую HUD применил последней: "" (сцена), "portrait" или
+## "landscape". Пересобираем только при смене — размеры пересчитываются при
+## каждом изменении канвы, но не каждый кадр.
+var _applied_layout: String = ""
+## Канва, под которую посчитаны прямоугольники портрета: поворот телефона и
+## изменение окна пересчитывают их, даже если ориентация осталась портретной.
+var _applied_canvas: Vector2 = Vector2.ZERO
+## Верх сенсорных кнопок, под который посчитана нижняя полоса портрета:
+## кнопки пересобираются отложенно (после первого layout), и без этого
+## сравнения спидометр остался бы там, где посчитался по догадке 0.62.
+var _applied_controls_top: float = -1.0
+## Базовые размеры шрифтов и высоты кнопок из сцены — см. `_scale_font_size()`.
+var _base_font_sizes: Dictionary = {}
+var _base_min_heights: Dictionary = {}
+## Смещения панелей из .tscn: к ним возвращаемся в альбоме после портрета.
+var _scene_offsets: Dictionary = {}
 
 
 func _ready() -> void:
@@ -102,6 +130,295 @@ func _ready() -> void:
 	if sync_cockpit_camera_from_vehicle and not Engine.is_editor_hint():
 		_try_bind_scene_vehicle()
 	_apply_cockpit_visibility()
+	if not Engine.is_editor_hint():
+		_apply_ui_scale()
+		_cache_scene_offsets()
+		_apply_orientation()
+		var viewport := get_viewport()
+		if viewport != null:
+			if not viewport.size_changed.is_connected(_apply_orientation):
+				viewport.size_changed.connect(_apply_orientation)
+			if not viewport.size_changed.is_connected(_on_viewport_resized):
+				viewport.size_changed.connect(_on_viewport_resized)
+		var controls := get_node_or_null(touch_controls_path)
+		if controls != null and controls.has_signal("layout_changed"):
+			if not controls.is_connected("layout_changed", Callable(self, "_apply_orientation")):
+				controls.connect("layout_changed", Callable(self, "_apply_orientation"))
+
+
+## Крупность шрифтов HUD и модалок для телефона/браузера.
+##
+## В сцене все размеры нарисованы под 1080 px короткой стороны ПК. На
+## телефоне та же канва растянута на 6", и 12–15 px — это 2 мм текста.
+## Множитель берётся из `RallyScreenLayout`: ландшафт +15 %, портрет +5 %.
+## Это шрифты, а не `scale`: панели остаются на местах, буквы крупнее.
+func _apply_ui_scale() -> void:
+	if not is_inside_tree():
+		return
+	var amount: float = LayoutType.ui_scale()
+	for container in [self, get_node_or_null(pause_panel_path), get_node_or_null(results_panel_path),
+			get_node_or_null(stage_panel_path), get_node_or_null(radio_card_path),
+			get_node_or_null(timer_panel_path), get_node_or_null(delta_panel_path)]:
+		if container == null:
+			continue
+		for node in container.find_children("*", "Label", true, false):
+			var label := node as Label
+			if label == null:
+				continue
+			_scale_font_size(label, amount)
+		for node in container.find_children("*", "Button", true, false):
+			var button := node as Button
+			if button == null:
+				continue
+			_scale_font_size(button, amount)
+			# Палец толще курсора: на телефоне кнопки ещё и выше.
+			var key := button.get_instance_id()
+			if not _base_min_heights.has(key):
+				_base_min_heights[key] = button.custom_minimum_size.y
+			var base_min: float = float(_base_min_heights[key])
+			if amount > 1.0 and base_min > 0.0 and base_min < 44.0:
+				button.custom_minimum_size = Vector2(button.custom_minimum_size.x, 44.0)
+			elif base_min > 0.0:
+				button.custom_minimum_size = Vector2(button.custom_minimum_size.x, base_min)
+
+
+## Базовый (из сцены) размер шрифта помним по узлу: поворот телефона меняет
+## множитель, а не копит его. Без кэша каждый поворот умножал бы уже
+## увеличенный размер, и после двух альбомов текст уезжал за экран.
+func _scale_font_size(ctrl: Control, amount: float) -> void:
+	var key := ctrl.get_instance_id()
+	if not _base_font_sizes.has(key):
+		var scene_size: int = ctrl.get_theme_font_size("font_size")
+		if scene_size <= 0:
+			return
+		_base_font_sizes[key] = scene_size
+	var base_size: int = int(_base_font_sizes[key])
+	if base_size <= 0:
+		return
+	# Не `remove_theme_font_size_override()`: в .tscn размер приходит именно
+	# оверрайдом узла, и снятие сбросило бы его на дефолт темы — на ПК, где
+	# множитель 1.0, HUD перестал бы совпадать со сценой. При 1.0 записываем
+	# базовое значение обратно, визуально это no-op.
+	ctrl.add_theme_font_size_override("font_size", maxi(8, roundi(float(base_size) * amount)))
+
+
+## Поворот/ресайз: крупность могла смениться (альбом 1.15 ↔ портрет 1.05),
+## а вместе с ней и раскладка. `_apply_orientation()` сам решает, нужно ли
+## переставлять панели, поэтому вызываем оба всегда — это дешёвые итерации
+## по десятку узлов только на событии размера, не в кадре.
+func _on_viewport_resized() -> void:
+	if Engine.is_editor_hint():
+		return
+	_apply_ui_scale()
+	_apply_orientation()
+
+
+## Кэш смещений/якорей из сцены: в портрете панели получают новые, а в
+## альбоме возвращаются ровно к тем, что нарисованы в редакторе.
+func _cache_scene_offsets() -> void:
+	for path in [
+		stage_panel_path, radio_card_path, timer_panel_path, delta_panel_path,
+		mini_map_path, speed_panel_path, fps_label_path, clutch_notice_path,
+		pause_panel_path, results_panel_path,
+	]:
+		var ctrl := get_node_or_null(path) as Control
+		if ctrl == null or _scene_offsets.has(path):
+			continue
+		_scene_offsets[path] = {
+			"anchors": [ctrl.anchor_left, ctrl.anchor_top, ctrl.anchor_right, ctrl.anchor_bottom],
+			"offsets": [ctrl.offset_left, ctrl.offset_top, ctrl.offset_right, ctrl.offset_bottom],
+		}
+
+
+## Портрет: HUD перестраивается под высокий экран.
+##
+## В альбоме панели стоят по краям 16:9-канвы и не мешают друг другу. В
+## портрете та же раскладка превращается в кашу: панель этапа и радио
+## занимают всю ширину, таймер и дельта лежат друг на друге, спидометр
+## закрывает кнопки газа. Здесь разводим их по полосам:
+##
+##   верх   — этап, радио, FPS;
+##   центр  — таймер, дельта, уведомление о сцеплении;
+##   низ    — мини-карта слева, спидометр справа, пальцы по центру-низу.
+func _apply_orientation() -> void:
+	if Engine.is_editor_hint() or _scene_offsets.is_empty():
+		return
+	var canvas: Vector2 = _canvas_size()
+	var portrait: bool = LayoutType.is_portrait(canvas)
+	var wanted: String = "portrait" if portrait else "landscape"
+	var same_canvas: bool = canvas.distance_squared_to(_applied_canvas) < 1.0
+	var controls_top: float = _controls_top(canvas)
+	var same_band: bool = absf(controls_top - _applied_controls_top) < 1.0
+	if wanted == _applied_layout and (not portrait or (same_canvas and same_band)):
+		return
+	_applied_layout = wanted
+	_applied_canvas = canvas
+	_applied_controls_top = controls_top
+	if portrait:
+		_apply_portrait_layout(canvas)
+	else:
+		_restore_scene_layout()
+
+
+func _restore_scene_layout() -> void:
+	for path in _scene_offsets.keys():
+		var ctrl := get_node_or_null(path) as Control
+		if ctrl == null:
+			continue
+		var saved: Dictionary = _scene_offsets[path]
+		var anchors: Array = saved["anchors"]
+		var offsets: Array = saved["offsets"]
+		ctrl.anchor_left = float(anchors[0])
+		ctrl.anchor_top = float(anchors[1])
+		ctrl.anchor_right = float(anchors[2])
+		ctrl.anchor_bottom = float(anchors[3])
+		ctrl.offset_left = float(offsets[0])
+		ctrl.offset_top = float(offsets[1])
+		ctrl.offset_right = float(offsets[2])
+		ctrl.offset_bottom = float(offsets[3])
+
+
+## Поставить панель прямоугольником в координатах канвы.
+func _place(ctrl: Control, rect: Rect2) -> void:
+	if ctrl == null:
+		return
+	ctrl.anchor_left = 0.0
+	ctrl.anchor_top = 0.0
+	ctrl.anchor_right = 0.0
+	ctrl.anchor_bottom = 0.0
+	ctrl.offset_left = rect.position.x
+	ctrl.offset_top = rect.position.y
+	ctrl.offset_right = rect.position.x + rect.size.x
+	ctrl.offset_bottom = rect.position.y + rect.size.y
+
+
+func _apply_portrait_layout(canvas: Vector2 = Vector2.ZERO) -> void:
+	if canvas.x <= 0.0 or canvas.y <= 0.0:
+		canvas = _canvas_size()
+	var margin: float = maxf(8.0, portrait_margin)
+	var width: float = maxf(320.0, canvas.x)
+	var height: float = maxf(480.0, canvas.y)
+	var available: float = maxf(200.0, width - margin * 2.0)
+	# Верхний ряд выше ландшафтной панели радио (100 px), иначе карточка
+	# радио обрезается по высоте: она рассчитана на две строки текста.
+	var top_height: float = clampf(width * 0.10, 96.0, 220.0)
+	var fps_height: float = 46.0
+	var gap: float = 8.0
+
+	# --- Верх: этап и радио в две колонки ---
+	# Обе панели — PanelContainer: их минимум (две строки текста) тоже
+	# уважаем, иначе содержимое обрезается или панель растёт поверх FPS.
+	# Сначала отдаём место радио (ему нужен минимум под текст песни), остаток
+	# — этапу; на очень узкой канве этап ужимается первым.
+	var stage_panel := get_node_or_null(stage_panel_path) as Control
+	var radio_card := get_node_or_null(radio_card_path) as Control
+	var radio_width: float = clampf(available * 0.42, 260.0, 460.0)
+	if radio_card != null:
+		var radio_min := radio_card.get_combined_minimum_size()
+		radio_width = maxf(radio_width, radio_min.x)
+		top_height = maxf(top_height, radio_min.y)
+	radio_width = minf(radio_width, maxf(120.0, available - gap - 80.0))
+	var stage_width: float = maxf(80.0, available - radio_width - gap)
+	if stage_panel != null:
+		var stage_min := stage_panel.get_combined_minimum_size()
+		stage_width = maxf(stage_width, minf(stage_min.x, available - radio_width - gap))
+		top_height = maxf(top_height, stage_min.y)
+	_place(stage_panel, Rect2(Vector2(margin, margin), Vector2(stage_width, top_height)))
+	_place(radio_card, Rect2(Vector2(margin + stage_width + gap, margin),
+		Vector2(radio_width, top_height)))
+
+	# --- FPS: своя короткая строка под верхним рядом, у правого края ---
+	var fps_top: float = margin + top_height + gap
+	var fps := get_node_or_null(fps_label_path) as Control
+	if fps != null:
+		_place(fps, Rect2(Vector2(width - margin - 190.0, fps_top), Vector2(190.0, fps_height)))
+
+	# --- Центр: таймер и дельта во всю ширину под FPS ---
+	var timer_top: float = fps_top + fps_height + gap
+	# Таймер — тоже PanelContainer (подпись, спрайт времени и отсечка): его
+	# минимум выше «на глаз», и без max() панель вырастала на дельту.
+	var timer_panel := get_node_or_null(timer_panel_path) as Control
+	var timer_height: float = maxf(72.0, top_height * 0.82)
+	if timer_panel != null:
+		timer_height = maxf(timer_height, timer_panel.get_combined_minimum_size().y)
+	_place(timer_panel, Rect2(Vector2(margin, timer_top), Vector2(available, timer_height)))
+	var delta_top: float = timer_top + timer_height + gap
+	var delta_panel := get_node_or_null(delta_panel_path) as Control
+	var delta_height: float = maxf(52.0, top_height * 0.6)
+	if delta_panel != null:
+		delta_height = maxf(delta_height, delta_panel.get_combined_minimum_size().y)
+	_place(delta_panel, Rect2(Vector2(margin, delta_top), Vector2(available, delta_height)))
+	var clutch := get_node_or_null(clutch_notice_path) as Control
+	if clutch != null:
+		_place(clutch, Rect2(Vector2(margin, delta_top + delta_height + gap),
+			Vector2(available, maxf(40.0, top_height * 0.5))))
+
+	# --- Низ: мини-карта и спидометр в полосе НАД кнопками ---
+	# Панель спидометра — PanelContainer с восемью строками телеметрии: её
+	# минимальный размер больше назначенного вручную, и Godot вырастил бы её
+	# вниз, снова на кнопки. Берём максимум из желаемого и минимального и
+	# только потом прижимаем к верху полосы кнопок.
+	var speed_panel := get_node_or_null(speed_panel_path) as Control
+	var speed_min := Vector2.ZERO
+	if speed_panel != null:
+		speed_min = speed_panel.get_combined_minimum_size()
+	var controls_top: float = _controls_top(canvas)
+	var bottom_limit: float = clampf(controls_top - margin, height * 0.35, height - margin)
+	var band_height: float = maxf(120.0, bottom_limit - timer_top)
+	var speed_height: float = clampf(maxf(portrait_speed_height, speed_min.y), 120.0, band_height)
+	var speed_width: float = minf(available * 0.52, maxf(maxf(260.0, speed_min.x), speed_height * 1.5))
+	speed_width = minf(speed_width, available)
+	var speed_rect := Rect2(
+		Vector2(width - margin - speed_width, bottom_limit - speed_height),
+		Vector2(speed_width, speed_height)
+	)
+	_place(speed_panel, speed_rect)
+	var map_width: float = minf(available - speed_width - gap, maxf(160.0, portrait_minimap_width))
+	_place(get_node_or_null(mini_map_path) as Control,
+		Rect2(Vector2(margin, speed_rect.position.y), Vector2(maxf(140.0, map_width), speed_rect.size.y)))
+
+	# --- Модалки: на высоком экране им тесно в 620×970 по центру ---
+	_place_modal(get_node_or_null(pause_panel_path) as Control, canvas, margin, 0.62)
+	_place_modal(get_node_or_null(results_panel_path) as Control, canvas, margin, 0.45)
+
+
+## Верх сенсорных кнопок в координатах HUD. `content_top()` отдаёт
+## фактический прямоугольник нарисованных кнопок; если TouchControls ещё не
+## посчитал зоны (или его нет, как в тестовой сцене), берём долю экрана,
+## которую кнопки занимают по умолчанию.
+func _controls_top(canvas: Vector2) -> float:
+	var controls := get_node_or_null(touch_controls_path)
+	if controls != null and controls.has_method("content_top"):
+		var top := float(controls.call("content_top"))
+		if top > 0.0:
+			return top
+	return canvas.y * 0.62
+
+
+## Размер канвы (не Control.size: при stretch=canvas_items это одно и то же,
+## но viewport успевает обновиться раньше, чем пройдёт layout детей).
+func _canvas_size() -> Vector2:
+	var viewport := get_viewport()
+	if viewport != null:
+		var visible_size: Vector2 = viewport.get_visible_rect().size
+		if visible_size.x > 0.0 and visible_size.y > 0.0:
+			return visible_size
+	return LayoutType.screen_size()
+
+
+## Модальная панель: ширина канвы минус поля, высота — доля экрана. Так
+## настройки паузы (слайдеры и вкладки) остаются в экране и прокручиваются,
+## а не уезжают за нижний край. В портрете канва выше, чем широкий 16:9
+## макет паузы: 620 px ширины — это треть экрана, поэтому панель тянется на
+## всю доступную ширину.
+func _place_modal(ctrl: Control, canvas: Vector2, margin: float, height_ratio: float) -> void:
+	if ctrl == null:
+		return
+	var modal_height: float = clampf(canvas.y * height_ratio, 320.0, canvas.y - margin * 2.0)
+	_place(ctrl, Rect2(
+		Vector2(margin, (canvas.y - modal_height) * 0.5),
+		Vector2(maxf(320.0, canvas.x - margin * 2.0), modal_height)
+	))
 
 
 func _process(_delta: float) -> void:

@@ -23,6 +23,8 @@ const CarSetupType = preload("res://scripts/data/rally_car_setup.gd")
 const FeelConfigType = preload("res://scripts/data/rally_car_feel_config.gd")
 const CarVisuals = preload("res://scripts/car_visual_customization.gd")
 const WheelType = preload("res://scripts/gevp/wheel.gd")
+const LayoutType = preload("res://scripts/ui/rally_screen_layout.gd")
+const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
 const DustFx = preload("res://scripts/effects/rally_dust_fx.gd")
 const Sway = preload("res://scripts/effects/rally_speed_sway.gd")
 
@@ -136,6 +138,16 @@ const FEEL_GRAVITY: float = 9.81
 @export_range(45.0, 110.0, 1.0, "suffix:°") var chase_min_fov: float = 72.0
 @export_range(45.0, 120.0, 1.0, "suffix:°") var chase_max_fov: float = 88.0
 
+@export_group("Портрет (телефон)")
+## Камера в портрете смотрит вдоль узкой стороны: по горизонтали видно
+## меньше, чем в альбоме, и машина с трассой не помещаются в кадр.
+## Эти надбавки возвращают обзор, не трогая физику и не включая «рыбий глаз»
+## на ПК: множители 1.0 вне портрета.
+@export_range(0.0, 30.0, 1.0, "suffix:°") var portrait_fov_bonus: float = 12.0
+## Камера сзади ближе и ниже: в узком кадре далёкая машина — точка на экране.
+@export_range(0.4, 1.0, 0.01) var portrait_chase_distance_scale: float = 0.86
+@export_range(0.4, 1.0, 0.01) var portrait_chase_height_scale: float = 0.92
+
 @export_group("Mouse Look")
 @export var mouse_look_enabled: bool = true
 @export_range(0.0005, 0.01, 0.0005) var mouse_sensitivity: float = 0.0025
@@ -171,6 +183,7 @@ var camera_mode: int = CameraMode.CHASE_3RD:
 		if camera_mode == clamped:
 			return
 		camera_mode = clamped
+		_sync_interior_visibility()
 		camera_mode_changed.emit(camera_mode)
 var current_rpm: float = 900.0
 var speed_mps: float = 0.0
@@ -274,6 +287,8 @@ var fall_limit_y: float = -20.0
 ## Необязательный провайдер нижней границы: считается от земли ПОД машиной,
 ## а не от абсолютного нуля мира.
 var fall_limit_provider: Callable = Callable()
+## Корень салона для low-power вида (см. `_sync_interior_visibility`).
+var _interior_root: Node3D = null
 
 
 func _ready() -> void:
@@ -323,6 +338,9 @@ func _ready() -> void:
 
 	_setup_speed_motes()
 	_reset_camera_feel()
+	_cache_interior_nodes()
+	_sync_interior_visibility()
+	_trim_low_power_lights()
 
 	# Считываем положение и угол наклона узла CamChase со сцены
 	_capture_scene_camera_setup()
@@ -1371,6 +1389,13 @@ func _update_handbrake_grip(delta: float) -> void:
 		wheel.current_cof = _get_surface_cof(str(wheel.surface_type)) * _handbrake_grip_scale
 
 
+## Множитель количества частиц для текущего рантайма. 1.0 на ПК.
+func _fx_amount_scale() -> float:
+	if GameSettingsType.is_low_power_runtime():
+		return LOW_POWER_FX_AMOUNT_SCALE
+	return 1.0
+
+
 func _setup_gravel_particles() -> void:
 	if gravel_particles == null:
 		return
@@ -1380,7 +1405,10 @@ func _setup_gravel_particles() -> void:
 		gravel_particles.amount_ratio = 0.0
 		return
 	# Задний шлейф: не одинокий «шарик», а густое облако с ростом и растворением.
-	gravel_particles.amount = cfg.dust_amount
+	# В браузере/на телефоне частиц меньше втрое: overdraw полупрозрачных квадов
+	# — самая тяжёлая часть пиксельной работы, а профиль эффектов остаётся
+	# «как на ПК» (число частиц — это не размер и не цвет клуба).
+	gravel_particles.amount = maxi(12, roundi(float(cfg.dust_amount) * _fx_amount_scale()))
 	gravel_particles.lifetime = cfg.dust_lifetime
 	gravel_particles.local_coords = false
 	gravel_particles.fixed_fps = maxi(10, cfg.fx_physics_fps)
@@ -1510,16 +1538,84 @@ func inside_fov_factor() -> float:
 	return Sway.speed_fov_factor(speed_kmh, f().inside_fov_speed_reference_kmh, f().fov_speed_ease)
 
 
+## Дополнительный угол обзора для портретной раскладки: 0 на ПК и в альбоме,
+## `portrait_fov_bonus` в портрете. Экран смотрит вдоль широкой стороны.
+func _portrait_fov_bonus() -> float:
+	if not LayoutType.is_portrait():
+		return 0.0
+	return maxf(0.0, portrait_fov_bonus)
+
+
+## Множитель дистанции камеры сзади: в портрете машина ближе к камере,
+## иначе в узком кадре она читается как точка.
+func _portrait_distance_scale() -> float:
+	if not LayoutType.is_portrait():
+		return 1.0
+	return clampf(portrait_chase_distance_scale, 0.4, 1.0)
+
+
+## Множитель высоты камеры сзади: ниже — горизонт ближе к машине, дорога
+## видна дальше в глубоком кадре.
+func _portrait_height_scale() -> float:
+	if not LayoutType.is_portrait():
+		return 1.0
+	return clampf(portrait_chase_height_scale, 0.4, 1.0)
+
+
+## Салон машины — 103 MeshInstance3D узла. В видах «сзади» и «капот» его не
+## видно ни одного пикселя (камера снаружи), но каждый узел — это draw call
+## и вершины, которые WebGL считает каждый кадр. На ПК разница незаметна, а на
+## телефоне 100 вызовов — это заметные кадры.
+##
+## Поэтому в low-power (web/mobile) салон включается только в виде из кабины.
+## На ПК поведение прежнее: салон живёт всегда, чтобы тени, отражения и
+## «сюрпризы» вроде вида сквозь кузов не менялись.
+const INTERIOR_LOW_POWER := true
+## Web/mobile: во сколько раз меньше частиц у машины и колёс. Полупрозрачные
+## билборды перекрывают друг друга — на мобильном GPU это дороже геометрии.
+## 0.35 оставляет видимый шлейф и комья, но режет overdraw почти втрое.
+const LOW_POWER_FX_AMOUNT_SCALE := 0.35
+
+func _cache_interior_nodes() -> void:
+	if _interior_root != null or not INTERIOR_LOW_POWER:
+		return
+	if not GameSettingsType.is_low_power_runtime():
+		return
+	_interior_root = find_child("RallyCockpit", true, false) as Node3D
+
+
+## Две фары машины пишут тень — это два лишних shadow map в каждом кадре.
+## В браузере/на телефоне тень от фар почти не читается (машина едет днём по
+## открытой трассе), а стоит как половина солнечной. Гасим только тени фар,
+## сами фары светят как раньше: ночью дорога остаётся освещённой.
+func _trim_low_power_lights() -> void:
+	if not GameSettingsType.is_low_power_runtime():
+		return
+	for light_name in ["HeadlightL", "HeadlightR"]:
+		var light := find_child(light_name, true, false) as Light3D
+		if light != null:
+			light.shadow_enabled = false
+
+
+## Показать/спрятать салон под текущий вид. Вне low-power — no-op, поэтому
+## на ПК салон виден и в виде сзади, как раньше.
+func _sync_interior_visibility() -> void:
+	if _interior_root == null:
+		return
+	_interior_root.visible = camera_mode == CameraMode.COCKPIT_1ST
+
+
 func _apply_initial_camera_fov() -> void:
 	if active_camera == null:
 		return
+	var portrait_bonus: float = _portrait_fov_bonus()
 	match camera_mode:
 		CameraMode.CHASE_3RD:
-			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor())
+			active_camera.fov = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor()) + portrait_bonus
 		CameraMode.HOOD:
-			active_camera.fov = hood_fov + inside_speed_fov_bonus * inside_fov_factor()
+			active_camera.fov = hood_fov + inside_speed_fov_bonus * inside_fov_factor() + portrait_bonus
 		CameraMode.COCKPIT_1ST:
-			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * inside_fov_factor()
+			active_camera.fov = cockpit_fov + cockpit_speed_fov_bonus * inside_fov_factor() + portrait_bonus
 
 
 func _resolve_wipers() -> Node3D:
@@ -1568,7 +1664,7 @@ func _update_cameras(delta: float) -> void:
 	if camera_mode != CameraMode.CHASE_3RD:
 		var base_fov: float = cockpit_fov if camera_mode == CameraMode.COCKPIT_1ST else hood_fov
 		var fov_bonus: float = cockpit_speed_fov_bonus if camera_mode == CameraMode.COCKPIT_1ST else inside_speed_fov_bonus
-		var target_fov: float = base_fov + fov_bonus * inside_fov_factor()
+		var target_fov: float = base_fov + fov_bonus * inside_fov_factor() + _portrait_fov_bonus()
 		var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().inside_fov_response, delta)
 		active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 
@@ -1652,8 +1748,12 @@ func _update_action_camera(delta: float) -> void:
 	# местах, где камера реагирует на скорость.
 	var speed_factor: float = chase_fov_factor()
 
+	var distance_scale: float = _portrait_distance_scale()
+	var height_scale: float = _portrait_height_scale()
 	var base_back_dist: float = maxf(1.0, -_scene_chase_local_pos.z) if use_cam_chase_from_scene else chase_distance
+	base_back_dist *= distance_scale
 	var base_height_diff: float = (_scene_chase_local_pos.y - _scene_pivot_height) if use_cam_chase_from_scene else (chase_height - _scene_pivot_height)
+	base_height_diff *= height_scale
 	var base_side_offset: float = _scene_chase_local_pos.x if use_cam_chase_from_scene else 0.0
 
 	var base_elevation: float = atan2(base_height_diff, base_back_dist)
@@ -1743,7 +1843,7 @@ func _update_action_camera(delta: float) -> void:
 
 	_apply_chase_feel(delta > 0.0)
 
-	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor())
+	var target_fov: float = lerpf(chase_min_fov, chase_max_fov, chase_fov_factor()) + _portrait_fov_bonus()
 	var fov_weight: float = 1.0 if delta <= 0.0 else _response_weight(f().chase_fov_response, delta)
 	active_camera.fov = lerpf(active_camera.fov, target_fov, fov_weight)
 

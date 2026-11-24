@@ -14,6 +14,7 @@ const GarageScene = preload("res://scenes/garage_menu.tscn")
 const InputSettings = preload("res://scripts/ui/input_settings.gd")
 const UiThemeType = preload("res://scripts/data/rally_ui_theme.gd")
 const MenuLayoutType = preload("res://scripts/data/rally_menu_layout.gd")
+const LayoutType = preload("res://scripts/ui/rally_screen_layout.gd")
 const GhostRecordingType = preload("res://scripts/ghost/ghost_recording.gd")
 
 @export_group("Данные (инспектор)")
@@ -60,6 +61,9 @@ var _transitioning: bool = false
 var _screen_tween: Tween = null
 var _content_base_x: float = 0.0
 var _garage_base_x: float = 0.0
+## Портретная раскладка: одна колонка, правая часть скрыта.
+var _portrait: bool = false
+var _portrait_scroll: ScrollContainer = null
 
 # Блок условий заезда строится кодом: так меню остаётся одним .tscn,
 # а списки погоды/характеров растут вместе с конфигом.
@@ -96,7 +100,72 @@ func layout() -> MenuLayoutType:
 ## Применить палитру и шрифты меню к настоящей сцене (а не копии стилей):
 ## заголовки, акцентная полоса, подписи и кнопки остаются узлами.
 func _apply_theme() -> void:
-	var t: UiThemeType = theme_cfg()
+	_apply_theme_colors(theme_cfg())
+
+
+## Поворот телефона между портретом и альбомом: меню пересобирает крупность
+## и раскладку колонок. Списки трасс пересобираются, потому что их высота
+## берётся из темы (крупнее тема — выше кнопка).
+func _on_viewport_resized() -> void:
+	var wanted_scale: float = LayoutType.ui_scale()
+	var was_portrait: bool = _portrait
+	_portrait = LayoutType.is_portrait()
+	if is_equal_approx(wanted_scale, theme_cfg().ui_scale) and _portrait == was_portrait:
+		return
+	theme_cfg().ui_scale = wanted_scale
+	_apply_theme()
+	var native := Theme.new()
+	theme_cfg().apply_to(native)
+	theme = native
+	_build_buttons()
+	_build_conditions_ui()
+	_connect_focus_navigation()
+	_refresh()
+	_apply_portrait_stack()
+
+
+## Портрет: одна колонка. Правая часть (превью, статистика, радио) скрыта —
+## на высоком экране она только отнимает место у списка трасс, — а левая
+## колонка живёт в прокрутке: семь трасс + условия + кнопки в 2000 px
+## не помещаются при крупных шрифтах. В альбоме прокрутки нет и обе колонки
+## возвращаются на свои места.
+##
+## Прокрутка — ScrollContainer, который оборачивает левую колонку. Узлы не
+## пересоздаются: колонка просто переезжает внутрь контейнера и обратно,
+## поэтому ссылки `track_list`/`start_button` и фокус клавиатуры живут.
+func _apply_portrait_stack() -> void:
+	var body := get_node_or_null("Content/Body") as BoxContainer
+	if body == null:
+		return
+	var left := get_node_or_null("Content/Body/Left") as Control
+	var right := get_node_or_null("Content/Body/Right") as CanvasItem
+	if right != null:
+		right.visible = not _portrait
+	if _portrait_scroll == null and left != null:
+		_portrait_scroll = ScrollContainer.new()
+		_portrait_scroll.name = "PortraitScroll"
+		_portrait_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_portrait_scroll.follow_focus = true
+		_portrait_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_portrait_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		body.add_child(_portrait_scroll)
+	if _portrait_scroll == null or left == null:
+		return
+	var current_parent := left.get_parent()
+	if _portrait and current_parent != _portrait_scroll:
+		current_parent.remove_child(left)
+		_portrait_scroll.add_child(left)
+		_portrait_scroll.visible = true
+	elif not _portrait and current_parent == _portrait_scroll:
+		_portrait_scroll.remove_child(left)
+		_portrait_scroll.visible = false
+		body.add_child(left)
+		body.move_child(left, 0)
+	elif not _portrait:
+		_portrait_scroll.visible = false
+
+
+func _apply_theme_colors(t: UiThemeType) -> void:
 	var background := get_node_or_null("Background") as ColorRect
 	if background != null:
 		background.color = t.background
@@ -123,9 +192,14 @@ func _apply_theme() -> void:
 		if label != null:
 			label.add_theme_font_size_override("font_size", t.font_section)
 			label.add_theme_color_override("font_color", t.accent_soft)
-	for button in [start_button, quit_button, controls_button]:
+	for button in [start_button, quit_button, controls_button, back_button]:
 		if button != null:
 			button.add_theme_font_size_override("font_size", t.font_button_small)
+	# Заголовок RALLY крупный на ПК, а в узкой портретной колонке он растёт
+	# медленнее остального UI: иначе «RALLY 4.7» шире экрана.
+	if title_label != null:
+		var title_size: int = roundi(float(t._font_title) * 0.82) if _portrait else t.font_title
+		title_label.add_theme_font_size_override("font_size", title_size)
 	if start_button != null:
 		start_button.add_theme_stylebox_override("normal", t.button_style())
 		start_button.add_theme_stylebox_override("hover", t.button_hover_style())
@@ -139,6 +213,10 @@ func _ready() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_resolve_config()
+	# Телефон в альбоме: разрешение высокое, а меню нарисовано в 1920-канве —
+	# без множителя кнопки читаются как подписи. Тема отдаёт крупные числа
+	# шрифтов/высот, а `_apply_theme()` переносит их в сцену.
+	theme_cfg().ui_scale = LayoutType.ui_scale()
 	_apply_theme()
 	if content != null:
 		_content_base_x = content.position.x
@@ -153,6 +231,9 @@ func _ready() -> void:
 	_connect_focus_navigation()
 	_refresh()
 	_connect_selection_changes()
+	_portrait = LayoutType.is_portrait()
+	_apply_portrait_stack()
+	get_viewport().size_changed.connect(_on_viewport_resized)
 	_setup_controller()
 	if start_button != null:
 		start_button.grab_focus()

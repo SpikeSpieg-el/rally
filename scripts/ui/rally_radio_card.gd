@@ -6,6 +6,12 @@
 ## перетекает в новую, а подписи появляются мягко, без резкого мигания.
 extends PanelContainer
 
+const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
+## Телефон/браузер: время трека обновляется раз в 0.25 с, а не каждый кадр.
+## Текст «01:23 / 03:40» не меняется чаще, а каждый `_process` — это set на
+## Label/ProgressBar и перерисовка. На ПК — как раньше (каждый кадр).
+const LOW_POWER_POLL_INTERVAL := 0.25
+
 @export var compact: bool = false
 @export var show_controls: bool = true
 @export var station_override: String = ""
@@ -28,6 +34,8 @@ var _accent_bar: ColorRect = null
 var _mute_button: Button = null
 var _next_button: Button = null
 var _meta_tween: Tween = null
+## Аккумулятор опроса времени в low-power (см. LOW_POWER_POLL_INTERVAL).
+var _poll_clock: float = 0.0
 
 
 func _ready() -> void:
@@ -278,9 +286,14 @@ func _refresh_state(muted: bool = false) -> void:
 	modulate.a = 0.72 if muted else 1.0
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _radio == null:
 		return
+	if GameSettingsType.is_low_power_runtime() and not Engine.is_editor_hint():
+		_poll_clock += delta
+		if _poll_clock < LOW_POWER_POLL_INTERVAL:
+			return
+		_poll_clock = 0.0
 	var length := float(_radio.call("current_length"))
 	var played := float(_radio.call("current_position"))
 	if length > 0.0:

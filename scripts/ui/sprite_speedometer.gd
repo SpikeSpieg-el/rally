@@ -17,6 +17,8 @@ signal redline_changed(redline_active: bool)
 signal preset_applied(preset_id: int)
 signal atlas_rebuilt(is_ready: bool)
 
+const GameSettingsType = preload("res://scripts/ui/game_settings.gd")
+
 enum Preset {
 	CUSTOM = 0,
 	RALLY_CLASSIC = 1,
@@ -273,6 +275,12 @@ var _applying_preset := false
 		show_extra_info = v
 		_mark_custom_if_editing()
 		queue_redraw()
+
+## Телефон/браузер: спидометр — это большой `_draw()` каждый кадр. При 60 FPS
+## на слабом GPU CanvasItem-перерисовка спидометра и мини-карты съедает
+## заметную долю кадра, хотя цифры меняются не чаще, чем раз в ~0.15 с.
+## В low-power ограничиваем частоту перерисовки; на ПК всё как было.
+const LOW_POWER_REDRAW_HZ := 20.0
 
 @export_group("Feel & Juice")
 @export_range(0.0, 2.0, 0.05) var juice_intensity: float = 1.0
@@ -676,6 +684,8 @@ var _widget_punch: float = 0.0
 var _speed_pop: float = 0.0
 var _shift_flash: float = 0.0
 var _shake_offset: Vector2 = Vector2.ZERO
+## Аккумулятор времени для low-power перерисовки (см. LOW_POWER_REDRAW_HZ).
+var _low_power_redraw_clock: float = 0.0
 
 
 func _ready() -> void:
@@ -793,7 +803,23 @@ func _process(delta: float) -> void:
 		)
 
 	_sync_arc_node()
-	queue_redraw()
+	# Скорость/обороты уже сглажены, поэтому 20 Гц не выглядят «рывками», а
+	# каждый сэкономленный кадр спидометра — это кадр для 3D.
+	if _low_power_redraw_enabled():
+		_low_power_redraw_clock += delta
+		if _low_power_redraw_clock >= 1.0 / LOW_POWER_REDRAW_HZ:
+			_low_power_redraw_clock = 0.0
+			queue_redraw()
+	else:
+		queue_redraw()
+
+
+## Ограничение частоты нужно только в браузере/на телефоне и только когда
+## виджет действительно виден: в редакторе и в тестах перерисовываем всегда.
+func _low_power_redraw_enabled() -> bool:
+	if Engine.is_editor_hint() or not is_visible_in_tree():
+		return false
+	return GameSettingsType.is_low_power_runtime()
 
 
 func _mark_custom_if_editing() -> void:

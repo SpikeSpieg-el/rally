@@ -2590,6 +2590,23 @@ const MAX_FENCE_SECTIONS := 400
 const WEB_SCENERY_DENSITY_SCALE := 0.6
 ## Web/mobile: подлесок и трава (ground cover) — самая большая часть инстансов.
 const WEB_COVER_DENSITY_SCALE := 0.5
+## Web/mobile: дальность видимости леса и травы. Range 420/240 м рассчитан на
+## ПК-монитор; в браузере каждый лишний метр — это вершины, которые WebGL
+## обрабатывает в каждом кадре, а туман на телефоне всё равно съедает дальний
+## план. Меньше range = меньше инстансов в кадре, без изменения раскладки леса.
+const WEB_SCENERY_RANGE_SCALE := 0.72
+const WEB_SCENERY_RANGE_SMALL_SCALE := 0.75
+
+
+## Дальность прорисовки для текущего рантайма: на ПК — как в ресурсе,
+## в браузере/на телефоне — короче (см. WEB_SCENERY_RANGE_SCALE).
+func _scenery_range(large_value: float, small_value: float) -> Vector2:
+	if not GameSettings.is_low_power_runtime():
+		return Vector2(large_value, small_value)
+	return Vector2(
+		large_value * WEB_SCENERY_RANGE_SCALE,
+		small_value * WEB_SCENERY_RANGE_SMALL_SCALE
+	)
 
 
 func _spawn_procedural_scenery(light: bool = false, distance_start: float = 0.0, distance_end: float = -1.0, chunk_parent: Node3D = null) -> void:
@@ -3006,7 +3023,8 @@ func _build_scenery_multimeshes(
 		instance.lod_bias = cfg.scenery_lod_bias
 		# Мелочи исчезают раньше крупных, с запасом на радиус ячейки.
 		var small: bool = (kinds[prop_index] as RallyProp).small or (kinds[prop_index] as RallyProp).ground_cover
-		instance.visibility_range_end = cfg.scenery_range_small if small else cfg.scenery_range_large
+		var ranges: Vector2 = _scenery_range(cfg.scenery_range_large, cfg.scenery_range_small)
+		instance.visibility_range_end = ranges.y if small else ranges.x
 		instance.visibility_range_end_margin = cfg.scenery_range_margin
 		instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		# Дальний лес тень не пишет: за туманом его всё равно не разобрать,
@@ -3068,7 +3086,8 @@ func _add_breakable_scenery(container: Node3D, items: Array) -> void:
 	for item in items:
 		var prop: RallyProp = item[0]
 		if not kind_of.has(prop):
-			var range_end: float = cfg.scenery_range_small if prop.small else cfg.scenery_range_large
+			var breakable_ranges: Vector2 = _scenery_range(cfg.scenery_range_large, cfg.scenery_range_small)
+			var range_end: float = breakable_ranges.y if prop.small else breakable_ranges.x
 			kind_of[prop] = manager.add_kind(prop, _bake_prop_mesh(prop), range_end, not prop.small)
 		manager.add_instance(int(kind_of[prop]), item[1], bool(item[2]))
 	container.add_child(manager)
