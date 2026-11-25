@@ -2,7 +2,7 @@
 ## фотовспышки. Вся геометрия — в сцене scenes/props/spectator_crowd.tscn
 ## (люди, фотографы, кемпер, палатка, костёр расставлены прямо в ней и
 ## правятся в редакторе); этот скрипт только ОЖИВЛЯЕТ сцену:
-##   * раздаёт спрайтам случайные куртки (текстуры textures/sprites/);
+##   * раздаёт людям случайные оттенки куртки (фигура spectator_figure.png);
 ##   * прячет лишних зрителей под заданный размер толпы;
 ##   * включает/выключает лагерь и заставляет свет костра дрожать;
 ##   * зажигает вспышки, когда машина в радиусе 130 м;
@@ -20,14 +20,7 @@ extends Node3D
 @export var photographer_dodge_offset: Vector3 = Vector3(0.2, 0.0, 0.7)
 @export_range(20.0, 250.0, 1.0, "suffix:м") var flash_distance: float = 130.0
 
-const PERSON_TEXTURES: Array[String] = [
-	"res://textures/sprites/spectator_red.png",
-	"res://textures/sprites/spectator_yellow.png",
-	"res://textures/sprites/spectator_blue.png",
-	"res://textures/sprites/spectator_green.png",
-	"res://textures/sprites/spectator_orange.png",
-	"res://textures/sprites/spectator_white.png",
-]
+const PersonScript = preload("res://scripts/track/spectator_person.gd")
 
 var _stage: Node = null
 var _persons: Array[Node3D] = []
@@ -73,22 +66,23 @@ func _sprite_of(person_root: Node3D) -> Sprite3D:
 	return person_root.get_node_or_null("Sprite") as Sprite3D
 
 
-func _randomize_jackets() -> void:
-	var textures: Array[Texture2D] = []
-	for path in PERSON_TEXTURES:
-		var texture := load(path) as Texture2D
-		if texture != null:
-			textures.append(texture)
-	if textures.is_empty():
+## Оттенок куртки — через сам человек, чтобы он помнил его после рестарта.
+func _tint_person(root: Node3D) -> void:
+	if root == null:
 		return
+	if root.has_method("set_jacket_tint"):
+		root.call("set_jacket_tint", PersonScript.random_jacket_tint(_rng))
+		return
+	var sprite := _sprite_of(root)
+	if sprite != null:
+		sprite.modulate = PersonScript.random_jacket_tint(_rng)
+
+
+func _randomize_jackets() -> void:
 	for person in _persons:
-		var sprite := _sprite_of(person)
-		if sprite != null:
-			sprite.texture = textures[_rng.randi_range(0, textures.size() - 1)]
+		_tint_person(person)
 	for entry in _photographers:
-		var sprite := _sprite_of(entry["root"] as Node3D)
-		if sprite != null:
-			sprite.texture = textures[_rng.randi_range(0, textures.size() - 1)]
+		_tint_person(entry["root"] as Node3D)
 	for sprite in _flashes:
 		sprite.modulate.a = 0.0
 
