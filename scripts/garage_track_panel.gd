@@ -1,9 +1,14 @@
 ## Условия заезда у 3D-витрины гаража: карточка трассы, погода, характер полотна,
 ## время суток, коробка передач и «Живая лента» (сид, марафон).
 ##
+## Структура — в сцене scenes/garage_track_panel.tscn: каждый блок — обычный узел
+## с понятным именем, его видно в дереве Godot и можно двигать в инспекторе.
+## Скрипт только заполняет тексты из MenuLayout, цвета и отступы из UiTheme и
+## строит кнопки-чипы из узла ChipTemplate (число пресетов задаёт конфиг).
+##
 ## Трасса выбирается на 3D-доске гаража (GarageTrackBoard), которая вызывает
-## select_track(). Эта панель — 2D-слой рядом с витриной. Каждое изменение сразу
-## пишется в RallyGame (select_*), поэтому гараж, карта и заезд видят одно и то же.
+## select_track(). Каждое изменение сразу пишется в RallyGame (select_*), поэтому
+## гараж, карта и заезд видят одно и то же.
 class_name GarageTrackPanel
 extends PanelContainer
 
@@ -38,20 +43,46 @@ var time_buttons: Array[Button] = []
 var transmission_buttons: Array[Button] = []
 
 var _built: bool = false
-var _column: VBoxContainer = null
-var _preview: Control = null
-var _info_label: Label = null
-var _best_label: Label = null
-var _conditions_box: VBoxContainer = null
-var _seed_box: VBoxContainer = null
-var _seed_edit: LineEdit = null
-var _seed_status: Label = null
-var _marathon_choice: OptionButton = null
 var _marathon_stages: int = 0
-var _weather_flow: HFlowContainer = null
-var _profile_flow: HFlowContainer = null
-var _time_flow: HFlowContainer = null
-var _transmission_flow: HFlowContainer = null
+
+@onready var _column: VBoxContainer = $PanelScroll/Column
+@onready var _heading: Label = $PanelScroll/Column/TracksHeading
+@onready var _preview: Control = $PanelScroll/Column/StagePreview
+@onready var _info_label: Label = $PanelScroll/Column/InfoLabel
+@onready var _best_label: Label = $PanelScroll/Column/BestLabel
+@onready var _conditions_box: VBoxContainer = $PanelScroll/Column/ConditionsBox
+@onready var _seed_box: VBoxContainer = $PanelScroll/Column/ConditionsBox/LiveSeedBox
+@onready var _seed_title: Label = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedTitle
+@onready var _seed_edit: LineEdit = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow/SeedEdit
+@onready var _apply_button: Button = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow/ApplyButton
+@onready var _reroll_button: Button = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow/RerollButton
+@onready var _copy_button: Button = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow/CopyButton
+@onready var _seed_status: Label = $PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedStatus
+@onready var _marathon_label: Label = $PanelScroll/Column/ConditionsBox/LiveSeedBox/MarathonRow/MarathonLabel
+@onready var _marathon_choice: OptionButton = $PanelScroll/Column/ConditionsBox/LiveSeedBox/MarathonRow/MarathonChoice
+@onready var _weather_title: Label = $PanelScroll/Column/ConditionsBox/WeatherTitle
+@onready var _weather_flow: HFlowContainer = $PanelScroll/Column/ConditionsBox/WeatherFlow
+@onready var _profile_title: Label = $PanelScroll/Column/ConditionsBox/ProfileTitle
+@onready var _profile_flow: HFlowContainer = $PanelScroll/Column/ConditionsBox/ProfileFlow
+@onready var _time_title: Label = $PanelScroll/Column/ConditionsBox/TimeTitle
+@onready var _time_flow: HFlowContainer = $PanelScroll/Column/ConditionsBox/TimeFlow
+@onready var _transmission_title: Label = $PanelScroll/Column/ConditionsBox/TransmissionTitle
+@onready var _transmission_flow: HFlowContainer = $PanelScroll/Column/ConditionsBox/TransmissionFlow
+@onready var _chip_template: Button = $ChipTemplate
+
+
+func _ready() -> void:
+	_seed_edit.text_submitted.connect(_on_seed_submitted)
+	_apply_button.pressed.connect(_on_seed_apply_pressed)
+	_reroll_button.pressed.connect(_on_seed_reroll_pressed)
+	_copy_button.pressed.connect(_on_seed_copy_pressed)
+	_marathon_choice.fit_to_longest_item = false
+	_marathon_choice.add_item("ОДИН ЗАЕЗД · ВЫБРАННЫЙ СИД", 0)
+	_marathon_choice.add_item("МАРАФОН · 3 СЛУЧАЙНЫХ ЭТАПА", 3)
+	_marathon_choice.add_item("МАРАФОН · 5 СЛУЧАЙНЫХ ЭТАПОВ", 5)
+	_marathon_choice.tooltip_text = "Марафон на суммарное время: каждый этап — новый случайный сид. Выбранная машина, погода и покрытие сохраняются."
+	_marathon_choice.item_selected.connect(_on_marathon_selected)
+	_chip_template.visible = false
 
 
 ## Подключить панель к данным. Гараж вызывает это при каждом открытии.
@@ -66,7 +97,8 @@ func open(game_config: GameConfigType, game_state: Node, theme_data: UiThemeType
 		return
 	if not _built:
 		_built = true
-		_build_layout()
+		_apply_static_texts()
+		_build_chips()
 	_restore_selection()
 	_refresh()
 
@@ -100,6 +132,24 @@ func prepare_race() -> void:
 		game_node.call("begin_marathon", _marathon_stages)
 
 
+func theme_cfg() -> UiThemeType:
+	if ui_theme == null:
+		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
+			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
+		if ui_theme == null:
+			ui_theme = UiThemeType.new()
+	return ui_theme
+
+
+func layout() -> MenuLayoutType:
+	if menu_layout == null:
+		if ResourceLoader.exists("res://data/ui/default_menu_layout.tres"):
+			menu_layout = ResourceLoader.load("res://data/ui/default_menu_layout.tres") as MenuLayoutType
+		if menu_layout == null:
+			menu_layout = MenuLayoutType.new()
+	return menu_layout
+
+
 func _get_game() -> Node:
 	if game != null:
 		return game
@@ -123,165 +173,77 @@ func _restore_selection() -> void:
 		)
 
 
-## Каркас панели: прокрутка, карта трассы, карточка, блок условий.
-func _build_layout() -> void:
+## Тексты и цвета из MenuLayout и UiTheme. Один раз, при первом открытии.
+func _apply_static_texts() -> void:
 	var t := theme_cfg()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.022, 0.032, 0.044, 0.90)
-	style.border_width_left = 3
-	style.border_color = Color(1.0, 0.58, 0.08, 1.0)
-	style.content_margin_left = 16.0
-	style.content_margin_top = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_bottom = 10.0
-	add_theme_stylebox_override("panel", style)
-
-	var scroll := ScrollContainer.new()
-	scroll.name = "PanelScroll"
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	_column = VBoxContainer.new()
-	_column.name = "Column"
-	_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var cfg := layout()
 	_column.add_theme_constant_override("separation", t.block_separation)
-	scroll.add_child(_column)
-
-	var heading := Label.new()
-	heading.name = "TracksHeading"
-	heading.text = layout().tracks_heading
-	heading.add_theme_color_override("font_color", t.accent_soft)
-	heading.add_theme_font_size_override("font_size", t.font_group)
-	_column.add_child(heading)
-
-	_preview = Control.new()
-	_preview.name = "Preview"
-	_preview.set_script(StagePreviewType)
-	_preview.custom_minimum_size = Vector2(0.0, 170.0)
-	_column.add_child(_preview)
-
-	_info_label = Label.new()
-	_info_label.name = "InfoLabel"
+	_heading.text = cfg.tracks_heading
+	_heading.add_theme_color_override("font_color", t.accent_soft)
+	_heading.add_theme_font_size_override("font_size", t.font_group)
 	_info_label.add_theme_color_override("font_color", Color(0.9, 0.94, 0.98, 1.0))
 	_info_label.add_theme_font_size_override("font_size", t.font_caption)
-	_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_column.add_child(_info_label)
-
-	_best_label = Label.new()
-	_best_label.name = "BestLabel"
 	_best_label.add_theme_color_override("font_color", Color(0.5, 0.95, 0.55, 1.0))
 	_best_label.add_theme_font_size_override("font_size", t.font_button_small)
-	_column.add_child(_best_label)
 
-	_build_conditions_ui()
+	_conditions_box.add_theme_constant_override("separation", t.chip_separation)
+	_seed_box.add_theme_constant_override("separation", 2)
+	_seed_title.text = cfg.seed_heading
+	_style_group_title(_seed_title)
+	var seed_row := _seed_edit.get_parent() as HBoxContainer
+	seed_row.add_theme_constant_override("separation", t.chip_separation + 2)
+	_seed_edit.custom_minimum_size = Vector2(float(t.seed_field_width), float(t.chip_height))
+	_seed_edit.tooltip_text = cfg.seed_field_tip
+	_style_chip(_apply_button, cfg.apply_button, cfg.seed_apply_tip)
+	_style_chip(_reroll_button, cfg.reroll_button, cfg.seed_reroll_tip)
+	_style_chip(_copy_button, cfg.copy_button, cfg.seed_copy_tip)
+	_seed_status.add_theme_color_override("font_color", t.text_muted)
+	_seed_status.add_theme_font_size_override("font_size", t.font_caption)
+	_seed_status.text = cfg.seed_hint
+	var marathon_row := _marathon_label.get_parent() as HBoxContainer
+	marathon_row.add_theme_constant_override("separation", t.chip_separation)
+	_marathon_label.text = "РЕЖИМ"
+	_style_group_title(_marathon_label)
+
+	_weather_title.text = cfg.weather_heading
+	_profile_title.text = cfg.profile_heading
+	_time_title.text = cfg.time_heading
+	_transmission_title.text = cfg.transmission_heading
+	for title in [_weather_title, _profile_title, _time_title, _transmission_title]:
+		_style_group_title(title)
+	for flow in [_weather_flow, _profile_flow, _time_flow, _transmission_flow]:
+		flow.add_theme_constant_override("h_separation", t.chip_separation)
+		flow.add_theme_constant_override("v_separation", t.chip_separation)
 
 
-func theme_cfg() -> UiThemeType:
-	if ui_theme == null:
-		if ResourceLoader.exists("res://data/ui/default_ui_theme.tres"):
-			ui_theme = ResourceLoader.load("res://data/ui/default_ui_theme.tres") as UiThemeType
-		if ui_theme == null:
-			ui_theme = UiThemeType.new()
-	return ui_theme
-
-
-func layout() -> MenuLayoutType:
-	if menu_layout == null:
-		if ResourceLoader.exists("res://data/ui/default_menu_layout.tres"):
-			menu_layout = ResourceLoader.load("res://data/ui/default_menu_layout.tres") as MenuLayoutType
-		if menu_layout == null:
-			menu_layout = MenuLayoutType.new()
-	return menu_layout
-
-
-## Кнопка-«чип» для погоды, профиля и сида: мышью и с клавиатуры
-## (фокус кликом), а для геймпада есть горячие клавиши F6/F7/F8.
-func _make_choice_button(text: String, tip: String, action: Callable) -> Button:
+func _style_group_title(label: Label) -> void:
 	var t := theme_cfg()
-	var button := Button.new()
+	label.add_theme_color_override("font_color", t.accent_soft)
+	label.add_theme_font_size_override("font_size", t.font_group)
+
+
+## Кнопки-чипы: текст, подсказка, высота и шрифт — из темы и конфига.
+func _style_chip(button: Button, text: String, tip: String) -> void:
+	var t := theme_cfg()
 	button.text = text
 	button.tooltip_text = tip
 	button.custom_minimum_size = Vector2(0.0, t.chip_height)
-	button.focus_mode = Control.FOCUS_CLICK
 	button.add_theme_font_size_override("font_size", t.font_chip)
+
+
+## Новый чип — копия ChipTemplate (он задаёт фокус и сцену), подпись и действие из кода.
+func _make_choice_button(parent: Container, text: String, tip: String, action: Callable) -> Button:
+	var button := _chip_template.duplicate() as Button
+	button.visible = true
+	_style_chip(button, text, tip)
 	button.pressed.connect(action)
+	parent.add_child(button)
 	return button
 
 
-## Погода, характер трассы и панель сида «Живой ленты». Строится кодом
-## внутри левой колонки: число пресетов задаётся конфигом, менять .tscn
-## при добавлении новой погоды не нужно.
-func _build_conditions_ui() -> void:
-	if _conditions_box != null:
-		_conditions_box.queue_free()
-		_conditions_box = null
+## Погода, профиль, время и коробка: число чипов задаёт конфиг и MenuLayout.
+func _build_chips() -> void:
 	var cfg := layout()
-	var t := theme_cfg()
-	var box := VBoxContainer.new()
-	box.name = "ConditionsBox"
-	box.add_theme_constant_override("separation", t.chip_separation)
-	_column.add_child(box)
-	_conditions_box = box
-
-	# --- «Живая лента»: видимый и сохраняемый сид -------------------------
-	_seed_box = VBoxContainer.new()
-	_seed_box.name = "LiveSeedBox"
-	_seed_box.add_theme_constant_override("separation", 2)
-	box.add_child(_seed_box)
-	var seed_title := Label.new()
-	seed_title.text = cfg.seed_heading
-	seed_title.add_theme_color_override("font_color", t.accent_soft)
-	seed_title.add_theme_font_size_override("font_size", t.font_group)
-	_seed_box.add_child(seed_title)
-	var seed_row := HBoxContainer.new()
-	seed_row.add_theme_constant_override("separation", t.chip_separation + 2)
-	_seed_box.add_child(seed_row)
-	_seed_edit = LineEdit.new()
-	_seed_edit.custom_minimum_size = Vector2(float(t.seed_field_width), float(t.chip_height))
-	_seed_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_seed_edit.tooltip_text = cfg.seed_field_tip
-	_seed_edit.text_submitted.connect(_on_seed_submitted)
-	seed_row.add_child(_seed_edit)
-	seed_row.add_child(_make_choice_button(cfg.apply_button, cfg.seed_apply_tip, _on_seed_apply_pressed))
-	var reroll := _make_choice_button(cfg.reroll_button, cfg.seed_reroll_tip, _on_seed_reroll_pressed)
-	reroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	seed_row.add_child(reroll)
-	seed_row.add_child(_make_choice_button(cfg.copy_button, cfg.seed_copy_tip, _on_seed_copy_pressed))
-	_seed_status = Label.new()
-	_seed_status.add_theme_color_override("font_color", t.text_muted)
-	_seed_status.add_theme_font_size_override("font_size", t.font_caption)
-	_seed_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_seed_status.text = cfg.seed_hint
-	_seed_box.add_child(_seed_status)
-	var marathon_row := HBoxContainer.new()
-	marathon_row.add_theme_constant_override("separation", t.chip_separation)
-	_seed_box.add_child(marathon_row)
-	var marathon_label := Label.new()
-	marathon_label.text = "РЕЖИМ"
-	marathon_label.add_theme_color_override("font_color", t.accent_soft)
-	marathon_row.add_child(marathon_label)
-	_marathon_choice = OptionButton.new()
-	_marathon_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_marathon_choice.fit_to_longest_item = false
-	_marathon_choice.add_item("ОДИН ЗАЕЗД · ВЫБРАННЫЙ СИД", 0)
-	_marathon_choice.add_item("МАРАФОН · 3 СЛУЧАЙНЫХ ЭТАПА", 3)
-	_marathon_choice.add_item("МАРАФОН · 5 СЛУЧАЙНЫХ ЭТАПОВ", 5)
-	_marathon_choice.tooltip_text = "Марафон на суммарное время: каждый этап — новый случайный сид. Выбранная машина, погода и покрытие сохраняются."
-	_marathon_choice.item_selected.connect(func(index: int) -> void:
-		_marathon_stages = _marathon_choice.get_item_id(index)
-		_seed_status.text = "Марафон: случайные трассы и общее время. Сид выше — для одиночного заезда." if _marathon_stages > 0 else layout().seed_hint
-	)
-	marathon_row.add_child(_marathon_choice)
-
-	# --- Погода ------------------------------------------------------------
-	var weather_title := Label.new()
-	weather_title.text = cfg.weather_heading
-	weather_title.add_theme_color_override("font_color", t.accent_soft)
-	weather_title.add_theme_font_size_override("font_size", t.font_group)
-	box.add_child(weather_title)
-	_weather_flow = HFlowContainer.new()
-	_weather_flow.add_theme_constant_override("h_separation", t.chip_separation)
-	_weather_flow.add_theme_constant_override("v_separation", t.chip_separation)
-	box.add_child(_weather_flow)
 	weather_buttons.clear()
 	for i in range(config.weather_count()):
 		var preset: WeatherType = config.get_weather(i) as WeatherType
@@ -289,66 +251,38 @@ func _build_conditions_ui() -> void:
 			continue
 		var text: String = preset.short_name if not preset.short_name.is_empty() else preset.display_name
 		var tip: String = "%s\n%s" % [preset.display_name, preset.description]
-		var button := _make_choice_button(text, tip, _on_weather_pressed.bind(i))
-		_weather_flow.add_child(button)
-		weather_buttons.append(button)
+		weather_buttons.append(_make_choice_button(_weather_flow, text, tip, _on_weather_pressed.bind(i)))
 
-	# --- Характер трассы ---------------------------------------------------
-	var profile_title := Label.new()
-	profile_title.text = cfg.profile_heading
-	profile_title.add_theme_color_override("font_color", t.accent_soft)
-	profile_title.add_theme_font_size_override("font_size", t.font_group)
-	box.add_child(profile_title)
-	_profile_flow = HFlowContainer.new()
-	_profile_flow.add_theme_constant_override("h_separation", t.chip_separation)
-	_profile_flow.add_theme_constant_override("v_separation", t.chip_separation)
-	box.add_child(_profile_flow)
 	profile_buttons.clear()
 	for i in range(config.profile_count()):
 		var preset: ProfileType = config.get_profile(i) as ProfileType
 		if preset == null:
 			continue
-		var button := _make_choice_button(
+		profile_buttons.append(_make_choice_button(
+			_profile_flow,
 			preset.display_name,
 			"%s\n%s" % [preset.display_name, preset.description],
 			_on_profile_pressed.bind(i)
-		)
-		_profile_flow.add_child(button)
-		profile_buttons.append(button)
+		))
 
-	# --- Время суток: отдельно от погоды (день с дождём, ночь в тумане и т.д.) ---
-	var time_title := Label.new()
-	time_title.text = layout().time_heading
-	time_title.add_theme_color_override("font_color", t.accent_soft)
-	time_title.add_theme_font_size_override("font_size", t.font_group)
-	box.add_child(time_title)
-	_time_flow = HFlowContainer.new()
-	_time_flow.add_theme_constant_override("h_separation", t.chip_separation)
-	_time_flow.add_theme_constant_override("v_separation", t.chip_separation)
-	box.add_child(_time_flow)
+	# Время суток: отдельно от погоды (день с дождём, ночь в тумане и т.д.).
 	time_buttons.clear()
-	for i in range(layout().time_labels.size()):
-		var tip: String = layout().time_tips[i] if i < layout().time_tips.size() else layout().time_labels[i]
-		var button := _make_choice_button(layout().time_labels[i], tip, _on_time_pressed.bind(i))
-		_time_flow.add_child(button)
-		time_buttons.append(button)
+	for i in range(cfg.time_labels.size()):
+		var tip: String = cfg.time_tips[i] if i < cfg.time_tips.size() else cfg.time_labels[i]
+		time_buttons.append(_make_choice_button(_time_flow, cfg.time_labels[i], tip, _on_time_pressed.bind(i)))
 
-	# --- Коробка передач: отдельный выбор игрока, не привязан к пресету машины ---
-	var transmission_title := Label.new()
-	transmission_title.text = layout().transmission_heading
-	transmission_title.add_theme_color_override("font_color", t.accent_soft)
-	transmission_title.add_theme_font_size_override("font_size", t.font_group)
-	box.add_child(transmission_title)
-	_transmission_flow = HFlowContainer.new()
-	_transmission_flow.add_theme_constant_override("h_separation", t.chip_separation)
-	_transmission_flow.add_theme_constant_override("v_separation", t.chip_separation)
-	box.add_child(_transmission_flow)
+	# Коробка передач: отдельный выбор игрока, не привязан к пресету машины.
 	transmission_buttons.clear()
-	for i in range(layout().transmission_labels.size()):
-		var tip: String = layout().transmission_tips[i] if i < layout().transmission_tips.size() else layout().transmission_labels[i]
-		var button := _make_choice_button(layout().transmission_labels[i], tip, _on_transmission_pressed.bind(i))
-		_transmission_flow.add_child(button)
-		transmission_buttons.append(button)
+	for i in range(cfg.transmission_labels.size()):
+		var tip: String = cfg.transmission_tips[i] if i < cfg.transmission_tips.size() else cfg.transmission_labels[i]
+		transmission_buttons.append(_make_choice_button(
+			_transmission_flow, cfg.transmission_labels[i], tip, _on_transmission_pressed.bind(i)
+		))
+
+
+func _on_marathon_selected(index: int) -> void:
+	_marathon_stages = _marathon_choice.get_item_id(index)
+	_seed_status.text = "Марафон: случайные трассы и общее время. Сид выше — для одиночного заезда." if _marathon_stages > 0 else layout().seed_hint
 
 
 func _on_weather_pressed(index: int) -> void:
@@ -379,9 +313,9 @@ func _on_seed_reroll_pressed() -> void:
 	var track: TrackConfigType = _current_track()
 	if track == null or not track.procedural:
 		return
-	var game: Node = _get_game()
-	if game != null and game.has_method("reroll_live_seed"):
-		game.call("reroll_live_seed", track)
+	var game_node: Node = _get_game()
+	if game_node != null and game_node.has_method("reroll_live_seed"):
+		game_node.call("reroll_live_seed", track)
 	else:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
@@ -410,9 +344,9 @@ func _on_seed_apply_pressed() -> void:
 			_seed_status.text = layout().seed_status_same
 		return
 	track.generation_seed = value
-	var game: Node = _get_game()
-	if game != null and game.has_method("remember_live_seed"):
-		game.call("remember_live_seed", track.id, value)
+	var game_node: Node = _get_game()
+	if game_node != null and game_node.has_method("remember_live_seed"):
+		game_node.call("remember_live_seed", track.id, value)
 	if _seed_status != null:
 		_seed_status.text = layout().seed_status_applied % value
 	_refresh()
@@ -433,20 +367,16 @@ func _current_track() -> TrackConfigType:
 
 ## Погода, профиль, время суток и коробка живут в RallyGame: сцена этапа берёт их оттуда.
 func _sync_conditions() -> void:
-	var game: Node = _get_game()
-	if game == null:
+	var game_node: Node = _get_game()
+	if game_node == null:
 		return
-	game.call("select_weather", selected_weather)
-	game.call("select_profile", selected_profile)
-	game.call("select_time", selected_time)
-	game.call("select_transmission", selected_transmission)
+	game_node.call("select_weather", selected_weather)
+	game_node.call("select_profile", selected_profile)
+	game_node.call("select_time", selected_time)
+	game_node.call("select_transmission", selected_transmission)
 
 
-## Карточка заезда: трасса + выбранные погода и характер полотна + мотор.
-## Итоговые цифры (ширина, кочки, сцепление) уже перемножены — ровно те,
-## с которыми начнётся заезд.
-## Текст карточки трассы. Настройка машины в строку не входит — данные о ней
-## висят рядом на своих индикаторах, поэтому параметр помечен подчёркиванием.
+## Карточка заезда: трасса + погода, характер полотна и время.
 func _track_info_text(
 	track: TrackConfigType, _setup: CarSetupType, weather: WeatherType, profile: ProfileType, time_choice: int
 ) -> String:
@@ -563,14 +493,10 @@ func _refresh() -> void:
 	if config == null:
 		return
 	var t := theme_cfg()
-	for i in range(weather_buttons.size()):
-		weather_buttons[i].modulate = t.condition_selected_color if i == selected_weather else t.condition_idle_color
-	for i in range(profile_buttons.size()):
-		profile_buttons[i].modulate = t.condition_selected_color if i == selected_profile else t.condition_idle_color
-	for i in range(time_buttons.size()):
-		time_buttons[i].modulate = t.condition_selected_color if i == selected_time else t.condition_idle_color
-	for i in range(transmission_buttons.size()):
-		transmission_buttons[i].modulate = t.condition_selected_color if i == selected_transmission else t.condition_idle_color
+	_paint_choices(weather_buttons, selected_weather, t)
+	_paint_choices(profile_buttons, selected_profile, t)
+	_paint_choices(time_buttons, selected_time, t)
+	_paint_choices(transmission_buttons, selected_transmission, t)
 
 	var track: TrackConfigType = _current_track()
 	var weather: WeatherType = config.get_weather(selected_weather) as WeatherType
@@ -603,6 +529,11 @@ func _refresh() -> void:
 				_best_label.text += layout().ghost_available_badge
 		else:
 			_best_label.text = layout().best_time_empty
+
+
+func _paint_choices(buttons: Array[Button], chosen: int, t: UiThemeType) -> void:
+	for i in range(buttons.size()):
+		buttons[i].modulate = t.condition_selected_color if i == chosen else t.condition_idle_color
 
 
 ## Подсветка на доске (наведение, стрелки): показать карточку и карту трассы,

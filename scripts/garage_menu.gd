@@ -815,6 +815,8 @@ func _enter_track_phase() -> void:
 	_track_board.build(names, _track_panel.selected_track)
 	_track_panel.visible = true
 	_set_car_ui(false)
+	# Машина мешает доске: на фазе трассы её прячем, камера смотрит на доску.
+	_turntable.visible = false
 	_back_button.text = "◀  НАЗАД"
 	_update_track_pose()
 
@@ -826,6 +828,7 @@ func _enter_car_phase() -> void:
 		_track_board.visible = false
 	if _track_panel != null:
 		_track_panel.visible = false
+	_turntable.visible = true
 	_set_car_ui(true)
 	_back_button.text = "◀  К ТРАССЕ"
 
