@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://bldow7yt6dfq0" path="res://scripts/garage_menu.gd" id="garage_script"]
 [ext_resource type="Shader" uid="uid://cjk0afgvjqwx0" path="res://shaders/speed_fx.gdshader" id="ps1_shader"]
 [ext_resource type="PackedScene" uid="uid://dwrqum6ory2fe" path="res://scenes/garage_showroom.tscn" id="showroom_scene"]
-[ext_resource type="Script" path="res://scripts/garage_track_panel.gd" id="track_panel_script"]
+[ext_resource type="PackedScene" path="res://scenes/garage_track_panel.tscn" id="track_panel_scene"]
 
 [sub_resource type="ShaderMaterial" id="ShowroomPS1Material"]
 resource_local_to_scene = true
@@ -456,7 +456,7 @@ theme_override_styles/hover = SubResource("StartHoverStyle")
 theme_override_styles/focus = SubResource("StartHoverStyle")
 text = "НА СТАРТ  ▶"
 
-[node name="TrackPanel" type="PanelContainer" parent="." unique_id=602913477]
+[node name="TrackPanel" parent="." unique_id=602913477 instance=ExtResource("track_panel_scene")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -468,4 +468,5 @@ offset_top = 28.0
 offset_right = 456.0
 offset_bottom = -110.0
 grow_vertical = 2
-script = ExtResource("track_panel_script")
+
+[editable path="Preview/Viewport/Showroom"]

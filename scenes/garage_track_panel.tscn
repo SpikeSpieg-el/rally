@@ -1,0 +1,113 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/garage_track_panel.gd" id="1_panel"]
+[ext_resource type="Script" path="res://scripts/stage_preview.gd" id="2_preview"]
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+bg_color = Color(0.022, 0.032, 0.044, 0.9)
+border_width_left = 3
+border_color = Color(1, 0.58, 0.08, 1)
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+
+[node name="GarageTrackPanel" type="PanelContainer"]
+theme_override_styles/panel = SubResource("PanelStyle")
+script = ExtResource("1_panel")
+
+[node name="PanelScroll" type="ScrollContainer" parent="."]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Column" type="VBoxContainer" parent="PanelScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TracksHeading" type="Label" parent="PanelScroll/Column"]
+layout_mode = 2
+
+[node name="StagePreview" type="Control" parent="PanelScroll/Column"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+script = ExtResource("2_preview")
+
+[node name="InfoLabel" type="Label" parent="PanelScroll/Column"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="BestLabel" type="Label" parent="PanelScroll/Column"]
+layout_mode = 2
+
+[node name="ConditionsBox" type="VBoxContainer" parent="PanelScroll/Column"]
+layout_mode = 2
+
+[node name="LiveSeedBox" type="VBoxContainer" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="SeedTitle" type="Label" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox"]
+layout_mode = 2
+
+[node name="SeedRow" type="HBoxContainer" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox"]
+layout_mode = 2
+
+[node name="SeedEdit" type="LineEdit" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow"]
+layout_mode = 2
+alignment = 1
+
+[node name="ApplyButton" type="Button" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow"]
+layout_mode = 2
+focus_mode = 1
+
+[node name="RerollButton" type="Button" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 1
+
+[node name="CopyButton" type="Button" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/SeedRow"]
+layout_mode = 2
+focus_mode = 1
+
+[node name="SeedStatus" type="Label" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="MarathonRow" type="HBoxContainer" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox"]
+layout_mode = 2
+
+[node name="MarathonLabel" type="Label" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/MarathonRow"]
+layout_mode = 2
+
+[node name="MarathonChoice" type="OptionButton" parent="PanelScroll/Column/ConditionsBox/LiveSeedBox/MarathonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+fit_to_longest_item = false
+
+[node name="WeatherTitle" type="Label" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="WeatherFlow" type="HFlowContainer" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="ProfileTitle" type="Label" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="ProfileFlow" type="HFlowContainer" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="TimeTitle" type="Label" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="TimeFlow" type="HFlowContainer" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="TransmissionTitle" type="Label" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="TransmissionFlow" type="HFlowContainer" parent="PanelScroll/Column/ConditionsBox"]
+layout_mode = 2
+
+[node name="ChipTemplate" type="Button" parent="."]
+visible = false
+layout_mode = 2
+focus_mode = 1
