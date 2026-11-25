@@ -6,20 +6,36 @@ extends Node3D
 
 const BloodFx = preload("res://scripts/effects/rally_blood_fx.gd")
 const PuddleShader = preload("res://shaders/blood_puddle.gdshader")
-const DEFAULT_JACKETS: Array[String] = [
-	"res://textures/sprites/spectator_red.png",
-	"res://textures/sprites/spectator_yellow.png",
-	"res://textures/sprites/spectator_blue.png",
-	"res://textures/sprites/spectator_green.png",
-	"res://textures/sprites/spectator_orange.png",
-	"res://textures/sprites/spectator_white.png",
+const DebrisScript = preload("res://scripts/track/breakable_debris.gd")
+
+const BODY_DIR := "res://textures/sprites/spectator_body/"
+## Стоящая фигура целиком (280×720 px). Центр спрайта — центр текстуры.
+const FIGURE_TEXTURE := BODY_DIR + "spectator_figure.png"
+const FIGURE_SIZE := Vector2(280.0, 720.0)
+## Куртки оттенком: мягкая вариация яркости красной куртки (фигура одноцветная).
+const JACKET_SHADE_MIN := 0.8
+const JACKET_SHADE_MAX := 1.05
+## Детали тела: at — левый верхний угол в системе фигуры (px), size — px,
+## mass — кг, spin — доп. вращение при вылете, рад/с (голова и флаг крутятся сильнее).
+## Положения сняты с листа spectator_new.png подбором по совпадению пикселей;
+## шарф и флаг — по силуэту (их точное совпадение с фигурой не найдено).
+const BODY_PARTS: Array[Dictionary] = [
+	{"name": "head", "texture": BODY_DIR + "spectator_part_head.png", "at": Vector2(69.0, 0.0), "size": Vector2(141.0, 175.0), "mass": 5.0, "spin": 7.0},
+	{"name": "scarf", "texture": BODY_DIR + "spectator_part_scarf.png", "at": Vector2(69.0, 170.0), "size": Vector2(142.0, 142.0), "mass": 0.4, "spin": 14.0},
+	{"name": "torso", "texture": BODY_DIR + "spectator_part_torso.png", "at": Vector2(34.0, 196.0), "size": Vector2(200.0, 292.0), "mass": 22.0, "spin": 2.5},
+	{"name": "arm_l", "texture": BODY_DIR + "spectator_part_arm_l.png", "at": Vector2(0.0, 185.0), "size": Vector2(82.0, 280.0), "mass": 3.5, "spin": 9.0},
+	{"name": "arm_r", "texture": BODY_DIR + "spectator_part_arm_r.png", "at": Vector2(196.0, 185.0), "size": Vector2(83.0, 280.0), "mass": 3.5, "spin": 9.0},
+	{"name": "leg_l", "texture": BODY_DIR + "spectator_part_leg_l.png", "at": Vector2(46.0, 444.0), "size": Vector2(83.0, 281.0), "mass": 6.0, "spin": 4.0},
+	{"name": "leg_r", "texture": BODY_DIR + "spectator_part_leg_r.png", "at": Vector2(150.0, 440.0), "size": Vector2(83.0, 281.0), "mass": 6.0, "spin": 4.0},
+	{"name": "flag", "texture": BODY_DIR + "spectator_part_flag.png", "at": Vector2(210.0, 380.0), "size": Vector2(107.0, 142.0), "mass": 0.6, "spin": 16.0},
 ]
 
 @export_group("Внешность")
 ## Куртки для случайного выбора. Пусто — стандартный набор PNG в textures/sprites.
 @export var jacket_textures: Array[Texture2D] = []
 @export var randomize_jacket: bool = true
-@export_range(0.01, 0.2, 0.001) var pixel_size_idle: float = 0.045
+## Размер пикселя фигуры: 720 px ≈ 1.8 м (как прежние 40 px × 0.045).
+@export_range(0.001, 0.2, 0.0001) var pixel_size_idle: float = 0.0025
 @export_range(8.0, 80.0, 1.0, "suffix:м") var cheer_range: float = 40.0
 @export_range(0.0, 0.2, 0.005) var cheer_wave: float = 0.04
 @export_range(0.0, 16.0, 0.1) var cheer_speed: float = 5.5
@@ -38,14 +54,20 @@ const DEFAULT_JACKETS: Array[String] = [
 @export var hit_height: Vector2 = Vector2(-0.2, 1.45)
 @export_range(0.0, 2.0, 0.01, "suffix:м") var impact_height: float = 0.72
 
+@export_group("Разлёт")
+## Главное: при ударе тело разлетается на детали (голова, шарф, торс, руки, ноги,
+## флаг) — каждая деталь физическое тело, как обломки пропсов. Выключено — прежний
+## спрайт, сплющенный по земле.
+@export var break_into_parts: bool = true
+
 @export_group("После удара")
 @export var blood_burst: PackedScene
 ## Сместить тело на полотно, м (к оси дороги). Иначе труп остаётся в траве.
 @export_range(0.0, 6.0, 0.05, "suffix:м") var drag_onto_road: float = 2.6
 ## Протащить вдоль хода машины, м.
 @export_range(0.0, 8.0, 0.05, "suffix:м") var drag_along_car: float = 1.8
-## Размер лежащего спрайта: ~рост человека (40 px × pixel_size_idle).
-@export_range(0.01, 0.25, 0.001) var flatten_pixel_size: float = 0.05
+## Размер лежащего спрайта (режим без разлёта): ~рост человека, 720 px × pixel_size_idle.
+@export_range(0.001, 0.25, 0.0001) var flatten_pixel_size: float = 0.0025
 @export var flatten_color: Color = Color(0.32, 0.04, 0.05, 0.92)
 @export_range(0.0, 180.0, 1.0, "suffix:°") var flatten_yaw_range: float = 55.0
 ## След-потёк чуть длиннее тела, но не в разы.
@@ -76,6 +98,8 @@ var _idle_sprite_pos: Vector3 = Vector3.ZERO
 var _idle_sprite_rot: Vector3 = Vector3.ZERO
 var _idle_modulate: Color = Color.WHITE
 var _idle_saved: bool = false
+## Физические детали после удара (RigidBody3D из пула обломков).
+var _body_pieces: Array = []
 
 
 func _ready() -> void:
@@ -142,7 +166,12 @@ func reset_person() -> void:
 	var puddle := get_node_or_null("BloodPuddle")
 	if puddle != null:
 		puddle.queue_free()
+	for body in _body_pieces:
+		if is_instance_valid(body):
+			body.queue_free()
+	_body_pieces.clear()
 	if _sprite != null:
+		_sprite.visible = true
 		_sprite.billboard = _idle_billboard
 		_sprite.no_depth_test = _idle_no_depth
 		_sprite.render_priority = _idle_render_priority
@@ -167,14 +196,29 @@ func _randomize_jacket() -> void:
 	for texture in jacket_textures:
 		if texture != null:
 			textures.append(texture)
-	if textures.is_empty():
-		for path in DEFAULT_JACKETS:
-			var loaded := load(path) as Texture2D
-			if loaded != null:
-				textures.append(loaded)
-	if textures.is_empty():
+	if not textures.is_empty():
+		# Свои спрайты курток (старый набор) — заменяем текстуру целиком.
+		_sprite.texture = textures[_rng.randi_range(0, textures.size() - 1)]
 		return
-	_sprite.texture = textures[_rng.randi_range(0, textures.size() - 1)]
+	if _sprite.texture == null:
+		_sprite.texture = load(FIGURE_TEXTURE) as Texture2D
+	set_jacket_tint(random_jacket_tint(_rng))
+
+
+## Случайный оттенок куртки для фигуры spectator_figure.png.
+static func random_jacket_tint(rng: RandomNumberGenerator) -> Color:
+	var shade := rng.randf_range(JACKET_SHADE_MIN, JACKET_SHADE_MAX)
+	var warm := rng.randf_range(-0.05, 0.05)
+	return Color(clampf(shade + warm, 0.0, 1.0), clampf(shade, 0.0, 1.0), clampf(shade - warm, 0.0, 1.0), 1.0)
+
+
+## Задать оттенок (сохраняется и после reset_person).
+func set_jacket_tint(tint: Color) -> void:
+	if _sprite == null:
+		_sprite = get_node_or_null("Sprite") as Sprite3D
+	_idle_modulate = tint
+	if _sprite != null and not _crushed:
+		_sprite.modulate = tint
 
 
 func _physics_process(delta: float) -> void:
@@ -259,7 +303,10 @@ func crush(car: Node3D) -> void:
 	var splash_direction: Vector3 = _splash_direction(car, hit_world, direct_front_hit)
 
 	_throw_onto_road(velocity)
-	_flatten(velocity)
+	if break_into_parts:
+		_burst_into_parts(car, velocity, hit_world)
+	else:
+		_flatten(velocity)
 
 	var spray_host: Node = car if car != null and is_instance_valid(car) else self
 	BloodFx.spray(spray_host, burst_world, velocity, blood_burst, splash_direction)
@@ -402,6 +449,77 @@ func _add_puddle(base_yaw: float = 0.0) -> void:
 	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	puddle.position = Vector3(0.0, 0.015, 0.0)
 	puddle.rotation_degrees = Vector3(-90.0, base_yaw + _rng.randf_range(-20.0, 20.0), 0.0)
+
+
+## Разлёт на части тела. Фигура прячется, на её месте — отдельные физические
+## детали (каждая — RigidBody3D в пуле обломков): машина передаёт им скорость,
+## точка удара — центр разлёта, голова и флаг крутятся сильнее остального.
+func _burst_into_parts(car: Node3D, velocity: Vector3, contact: Vector3) -> void:
+	if _sprite == null:
+		return
+	var base_yaw: float = 0.0
+	var flat_vel := Vector2(velocity.x, velocity.z)
+	if flat_vel.length_squared() > 0.25:
+		base_yaw = rad_to_deg(atan2(velocity.x, velocity.z))
+	var figure_xf: Transform3D = _sprite.global_transform
+	var root_scale: float = maxf(global_transform.basis.get_scale().x, 0.01)
+	var part_px: float = pixel_size_idle * root_scale
+	_sprite.visible = false
+	_add_puddle(base_yaw)
+	var manager := _debris_manager()
+	if manager == null:
+		return
+	for part in BODY_PARTS:
+		var size_px: Vector2 = part["size"]
+		var center_px: Vector2 = (part["at"] as Vector2) + size_px * 0.5
+		var local := Vector3(
+			(center_px.x - FIGURE_SIZE.x * 0.5) * pixel_size_idle,
+			(FIGURE_SIZE.y * 0.5 - center_px.y) * pixel_size_idle,
+			0.0)
+		var world := Transform3D(Basis.IDENTITY, figure_xf * local)
+		var node := _make_part_node(part, part_px)
+		var half := Vector3(size_px.x * part_px * 0.5, size_px.y * part_px * 0.5, 0.02)
+		manager.call("spawn_node", node, world, AABB(-half, half * 2.0), float(part["mass"]), velocity, contact, car)
+		var body := node.get_parent() as RigidBody3D
+		if body != null:
+			body.angular_velocity += _random_spin(float(part["spin"]))
+			_body_pieces.append(body)
+
+
+func _make_part_node(part: Dictionary, part_px: float) -> Node3D:
+	var node := Node3D.new()
+	node.name = "Part_%s" % part["name"]
+	var sprite := Sprite3D.new()
+	sprite.name = "Sprite"
+	sprite.texture = load(String(part["texture"])) as Texture2D
+	sprite.pixel_size = part_px
+	sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	sprite.double_sided = true
+	sprite.modulate = _idle_modulate
+	node.add_child(sprite)
+	return node
+
+
+func _random_spin(amount: float) -> Vector3:
+	var v := Vector3(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0))
+	return v * amount * _rng.randf_range(0.6, 1.0)
+
+
+## Общий менеджер обломков (группа rally_breakable_debris) — как у BreakableProps.
+func _debris_manager() -> Node:
+	if not is_inside_tree():
+		return null
+	for node in get_tree().get_nodes_in_group(DebrisScript.GROUP):
+		if is_instance_valid(node) and not node.is_queued_for_deletion():
+			return node
+	var manager := DebrisScript.new()
+	manager.name = "BreakableDebris"
+	var host: Node = self
+	var root := get_tree().root
+	while host.get_parent() != null and host.get_parent() != root:
+		host = host.get_parent()
+	host.add_child(manager)
+	return manager
 
 
 func _nudge_car(car: Node3D, velocity: Vector3, impact_pos: Vector3) -> void:
