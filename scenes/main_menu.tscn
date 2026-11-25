@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://csln8tj0hdrlm"]
 
 [ext_resource type="Script" uid="uid://b8wa4bs684dnw" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Script" uid="uid://cri301mtntwul" path="res://scripts/stage_preview.gd" id="2_preview"]
 [ext_resource type="Script" path="res://scripts/ui/rally_radio_card.gd" id="16_radio"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
@@ -95,28 +94,6 @@ size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.95
 theme_override_constants/separation = 8
 
-[node name="TracksLabel" type="Label" parent="Content/Body/Left" unique_id=9383231]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
-theme_override_font_sizes/font_size = 18
-text = "ВЫБОР ТРАССЫ"
-
-[node name="TrackList" type="VBoxContainer" parent="Content/Body/Left" unique_id=648802262]
-layout_mode = 2
-theme_override_constants/separation = 3
-
-[node name="SetupsLabel" type="Label" parent="Content/Body/Left" unique_id=673727374]
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.62, 0.12, 1)
-theme_override_font_sizes/font_size = 18
-text = "КОНФИГУРАЦИЯ LANCER EVO"
-
-[node name="SetupList" type="HBoxContainer" parent="Content/Body/Left" unique_id=1836260245]
-visible = false
-layout_mode = 2
-theme_override_constants/separation = 6
-
 [node name="ButtonRow" type="HBoxContainer" parent="Content/Body/Left" unique_id=1757083373]
 layout_mode = 2
 theme_override_constants/separation = 10
@@ -128,7 +105,7 @@ theme_override_colors/font_color = Color(0.08, 0.08, 0.09, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxFlat_button")
 theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-text = "ДАЛЕЕ · МАШИНА  ▶"
+text = "ДАЛЕЕ · ГАРАЖ  ▶"
 
 [node name="ControlsButton" type="Button" parent="Content/Body/Left/ButtonRow" unique_id=1712389345]
 layout_mode = 2
@@ -154,48 +131,6 @@ size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.05
 theme_override_constants/separation = 10
 
-[node name="Preview" type="Control" parent="Content/Body/Right" unique_id=2052911048]
-custom_minimum_size = Vector2(0, 300)
-layout_mode = 2
-size_flags_vertical = 3
-script = ExtResource("2_preview")
-
-[node name="InfoLabel" type="Label" parent="Content/Body/Right" unique_id=393098594]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.98, 1)
-theme_override_font_sizes/font_size = 16
-text = "Информация о трассе"
-autowrap_mode = 3
-
-[node name="Stats" type="VBoxContainer" parent="Content/Body/Right" unique_id=1318898082]
-visible = false
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="PowerBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=322524807]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-max_value = 1.0
-show_percentage = false
-
-[node name="GripBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=895114555]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-max_value = 1.0
-show_percentage = false
-
-[node name="SuspensionBar" type="ProgressBar" parent="Content/Body/Right/Stats" unique_id=381193201]
-custom_minimum_size = Vector2(0, 12)
-layout_mode = 2
-max_value = 1.0
-show_percentage = false
-
-[node name="BestLabel" type="Label" parent="Content/Body/Right" unique_id=1606289039]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.95, 0.55, 1)
-theme_override_font_sizes/font_size = 17
-text = "ЛУЧШЕЕ ВРЕМЯ: —"
-
 [node name="RadioCard" type="PanelContainer" parent="Content/Body/Right" unique_id=451940233]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -210,4 +145,4 @@ station_override = ""
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 15
-text = "Выбор трассы и конфигурации сохраняется между заездами. N — трек, M — радио, ESC — пауза, C — камера, V — привод."
+text = "Трасса, условия и машина выбираются в гараже и сохраняются между заездами. M — радио, ESC — пауза, C — камера, V — привод."

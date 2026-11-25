@@ -76,6 +76,12 @@ var _cam_home_dist := 9.5
 var _cam_target := Vector3.ZERO
 var _cam_dist := 9.5
 var _cam_shift := 0.0
+var _cam_home_dir := Vector3(0.6, 0.35, 0.7)
+## Фаза гаража: true — выбор трассы у 3D-доски, false — машина (основной гараж).
+var _track_phase := false
+var _track_pose_target := Vector3.ZERO
+var _track_pose_dir := Vector3(0.0, 0.3, 1.0)
+var _track_pose_dist := 6.0
 
 
 func theme_cfg() -> UiThemeType:
@@ -126,6 +132,11 @@ func turntable_speed() -> float:
 @onready var _callouts: GarageCallouts = %Callouts
 @onready var _detail_panel: PanelContainer = %DetailPanel
 @onready var _panel_title: Label = %PanelTitle
+# Доска выбора трассы и панель условий — в той же витрине; узлы из сцен.
+@onready var _track_board: GarageTrackBoard = _showroom.get_node_or_null("TrackBoard") as GarageTrackBoard
+@onready var _track_panel: GarageTrackPanel = %TrackPanel
+@onready var _back_button: Button = %BackButton
+@onready var _hint: Label = %Hint
 
 
 func _ready() -> void:
@@ -140,7 +151,10 @@ func _ready() -> void:
 	_name_input.text_changed.connect(_on_name_changed)
 	%ResetButton.pressed.connect(_reset_setup)
 	%SaveButton.pressed.connect(_save_button_pressed)
-	%BackButton.pressed.connect(_request_back)
+	_back_button.pressed.connect(_on_back_pressed)
+	if _track_board != null:
+		_track_board.focus_changed.connect(_on_track_focus_changed)
+		_track_board.track_chosen.connect(_choose_track)
 	%ControlsButton.pressed.connect(func() -> void: controls_requested.emit())
 	_start.pressed.connect(_start_race)
 	%PrevCar.pressed.connect(func() -> void: _step_vehicle(-1))
@@ -298,6 +312,8 @@ func open(game_config: RallyGameConfig, index: int, game_state: Node) -> void:
 	_rebuild_selector()
 	show()
 	_select_setup(clampi(index, 0, maxi(0, _setup_count() - 1)))
+	_track_panel.open(config, game, theme_cfg(), layout())
+	_enter_track_phase()
 
 
 ## Машины в порядке реестра: индекс пункта = индекс в data/vehicles.
@@ -440,6 +456,9 @@ func _process(delta: float) -> void:
 
 
 func _on_preview_input(event: InputEvent) -> void:
+	if _track_phase:
+		_on_track_board_input(event)
+		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = event.pressed
@@ -757,13 +776,140 @@ func _reset_setup() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel"):
-		# Esc сначала закрывает панель части, потом уходит из гаража.
+	if not visible:
+		return
+	if _track_phase:
+		# Клавиатура и геймпад: стрелки двигают подсветку доски, Enter — выбор.
+		if event.is_action_pressed("ui_left") and _track_board != null:
+			_track_board.step_focus(-1)
+		elif event.is_action_pressed("ui_right") and _track_board != null:
+			_track_board.step_focus(1)
+		elif event.is_action_pressed("ui_accept") and _track_board != null:
+			_track_board.choose_focused()
+		elif event.is_action_pressed("ui_cancel"):
+			_request_back()
+		else:
+			return
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("ui_cancel"):
+		# Esc сначала закрывает панель части, потом возвращает к выбору трассы.
 		if not _active_group.is_empty():
 			close_group()
 		else:
-			_request_back()
+			_enter_track_phase()
 		get_viewport().set_input_as_handled()
+
+
+## Фаза 1: камера у доски трасс, слева панель условий. Машина скрыта.
+func _enter_track_phase() -> void:
+	if config == null or _track_board == null or _track_panel == null:
+		return
+	_track_phase = true
+	close_group()
+	var names := PackedStringArray()
+	for i in range(config.track_count()):
+		var track := config.get_track(i) as TrackType
+		names.append(track.display_name if track != null else "—")
+	_track_board.visible = true
+	_track_board.build(names, _track_panel.selected_track)
+	_track_panel.visible = true
+	_set_car_ui(false)
+	_back_button.text = "◀  НАЗАД"
+	_update_track_pose()
+
+
+## Фаза 2: камера переезжает к машине, выбор трассы остаётся в панели условий.
+func _enter_car_phase() -> void:
+	_track_phase = false
+	if _track_board != null:
+		_track_board.visible = false
+	if _track_panel != null:
+		_track_panel.visible = false
+	_set_car_ui(true)
+	_back_button.text = "◀  К ТРАССЕ"
+
+
+## Выбор трассы (клик, Enter или геймпад): записать в RallyGame и ехать к машине.
+func _choose_track(index: int) -> void:
+	if not _track_phase or _track_board == null:
+		return
+	_track_board.set_focus(index)
+	_track_panel.select_track(index)
+	_enter_car_phase()
+
+
+func _on_track_focus_changed(index: int) -> void:
+	if _track_panel != null:
+		_track_panel.preview_track(index)
+
+
+## Кнопка внизу: в фазе трассы — выход из гаража, у машины — назад к трассе.
+func _on_back_pressed() -> void:
+	if _track_phase:
+		_request_back()
+	else:
+		_enter_track_phase()
+
+
+## Элементы машины видны только во второй фазе; панель части закрывается отдельно.
+func _set_car_ui(on: bool) -> void:
+	for path in ["TopLeft", "TopRight"]:
+		var node := get_node_or_null(path) as CanvasItem
+		if node != null:
+			node.visible = on
+	if _callouts != null:
+		_callouts.visible = on
+	if _hint != null:
+		_hint.visible = on
+	_start.visible = on
+	_status.visible = on
+
+
+func _on_track_board_input(event: InputEvent) -> void:
+	if _track_board == null:
+		return
+	if event is InputEventMouseMotion:
+		var hover := _track_board.pick(_preview_camera, _viewport_point(event.position))
+		if hover >= 0:
+			_track_board.set_focus(hover)
+	elif event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			var hit := _track_board.pick(_preview_camera, _viewport_point(event.position))
+			if hit >= 0:
+				_choose_track(hit)
+		_preview_container.accept_event()
+
+
+## Точка в координатах контейнера -> в координатах вьюпорта витрины.
+func _viewport_point(local: Vector2) -> Vector2:
+	var size := _preview_container.size
+	if size.x <= 0.0 or size.y <= 0.0:
+		return local
+	return local * (Vector2(_preview_viewport.size) / size)
+
+
+## Поза камеры у доски берётся из узла TrackBoard (camera_target / camera_offset).
+func _update_track_pose() -> void:
+	if _track_board == null:
+		return
+	_track_pose_target = _track_board.camera_pose_target()
+	var offset := _track_board.camera_pose_offset()
+	_track_pose_dist = maxf(offset.length(), 0.5)
+	_track_pose_dir = offset.normalized() if offset.length() > 0.01 else Vector3(0.0, 0.3, 1.0).normalized()
+
+
+## Трасса для запуска: та, что выбрана в панели (меню берёт её после start_requested).
+func current_track() -> TrackType:
+	if _track_panel == null:
+		return null
+	return _track_panel.selected_track_resource()
+
+
+## Перед стартом: трасса, условия и марафон уходят в RallyGame.
+func prepare_race() -> void:
+	if _track_panel != null:
+		_track_panel.prepare_race()
 
 
 # ---------------------------------------------------------------------------
@@ -787,6 +933,7 @@ func _init_camera_rig() -> void:
 	_cam_dist = _cam_home_dist
 	# Угол машины в покое — поворот Turntable в garage_showroom.tscn.
 	_base_yaw = _turntable.rotation.y
+	_cam_home_dir = _cam_dir
 	_place_camera()
 
 
@@ -805,8 +952,13 @@ func _update_turntable(delta: float) -> void:
 func _update_camera_rig(delta: float) -> void:
 	var target := _cam_home_target
 	var dist := _cam_home_dist
+	var dir := _cam_home_dir
 	var shift := 0.0
-	if not _active_group.is_empty():
+	if _track_phase:
+		target = _track_pose_target
+		dist = _track_pose_dist
+		dir = _track_pose_dir
+	elif not _active_group.is_empty():
 		var anchors := _callouts.part_anchors()
 		if anchors.has(_active_group):
 			var part: Vector3 = anchors[_active_group]
@@ -819,6 +971,7 @@ func _update_camera_rig(delta: float) -> void:
 	_cam_target = _cam_target.lerp(target, k)
 	_cam_dist = lerpf(_cam_dist, dist, k)
 	_cam_shift = lerpf(_cam_shift, shift, k)
+	_cam_dir = _cam_dir.lerp(dir, k).normalized()
 	_place_camera()
 
 

@@ -82,7 +82,7 @@ func _run() -> void:
 	menu.garage._on_slider_changed(8700.0, "max_rpm")
 	menu.garage._on_choice_changed(2, "livery")
 	# Коробка игрока выбирается в главном меню, а не в гараже.
-	menu._on_transmission_pressed(RallyCarSetup.Transmission.MANUAL_CLUTCH)
+	menu.garage._track_panel._on_transmission_pressed(RallyCarSetup.Transmission.MANUAL_CLUTCH)
 	check(not menu.garage._summary.text.contains("СЦЕПЛЕНИЕ"), "сводка гаража не показывает коробку")
 	menu.garage._on_slider_changed(0.55, "front_brake_bias")
 	menu.garage._save_button_pressed()

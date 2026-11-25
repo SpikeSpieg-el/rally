@@ -46,9 +46,13 @@ func _run() -> void:
 	var selected_seed: int = int(game.current_track.get("generation_seed"))
 	var menu = MainScene.instantiate()
 	root.add_child(menu)
-	check(menu._seed_box.visible and menu._marathon_choice.item_count == 3, "режимы показаны в меню Живой ленты")
-	menu._marathon_choice.select(2)
-	menu._marathon_choice.item_selected.emit(2)
+	# Условия и марафон живут в панели гаража: гараж открывается с главного меню.
+	menu._on_start_pressed()
+	await create_timer(0.5).timeout
+	var panel = menu.garage._track_panel
+	check(panel._seed_box.visible and panel._marathon_choice.item_count == 3, "режимы показаны в панели гаража Живой ленты")
+	panel._marathon_choice.select(2)
+	panel._marathon_choice.item_selected.emit(2)
 	menu._on_garage_start(0, game.current_setup as RallyCarSetup)
 	check(game.starts == 1 and game.marathon_seeds.size() == 5, "выбор пяти этапов запускается из гаража")
 	menu.queue_free()
