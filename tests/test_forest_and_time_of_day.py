@@ -50,8 +50,8 @@ class TimeOfDayPresetsTest(unittest.TestCase):
         layout = read("scripts/data/rally_menu_layout.gd")
         self.assertIn('"КАК НА ТРАССЕ", "УТРО", "ДЕНЬ", "ВЕЧЕР", "НОЧЬ"', layout)
         self.assertIn('"УТРО", "ДЕНЬ", "ВЕЧЕР", "НОЧЬ"', layout)
-        menu = read("scripts/main_menu.gd")
-        self.assertIn("WeatherType.resolve_time_choice(", menu)
+        panel = read("scripts/garage_track_panel.gd")
+        self.assertIn("WeatherType.resolve_time_choice(", panel)
 
     def test_stage_settings_define_distinct_morning_day_evening_night_presets(self):
         settings = read("scripts/data/rally_stage_settings.gd")

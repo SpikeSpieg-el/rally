@@ -210,9 +210,9 @@ class GhostRacerDeliverablesTest(unittest.TestCase):
 
         layout = read("scripts/data/rally_menu_layout.gd")
         self.assertIn("ghost_available_badge", layout)
-        menu = read("scripts/main_menu.gd")
-        self.assertIn("has_saved_ghost", menu)
-        self.assertIn("ghost_available_badge", menu)
+        panel = read("scripts/garage_track_panel.gd")
+        self.assertIn("has_saved_ghost", panel)
+        self.assertIn("ghost_available_badge", panel)
 
     def test_docs_updated(self):
         doc = read("docs/AGENTS_DATA_DRIVEN_RU.md")

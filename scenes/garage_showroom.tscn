@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://cpkdunodqqj5p" path="res://scenes/props/generator.tscn" id="generator"]
 [ext_resource type="PackedScene" uid="uid://dnfh1hjw5fb5t" path="res://scenes/props/sponsor_banner.tscn" id="sponsor_banner"]
 [ext_resource type="PackedScene" uid="uid://cybn2n7acr7er" path="res://scenes/props/tire_stack.tscn" id="tire_stack"]
+[ext_resource type="Script" path="res://scripts/garage_track_board.gd" id="track_board_script"]
 [ext_resource type="PackedScene" uid="uid://c1mq52mk4elhl" path="res://scenes/props/traffic_cone.tscn" id="traffic_cone"]
 
 [sub_resource type="Environment" id="ShowroomEnvironment"]
@@ -313,5 +314,12 @@ unique_name_in_owner = true
 transform = Transform3D(0.736443, -0.170954, 0.654543, 0, 0.967544, 0.252703, -0.6765, -0.186102, 0.712541, 7.9, 3.7, 8.6)
 current = true
 fov = 30.0
+
+[node name="TrackBoard" type="Node3D" parent="." unique_id=518273644]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4.6)
+script = ExtResource("track_board_script")
+camera_target = Vector3(0, 0.8, 0)
+camera_offset = Vector3(0, 2.2, 6.5)
 
 [editable path="Turntable/PreviewModel"]

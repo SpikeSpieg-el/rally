@@ -1,7 +1,7 @@
 # godot --headless --path . --fixed-fps 120 --script res://tests/menu_track_focus.gd
-# Выбор трассы в меню: клик и фокус с клавиатуры не должны «терять» кнопку.
-# Списки пересобираются на каждый выбор, и раньше фокус уходил в никуда
-# вместе со старой кнопкой — следующее нажатие Enter ничего не делало.
+# Выбор трассы на 3D-доске гаража: подсветка стрелками и мышью, выбор Enter/клик.
+# Доска пересобирается при каждом открытии гаража, поэтому подсветка стартует
+# с выбранной трассы, а выбор записывается в RallyGame только при подтверждении.
 extends SceneTree
 
 const Config = preload("res://data/rally_game_config.tres")
@@ -41,45 +41,37 @@ func _run() -> void:
 
 	var menu = MainScene.instantiate()
 	root.add_child(menu)
-	await _frames(4)
-	var buttons: Array = menu.track_buttons
-	check(buttons.size() >= 3, "в меню есть список трасс")
-	if buttons.size() < 3:
-		await _finish(game, menu)
-		return
+	await _frames(2)
+	menu._on_start_pressed()
+	await create_timer(0.5).timeout
 
-	# Клавиатура/геймпад: фокус на «Живой ленте» выбирает её и остаётся на ней.
-	buttons[2].grab_focus()
-	await _frames(3)
-	check(root.gui_get_focus_owner() == menu.track_buttons[2],
-		"фокус остался на выбранной трассе")
-	check(int(menu.selected_track) == 2, "фокус выбрал «Живую ленту»")
-	check(game.track_index == 2 and String(game.current_track.get("id")) == "dynamic_stage",
-		"RallyGame получил «Живую ленту»")
+	var garage = menu.garage
+	var board = garage._track_board
+	var panel = garage._track_panel
+	check(board != null and panel != null, "в гараже есть доска трасс и панель условий")
+	check(garage._track_phase, "гараж открывается с выбора трассы")
+	check(board.visible and not garage._start.visible, "на доске видна трасса, кнопка старта скрыта")
+	check(board.focus_index == 0, "подсветка начинается с выбранной трассы")
 
-	# Следующее переключение с клавиатуры работает, а не упирается в пустоту.
-	var down := InputEventAction.new()
-	down.action = "ui_down"
-	down.pressed = true
-	Input.parse_input_event(down)
-	await _frames(3)
-	check(root.gui_get_focus_owner() != null, "после переключения фокус не потерян")
-	check(int(menu.selected_track) != 2, "стрелка вниз выбирает соседнюю трассу")
+	board.step_focus(2)
+	check(board.focus_index == 2 and panel.selected_track == 2, "стрелка двигает подсветку и карточку")
+	check(int(game.track_index) == 0, "наведение не записывает выбор в RallyGame")
 
-	# Клик мышью (кнопка получает фокус и нажатие): выбор применяется,
-	# фокус переезжает на новую кнопку той же трассы.
-	buttons = menu.track_buttons
-	buttons[2].grab_focus()
-	await _frames(3)
-	buttons = menu.track_buttons
-	buttons[2].pressed.emit()
-	await _frames(3)
-	check(int(menu.selected_track) == 2, "клик выбирает «Живую ленту»")
-	check(root.gui_get_focus_owner() == menu.track_buttons[2],
-		"после клика фокус на выбранной трассе")
-	check(String(game.current_track.get("id")) == "dynamic_stage",
-		"клик не подменяет трассу ночным лесом")
-	check(int(game.starts) == 0, "выбор трассы не запускает заезд")
+	# Клик: плита на экране находится через проекцию камеры витрины.
+	var camera: Camera3D = garage._preview_camera
+	var pad: Node3D = board.get_node("Pads/Pad_4")
+	var screen: Vector2 = camera.unproject_position(pad.global_position + Vector3(0.0, board.label_height * 0.5, 0.0))
+	check(board.pick(camera, screen) == 4, "клик попадает в плиту")
+	check(board.pick(camera, screen + Vector2(900.0, 900.0)) == -1, "клик мимо плит ничего не выбирает")
+
+	board.set_focus(4)
+	board.choose_focused()
+	check(not garage._track_phase, "выбор трассы переводит камеру к машине")
+	check(int(game.track_index) == 4, "выбор записан в RallyGame")
+	check(garage._back_button.text.contains("ТРАССЕ"), "кнопка назад из машины ведёт к трассе")
+
+	garage._enter_track_phase()
+	check(garage._track_phase and board.focus_index == 4, "возврат к трассе сохраняет выбор")
 
 	await _finish(game, menu)
 
@@ -93,17 +85,7 @@ func _finish(game: Node, menu: Node) -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://menu_track_focus.cfg"))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://menu_track_focus_records.cfg"))
 	if failures.is_empty():
-		print("PASS: выбор трассы в меню не теряет фокус")
+		print("menu_track_focus: OK")
 		quit(0)
 	else:
-		printerr("FAIL: меню трасс: %d проблем(ы)" % failures.size())
 		quit(1)
-
-
-## Настоящий RallyGame, но со счётчиком стартов: тест не должен менять сцену.
-class GameState:
-	extends "res://scripts/game_state.gd"
-	var starts := 0
-
-	func start_race() -> void:
-		starts += 1
