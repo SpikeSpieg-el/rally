@@ -143,6 +143,16 @@ outer_radius = 3.14
 rings = 96
 ring_segments = 6
 
+[sub_resource type="BoxMesh" id="TrackPlateMesh"]
+size = Vector3(1.5, 0.12, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="TrackPlateMaterial"]
+albedo_color = Color(0.11, 0.15, 0.19, 1)
+roughness = 0.55
+emission_enabled = true
+emission = Color(1, 0.58, 0.08, 1)
+emission_energy_multiplier = 0.0
+
 [node name="Showroom" type="Node3D" unique_id=614954019]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1063400597]
@@ -319,7 +329,135 @@ fov = 30.0
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4.6)
 script = ExtResource("track_board_script")
-camera_target = Vector3(0, 0.8, 0)
-camera_offset = Vector3(0, 2.2, 6.5)
+camera_target = Vector3(0, 0.9, 0)
+camera_offset = Vector3(0, 2.7, 12.5)
+
+[node name="Pads" type="Node3D" parent="TrackBoard" unique_id=700000100]
+
+[node name="Pad_0" type="Node3D" parent="TrackBoard/Pads" unique_id=700000000]
+position = Vector3(-5.1, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_0" unique_id=700000001]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_0" unique_id=700000002]
+text = "Трасса 1"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_1" type="Node3D" parent="TrackBoard/Pads" unique_id=700000011]
+position = Vector3(-3.4, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_1" unique_id=700000012]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_1" unique_id=700000013]
+text = "Трасса 2"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_2" type="Node3D" parent="TrackBoard/Pads" unique_id=700000022]
+position = Vector3(-1.7, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_2" unique_id=700000023]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_2" unique_id=700000024]
+text = "Трасса 3"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_3" type="Node3D" parent="TrackBoard/Pads" unique_id=700000033]
+position = Vector3(0.0, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_3" unique_id=700000034]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_3" unique_id=700000035]
+text = "Трасса 4"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_4" type="Node3D" parent="TrackBoard/Pads" unique_id=700000044]
+position = Vector3(1.7, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_4" unique_id=700000045]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_4" unique_id=700000046]
+text = "Трасса 5"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_5" type="Node3D" parent="TrackBoard/Pads" unique_id=700000055]
+position = Vector3(3.4, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_5" unique_id=700000056]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_5" unique_id=700000057]
+text = "Трасса 6"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
+
+[node name="Pad_6" type="Node3D" parent="TrackBoard/Pads" unique_id=700000066]
+position = Vector3(5.1, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="TrackBoard/Pads/Pad_6" unique_id=700000067]
+mesh = SubResource("TrackPlateMesh")
+material_override = SubResource("TrackPlateMaterial")
+position = Vector3(0, 0.06, 0)
+
+[node name="Name" type="Label3D" parent="TrackBoard/Pads/Pad_6" unique_id=700000068]
+text = "Трасса 7"
+font_size = 36
+pixel_size = 0.004
+width = 375.0
+autowrap_mode = 3
+outline_size = 10
+billboard = 1
+position = Vector3(0, 0.9, 0)
 
 [editable path="Turntable/PreviewModel"]
