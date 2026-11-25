@@ -133,7 +133,7 @@ func turntable_speed() -> float:
 @onready var _detail_panel: PanelContainer = %DetailPanel
 @onready var _panel_title: Label = %PanelTitle
 # Доска выбора трассы и панель условий — в той же витрине; узлы из сцен.
-@onready var _track_board: GarageTrackBoard = _showroom.get_node_or_null("%TrackBoard") as GarageTrackBoard
+@onready var _track_board: GarageTrackBoard = _showroom.get_node_or_null("TrackBoard") as GarageTrackBoard
 @onready var _track_panel: GarageTrackPanel = %TrackPanel
 @onready var _back_button: Button = %BackButton
 @onready var _hint: Label = %Hint
