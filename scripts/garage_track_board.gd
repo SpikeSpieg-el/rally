@@ -22,12 +22,18 @@ signal track_chosen(index: int)
 ## Цвет подсветки выбранной плиты.
 @export var highlight_color: Color = Color(1.0, 0.58, 0.08)
 ## Точка, на которую смотрит камера при выборе (в локальных координатах доски).
-@export var camera_target: Vector3 = Vector3(0.0, 0.9, 0.0)
+@export var camera_target: Vector3 = Vector3(0.0, 0.75, 0.0)
 ## Где стоит камера относительно camera_target (в локальных координатах доски).
 ## Чем дальше, тем шире кадр: подберите так, чтобы вся доска влезала.
-@export var camera_offset: Vector3 = Vector3(0.0, 2.7, 12.5)
+## Гараж дополнительно вписывает доску в видимую часть кадра (справа от
+## левой панели) и даёт панораму/зум, поэтому это только базовая поза.
+@export var camera_offset: Vector3 = Vector3(0.0, 3.1, 13.8)
 ## Радиус клика по подписи на экране, пикс. (координаты вьюпорта витрины).
 @export_range(20.0, 300.0, 1.0, "suffix:px") var pick_radius_px: float = 110.0
+## Высота подписи над плитой, м (в сцене Label3D стоит на y=0.9).
+@export var label_height: float = 0.9
+## Высота плиты над полом доски, м (в сцене Plate стоит на y=0.06).
+@export var plate_height: float = 0.06
 
 ## Индекс подсвеченной трассы.
 var focus_index: int = 0
@@ -114,17 +120,61 @@ func choose_focused() -> void:
 	track_chosen.emit(focus_index)
 
 
+## Сколько плит сейчас показано (минимум из числа трасс и плит в сцене).
+func pad_count() -> int:
+	return _track_count
+
+
+## Мировая позиция плиты (центр, на полу доски) или ZERO вне диапазона.
+func pad_world_position(index: int) -> Vector3:
+	if index < 0 or index >= _track_count:
+		return Vector3.ZERO
+	return _pads[index].global_position
+
+
+## X плиты в локальных координатах доски (Pads стоит в начале доски).
+func pad_local_x(index: int) -> float:
+	if index < 0 or index >= _track_count:
+		return 0.0
+	return _pads[index].position.x
+
+
+## Размах плит по X в локальных координатах доски: (минимум, максимум).
+## Нужен гаражу, чтобы вписать всю доску в видимую часть кадра.
+func board_span() -> Vector2:
+	if _track_count <= 0:
+		return Vector2.ZERO
+	var low: float = _pads[0].position.x
+	var high: float = low
+	for i in range(1, _track_count):
+		low = minf(low, _pads[i].position.x)
+		high = maxf(high, _pads[i].position.x)
+	return Vector2(low, high)
+
+
+## Центр размаха плит по X в локальных координатах доски.
+func board_center_x() -> float:
+	var span := board_span()
+	return (span.x + span.y) * 0.5
+
+
 ## Какая плита под точкой экрана (координаты вьюпорта), или -1.
+## Проверяются и подпись, и сама плита: клик по плите работает даже если
+## подпись уехала за край кадра или за панель, а клик по подписи — даже
+## если плита маленькая на экране.
 func pick(camera: Camera3D, viewport_point: Vector2) -> int:
 	if camera == null or _track_count <= 0:
 		return -1
 	var best: int = -1
 	var best_distance: float = pick_radius_px
 	for i in range(_track_count):
-		var world: Vector3 = _labels[i].global_position
-		if camera.is_position_behind(world):
-			continue
-		var distance: float = camera.unproject_position(world).distance_to(viewport_point)
+		var distance: float = INF
+		var label_world: Vector3 = _labels[i].global_position
+		if not camera.is_position_behind(label_world):
+			distance = minf(distance, camera.unproject_position(label_world).distance_to(viewport_point))
+		var plate_world: Vector3 = _pads[i].global_position + Vector3(0.0, plate_height, 0.0)
+		if not camera.is_position_behind(plate_world):
+			distance = minf(distance, camera.unproject_position(plate_world).distance_to(viewport_point))
 		if distance < best_distance:
 			best_distance = distance
 			best = i

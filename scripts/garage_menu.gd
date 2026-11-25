@@ -4,6 +4,12 @@
 ## внешность — от двери). Нажатие на выноску открывает панель настроек этой
 ## части, камера подъезжает к ней. Витрина и автомобиль заезда используют одну
 ## реализацию внешности; готовые пресеты доступны только для просмотра.
+##
+## Порядок: сначала трасса, потом машина и характеристики. На фазе трассы
+## машина остаётся на витрине за доской, камера доски интерактивна
+## (перетаскивание — панорама, колесо — масштаб, стрелки — листать) и сама
+## вписывает доску в видимую часть кадра справа от левой панели, а внизу
+## дублирует выбор 2D-лентой кнопок — первую трассу можно выбрать всегда.
 extends Control
 
 signal back_requested
@@ -82,6 +88,25 @@ var _track_phase := false
 var _track_pose_target := Vector3.ZERO
 var _track_pose_dir := Vector3(0.0, 0.3, 1.0)
 var _track_pose_dist := 6.0
+## Интерактивная камера доски: панорама по X (мир, сдвиг цели и камеры),
+## зум (множитель дистанции) и их плавные цели. Камера сама вписывает доску
+## в видимую часть кадра справа от левой панели и догоняет подсветку, если
+## плита уехала за край — иначе первые трассы не выбрать.
+var _track_pan := 0.0
+var _track_pan_target := 0.0
+var _track_zoom := 1.0
+var _track_zoom_target := 1.0
+## Клик против перетаскивания на доске: нажатие запоминается, выбор — только
+## если мышь почти не сдвинулась; иначе это панорама камеры.
+var _track_press_pos := Vector2.ZERO
+var _track_pressing := false
+var _track_panning := false
+## 2D-лента трасс внизу (страховка, если 3D-плита недоступна): кнопки
+## по числу трасс, наведение подсвечивает, клик выбирает.
+var _track_strip: VBoxContainer = null
+var _track_strip_box: HBoxContainer = null
+var _track_strip_buttons: Array[Button] = []
+var _track_strip_hint: Label = null
 
 
 func theme_cfg() -> UiThemeType:
@@ -162,6 +187,7 @@ func _ready() -> void:
 	%ClosePanel.pressed.connect(close_group)
 	_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview_container.gui_input.connect(_on_preview_input)
+	_build_track_strip()
 	_model_default_y = _model.position.y
 	_track_wheels(_model, SCENE_WHEEL_NAMES)
 	_init_camera_rig()
@@ -579,8 +605,10 @@ func _refresh() -> void:
 		if livery_choice.disabled else "Ливрея кузова из списка выбранной машины."
 	)
 	_name_input.visible = _editing
-	_save.visible = _editing
-	_reset.visible = _editing
+	# Кнопки пресетов — только у машины: на фазе трассы их не показывает
+	# ни _set_car_ui, ни обновление пресета.
+	_save.visible = _editing and not _track_phase
+	_reset.visible = _editing and not _track_phase
 	_create.disabled = _creating
 	_create.tooltip_text = "Сначала сохраните или отмените новую копию." if _creating else "Создать отдельную копию этого пресета."
 	_summary.text = "%s\n%s  ·  %d кг" % [setup.get_engine_summary(), setup.get_drivetrain_name(), int(setup.vehicle_mass)]
@@ -801,7 +829,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Фаза 1: камера у доски трасс, слева панель условий. Машина скрыта.
+## Фаза 1: камера у доски трасс, слева панель условий. Машина остаётся на
+## витрине за доской — она не мешает плитам, а гараж без машины выглядит пустым.
 func _enter_track_phase() -> void:
 	if config == null or _track_board == null or _track_panel == null:
 		return
@@ -815,19 +844,25 @@ func _enter_track_phase() -> void:
 	_track_board.build(names, _track_panel.selected_track)
 	_track_panel.visible = true
 	_set_car_ui(false)
-	# Машина мешает доске: на фазе трассы её прячем, камера смотрит на доску.
-	_turntable.visible = false
+	_turntable.visible = true
+	_reset_track_camera()
 	_back_button.text = "◀  НАЗАД"
 	_update_track_pose()
+	_refresh_track_strip()
+	_ensure_focus_visible()
 
 
 ## Фаза 2: камера переезжает к машине, выбор трассы остаётся в панели условий.
 func _enter_car_phase() -> void:
 	_track_phase = false
+	_track_pressing = false
+	_track_panning = false
 	if _track_board != null:
 		_track_board.visible = false
 	if _track_panel != null:
 		_track_panel.visible = false
+	if _track_strip != null:
+		_track_strip.visible = false
 	_turntable.visible = true
 	_set_car_ui(true)
 	_back_button.text = "◀  К ТРАССЕ"
@@ -845,6 +880,8 @@ func _choose_track(index: int) -> void:
 func _on_track_focus_changed(index: int) -> void:
 	if _track_panel != null:
 		_track_panel.preview_track(index)
+	_refresh_track_strip()
+	_ensure_focus_visible()
 
 
 ## Кнопка внизу: в фазе трассы — выход из гаража, у машины — назад к трассе.
@@ -856,6 +893,8 @@ func _on_back_pressed() -> void:
 
 
 ## Элементы машины видны только во второй фазе; панель части закрывается отдельно.
+## Кнопки пресетов (Сохранить/Отменить) — тоже только у машины: на доске
+## внизу остаётся только Назад и Управление.
 func _set_car_ui(on: bool) -> void:
 	for path in ["TopLeft", "TopRight"]:
 		var node := get_node_or_null(path) as CanvasItem
@@ -867,29 +906,142 @@ func _set_car_ui(on: bool) -> void:
 		_hint.visible = on
 	_start.visible = on
 	_status.visible = on
+	_reset.visible = on and _editing
+	_save.visible = on and _editing
 
 
 func _on_track_board_input(event: InputEvent) -> void:
 	if _track_board == null:
 		return
 	if event is InputEventMouseMotion:
+		if _track_pressing and not _track_panning:
+			if event.position.distance_to(_track_press_pos) > 6.0:
+				_track_panning = true
+		if _track_panning:
+			# Перетаскивание доски: камера едет за мышью (захват, как карта).
+			var limit := _track_pan_limit()
+			_track_pan_target = clampf(
+				_track_pan_target - event.relative.x * _track_world_per_pixel(),
+				-limit, limit
+			)
+			_preview_container.accept_event()
+			return
 		var hover := _track_board.pick(_preview_camera, _viewport_point(event.position))
 		if hover >= 0:
 			_track_board.set_focus(hover)
 	elif event is InputEventMouseButton:
-		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			var hit := _track_board.pick(_preview_camera, _viewport_point(event.position))
-			if hit >= 0:
-				_choose_track(hit)
-		_preview_container.accept_event()
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_track_pressing = true
+				_track_panning = false
+				_track_press_pos = event.position
+			elif _track_pressing:
+				# Отпустили без сдвига — это клик по плите, а не панорама.
+				if not _track_panning:
+					var hit := _track_board.pick(_preview_camera, _viewport_point(event.position))
+					if hit >= 0:
+						_choose_track(hit)
+				_track_pressing = false
+				_track_panning = false
+			_preview_container.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_track_zoom_target = clampf(_track_zoom_target * 0.9, 0.55, 2.2)
+			_preview_container.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_track_zoom_target = clampf(_track_zoom_target * 1.1, 0.55, 2.2)
+			_preview_container.accept_event()
+
+
+## Сколько метров доски приходится на пиксель контейнера превью.
+func _track_world_per_pixel() -> float:
+	var container_size := _preview_container.size
+	if container_size.x <= 0.0:
+		return 0.01
+	return _track_visible_width() / container_size.x
+
+
+## Ширина кадра в метрах на дистанции доски (по вертикальному FOV и аспекту).
+func _track_visible_width() -> float:
+	var half := tan(deg_to_rad(_preview_camera.fov) * 0.5) * _track_fit_dist() * _track_zoom
+	return half * 2.0 * _view_aspect()
+
+
+## Предел панорамы: камера не улетает дальше размаха плит от центра доски.
+func _track_pan_limit() -> float:
+	if _track_board == null:
+		return 6.0
+	var span := _track_board.board_span()
+	return maxf((span.y - span.x) * 0.5 + 1.5, 1.5)
+
+
+## Сброс панорамы и зума к вписанной доске.
+func _reset_track_camera() -> void:
+	_track_pan = 0.0
+	_track_pan_target = 0.0
+	_track_zoom = 1.0
+	_track_zoom_target = 1.0
+	_track_pressing = false
+	_track_panning = false
+
+
+## Доля ширины экрана, занятая левой панелью условий (0 — панели нет).
+func _track_panel_fraction() -> float:
+	if _track_panel == null or not _track_panel.visible:
+		return 0.0
+	var container_size := _preview_container.size
+	if container_size.x <= 0.0:
+		return 0.0
+	var panel_rect := _track_panel.get_global_rect()
+	var container_rect := _preview_container.get_global_rect()
+	var right := panel_rect.position.x + panel_rect.size.x - container_rect.position.x
+	return clampf(right / container_size.x, 0.0, 0.6)
+
+
+## Дистанция, на которой вся доска влезает в видимую часть кадра
+## (справа от левой панели). Минимум — поза из сцены.
+func _track_fit_dist() -> float:
+	if _track_board == null:
+		return _track_pose_dist
+	var span := _track_board.board_span()
+	var board_width: float = span.y - span.x + 1.6
+	var visible_fraction: float = 1.0 - _track_panel_fraction()
+	if visible_fraction < 0.4:
+		visible_fraction = 0.4
+	var needed_width: float = board_width / visible_fraction
+	var half := tan(deg_to_rad(_preview_camera.fov) * 0.5) * _view_aspect()
+	if half <= 0.001:
+		return _track_pose_dist
+	return maxf(_track_pose_dist, needed_width / (half * 2.0))
+
+
+## Если подсвеченная плита уехала за панель или за край экрана (стрелки,
+## геймпад, лента), камера плавно догоняет её. Наведение под курсором
+## камеру не трогает — плита и так под мышью. Проверка аналитическая
+## (без проекции камеры), поэтому работает и пока камера ещё едет к доске.
+func _ensure_focus_visible() -> void:
+	if not _track_phase or _track_board == null:
+		return
+	var index: int = _track_board.focus_index
+	if index < 0 or index >= _track_board.pad_count():
+		return
+	var visible_width := _track_visible_width()
+	var fraction := _track_panel_fraction()
+	var panel_shift: float = fraction * 0.5 * visible_width
+	var half_visible: float = visible_width * (1.0 - fraction) * 0.5 - 0.8
+	if half_visible < 0.5:
+		half_visible = 0.5
+	var offset: float = _track_board.pad_local_x(index) - _track_pan - panel_shift
+	if absf(offset) > half_visible:
+		var limit := _track_pan_limit()
+		_track_pan_target = clampf(_track_board.pad_local_x(index) - panel_shift, -limit, limit)
 
 
 ## Точка в координатах контейнера -> в координатах вьюпорта витрины.
 func _viewport_point(local: Vector2) -> Vector2:
-	var size := _preview_container.size
-	if size.x <= 0.0 or size.y <= 0.0:
+	var container_size := _preview_container.size
+	if container_size.x <= 0.0 or container_size.y <= 0.0:
 		return local
-	return local * (Vector2(_preview_viewport.size) / size)
+	return local * (Vector2(_preview_viewport.size) / container_size)
 
 
 ## Поза камеры у доски берётся из узла TrackBoard (camera_target / camera_offset).
@@ -900,6 +1052,111 @@ func _update_track_pose() -> void:
 	var offset := _track_board.camera_pose_offset()
 	_track_pose_dist = maxf(offset.length(), 0.5)
 	_track_pose_dir = offset.normalized() if offset.length() > 0.01 else Vector3(0.0, 0.3, 1.0).normalized()
+
+
+## 2D-лента трасс: кнопки по числу трасс справа от левой панели, над нижней
+## полосой. 3D-доска может оказаться недоступна (плита за панелью, узкий
+## экран, геймпад без мыши) — лента гарантирует, что первую трассу можно
+## выбрать всегда. Наведение подсвечивает плиту, клик выбирает её.
+func _build_track_strip() -> void:
+	var strip := VBoxContainer.new()
+	strip.name = "TrackStrip"
+	strip.visible = false
+	strip.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	strip.offset_left = 480.0
+	strip.offset_top = -150.0
+	strip.offset_right = -48.0
+	strip.offset_bottom = -92.0
+	strip.add_theme_constant_override("separation", 4)
+	add_child(strip)
+	_track_strip = strip
+	_track_strip_hint = Label.new()
+	_track_strip_hint.text = "ТЯНИТЕ — КАМЕРА  ·  КОЛЕСО — МАСШТАБ  ·  КЛИК ПО ПЛИТЕ ИЛИ КНОПКЕ — ВЫБРАТЬ  ·  ←/→ — ЛИСТАТЬ"
+	_track_strip_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_track_strip_hint.add_theme_color_override("font_color", Color(0.45, 0.53, 0.6, 1.0))
+	_track_strip_hint.add_theme_font_size_override("font_size", 12)
+	strip.add_child(_track_strip_hint)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	strip.add_child(row)
+	var prev := Button.new()
+	prev.text = "◀"
+	prev.custom_minimum_size = Vector2(44, 40)
+	prev.tooltip_text = "Предыдущая трасса"
+	# Фокус не забираем: стрелки всегда листают доску, а не кнопки ленты.
+	prev.focus_mode = Control.FOCUS_NONE
+	prev.pressed.connect(func() -> void: _step_track(-1))
+	row.add_child(prev)
+	var tracks_box := HBoxContainer.new()
+	tracks_box.name = "TrackButtons"
+	tracks_box.add_theme_constant_override("separation", 6)
+	tracks_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(tracks_box)
+	_track_strip_box = tracks_box
+	var next := Button.new()
+	next.text = "▶"
+	next.custom_minimum_size = Vector2(44, 40)
+	next.tooltip_text = "Следующая трасса"
+	next.focus_mode = Control.FOCUS_NONE
+	next.pressed.connect(func() -> void: _step_track(1))
+	row.add_child(next)
+	# Кнопки трасс пересобираются при каждом открытии (число трасс из конфига).
+	_track_strip_buttons.clear()
+
+
+## Пересобрать кнопки ленты под текущий список трасс и подсветить фокус.
+func _refresh_track_strip() -> void:
+	if _track_strip == null or config == null:
+		return
+	_track_strip.visible = _track_phase
+	if not _track_phase:
+		return
+	var tracks_box := _track_strip_box
+	if tracks_box == null:
+		return
+	if _track_strip_buttons.size() != config.track_count():
+		for button in _track_strip_buttons:
+			tracks_box.remove_child(button)
+			button.queue_free()
+		_track_strip_buttons.clear()
+		for i in range(config.track_count()):
+			var track := config.get_track(i) as TrackType
+			var button := Button.new()
+			button.text = track.display_name if track != null else "—"
+			button.custom_minimum_size = Vector2(150, 40)
+			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			button.clip_text = true
+			button.tooltip_text = button.text
+			button.focus_mode = Control.FOCUS_NONE
+			button.add_theme_font_size_override("font_size", 13)
+			button.mouse_entered.connect(_on_track_strip_hover.bind(i))
+			button.pressed.connect(_on_track_strip_pressed.bind(i))
+			tracks_box.add_child(button)
+			_track_strip_buttons.append(button)
+	var focus: int = _track_board.focus_index if _track_board != null else -1
+	for i in range(_track_strip_buttons.size()):
+		_track_strip_buttons[i].modulate = (
+			Color(1.0, 0.62, 0.15, 1.0) if i == focus else Color(1.0, 1.0, 1.0, 1.0)
+		)
+
+
+## Стрелки ленты: подсветка по кругу, как на доске.
+func _step_track(step: int) -> void:
+	if _track_board != null and _track_phase:
+		_track_board.step_focus(step)
+
+
+## Наведение на кнопку ленты: показать карточку трассы, не выбирая её.
+func _on_track_strip_hover(index: int) -> void:
+	if _track_phase and _track_board != null:
+		_track_board.set_focus(index)
+
+
+## Клик по кнопке ленты: выбрать трассу, как клик по 3D-плите.
+func _on_track_strip_pressed(index: int) -> void:
+	if _track_phase:
+		_choose_track(index)
 
 
 ## Трасса для запуска: та, что выбрана в панели (меню берёт её после start_requested).
@@ -958,9 +1215,18 @@ func _update_camera_rig(delta: float) -> void:
 	var dir := _cam_home_dir
 	var shift := 0.0
 	if _track_phase:
-		target = _track_pose_target
-		dist = _track_pose_dist
+		# Доска вписывается в видимую часть кадра справа от левой панели:
+		# дистанция — по размаху плит, центр — сдвинут вправо на долю панели,
+		# плюс панорама и зум пользователя. Цель и камера сдвигаются вместе,
+		# поэтому направление взгляда не меняется.
+		var track_k := 1.0 - exp(-delta * 6.0)
+		_track_pan = lerpf(_track_pan, _track_pan_target, track_k)
+		_track_zoom = lerpf(_track_zoom, _track_zoom_target, track_k)
+		dist = _track_fit_dist() * _track_zoom
 		dir = _track_pose_dir
+		var visible_width: float = tan(deg_to_rad(_preview_camera.fov) * 0.5) * 2.0 * dist * _view_aspect()
+		var panel_shift: float = _track_panel_fraction() * 0.5 * visible_width
+		target = _track_pose_target + Vector3(panel_shift + _track_pan, 0.0, 0.0)
 	elif not _active_group.is_empty():
 		var anchors := _callouts.part_anchors()
 		if anchors.has(_active_group):
@@ -985,8 +1251,8 @@ func _place_camera() -> void:
 
 
 func _view_aspect() -> float:
-	var size := Vector2(_preview_viewport.size)
-	return size.x / maxf(size.y, 1.0)
+	var viewport_size := Vector2(_preview_viewport.size)
+	return viewport_size.x / maxf(viewport_size.y, 1.0)
 
 
 func _active_model() -> Node3D:
